@@ -7,6 +7,10 @@
 
 In DigitalOcean: **Monitoring → Uptime → Create check** → URL `https://<API_HOST>/ready`, expect status **200**.
 
+If Caddy publishes **HTTPS on a non‑443 port** (for example **9443** when another service owns **443**), use that full URL in the check (for example `https://<API_HOST>:9443/ready`) and expect **200** after you accept **internal TLS** or front the service with a public certificate.
+
+**UFW:** when using alternate Caddy ports, allow them explicitly (for example **`ufw allow 9080/tcp`** and **`ufw allow 9443/tcp`**). Helper: [`scripts/droplet-open-caddy-alt-ports-ufw.sh`](../scripts/droplet-open-caddy-alt-ports-ufw.sh).
+
 From GitHub (no SSH to your laptop): **Actions → Droplet endpoint checks** curls **`/health`**, **`/ready`**, and optionally **`/internal/slack/status`** from the Droplet (same DNS/TLS path as production). See [GITHUB-DEPLOY.md](GITHUB-DEPLOY.md).
 
 ## Logs (Droplet)
@@ -27,6 +31,13 @@ Compose uses **log rotation** (`max-size` / `max-file`) to avoid filling the dis
 - **Slack digest configured?** `GET /internal/slack/status` — booleans only (no secrets). See [docs/SLACK.md](SLACK.md).
 
 For a full picture, combine **worker logs**, **`/workflow-runs`**, **`/approvals`**, and **`/audit`**.
+
+## Owner outreach (SOS / vendor)
+
+- **Read stored brief:** `GET /parcels/{parcel_id}/outreach` (404 until a pipeline or recompute has written `owner_outreach_brief`).
+- **Recompute without full pipeline:** `POST /parcels/{parcel_id}/outreach/recompute` with JSON body `fetch_sos`, `fetch_sos_detail`, `call_vendor` (booleans). Async variant: `.../outreach/recompute/async` → poll `GET /internal/tasks/{task_id}`.
+- **Pipeline-time HTTP (optional):** set `OUTREACH_PIPELINE_FETCH_SOS`, `OUTREACH_PIPELINE_FETCH_SOS_DETAIL`, and/or `OUTREACH_PIPELINE_CALL_VENDOR_WEBHOOK` to `true` so each `run_pipeline` builds the brief with the same integrations (use sparingly: rate limits and vendor cost).
+- **Vendor webhook:** `OUTREACH_VENDOR_WEBHOOK_URL`, optional `OUTREACH_VENDOR_WEBHOOK_SECRET`, `OUTREACH_VENDOR_TIMEOUT_SEC`. **SOS client:** `OUTREACH_HTTP_USER_AGENT`, `OUTREACH_WA_SOS_TIMEOUT_SEC`.
 
 ## Deploy updates from your laptop
 

@@ -68,14 +68,14 @@ jobs:
           fi
           if [ "$CURL_HEALTH" = "true" ]; then
             echo "=== GET $BASE/health ==="
-            curl -fsS --connect-timeout 15 --max-time 30 "$BASE/health"
+            curl -fsSk --connect-timeout 15 --max-time 30 "$BASE/health"
             echo ""
           else
             echo "Skipping /health"
           fi
           if [ "$CURL_READY" = "true" ]; then
             echo "=== GET $BASE/ready ==="
-            curl -fsS --connect-timeout 15 --max-time 30 "$BASE/ready"
+            curl -fsSk --connect-timeout 15 --max-time 30 "$BASE/ready"
             echo ""
           else
             echo "Skipping /ready"
@@ -83,11 +83,11 @@ jobs:
           if [ "$CHECK_SLACK" = "true" ]; then
             echo "=== GET $BASE/internal/slack/status ==="
             if [ -n "$KEY" ]; then
-              curl -fsS --connect-timeout 15 --max-time 30 \
+              curl -fsSk --connect-timeout 15 --max-time 30 \
                 -H "X-Internal-Key: $KEY" \
                 "$BASE/internal/slack/status"
             else
-              curl -fsS --connect-timeout 15 --max-time 30 \
+              curl -fsSk --connect-timeout 15 --max-time 30 \
                 "$BASE/internal/slack/status"
             fi
             echo ""
