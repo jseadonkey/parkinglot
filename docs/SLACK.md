@@ -76,7 +76,7 @@ The **Deploy to Droplet** workflow can call **`POST /internal/slack/test-message
 
 1. Ensure **`SLACK_BOT_TOKEN`**, **`SLACK_DIGEST_CHANNEL_ID`**, and (recommended) **`INTERNAL_API_KEY`** are set in **`deploy/.env`** on the server.
 2. In GitHub → **Actions secrets**, add **`SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY`** with the **same** value as **`INTERNAL_API_KEY`** on the Droplet (so the workflow can send **`X-Internal-Key`**). If the API does not use an internal key, you can omit this secret.
-3. Run **Deploy to Droplet** with **slack notify** turned **on**. Leave **slack notify text** empty for a default message (repo, short SHA, link to the workflow run), or set custom text (max 2000 characters). Optional **slack notify channel id** sends to a different channel for that ping only.
+3. Run **Deploy to Droplet** with **slack notify** turned **on**. Leave **slack notify text** empty for a default message (repo, short SHA, link to the workflow run), or set custom text (max 2000 characters). Optional **slack notify channel id** sends to a different channel for that ping only. Whenever you rotate **`INTERNAL_API_KEY`** on the Droplet (for example via [`scripts/droplet-provision-internal-api-key.sh`](../scripts/droplet-provision-internal-api-key.sh)), update GitHub secret **`SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY`** to the **same** value so Actions can still call **`POST /internal/slack/test-message`**.
 
 Details: [GITHUB-DEPLOY.md](GITHUB-DEPLOY.md).
 

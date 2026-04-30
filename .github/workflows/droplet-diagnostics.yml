@@ -61,11 +61,16 @@ jobs:
             echo "Missing deploy/.env — create from deploy/env.production.example first." >&2
             exit 1
           fi
+          ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
+          if grep -q '^POSTGRES_PASSWORD=' deploy/.env; then
+            ARGS=(-f "$COMPOSE_REL" -f deploy/docker-compose.postgis-addon.yml --env-file deploy/.env)
+            echo "(using postgis addon compose file — POSTGRES_PASSWORD is set)"
+          fi
           echo "=== docker compose ps ==="
-          docker compose -f "$COMPOSE_REL" --env-file deploy/.env ps -a
+          docker compose "${ARGS[@]}" ps -a
           echo ""
           echo "=== api logs (tail) ==="
-          docker compose -f "$COMPOSE_REL" --env-file deploy/.env logs --no-color --tail "$LOG_TAIL" api || true
+          docker compose "${ARGS[@]}" logs --no-color --tail "$LOG_TAIL" api || true
           echo ""
           if [ "$CURL_READY" = "true" ]; then
             BASE=$(grep -E '^PUBLIC_API_URL=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')

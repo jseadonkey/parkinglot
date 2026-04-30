@@ -1,9 +1,12 @@
-.PHONY: help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local
+.PHONY: help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis
 
 help:
 	@echo "Targets:"
 	@echo "  make local              - docker compose (dev: Postgres, Redis, MinIO, api, worker, UI)"
 	@echo "  make slack-env-local    - merge SLACK_* into .env (needs SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID in env)"
+	@echo "  make droplet-sync       - rsync repo to Droplet (needs DROPLET=ip, optional REMOTE_PATH / SSH_USER)"
+	@echo "  make droplet-rebuild    - SSH: docker compose production up --build (needs DROPLET)"
+	@echo "  make droplet-rebuild-postgis - same + on-droplet PostGIS addon (USE_LOCAL_POSTGIS=1)"
 	@echo "  make prod-up            - production compose build on Droplet (needs deploy/.env)"
 	@echo "  make prod-up-ghcr       - production using GHCR API image (needs API_IMAGE in deploy/.env)"
 	@echo "  make prod-pull          - pull GHCR images (API+worker compose)"
@@ -44,3 +47,15 @@ slack-env-local:
 	@test -n "$$SLACK_BOT_TOKEN" || (echo "export SLACK_BOT_TOKEN first"; exit 1)
 	@test -n "$$SLACK_DIGEST_CHANNEL_ID" || (echo "export SLACK_DIGEST_CHANNEL_ID first"; exit 1)
 	./scripts/set-slack-env-local.sh
+
+droplet-sync:
+	@test -n "$$DROPLET" || (echo "export DROPLET=<ipv4 or hostname>"; exit 1)
+	./scripts/sync-to-droplet.sh
+
+droplet-rebuild:
+	@test -n "$$DROPLET" || (echo "export DROPLET=<ipv4 or hostname>"; exit 1)
+	./scripts/remote-rebuild.sh
+
+droplet-rebuild-postgis:
+	@test -n "$$DROPLET" || (echo "export DROPLET=<ipv4 or hostname>"; exit 1)
+	USE_LOCAL_POSTGIS=1 ./scripts/remote-rebuild.sh

@@ -17,7 +17,11 @@ From GitHub (no SSH to your laptop): **Actions → Droplet endpoint checks** cur
 
 ```bash
 cd /opt/parking-acquisition-agents
+# Managed Postgres only (default production compose):
 docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env logs -f --tail=200 api worker beat caddy
+
+# On-droplet PostGIS addon (when deploy/.env has POSTGRES_PASSWORD — same pair as USE_LOCAL_POSTGIS=1):
+docker compose -f deploy/docker-compose.production.yml -f deploy/docker-compose.postgis-addon.yml --env-file deploy/.env logs -f --tail=200 api worker beat postgres caddy
 ```
 
 Slack digests (optional): [docs/SLACK.md](SLACK.md). Trigger a digest immediately with `POST /internal/slack/digest-now` (same auth as other `/internal/*` routes).
@@ -38,6 +42,8 @@ For a full picture, combine **worker logs**, **`/workflow-runs`**, **`/approvals
 - **Recompute without full pipeline:** `POST /parcels/{parcel_id}/outreach/recompute` with JSON body `fetch_sos`, `fetch_sos_detail`, `call_vendor` (booleans). Async variant: `.../outreach/recompute/async` → poll `GET /internal/tasks/{task_id}`.
 - **Pipeline-time HTTP (optional):** set `OUTREACH_PIPELINE_FETCH_SOS`, `OUTREACH_PIPELINE_FETCH_SOS_DETAIL`, and/or `OUTREACH_PIPELINE_CALL_VENDOR_WEBHOOK` to `true` so each `run_pipeline` builds the brief with the same integrations (use sparingly: rate limits and vendor cost).
 - **Vendor webhook:** `OUTREACH_VENDOR_WEBHOOK_URL`, optional `OUTREACH_VENDOR_WEBHOOK_SECRET`, `OUTREACH_VENDOR_TIMEOUT_SEC`. **SOS client:** `OUTREACH_HTTP_USER_AGENT`, `OUTREACH_WA_SOS_TIMEOUT_SEC`.
+- **Draft outbound messages (no sending):** `POST /parcels/{parcel_id}/outreach/message-draft` with JSON body `{ "channels": ["email","certified_mail"], "create_approval": true }`. This stores `parcels.outbound_message_drafts` and (optionally) creates a pending `ApprovalRequest(type=outbound_message)`.
+- **Pipeline-time message draft approvals (optional):** set `OUTREACH_PIPELINE_CREATE_MESSAGE_APPROVAL=true` to automatically create an `outbound_message` approval during `run_pipeline`. Configure sender identity via `OUTREACH_SENDER_NAME`, `OUTREACH_SENDER_COMPANY`, `OUTREACH_SENDER_EMAIL`, `OUTREACH_SENDER_PHONE`.
 
 ## Deploy updates from your laptop
 

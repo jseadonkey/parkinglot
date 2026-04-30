@@ -33,7 +33,7 @@ Enable **slack notify** on the run form to send a short line to Slack via the AP
 
 The **Deploy to Droplet** workflow defaults **use local postgis** to **on** so GitHub Actions keeps `deploy/docker-compose.postgis-addon.yml` in the compose command (your current Droplet layout). Turn it **off** when you move to **Managed Postgres only** (remove `POSTGRES_PASSWORD` / local `DATABASE_URL` first).
 
-**Inspect without redeploying:** [`.github/workflows/droplet-diagnostics.yml`](../.github/workflows/droplet-diagnostics.yml) — **Actions → Droplet diagnostics** — prints `docker compose ps`, recent **api** logs, and optionally the same `/ready` check (only needs `DROPLET_*` secrets).
+**Inspect without redeploying:** [`.github/workflows/droplet-diagnostics.yml`](../.github/workflows/droplet-diagnostics.yml) — **Actions → Droplet diagnostics** — prints `docker compose ps`, recent **api** logs, and optionally the same `/ready` check (only needs `DROPLET_*` secrets). If **`POSTGRES_PASSWORD`** is present in `deploy/.env`, the job automatically adds **`-f deploy/docker-compose.postgis-addon.yml`** so `ps` / logs match the running stack.
 
 **Lightweight HTTP checks:** [`.github/workflows/droplet-endpoint-checks.yml`](../.github/workflows/droplet-endpoint-checks.yml) — **Actions → Droplet endpoint checks** — from the Droplet, curls **`/health`**, **`/ready`**, and optionally **`/internal/slack/status`** (use **`SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY`** when **`INTERNAL_API_KEY`** is set on the server; it must match **`INTERNAL_API_KEY`** in `deploy/.env`). Curls use **`curl -k`** so **internal TLS** (self-signed) on alternate ports still passes. Toggle each check in the run form.
 
