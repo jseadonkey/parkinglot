@@ -1,0 +1,97 @@
+# Curl public API endpoints from the Droplet (same path as real traffic: DNS + TLS).
+#
+# Required secrets: DROPLET_HOST, DROPLET_USER, DROPLET_SSH_PRIVATE_KEY
+# Optional: DROPLET_REMOTE_PATH variable
+# Optional: SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY — for GET /internal/slack/status when INTERNAL_API_KEY is set
+
+name: Droplet endpoint checks
+
+on:
+  workflow_dispatch:
+    inputs:
+      curl_health:
+        description: "GET PUBLIC_API_URL/health (liveness, no DB)"
+        type: boolean
+        default: true
+      curl_ready:
+        description: "GET PUBLIC_API_URL/ready (Postgres readiness)"
+        type: boolean
+        default: true
+      check_slack_status:
+        description: "GET /internal/slack/status (optional X-Internal-Key from GitHub secret)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  curl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Curl /health, /ready, optional Slack status
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+          SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
+          CURL_HEALTH="${{ inputs.curl_health }}"
+          CURL_READY="${{ inputs.curl_ready }}"
+          CHECK_SLACK="${{ inputs.check_slack_status }}"
+          export KEY
+          export CURL_HEALTH CURL_READY CHECK_SLACK
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "env REMOTE_PATH=$(printf '%q' "$REMOTE_PATH") KEY=$(printf '%q' "$KEY") CURL_HEALTH=$(printf '%q' "$CURL_HEALTH") CURL_READY=$(printf '%q' "$CURL_READY") CHECK_SLACK=$(printf '%q' "$CHECK_SLACK") bash -s" <<'EOS'
+          set -euo pipefail
+          cd "$REMOTE_PATH"
+          if [ ! -f deploy/.env ]; then
+            echo "Missing deploy/.env" >&2
+            exit 1
+          fi
+          BASE=$(grep -E '^PUBLIC_API_URL=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
+          if [ -z "$BASE" ]; then
+            H=$(grep -E '^API_HOST=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
+            BASE="https://$H"
+          fi
+          if [ "$CURL_HEALTH" = "true" ]; then
+            echo "=== GET $BASE/health ==="
+            curl -fsS --connect-timeout 15 --max-time 30 "$BASE/health"
+            echo ""
+          else
+            echo "Skipping /health"
+          fi
+          if [ "$CURL_READY" = "true" ]; then
+            echo "=== GET $BASE/ready ==="
+            curl -fsS --connect-timeout 15 --max-time 30 "$BASE/ready"
+            echo ""
+          else
+            echo "Skipping /ready"
+          fi
+          if [ "$CHECK_SLACK" = "true" ]; then
+            echo "=== GET $BASE/internal/slack/status ==="
+            if [ -n "$KEY" ]; then
+              curl -fsS --connect-timeout 15 --max-time 30 \
+                -H "X-Internal-Key: $KEY" \
+                "$BASE/internal/slack/status"
+            else
+              curl -fsS --connect-timeout 15 --max-time 30 \
+                "$BASE/internal/slack/status"
+            fi
+            echo ""
+          else
+            echo "Skipping /internal/slack/status"
+          fi
+          EOS

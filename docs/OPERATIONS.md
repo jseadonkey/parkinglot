@@ -7,6 +7,8 @@
 
 In DigitalOcean: **Monitoring → Uptime → Create check** → URL `https://<API_HOST>/ready`, expect status **200**.
 
+From GitHub (no SSH to your laptop): **Actions → Droplet endpoint checks** curls **`/health`**, **`/ready`**, and optionally **`/internal/slack/status`** from the Droplet (same DNS/TLS path as production). See [GITHUB-DEPLOY.md](GITHUB-DEPLOY.md).
+
 ## Logs (Droplet)
 
 ```bash

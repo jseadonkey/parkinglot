@@ -33,6 +33,8 @@ Enable **slack notify** on the run form to send a short line to Slack via the AP
 
 **Inspect without redeploying:** [`.github/workflows/droplet-diagnostics.yml`](../.github/workflows/droplet-diagnostics.yml) — **Actions → Droplet diagnostics** — prints `docker compose ps`, recent **api** logs, and optionally the same `/ready` check (only needs `DROPLET_*` secrets).
 
+**Lightweight HTTP checks:** [`.github/workflows/droplet-endpoint-checks.yml`](../.github/workflows/droplet-endpoint-checks.yml) — **Actions → Droplet endpoint checks** — from the Droplet, curls **`/health`**, **`/ready`**, and optionally **`/internal/slack/status`** (use **`SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY`** when **`INTERNAL_API_KEY`** is set on the server). Toggle each check in the run form.
+
 **Slack test without deploy:** [`.github/workflows/slack-test-via-droplet.yml`](../.github/workflows/slack-test-via-droplet.yml) — **Actions → Slack test (via Droplet)** — posts one message via **`/internal/slack/test-message`** (same optional **`SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY`** as post-deploy ping; see [SLACK.md](SLACK.md#slack-test-from-github-actions-no-deploy)).
 
 Choose **compose file**:
