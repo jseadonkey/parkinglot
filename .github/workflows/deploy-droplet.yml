@@ -1,0 +1,86 @@
+# Deploy repo to your DigitalOcean Droplet over SSH and rebuild the production stack.
+#
+# Required repository secrets:
+#   DROPLET_HOST          — public IPv4 or DNS
+#   DROPLET_USER          — e.g. root
+#   DROPLET_SSH_PRIVATE_KEY — full private key (ed25519 or RSA), multiline
+#
+# Optional repository variables (Settings → Secrets and variables → Actions → Variables):
+#   DROPLET_REMOTE_PATH   — default /opt/parking-acquisition-agents
+
+name: Deploy to Droplet
+
+on:
+  workflow_dispatch:
+    inputs:
+      compose_file:
+        description: "Compose file (under deploy/)"
+        type: choice
+        default: docker-compose.production.yml
+        options:
+          - docker-compose.production.yml
+          - docker-compose.production.ghcr.yml
+          - docker-compose.production.ghcr-full.yml
+
+concurrency:
+  group: deploy-droplet-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Ensure remote directory
+        run: |
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" "mkdir -p '$REMOTE_PATH'"
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+
+      - name: Rsync application
+        run: |
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          rsync -az --delete \
+            --exclude .git \
+            --exclude node_modules \
+            --exclude .venv \
+            --exclude __pycache__ \
+            --exclude .next \
+            --exclude '*.pyc' \
+            --exclude .env \
+            --exclude deploy/.env \
+            ./ "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}:$REMOTE_PATH/"
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+
+      - name: Pull GHCR images
+        if: inputs.compose_file == 'docker-compose.production.ghcr.yml' || inputs.compose_file == 'docker-compose.production.ghcr-full.yml'
+        run: |
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          COMPOSE_FILE="deploy/${{ inputs.compose_file }}"
+          ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "set -euo pipefail && cd '$REMOTE_PATH' && docker compose -f '$COMPOSE_FILE' --env-file deploy/.env pull"
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+
+      - name: Docker compose up
+        run: |
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          COMPOSE_FILE="deploy/${{ inputs.compose_file }}"
+          ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "set -euo pipefail && cd '$REMOTE_PATH' && docker compose -f '$COMPOSE_FILE' --env-file deploy/.env up -d --build && docker compose -f '$COMPOSE_FILE' --env-file deploy/.env ps"
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}

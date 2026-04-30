@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Ruff
+        run: pip install ruff==0.9.7
+      - name: Ruff check
+        run: ruff check packages/core services/api/app services/scoring services/ingestion services/enrichment services/workflows services/api/tests
+
+  test-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install workspace packages
+        run: |
+          set -euo pipefail
+          pip install --upgrade pip
+          pip install ./packages/core
+          pip install ./services/scoring
+          pip install ./services/ingestion
+          pip install ./services/enrichment
+          pip install ./services/workflows
+          pip install "./services/api[dev]"
+      - name: Pytest (API)
+        working-directory: services/api
+        run: pytest
+
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image (smoke)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.backend
+          push: false
+          tags: parking-acquisition-api:ci
+          build-args: |
+            APP_VERSION=${{ github.sha }}
+
+      - name: Build approval UI image (smoke)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/approval-ui/Dockerfile
+          push: false
+          tags: parking-acquisition-ui:ci
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://api.ci.test
+
+      - name: Validate compose files
+        run: |
+          set -euo pipefail
+          for f in \
+            deploy/docker-compose.production.yml \
+            deploy/docker-compose.production.ghcr.yml \
+            deploy/docker-compose.production.ghcr-full.yml \
+            docker-compose.yml
+          do
+            echo "==> docker compose config: $f"
+            docker compose -f "$f" --env-file deploy/ci.env config --quiet
+          done

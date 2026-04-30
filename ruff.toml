@@ -1,0 +1,39 @@
+target-version = "py312"
+line-length = 120
+
+src = [
+  "packages/core",
+  "services/api",
+  "services/scoring",
+  "services/ingestion",
+  "services/enrichment",
+  "services/workflows",
+]
+
+exclude = [
+  ".git",
+  ".venv",
+  "__pycache__",
+  "node_modules",
+  ".next",
+]
+
+[lint]
+select = [
+  "E",   # pycodestyle errors
+  "F",   # Pyflakes
+  "I",   # isort
+  "UP",  # pyupgrade
+  "B",   # flake8-bugbear
+]
+ignore = [
+  "B008", # FastAPI Depends() in defaults is intentional
+]
+
+[lint.per-file-ignores]
+"services/api/alembic/**/*.py" = ["E501", "F401", "I001"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false

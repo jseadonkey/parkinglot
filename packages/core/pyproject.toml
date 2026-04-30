@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "parking-core"
+version = "0.1.0"
+description = "Shared models and pilot config for parking acquisition agents"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic>=2.6",
+  "pydantic-settings>=2.2",
+  "PyYAML>=6.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["parking_core"]
