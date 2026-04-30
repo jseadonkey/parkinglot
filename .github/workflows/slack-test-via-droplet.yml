@@ -66,11 +66,13 @@ jobs:
           )
           REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
-          export PAYLOAD_JSON
-          export KEY
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "env REMOTE_PATH=$(printf '%q' "$REMOTE_PATH") PAYLOAD_JSON=$(printf '%q' "$PAYLOAD_JSON") KEY=$(printf '%q' "$KEY") bash -s" <<'EOS'
+            bash -s -- "$REMOTE_PATH" "$PAYLOAD_JSON" "$KEY" <<'EOS'
           set -euo pipefail
+          REMOTE_PATH="$1"
+          PAYLOAD_JSON="$2"
+          KEY="${3:-}"
+
           cd "$REMOTE_PATH"
           test -f deploy/.env
           BASE=$(grep -E '^PUBLIC_API_URL=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')

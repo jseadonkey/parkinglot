@@ -51,11 +51,15 @@ jobs:
           CURL_HEALTH="${{ inputs.curl_health }}"
           CURL_READY="${{ inputs.curl_ready }}"
           CHECK_SLACK="${{ inputs.check_slack_status }}"
-          export KEY
-          export CURL_HEALTH CURL_READY CHECK_SLACK
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "env REMOTE_PATH=$(printf '%q' "$REMOTE_PATH") KEY=$(printf '%q' "$KEY") CURL_HEALTH=$(printf '%q' "$CURL_HEALTH") CURL_READY=$(printf '%q' "$CURL_READY") CHECK_SLACK=$(printf '%q' "$CHECK_SLACK") bash -s" <<'EOS'
+            bash -s -- "$REMOTE_PATH" "$KEY" "$CURL_HEALTH" "$CURL_READY" "$CHECK_SLACK" <<'EOS'
           set -euo pipefail
+          REMOTE_PATH="$1"
+          KEY="$2"
+          CURL_HEALTH="$3"
+          CURL_READY="$4"
+          CHECK_SLACK="$5"
+
           cd "$REMOTE_PATH"
           if [ ! -f deploy/.env ]; then
             echo "Missing deploy/.env" >&2
