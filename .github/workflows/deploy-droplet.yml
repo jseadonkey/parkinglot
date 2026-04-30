@@ -43,6 +43,10 @@ on:
         description: "Optional Slack channel ID (C…). Empty uses SLACK_DIGEST_CHANNEL_ID from deploy/.env on the server."
         type: string
         default: ""
+      use_local_postgis:
+        description: "Also pass -f deploy/docker-compose.postgis-addon.yml (on-droplet PostGIS bootstrap)"
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-droplet-${{ github.ref }}
@@ -112,19 +116,29 @@ jobs:
       - name: Pull GHCR images
         if: inputs.compose_file == 'docker-compose.production.ghcr.yml' || inputs.compose_file == 'docker-compose.production.ghcr-full.yml'
         run: |
+          set -euo pipefail
           REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           COMPOSE_FILE="deploy/${{ inputs.compose_file }}"
+          PG_EXTRA=""
+          if ${{ inputs.use_local_postgis }}; then
+            PG_EXTRA="-f deploy/docker-compose.postgis-addon.yml"
+          fi
           ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "set -euo pipefail && cd '$REMOTE_PATH' && docker compose -f '$COMPOSE_FILE' --env-file deploy/.env pull"
+            "set -euo pipefail && cd '$REMOTE_PATH' && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env pull"
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
       - name: Docker compose up
         run: |
+          set -euo pipefail
           REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           COMPOSE_FILE="deploy/${{ inputs.compose_file }}"
+          PG_EXTRA=""
+          if ${{ inputs.use_local_postgis }}; then
+            PG_EXTRA="-f deploy/docker-compose.postgis-addon.yml"
+          fi
           ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "set -euo pipefail && cd '$REMOTE_PATH' && docker compose -f '$COMPOSE_FILE' --env-file deploy/.env up -d --build && docker compose -f '$COMPOSE_FILE' --env-file deploy/.env ps"
+            "set -euo pipefail && cd '$REMOTE_PATH' && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --build && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env ps"
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
