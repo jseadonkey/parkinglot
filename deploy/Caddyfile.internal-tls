@@ -1,0 +1,19 @@
+# Self-signed TLS (browsers show a warning). Use when 80/443 are taken by another proxy
+# and you publish this stack on alternate host ports (see deploy/.env CADDY_PUBLISH_*).
+# For public Let's Encrypt on 80/443, use ./Caddyfile instead.
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$UI_HOST} {
+	tls internal
+	encode gzip
+	reverse_proxy approval-ui:3000
+}
+
+{$API_HOST} {
+	tls internal
+	encode gzip
+	reverse_proxy api:8000
+}

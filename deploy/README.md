@@ -17,6 +17,7 @@ On the server, secrets live in **`deploy/.env`** next to the compose files (that
 - **Slack (optional):** [docs/SLACK.md](../docs/SLACK.md) — set `SLACK_BOT_TOKEN` and `SLACK_DIGEST_CHANNEL_ID` in `deploy/.env`.
 - **Env template**: [`env.production.example`](env.production.example) → copy to `deploy/.env` on the server (gitignored).
 - **Edge proxy**: [`Caddyfile`](Caddyfile) — `UI_HOST` and `API_HOST` must have DNS pointing at the Droplet before TLS will succeed.
+- **Port clash on shared Droplets**: if something else already binds **80/443**, set **`CADDY_PUBLISH_HTTP`**, **`CADDY_PUBLISH_HTTPS`**, and **`CADDY_CADDYFILE=./Caddyfile.internal-tls`** in `deploy/.env` (see [`env.production.example`](env.production.example)). Then point **`PUBLIC_API_URL`** / **`CORS_ALLOW_ORIGINS`** at the same hostnames **including the HTTPS port**. Helper: [`scripts/droplet-enable-alt-caddy-ports.sh`](../scripts/droplet-enable-alt-caddy-ports.sh).
 
 Full Washington + DO steps: [docs/GO-LIVE-WASHINGTON-DO.md](../docs/GO-LIVE-WASHINGTON-DO.md).
 

@@ -109,14 +109,14 @@ services:
     image: caddy:2.8-alpine
     restart: always
     ports:
-      - "80:80"
-      - "443:443"
+      - "${CADDY_PUBLISH_HTTP:-80}:80"
+      - "${CADDY_PUBLISH_HTTPS:-443}:443"
     environment:
       UI_HOST: ${UI_HOST}
       API_HOST: ${API_HOST}
       ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in deploy/.env for Let's Encrypt}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${CADDY_CADDYFILE:-./Caddyfile}:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
