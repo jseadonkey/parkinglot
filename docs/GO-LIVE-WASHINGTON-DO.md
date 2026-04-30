@@ -88,7 +88,7 @@ nano .env   # fill DATABASE_URL, Spaces keys, UI_HOST, API_HOST, PUBLIC_API_URL
 chmod 600 .env
 ```
 
-Optional: with a **`DO_TOKEN`** GitHub Action secret, run the read-only workflows under **Actions** to print Managed Postgres connection hints and Spaces key metadata (see [deploy/README.md](../deploy/README.md#digitalocean-read-only-helpers-github-actions)).
+Optional: with a **`DO_TOKEN`** GitHub Action secret, run the read-only workflows under **Actions** to print Droplet public IPs, Managed Postgres connection hints, and Spaces key metadata (see [deploy/README.md](../deploy/README.md#digitalocean-read-only-helpers-github-actions)).
 
 `PUBLIC_API_URL` must be the **public HTTPS API base** (same as `https://` + `API_HOST`), because the browser loads the approval UI from `UI_HOST` and calls the API from the user’s machine.
 

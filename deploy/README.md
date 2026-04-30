@@ -32,6 +32,7 @@ Then run manually under **Actions**:
 |----------|---------|
 | [DO — fetch Postgres connection hints](../.github/workflows/do-fetch-postgres-info.yml) | Prints cluster host/db/user and a `DATABASE_URL=` template (password never logged). Optional input: exact cluster name. |
 | [DO — fetch Spaces key metadata](../.github/workflows/do-fetch-spaces-keys-info.yml) | Lists Spaces key **names** and **bucket** bindings (not secret keys). |
+| [DO — list Droplets](../.github/workflows/do-list-droplets.yml) | Prints name, region, **public IPv4** for each Droplet (set **`DROPLET_HOST`**). |
 
 The **Deploy to Droplet** workflow fails fast if `deploy/.env` is missing, with a copy of the one-time bootstrap command. By default it also curls **`PUBLIC_API_URL/ready`** from the Droplet after `compose up` (disable in the workflow run form if DNS/TLS is not ready).
 

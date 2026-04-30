@@ -1,0 +1,86 @@
+name: DO — list Droplets (read-only)
+
+# Prints Droplet name, id, region, public IPv4 — use to confirm DROPLET_HOST for GitHub secrets.
+# Requires repository secret DO_TOKEN with read access to Droplets.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  print:
+    runs-on: ubuntu-latest
+    steps:
+      - name: List Droplets
+        env:
+          DO_TOKEN: ${{ secrets.DO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DO_TOKEN:-}" ]; then
+            echo "Missing GitHub secret: DO_TOKEN"
+            echo "Add it under Repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+          python3 <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          token = os.environ["DO_TOKEN"]
+          base = "https://api.digitalocean.com/v2/droplets"
+
+          def get(url: str) -> dict:
+              req = urllib.request.Request(
+                  url,
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Content-Type": "application/json",
+                  },
+                  method="GET",
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as resp:
+                      return json.load(resp)
+              except urllib.error.HTTPError as e:
+                  body = e.read().decode("utf-8", errors="replace")
+                  print(f"DigitalOcean API HTTP {e.code}: {body}")
+                  sys.exit(1)
+
+          all_d = []
+          url = base + "?" + urllib.parse.urlencode({"per_page": "200"})
+          while url:
+              payload = get(url)
+              dlist = payload.get("droplets") or []
+              all_d.extend(dlist)
+              nxt = (payload.get("links") or {}).get("pages", {}).get("next")
+              url = nxt or ""
+
+          if not all_d:
+              print("No Droplets returned (empty account or token lacks read:droplet).")
+              sys.exit(0)
+
+          print("=== DigitalOcean Droplets (public IPv4 where available) ===")
+          for d in all_d:
+              name = d.get("name")
+              did = d.get("id")
+              region = (d.get("region") or {}).get("slug")
+              status = d.get("status")
+              nets = d.get("networks") or {}
+              v4 = (nets.get("v4") or [])
+              pub = [n for n in v4 if n.get("type") == "public"]
+              ip = pub[0].get("ip_address") if pub else None
+              print(f"\n{name} (id={did})")
+              print(f"  region: {region}  status: {status}")
+              print(f"  public_ipv4: {ip or '(none yet)'}")
+
+          print(
+              "\nUse public_ipv4 (or DNS) as GitHub secret DROPLET_HOST "
+              "for Deploy / Droplet diagnostics / Slack test workflows."
+          )
+          PY

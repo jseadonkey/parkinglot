@@ -88,14 +88,16 @@ jobs:
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
+      # bash <<EOF requires closing EOF at column 0; YAML-indented EOF breaks the heredoc.
       - name: Require deploy/.env on Droplet
         run: |
           set -euo pipefail
           REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           USER_HOST="${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}"
-          ssh -oBatchMode=yes "$USER_HOST" bash -s <<EOF
+          ssh -oBatchMode=yes "$USER_HOST" \
+            "env REMOTE_PATH=$(printf '%q' "$REMOTE_PATH") USER_HOST=$(printf '%q' "$USER_HOST") bash -s" <<'EOS'
           set -euo pipefail
-          cd "${REMOTE_PATH}"
+          cd "$REMOTE_PATH"
           if [ -f deploy/.env ]; then
             exit 0
           fi
@@ -103,7 +105,7 @@ jobs:
           echo "Bootstrap (interactive): ssh -t ${USER_HOST} \"cd '${REMOTE_PATH}/deploy' && cp env.production.example .env && chmod 600 .env && (command -v nano >/dev/null 2>&1 && nano .env || vi .env)\"" >&2
           echo "Then re-run Deploy to Droplet." >&2
           exit 1
-          EOF
+          EOS
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
