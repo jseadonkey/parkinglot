@@ -19,6 +19,8 @@ Optional **Slack ping after deploy** (workflow inputs **slack notify** — see [
 |--------|---------|
 | `SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY` | Same value as **`INTERNAL_API_KEY`** in the Droplet’s `deploy/.env`, so Actions can call **`POST /internal/slack/test-message`**. Omit only if the API does **not** enforce an internal key (not recommended for production). |
 
+From your laptop (GitHub CLI authenticated for this repo): pipe the **raw key value** (no `INTERNAL_API_KEY=` prefix) on stdin to [`scripts/gh-set-slack-notify-internal-secret.sh`](../scripts/gh-set-slack-notify-internal-secret.sh) — it sets **`SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY`** without using the GitHub web UI.
+
 3. Optional **Variables** (same settings page → **Variables**):
 
 | Variable | Purpose |

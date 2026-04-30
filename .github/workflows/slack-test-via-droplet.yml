@@ -80,12 +80,12 @@ jobs:
           fi
           echo "POST $BASE/internal/slack/test-message"
           if [ -n "$KEY" ]; then
-            curl -fsS --connect-timeout 15 --max-time 60 -X POST "$BASE/internal/slack/test-message" \
+            curl -fsSk --connect-timeout 15 --max-time 60 -X POST "$BASE/internal/slack/test-message" \
               -H "Content-Type: application/json" \
               -H "X-Internal-Key: $KEY" \
               -d "$PAYLOAD_JSON"
           else
-            curl -fsS --connect-timeout 15 --max-time 60 -X POST "$BASE/internal/slack/test-message" \
+            curl -fsSk --connect-timeout 15 --max-time 60 -X POST "$BASE/internal/slack/test-message" \
               -H "Content-Type: application/json" \
               -d "$PAYLOAD_JSON"
           fi

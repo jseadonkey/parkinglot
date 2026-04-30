@@ -1,4 +1,4 @@
-.PHONY: help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis
+.PHONY: help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
 
 help:
 	@echo "Targets:"
@@ -7,6 +7,7 @@ help:
 	@echo "  make droplet-sync       - rsync repo to Droplet (needs DROPLET=ip, optional REMOTE_PATH / SSH_USER)"
 	@echo "  make droplet-rebuild    - SSH: docker compose production up --build (needs DROPLET)"
 	@echo "  make droplet-rebuild-postgis - same + on-droplet PostGIS addon (USE_LOCAL_POSTGIS=1)"
+	@echo "  make gh-slack-notify-secret-help - print how to pipe INTERNAL_API_KEY into gh secret set"
 	@echo "  make prod-up            - production compose build on Droplet (needs deploy/.env)"
 	@echo "  make prod-up-ghcr       - production using GHCR API image (needs API_IMAGE in deploy/.env)"
 	@echo "  make prod-pull          - pull GHCR images (API+worker compose)"
@@ -59,3 +60,8 @@ droplet-rebuild:
 droplet-rebuild-postgis:
 	@test -n "$$DROPLET" || (echo "export DROPLET=<ipv4 or hostname>"; exit 1)
 	USE_LOCAL_POSTGIS=1 ./scripts/remote-rebuild.sh
+
+gh-slack-notify-secret-help:
+	@echo "Pipe INTERNAL_API_KEY value (key only) on stdin, e.g.:"
+	@echo "  pbpaste | tr -d '\\n' | ./scripts/gh-set-slack-notify-internal-secret.sh"
+	@echo "Requires: gh auth login, repo context (or GH_REPO=owner/name)."

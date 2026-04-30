@@ -42,7 +42,7 @@ The **Deploy to Droplet** workflow fails fast if `deploy/.env` is missing, with 
 
 **HTTP checks from the Droplet** (`/health`, `/ready`, optional Slack config): [`.github/workflows/droplet-endpoint-checks.yml`](../.github/workflows/droplet-endpoint-checks.yml).
 
-**Slack line after deploy:** in **Deploy to Droplet**, enable **slack notify** and set GitHub secret **`SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY`** to match **`INTERNAL_API_KEY`** on the server — see [docs/SLACK.md](../docs/SLACK.md#post-deploy-slack-ping-from-github-actions).
+**Slack line after deploy:** in **Deploy to Droplet**, enable **slack notify** and set GitHub secret **`SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY`** to match **`INTERNAL_API_KEY`** on the server — see [docs/SLACK.md](../docs/SLACK.md#post-deploy-slack-ping-from-github-actions). From a laptop with **`gh`**: [`scripts/gh-set-slack-notify-internal-secret.sh`](../scripts/gh-set-slack-notify-internal-secret.sh) (see **`make gh-slack-notify-secret-help`**).
 
 **Slack test only (no deploy):** [`.github/workflows/slack-test-via-droplet.yml`](../.github/workflows/slack-test-via-droplet.yml) — [docs/SLACK.md](../docs/SLACK.md#slack-test-from-github-actions-no-deploy).
 
