@@ -80,6 +80,12 @@ The **Deploy to Droplet** workflow can call **`POST /internal/slack/test-message
 
 Details: [GITHUB-DEPLOY.md](GITHUB-DEPLOY.md).
 
+### Slack test from GitHub Actions (no deploy)
+
+Use **Actions → Slack test (via Droplet)** to call **`POST /internal/slack/test-message`** from the Droplet without running **Deploy to Droplet**. Same **`DROPLET_*`** secrets as deploy; optional **`SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY`** matching **`INTERNAL_API_KEY`** on the server. Leave **message text** empty for a default line that includes the workflow run URL, or set custom text (max 2000 characters). **channel id** overrides **`SLACK_DIGEST_CHANNEL_ID`** for that message only.
+
+Workflow file: [`.github/workflows/slack-test-via-droplet.yml`](../.github/workflows/slack-test-via-droplet.yml).
+
 ## Troubleshooting
 
 | Symptom | What to check |

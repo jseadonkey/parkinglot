@@ -39,6 +39,8 @@ The **Deploy to Droplet** workflow fails fast if `deploy/.env` is missing, with 
 
 **Slack line after deploy:** in **Deploy to Droplet**, enable **slack notify** and set GitHub secret **`SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY`** to match **`INTERNAL_API_KEY`** on the server — see [docs/SLACK.md](../docs/SLACK.md#post-deploy-slack-ping-from-github-actions).
 
+**Slack test only (no deploy):** [`.github/workflows/slack-test-via-droplet.yml`](../.github/workflows/slack-test-via-droplet.yml) — [docs/SLACK.md](../docs/SLACK.md#slack-test-from-github-actions-no-deploy).
+
 Day-2 ops (logs, uptime, deploy from laptop): [docs/OPERATIONS.md](../docs/OPERATIONS.md).
 
 Pre-built images from GHCR: [docs/GHCR-DEPLOY.md](../docs/GHCR-DEPLOY.md) · [`docker-compose.production.ghcr.yml`](docker-compose.production.ghcr.yml) (API+worker) · [`docker-compose.production.ghcr-full.yml`](docker-compose.production.ghcr-full.yml) (API+worker+UI).
