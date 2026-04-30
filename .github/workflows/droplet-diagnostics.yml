@@ -74,7 +74,7 @@ jobs:
               BASE="https://$H"
             fi
             echo "=== curl $BASE/ready (from Droplet) ==="
-            curl -fsS --connect-timeout 15 --max-time 30 "$BASE/ready" || {
+            curl -fsSk --connect-timeout 15 --max-time 30 "$BASE/ready" || {
               echo "curl failed (DNS, TLS, or app not ready). Try again after DNS propagates." >&2
               exit 1
             }
