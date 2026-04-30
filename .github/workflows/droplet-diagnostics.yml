@@ -54,8 +54,13 @@ jobs:
           LOG_TAIL="${{ inputs.log_tail }}"
           CURL_READY="${{ inputs.curl_ready }}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "env REMOTE_PATH=$(printf '%q' "$REMOTE_PATH") COMPOSE_REL=$(printf '%q' "$COMPOSE_REL") LOG_TAIL=$(printf '%q' "$LOG_TAIL") CURL_READY=$(printf '%q' "$CURL_READY") bash -s" <<'EOS'
+            bash -s -- "$REMOTE_PATH" "$COMPOSE_REL" "$LOG_TAIL" "$CURL_READY" <<'EOS'
           set -euo pipefail
+          REMOTE_PATH="$1"
+          COMPOSE_REL="$2"
+          LOG_TAIL="$3"
+          CURL_READY="$4"
+
           cd "$REMOTE_PATH"
           if [ ! -f deploy/.env ]; then
             echo "Missing deploy/.env — create from deploy/env.production.example first." >&2
