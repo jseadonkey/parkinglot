@@ -1,0 +1,47 @@
+# Optional second compose file: Postgres + PostGIS on the Droplet (not for production at scale).
+# Use with:
+#   docker compose -f deploy/docker-compose.production.yml -f deploy/docker-compose.postgis-addon.yml --env-file deploy/.env up -d
+#
+# Requires in deploy/.env:
+#   POSTGRES_PASSWORD=...   (same password embedded in DATABASE_URL for user parking_api)
+#   DATABASE_URL=postgresql+psycopg://parking_api:...@postgres:5432/parking_app?sslmode=disable
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    restart: always
+    environment:
+      POSTGRES_USER: parking_api
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/.env}
+      POSTGRES_DB: parking_app
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parking_api -d parking_app"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  api:
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  beat:
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

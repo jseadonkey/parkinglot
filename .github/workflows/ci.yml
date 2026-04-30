@@ -82,3 +82,8 @@ jobs:
             echo "==> docker compose config: $f"
             docker compose -f "$f" --env-file deploy/ci.env config --quiet
           done
+          echo "==> docker compose config: production + postgis addon"
+          docker compose \
+            -f deploy/docker-compose.production.yml \
+            -f deploy/docker-compose.postgis-addon.yml \
+            --env-file deploy/ci.env config --quiet

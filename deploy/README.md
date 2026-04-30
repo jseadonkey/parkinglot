@@ -18,6 +18,7 @@ On the server, secrets live in **`deploy/.env`** next to the compose files (that
 - **Env template**: [`env.production.example`](env.production.example) → copy to `deploy/.env` on the server (gitignored).
 - **Edge proxy**: [`Caddyfile`](Caddyfile) — `UI_HOST` and `API_HOST` must have DNS pointing at the Droplet before TLS will succeed.
 - **Port clash on shared Droplets**: if something else already binds **80/443**, set **`CADDY_PUBLISH_HTTP`**, **`CADDY_PUBLISH_HTTPS`**, and **`CADDY_CADDYFILE=./Caddyfile.internal-tls`** in `deploy/.env` (see [`env.production.example`](env.production.example)). Then point **`PUBLIC_API_URL`** / **`CORS_ALLOW_ORIGINS`** at the same hostnames **including the HTTPS port**. Helper: [`scripts/droplet-enable-alt-caddy-ports.sh`](../scripts/droplet-enable-alt-caddy-ports.sh).
+- **No Managed Postgres yet (bootstrap on one VM)**: [`docker-compose.postgis-addon.yml`](docker-compose.postgis-addon.yml) adds **PostGIS** on the compose network. Run [`scripts/droplet-provision-local-postgis-env.sh`](../scripts/droplet-provision-local-postgis-env.sh) once (replaces `YOUR_DB_HOST` template), then rebuild with **`USE_LOCAL_POSTGIS=1`** (see [`scripts/remote-rebuild.sh`](../scripts/remote-rebuild.sh)). Switch back to DigitalOcean Managed Postgres by restoring `DATABASE_URL`, removing **`POSTGRES_PASSWORD`**, and rebuilding without **`USE_LOCAL_POSTGIS`**.
 
 Full Washington + DO steps: [docs/GO-LIVE-WASHINGTON-DO.md](../docs/GO-LIVE-WASHINGTON-DO.md).
 
