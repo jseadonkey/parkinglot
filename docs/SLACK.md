@@ -86,6 +86,12 @@ Use **Actions → Slack test (via Droplet)** to call **`POST /internal/slack/tes
 
 Workflow file: [`.github/workflows/slack-test-via-droplet.yml`](../.github/workflows/slack-test-via-droplet.yml).
 
+### Enqueue digest from GitHub Actions (no deploy)
+
+**Actions → Slack digest now (via Droplet)** calls **`POST /internal/slack/digest-now`** from the Droplet — same Celery task Beat schedules, useful for an on-demand standup without SSH. Response includes **`task_id`**; poll **`GET /internal/tasks/{task_id}`** (with **`X-Internal-Key`** when required) or watch **worker** logs. Same **`DROPLET_*`** and optional **`SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY`** as the Slack test workflow.
+
+Workflow file: [`.github/workflows/slack-digest-now-via-droplet.yml`](../.github/workflows/slack-digest-now-via-droplet.yml).
+
 ## Troubleshooting
 
 | Symptom | What to check |

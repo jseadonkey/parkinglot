@@ -44,6 +44,8 @@ The **Deploy to Droplet** workflow fails fast if `deploy/.env` is missing, with 
 
 **Slack test only (no deploy):** [`.github/workflows/slack-test-via-droplet.yml`](../.github/workflows/slack-test-via-droplet.yml) — [docs/SLACK.md](../docs/SLACK.md#slack-test-from-github-actions-no-deploy).
 
+**Slack digest on demand (no deploy):** [`.github/workflows/slack-digest-now-via-droplet.yml`](../.github/workflows/slack-digest-now-via-droplet.yml) — [docs/SLACK.md](../docs/SLACK.md#enqueue-digest-from-github-actions-no-deploy).
+
 Day-2 ops (logs, uptime, deploy from laptop): [docs/OPERATIONS.md](../docs/OPERATIONS.md).
 
 Pre-built images from GHCR: [docs/GHCR-DEPLOY.md](../docs/GHCR-DEPLOY.md) · [`docker-compose.production.ghcr.yml`](docker-compose.production.ghcr.yml) (API+worker) · [`docker-compose.production.ghcr-full.yml`](docker-compose.production.ghcr-full.yml) (API+worker+UI).

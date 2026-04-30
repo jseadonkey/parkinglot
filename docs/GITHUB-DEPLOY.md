@@ -37,6 +37,8 @@ Enable **slack notify** on the run form to send a short line to Slack via the AP
 
 **Slack test without deploy:** [`.github/workflows/slack-test-via-droplet.yml`](../.github/workflows/slack-test-via-droplet.yml) — **Actions → Slack test (via Droplet)** — posts one message via **`/internal/slack/test-message`** (same optional **`SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY`** as post-deploy ping; see [SLACK.md](SLACK.md#slack-test-from-github-actions-no-deploy)).
 
+**Slack digest on demand:** [`.github/workflows/slack-digest-now-via-droplet.yml`](../.github/workflows/slack-digest-now-via-droplet.yml) — **Actions → Slack digest now (via Droplet)** — **`POST /internal/slack/digest-now`** (see [SLACK.md](SLACK.md#enqueue-digest-from-github-actions-no-deploy)).
+
 Choose **compose file**:
 
 - `docker-compose.production.yml` — build API/worker/UI on the Droplet  

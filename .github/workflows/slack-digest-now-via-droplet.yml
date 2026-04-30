@@ -1,0 +1,64 @@
+# Enqueue the same Slack digest task Celery Beat runs (no deploy).
+#
+# Requires: DROPLET_HOST, DROPLET_USER, DROPLET_SSH_PRIVATE_KEY
+# Optional: SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY — same as INTERNAL_API_KEY on the Droplet
+# Optional: DROPLET_REMOTE_PATH
+#
+# The worker must be up; check result with worker logs or GET /internal/tasks/{task_id}.
+
+name: Slack digest now (via Droplet)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  enqueue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: POST /internal/slack/digest-now from Droplet
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+          SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
+          export KEY
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "env REMOTE_PATH=$(printf '%q' "$REMOTE_PATH") KEY=$(printf '%q' "$KEY") bash -s" <<'EOS'
+          set -euo pipefail
+          cd "$REMOTE_PATH"
+          test -f deploy/.env
+          BASE=$(grep -E '^PUBLIC_API_URL=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
+          if [ -z "$BASE" ]; then
+            H=$(grep -E '^API_HOST=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
+            BASE="https://$H"
+          fi
+          echo "POST $BASE/internal/slack/digest-now"
+          if [ -n "$KEY" ]; then
+            curl -fsS --connect-timeout 15 --max-time 60 -X POST "$BASE/internal/slack/digest-now" \
+              -H "Content-Type: application/json" \
+              -H "X-Internal-Key: $KEY" \
+              -d '{}'
+          else
+            curl -fsS --connect-timeout 15 --max-time 60 -X POST "$BASE/internal/slack/digest-now" \
+              -H "Content-Type: application/json" \
+              -d '{}'
+          fi
+          echo
+          echo "Poll task: GET $BASE/internal/tasks/<task_id> (same X-Internal-Key if required)."
+          EOS
