@@ -14,6 +14,8 @@
 .env.*
 deploy/.env
 **/*.md
+# hatchling needs this path for `pip install /build/packages/core`
+!packages/core/README.md
 infra/terraform/.terraform
 infra/terraform/*.tfstate
 infra/terraform/*.tfstate.*
