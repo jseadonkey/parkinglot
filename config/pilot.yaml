@@ -37,7 +37,11 @@ scoring:
     corner_lot: 10
     near_demand_generator_m: 30
   demand_generator_buffer_m: 400
-  demand_generators: []
+  # Lat/lon POIs for “near demand” scoring (meters via great-circle). Replace with your submarkets.
+  demand_generators:
+    - name: "Seattle downtown (illustrative)"
+      lat: 47.6062
+      lon: -122.3321
 
 data_sources:
   parcel_vendor: "TBD — see docs/washington-data.md"

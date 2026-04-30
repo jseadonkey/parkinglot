@@ -16,4 +16,6 @@ def test_openapi_lists_workflow_and_internal_task_paths() -> None:
     assert "/internal/slack/status" in paths
     assert "/internal/slack/test-message" in paths
     assert "/internal/ingest/geojson-upload" in paths
+    assert "/internal/ingest/geojson-server-path" in paths
+    assert "/internal/pipeline/enqueue-unscored" in paths
     assert "/parcels/{parcel_id}/workflow-runs" in paths

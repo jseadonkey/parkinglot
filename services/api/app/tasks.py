@@ -19,8 +19,9 @@ from app.db.session import SessionLocal
 from app.memo_render import build_deal_memo_markdown
 from app.slack_digest import build_slack_digest_blocks, post_digest_to_slack
 from app.storage import put_text_object
-from parking_core.models import ParcelFeature
+from parking_core.models import OwnerCandidate, ParcelFeature
 from parking_core.pilot import load_pilot_config
+from parking_enrichment.owner_outreach_agent import build_owner_outreach_brief
 from parking_enrichment.pipeline import enrich_from_parcel_row
 from parking_scoring.engine import score_parcel
 from parking_workflows.state import WorkflowStatus, WorkflowStep
@@ -86,7 +87,8 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
         db.commit()
 
         db.execute(delete(OwnerCandidateRow).where(OwnerCandidateRow.parcel_id == parcel.id))
-        for cand in enrich_from_parcel_row(parcel.raw_properties or {}):
+        enriched: list[OwnerCandidate] = list(enrich_from_parcel_row(parcel.raw_properties or {}))
+        for cand in enriched:
             db.add(
                 OwnerCandidateRow(
                     id=uuid.uuid4(),
@@ -98,6 +100,14 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
                     raw=cand.raw,
                 )
             )
+        outreach_brief = build_owner_outreach_brief(
+            county_fips=parcel.county_fips,
+            apn=parcel.apn,
+            raw_properties=parcel.raw_properties or {},
+            owners=enriched,
+        )
+        parcel.owner_outreach_brief = outreach_brief.model_dump(mode="json")
+        db.add(parcel)
         db.commit()
 
         owners = db.query(OwnerCandidateRow).filter(OwnerCandidateRow.parcel_id == parcel.id).all()
@@ -109,6 +119,7 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
             lot_sqft=parcel.lot_sqft,
             score=score,
             owner_lines=owner_lines,
+            outreach_brief=outreach_brief,
         )
         memo = DealMemo(
             id=uuid.uuid4(),
@@ -185,6 +196,7 @@ def ingest_geojson_path(
 ) -> dict[str, Any]:
     """Load parcel polygons from GeoJSON; upsert by (county_fips, apn); optionally enqueue scoring pipelines."""
     from parking_ingestion.geojson_loader import iter_parcels_from_geojson_dict, load_geojson_path
+    from parking_ingestion.parcel_metrics import geodesic_footprint_sqft, min_distance_to_generators_m
 
     data = load_geojson_path(Path(path))
     db = _session()
@@ -195,6 +207,10 @@ def ingest_geojson_path(
     try:
         pilot = load_pilot_config(get_settings().pilot_config_path)
         for attrs, geom in iter_parcels_from_geojson_dict(data):
+            if geom.geom_type not in ("Polygon", "MultiPolygon"):
+                skipped += 1
+                continue
+            multi = _to_multi(geom)  # type: ignore[arg-type]
             county = str(attrs["county_fips"] or "").strip() or (default_county_fips or "").strip()
             apn = str(attrs["apn"] or "").strip()
             if not apn:
@@ -203,12 +219,26 @@ def ingest_geojson_path(
             if pilot.region.county_fips and county not in pilot.region.county_fips:
                 skipped += 1
                 continue
-            multi = _to_multi(geom)  # type: ignore[arg-type]
+
+            lot_sqft = float(attrs["lot_sqft"]) if attrs.get("lot_sqft") is not None else None
+            if lot_sqft is None:
+                est = geodesic_footprint_sqft(multi)
+                if est is not None:
+                    lot_sqft = est
+
+            distance_m: float | None = None
+            if attrs.get("distance_to_nearest_demand_m") is not None:
+                distance_m = float(attrs["distance_to_nearest_demand_m"])
+            elif pilot.scoring.demand_generators:
+                c = multi.centroid
+                dmin = min_distance_to_generators_m(c.y, c.x, pilot.scoring.demand_generators)
+                if dmin is not None:
+                    distance_m = dmin
+
             footprint = WKTElement(multi.wkt, srid=4326)
             existing = db.scalars(
                 select(Parcel).where(Parcel.county_fips == county, Parcel.apn == apn).limit(1)
             ).first()
-            lot_sqft = float(attrs["lot_sqft"]) if attrs.get("lot_sqft") is not None else None
             zoning_code = str(attrs["zoning_code"]) if attrs.get("zoning_code") else None
             if existing is None:
                 p = Parcel(
@@ -219,9 +249,7 @@ def ingest_geojson_path(
                     zoning_code=zoning_code,
                     zoning_allows_surface_parking=bool(attrs.get("zoning_allows_surface_parking")),
                     is_corner_lot=bool(attrs.get("is_corner_lot")),
-                    distance_to_nearest_demand_m=float(attrs["distance_to_nearest_demand_m"])
-                    if attrs.get("distance_to_nearest_demand_m") is not None
-                    else None,
+                    distance_to_nearest_demand_m=distance_m,
                     raw_properties=attrs.get("raw_properties") or {},
                     footprint=footprint,
                 )
@@ -235,8 +263,7 @@ def ingest_geojson_path(
                 existing.zoning_code = zoning_code
                 existing.zoning_allows_surface_parking = bool(attrs.get("zoning_allows_surface_parking"))
                 existing.is_corner_lot = bool(attrs.get("is_corner_lot"))
-                if attrs.get("distance_to_nearest_demand_m") is not None:
-                    existing.distance_to_nearest_demand_m = float(attrs["distance_to_nearest_demand_m"])
+                existing.distance_to_nearest_demand_m = distance_m
                 existing.raw_properties = attrs.get("raw_properties") or {}
                 existing.footprint = footprint
                 db.add(existing)

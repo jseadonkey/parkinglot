@@ -44,3 +44,27 @@ There is **no Seattle DO datacenter**. Use **`sfo3`** (or `sfo2`) for lowest lat
 Re-ingesting the same **county + APN/PIN** updates geometry and attributes and clears the previous **score** so you can re-run the pipeline.
 
 Verify **terms of use** for any county or vendor export before production use.
+
+### Large files on the Droplet (server path)
+
+If the GeoJSON is already on the machine (e.g. under `/opt/parking-acquisition-agents/data/`), enqueue ingest without uploading through the API:
+
+```bash
+curl -sS -X POST "https://$API_HOST/internal/ingest/geojson-server-path" \
+  -H "X-Internal-Key: $INTERNAL_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"path":"/opt/parking-acquisition-agents/data/king_parcels.geojson","default_county_fips":"53033","auto_run_pipeline":false}'
+```
+
+### Score parcels already in Postgres
+
+After bulk ingest with `auto_run_pipeline=false`, enqueue pipelines for parcels that **have no score yet**:
+
+```bash
+curl -sS -X POST "https://$API_HOST/internal/pipeline/enqueue-unscored?limit=200" \
+  -H "X-Internal-Key: $INTERNAL_API_KEY"
+```
+
+### Derived metrics at ingest
+
+When properties omit **lot size**, the worker estimates **square feet from polygon area** (ellipsoidal geodesic). When **`DIST_DEMAND_M`** is absent but `scoring.demand_generators` lists `{lat, lon}` points in `pilot.yaml`, distance is filled from the parcel footprint **centroid** to the nearest POI (great-circle meters). Tune or replace those POIs for real submarkets.

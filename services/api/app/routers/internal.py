@@ -5,13 +5,17 @@ from tempfile import NamedTemporaryFile
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy import exists, select
+from sqlalchemy.orm import Session
 
 from app.celery_app import celery
 from app.config import get_settings
+from app.db.models import Parcel, ParcelScore
+from app.db.session import get_db
 from app.deps_internal import require_internal_key
-from app.schemas import SlackTestMessageRequest
+from app.schemas import IngestGeojsonServerPathRequest, SlackTestMessageRequest
 from app.slack_digest import post_text_to_slack
-from app.tasks import ingest_geojson_path, slack_agent_digest
+from app.tasks import ingest_geojson_path, run_pipeline, slack_agent_digest
 
 router = APIRouter(
     prefix="/internal",
@@ -133,3 +137,46 @@ def ingest_geojson_upload(
         "auto_run_pipeline": auto_run_pipeline,
         "max_auto_pipeline": max_auto_pipeline,
     }
+
+
+@router.post("/ingest/geojson-server-path")
+def ingest_geojson_server_path(body: IngestGeojsonServerPathRequest) -> dict[str, object]:
+    """Enqueue ingest for a GeoJSON file already on the server (large county exports).
+
+    Same task as upload; use when you ``scp`` or ``rsync`` the file to the Droplet first.
+    """
+    p = Path(body.path)
+    if not p.is_file():
+        raise HTTPException(status_code=400, detail=f"not a file or missing: {body.path}")
+    async_result = ingest_geojson_path.delay(
+        str(p.resolve()),
+        default_county_fips=body.default_county_fips,
+        auto_run_pipeline=body.auto_run_pipeline,
+        max_auto_pipeline=body.max_auto_pipeline,
+        delete_after=False,
+    )
+    return {
+        "task_id": async_result.id,
+        "path": str(p.resolve()),
+        "auto_run_pipeline": body.auto_run_pipeline,
+        "max_auto_pipeline": body.max_auto_pipeline,
+    }
+
+
+@router.post("/pipeline/enqueue-unscored")
+def enqueue_unscored_pipelines(
+    limit: int = 100,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Enqueue ``run_pipeline`` for parcels that have no ``parcel_scores`` row yet (cap 500)."""
+    cap = min(max(limit, 1), 500)
+    stmt = (
+        select(Parcel.id)
+        .where(~exists(select(1).where(ParcelScore.parcel_id == Parcel.id)))
+        .order_by(Parcel.created_at.desc())
+        .limit(cap)
+    )
+    ids = [str(i) for i in db.scalars(stmt)]
+    for pid in ids:
+        run_pipeline.delay(pid)
+    return {"enqueued": len(ids), "parcel_ids": ids}
