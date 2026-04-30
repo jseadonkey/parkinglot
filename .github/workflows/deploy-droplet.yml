@@ -44,9 +44,9 @@ on:
         type: string
         default: ""
       use_local_postgis:
-        description: "Also pass -f deploy/docker-compose.postgis-addon.yml (on-droplet PostGIS bootstrap)"
+        description: "Also pass -f deploy/docker-compose.postgis-addon.yml (on-droplet PostGIS). Turn off when using only Managed Postgres."
         type: boolean
-        default: false
+        default: true
 
 concurrency:
   group: deploy-droplet-${{ github.ref }}

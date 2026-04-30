@@ -31,7 +31,7 @@ When **Verify /ready** is enabled (default), the job finishes by curling **`PUBL
 
 Enable **slack notify** on the run form to send a short line to Slack via the API after a successful deploy (requires **`SLACK_BOT_TOKEN`** and channel config on the Droplet, same as digest). Optional **slack notify text** overrides the default; **slack notify channel id** overrides **`SLACK_DIGEST_CHANNEL_ID`** for that ping only.
 
-If the Droplet uses the optional **PostGIS addon** (`deploy/docker-compose.postgis-addon.yml` and `POSTGRES_PASSWORD` in `deploy/.env`), turn **use local postgis** **on** for the deploy workflow so GitHub Actions does not drop the `postgres` service on the next run.
+The **Deploy to Droplet** workflow defaults **use local postgis** to **on** so GitHub Actions keeps `deploy/docker-compose.postgis-addon.yml` in the compose command (your current Droplet layout). Turn it **off** when you move to **Managed Postgres only** (remove `POSTGRES_PASSWORD` / local `DATABASE_URL` first).
 
 **Inspect without redeploying:** [`.github/workflows/droplet-diagnostics.yml`](../.github/workflows/droplet-diagnostics.yml) — **Actions → Droplet diagnostics** — prints `docker compose ps`, recent **api** logs, and optionally the same `/ready` check (only needs `DROPLET_*` secrets).
 
