@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.celery_app import celery
 from app.config import get_settings
@@ -87,3 +88,48 @@ def ingest_sample() -> dict[str, object]:
             raise HTTPException(status_code=500, detail="sample_parcels.geojson not found")
     async_result = ingest_geojson_path.delay(str(path))
     return {"task_id": async_result.id, "path": str(path)}
+
+
+_MAX_GEOJSON_BYTES = 50 * 1024 * 1024
+
+
+@router.post("/ingest/geojson-upload")
+def ingest_geojson_upload(
+    file: UploadFile = File(..., description="GeoJSON FeatureCollection or single Feature (polygons)."),
+    default_county_fips: str | None = Form(
+        default=None,
+        description="When features omit COUNTY_FIPS, set to a pilot county (e.g. 53033 King).",
+    ),
+    auto_run_pipeline: bool = Form(
+        default=False,
+        description="Enqueue scoring pipeline per parcel (capped by max_auto_pipeline).",
+    ),
+    max_auto_pipeline: int = Form(default=100, ge=1, le=5000),
+) -> dict[str, object]:
+    """Upload a parcel GeoJSON export; enqueue ``ingest_geojson_path`` (upsert by county + APN/PIN).
+
+    Property aliases are normalized in ``parking_ingestion.geojson_loader`` (PIN, acres→sqft, etc.).
+    Poll ``GET /internal/tasks/{task_id}`` for completion; then
+    ``GET /parcels?qualified_only=true`` after pipelines run.
+    """
+    raw = file.file.read(_MAX_GEOJSON_BYTES + 1)
+    if len(raw) > _MAX_GEOJSON_BYTES:
+        raise HTTPException(status_code=413, detail="GeoJSON exceeds 50MB")
+    suffix = Path(file.filename or "parcels.geojson").suffix or ".geojson"
+    with NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(raw)
+        tmp_path = tmp.name
+    async_result = ingest_geojson_path.delay(
+        tmp_path,
+        default_county_fips=default_county_fips,
+        auto_run_pipeline=auto_run_pipeline,
+        max_auto_pipeline=max_auto_pipeline,
+        delete_after=True,
+    )
+    return {
+        "task_id": async_result.id,
+        "filename": file.filename,
+        "default_county_fips": default_county_fips,
+        "auto_run_pipeline": auto_run_pipeline,
+        "max_auto_pipeline": max_auto_pipeline,
+    }

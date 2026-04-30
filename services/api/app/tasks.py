@@ -7,7 +7,7 @@ from typing import Any
 
 from geoalchemy2.elements import WKTElement
 from shapely.geometry import MultiPolygon, Polygon
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.audit import write_audit
@@ -176,37 +176,74 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
 
 
 @celery.task(name="app.tasks.ingest_geojson_path")
-def ingest_geojson_path(path: str) -> list[str]:
+def ingest_geojson_path(
+    path: str,
+    default_county_fips: str | None = None,
+    auto_run_pipeline: bool = False,
+    max_auto_pipeline: int = 100,
+    delete_after: bool = False,
+) -> dict[str, Any]:
+    """Load parcel polygons from GeoJSON; upsert by (county_fips, apn); optionally enqueue scoring pipelines."""
     from parking_ingestion.geojson_loader import iter_parcels_from_geojson_dict, load_geojson_path
 
     data = load_geojson_path(Path(path))
     db = _session()
     ids: list[str] = []
+    inserted = 0
+    updated = 0
+    skipped = 0
     try:
         pilot = load_pilot_config(get_settings().pilot_config_path)
         for attrs, geom in iter_parcels_from_geojson_dict(data):
-            county = str(attrs["county_fips"])
+            county = str(attrs["county_fips"] or "").strip() or (default_county_fips or "").strip()
+            apn = str(attrs["apn"] or "").strip()
+            if not apn:
+                skipped += 1
+                continue
             if pilot.region.county_fips and county not in pilot.region.county_fips:
+                skipped += 1
                 continue
             multi = _to_multi(geom)  # type: ignore[arg-type]
             footprint = WKTElement(multi.wkt, srid=4326)
-            p = Parcel(
-                id=uuid.uuid4(),
-                apn=str(attrs["apn"]),
-                county_fips=county,
-                lot_sqft=float(attrs["lot_sqft"]) if attrs.get("lot_sqft") is not None else None,
-                zoning_code=str(attrs["zoning_code"]) if attrs.get("zoning_code") else None,
-                zoning_allows_surface_parking=bool(attrs.get("zoning_allows_surface_parking")),
-                is_corner_lot=bool(attrs.get("is_corner_lot")),
-                distance_to_nearest_demand_m=float(attrs["distance_to_nearest_demand_m"])
-                if attrs.get("distance_to_nearest_demand_m") is not None
-                else None,
-                raw_properties=attrs.get("raw_properties") or {},
-                footprint=footprint,
-            )
-            db.add(p)
-            db.flush()
-            ids.append(str(p.id))
+            existing = db.scalars(
+                select(Parcel).where(Parcel.county_fips == county, Parcel.apn == apn).limit(1)
+            ).first()
+            lot_sqft = float(attrs["lot_sqft"]) if attrs.get("lot_sqft") is not None else None
+            zoning_code = str(attrs["zoning_code"]) if attrs.get("zoning_code") else None
+            if existing is None:
+                p = Parcel(
+                    id=uuid.uuid4(),
+                    apn=apn,
+                    county_fips=county,
+                    lot_sqft=lot_sqft,
+                    zoning_code=zoning_code,
+                    zoning_allows_surface_parking=bool(attrs.get("zoning_allows_surface_parking")),
+                    is_corner_lot=bool(attrs.get("is_corner_lot")),
+                    distance_to_nearest_demand_m=float(attrs["distance_to_nearest_demand_m"])
+                    if attrs.get("distance_to_nearest_demand_m") is not None
+                    else None,
+                    raw_properties=attrs.get("raw_properties") or {},
+                    footprint=footprint,
+                )
+                db.add(p)
+                db.flush()
+                pid = str(p.id)
+                inserted += 1
+            else:
+                db.execute(delete(ParcelScore).where(ParcelScore.parcel_id == existing.id))
+                existing.lot_sqft = lot_sqft
+                existing.zoning_code = zoning_code
+                existing.zoning_allows_surface_parking = bool(attrs.get("zoning_allows_surface_parking"))
+                existing.is_corner_lot = bool(attrs.get("is_corner_lot"))
+                if attrs.get("distance_to_nearest_demand_m") is not None:
+                    existing.distance_to_nearest_demand_m = float(attrs["distance_to_nearest_demand_m"])
+                existing.raw_properties = attrs.get("raw_properties") or {}
+                existing.footprint = footprint
+                db.add(existing)
+                db.flush()
+                pid = str(existing.id)
+                updated += 1
+            ids.append(pid)
         db.commit()
         write_audit(
             db,
@@ -214,11 +251,38 @@ def ingest_geojson_path(path: str) -> list[str]:
             action="parcels_ingested",
             entity_type="parcel",
             entity_id=None,
-            meta={"parcel_ids": ids, "source_path": path},
+            meta={
+                "parcel_ids": ids,
+                "source_path": path,
+                "inserted": inserted,
+                "updated": updated,
+                "skipped": skipped,
+                "auto_run_pipeline": auto_run_pipeline,
+            },
         )
-        return ids
+        if auto_run_pipeline and ids:
+            for pid in ids[: max(0, max_auto_pipeline)]:
+                run_pipeline.delay(pid)
+            if len(ids) > max_auto_pipeline:
+                logger.warning(
+                    "ingest_geojson_path: auto_run_pipeline capped at %s of %s parcels",
+                    max_auto_pipeline,
+                    len(ids),
+                )
+        return {
+            "parcel_ids": ids,
+            "inserted": inserted,
+            "updated": updated,
+            "skipped": skipped,
+            "pipelines_enqueued": min(len(ids), max_auto_pipeline) if auto_run_pipeline else 0,
+        }
     finally:
         db.close()
+        if delete_after:
+            try:
+                Path(path).unlink(missing_ok=True)
+            except OSError:
+                logger.warning("ingest_geojson_path: could not delete temp file %s", path)
 
 
 @celery.task(name="app.tasks.slack_agent_digest")

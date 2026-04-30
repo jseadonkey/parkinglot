@@ -29,6 +29,8 @@ compliance:
 
 scoring:
   min_lot_sqft: 5000
+  # Used as the default floor in GET /parcels?qualified_only=true (override with min_score=).
+  qualified_min_score: 55
   weights:
     zoning_permitted_surface_parking: 40
     lot_size: 20

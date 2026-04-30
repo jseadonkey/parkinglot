@@ -3,20 +3,49 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore, WorkflowRun
 from app.db.session import get_db
 from app.schemas import ParcelRead, ParcelScoreRead, WorkflowRunRead
 from app.tasks import run_pipeline
+from parking_core.pilot import load_pilot_config
 
 router = APIRouter(prefix="/parcels", tags=["parcels"])
 
 
 @router.get("", response_model=list[ParcelRead])
-def list_parcels(limit: int = 50, db: Session = Depends(get_db)) -> list[Parcel]:
-    stmt = select(Parcel).order_by(Parcel.created_at.desc()).limit(min(limit, 200))
+def list_parcels(
+    limit: int = 50,
+    min_score: float | None = None,
+    qualified_only: bool = False,
+    db: Session = Depends(get_db),
+) -> list[Parcel]:
+    """List parcels. Use ``qualified_only=true`` (latest score ≥ pilot ``qualified_min_score``) or ``min_score=``."""
+    lim = min(limit, 200)
+    floor = min_score
+    if qualified_only and floor is None:
+        from app.config import get_settings
+
+        pilot = load_pilot_config(get_settings().pilot_config_path)
+        floor = float(pilot.scoring.qualified_min_score)
+    if floor is not None:
+        latest_total = (
+            select(ParcelScore.total_score)
+            .where(ParcelScore.parcel_id == Parcel.id)
+            .order_by(desc(ParcelScore.created_at))
+            .limit(1)
+            .scalar_subquery()
+        )
+        stmt = (
+            select(Parcel)
+            .where(latest_total >= floor)
+            .order_by(Parcel.created_at.desc())
+            .limit(lim)
+        )
+    else:
+        stmt = select(Parcel).order_by(Parcel.created_at.desc()).limit(lim)
     return list(db.scalars(stmt))
 
 

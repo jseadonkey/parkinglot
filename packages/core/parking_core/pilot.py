@@ -38,6 +38,8 @@ class ScoringConfig(BaseModel):
     weights: ScoringWeights = Field(default_factory=ScoringWeights)
     demand_generator_buffer_m: int = 400
     demand_generators: list[dict[str, Any]] = Field(default_factory=list)
+    # Latest score at or above this value is treated as a "qualified" lot for listing filters.
+    qualified_min_score: float = 55.0
 
 
 class DataSourcesConfig(BaseModel):
