@@ -1,0 +1,18 @@
+from __future__ import annotations
+
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+
+def test_openapi_lists_workflow_and_internal_task_paths() -> None:
+    client = TestClient(app)
+    spec = client.get("/openapi.json").json()
+    paths = spec["paths"]
+    assert "/workflow-runs" in paths
+    assert "/workflow-runs/{run_id}" in paths
+    assert "/internal/tasks/{task_id}" in paths
+    assert "/internal/slack/digest-now" in paths
+    assert "/internal/slack/status" in paths
+    assert "/internal/slack/test-message" in paths
+    assert "/parcels/{parcel_id}/workflow-runs" in paths

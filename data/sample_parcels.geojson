@@ -1,0 +1,55 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-122.335, 47.608],
+            [-122.334, 47.608],
+            [-122.334, 47.609],
+            [-122.335, 47.609],
+            [-122.335, 47.608]
+          ]
+        ]
+      },
+      "properties": {
+        "APN": "WA-KING-SAMPLE-001",
+        "COUNTY_FIPS": "53033",
+        "LOT_SQFT": 14000,
+        "ZONING": "Downtown Commercial (example)",
+        "ZONING_ALLOWS_SURFACE_PARKING": true,
+        "IS_CORNER": true,
+        "DIST_DEMAND_M": 180,
+        "OWNER_NAME": "Puget Sound Example Holdings LLC"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-122.302, 47.618],
+            [-122.301, 47.618],
+            [-122.301, 47.619],
+            [-122.302, 47.619],
+            [-122.302, 47.618]
+          ]
+        ]
+      },
+      "properties": {
+        "APN": "WA-KING-SAMPLE-002",
+        "COUNTY_FIPS": "53033",
+        "LOT_SQFT": 4800,
+        "ZONING": "Lowrise (example)",
+        "ZONING_ALLOWS_SURFACE_PARKING": false,
+        "IS_CORNER": false,
+        "DIST_DEMAND_M": 1200,
+        "OWNER_NAME": "Jane Washington Citizen"
+      }
+    }
+  ]
+}

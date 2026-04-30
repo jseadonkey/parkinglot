@@ -1,0 +1,28 @@
+# Remote state (recommended for any shared or production Terraform).
+#
+# 1. Copy this file to `backend.tf` (or merge the `terraform { backend ... }` block into `versions.tf`).
+# 2. Uncomment ONE backend and fill in values.
+# 3. Run `terraform init -migrate-state` once to move local state to the remote.
+#
+# Never commit real bucket names / org names if they reveal sensitive naming.
+
+# --- Option A: Amazon S3 (+ DynamoDB table for locking) ---
+# terraform {
+#   backend "s3" {
+#     bucket         = "mycompany-terraform-state"
+#     key            = "parking-acquisition/wa/terraform.tfstate"
+#     region         = "us-west-2"
+#     encrypt        = true
+#     dynamodb_table = "terraform-locks"
+#   }
+# }
+
+# --- Option B: Terraform Cloud ---
+# terraform {
+#   cloud {
+#     organization = "my-org"
+#     workspaces {
+#       name = "parking-acquisition-wa-prod"
+#     }
+#   }
+# }

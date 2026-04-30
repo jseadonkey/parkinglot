@@ -1,0 +1,8 @@
+# do_token is supplied via environment: export TF_VAR_do_token="..."
+# Washington pilot: use sfo3 (closest DO region to WA — no Seattle datacenter).
+region                 = "sfo3"
+project_name           = "parking-acquisition-wa"
+db_size_slug           = "db-s-1vcpu-1gb"
+spaces_bucket_name     = "your-unique-wa-parking-drafts-bucket"
+droplet_ssh_keys       = [] # e.g. [1234567] from `doctl compute ssh-key list`
+admin_ssh_source_cidrs = ["0.0.0.0/0", "::/0"] # tighten to your /32 before production

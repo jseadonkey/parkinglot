@@ -1,0 +1,130 @@
+# Full pull-based production: API, worker, and approval UI from GHCR (no Node/Python compile on Droplet).
+# Build images in GitHub Actions first:
+#   - .github/workflows/container-images.yml  (API_IMAGE)
+#   - .github/workflows/container-images-ui.yml (APPROVAL_UI_IMAGE; pass real PUBLIC_API_URL as input)
+#
+# deploy/.env must set API_IMAGE, APPROVAL_UI_IMAGE, and all other vars from env.production.example.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+x-worker-beat-env: &worker-beat-env
+  DATABASE_URL: ${DATABASE_URL}
+  REDIS_URL: ${REDIS_URL}
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+  CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+  PILOT_CONFIG_PATH: /app/config/pilot.yaml
+  STORAGE_ENDPOINT: ${STORAGE_ENDPOINT}
+  STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+  STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
+  STORAGE_BUCKET: ${STORAGE_BUCKET}
+  STORAGE_REGION: ${STORAGE_REGION}
+  SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+  SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging: *default-logging
+
+  api:
+    image: ${API_IMAGE:?Set API_IMAGE to ghcr.io/<owner>/parking-acquisition-api:<tag>}
+    restart: always
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      PILOT_CONFIG_PATH: /app/config/pilot.yaml
+      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT}
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
+      STORAGE_BUCKET: ${STORAGE_BUCKET}
+      STORAGE_REGION: ${STORAGE_REGION}
+      API_PUBLIC_URL: ${PUBLIC_API_URL}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
+    volumes:
+      - ../config:/app/config:ro
+      - ../data:/app/data:ro
+    expose:
+      - "8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    logging: *default-logging
+
+  worker:
+    image: ${API_IMAGE:?Same image as api service}
+    restart: always
+    command: ["celery", "-A", "app.celery_app", "worker", "-l", "INFO", "--concurrency=2"]
+    environment:
+      <<: *worker-beat-env
+    volumes:
+      - ../config:/app/config:ro
+      - ../data:/app/data:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    logging: *default-logging
+
+  beat:
+    image: ${API_IMAGE:?Same image as worker}
+    restart: always
+    command: ["celery", "-A", "app.celery_app", "beat", "-l", "INFO"]
+    environment:
+      <<: *worker-beat-env
+    volumes:
+      - ../config:/app/config:ro
+      - ../data:/app/data:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    logging: *default-logging
+
+  approval-ui:
+    image: ${APPROVAL_UI_IMAGE:?Set APPROVAL_UI_IMAGE to ghcr.io/<owner>/parking-acquisition-approval-ui:<tag>}
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
+    expose:
+      - "3000"
+    depends_on:
+      - api
+    logging: *default-logging
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      UI_HOST: ${UI_HOST}
+      API_HOST: ${API_HOST}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in deploy/.env for Let's Encrypt}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - approval-ui
+    logging: *default-logging
+
+volumes:
+  redis_data:
+  caddy_data:
+  caddy_config:

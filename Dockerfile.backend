@@ -1,0 +1,36 @@
+FROM python:3.12-slim AS base
+
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY packages/core /build/packages/core
+COPY services/scoring /build/services/scoring
+COPY services/ingestion /build/services/ingestion
+COPY services/enrichment /build/services/enrichment
+COPY services/workflows /build/services/workflows
+COPY services/api /build/services/api
+
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir /build/packages/core \
+    && pip install --no-cache-dir /build/services/scoring \
+    && pip install --no-cache-dir /build/services/ingestion \
+    && pip install --no-cache-dir /build/services/enrichment \
+    && pip install --no-cache-dir /build/services/workflows \
+    && pip install --no-cache-dir /build/services/api
+
+COPY services/api /app/services/api
+WORKDIR /app/services/api
+ENV PYTHONPATH=/app/services/api
+
+COPY config /app/config
+COPY data /app/data
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"
+
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]

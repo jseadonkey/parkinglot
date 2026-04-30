@@ -1,0 +1,115 @@
+name: DO — fetch Postgres connection hints
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: "Optional: exact DigitalOcean DB cluster name (otherwise lists clusters)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  print:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch DB clusters (read-only)
+        env:
+          DO_TOKEN: ${{ secrets.DO_TOKEN }}
+          WANT_NAME: ${{ inputs.cluster_name }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DO_TOKEN:-}" ]; then
+            echo "Missing GitHub secret: DO_TOKEN"
+            echo "Add it in: Repo Settings → Secrets and variables → Actions → New repository secret"
+            exit 1
+          fi
+
+          python3 <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          token = os.environ["DO_TOKEN"]
+          want = (os.environ.get("WANT_NAME") or "").strip()
+
+          req = urllib.request.Request(
+              "https://api.digitalocean.com/v2/databases?page=1&per_page=200",
+              headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+              method="GET",
+          )
+          try:
+              with urllib.request.urlopen(req, timeout=60) as resp:
+                  payload = json.load(resp)
+          except urllib.error.HTTPError as e:
+              body = e.read().decode("utf-8", errors="replace")
+              print(f"DigitalOcean API HTTP {e.code}: {body}")
+              sys.exit(1)
+
+          clusters = payload.get("databases") or []
+          if not clusters:
+              print("No database clusters returned for this token/account.")
+              sys.exit(0)
+
+          def pick(c):
+              return want == "" or c.get("name") == want
+
+          matches = [c for c in clusters if pick(c)]
+          if want and not matches:
+              print(f"No cluster named exactly: {want!r}")
+              print("Available cluster names:")
+              for c in clusters:
+                  print(f"- {c.get('name')}")
+              sys.exit(1)
+
+          print("=== DigitalOcean database clusters (matched) ===")
+          for c in matches:
+              name = c.get("name")
+              engine = c.get("engine")
+              region = c.get("region")
+
+              private_conn = c.get("private_connection") or {}
+              public_conn = c.get("connection") or {}
+
+              chosen = private_conn if private_conn.get("host") else public_conn
+              chosen_label = "private_connection" if chosen is private_conn else "connection"
+
+              host = chosen.get("host") or c.get("host")
+              port = chosen.get("port") or c.get("port")
+              dbname = chosen.get("database") or (c.get("db") or {}).get("name")
+              user = chosen.get("user")
+              if not user and c.get("users"):
+                  user = (c.get("users") or [{}])[0].get("name")
+
+              print(f"\nCluster: {name}")
+              print(f"Engine: {engine}")
+              print(f"Region: {region}")
+              print(f"Using connection block: {chosen_label}")
+              print(f"Host: {host}")
+              print(f"Port: {port}")
+              print(f"DB name: {dbname}")
+              print(f"User: {user}")
+
+              pw = chosen.get("password") or c.get("password")
+              if pw:
+                  print("Password: <present in API response — not printed>")
+              else:
+                  print("Password: <not returned — reset in DO control panel if unknown>")
+
+              if engine and engine != "pg":
+                  print("Note: this workflow prints DATABASE_URL templates for Postgres (engine=pg).")
+
+              if host and port and dbname and user and engine == "pg":
+                  print("\nTemplate DATABASE_URL (fill PASSWORD):")
+                  print(
+                      "DATABASE_URL="
+                      f"postgresql+psycopg://{user}:PASSWORD@{host}:{port}/{dbname}?sslmode=require"
+                  )
+
+          if want == "":
+              print("\nTip: re-run this workflow with cluster_name set to pick one cluster.")
+          PY

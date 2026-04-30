@@ -1,0 +1,85 @@
+# Inspect the production stack on the Droplet over SSH (no DigitalOcean API token).
+#
+# Required repository secrets (same as Deploy to Droplet):
+#   DROPLET_HOST, DROPLET_USER, DROPLET_SSH_PRIVATE_KEY
+# Optional variable: DROPLET_REMOTE_PATH (default /opt/parking-acquisition-agents)
+
+name: Droplet diagnostics
+
+on:
+  workflow_dispatch:
+    inputs:
+      compose_file:
+        description: "Compose file (under deploy/) — must match what you run in production"
+        type: choice
+        default: docker-compose.production.yml
+        options:
+          - docker-compose.production.yml
+          - docker-compose.production.ghcr.yml
+          - docker-compose.production.ghcr-full.yml
+      log_tail:
+        description: "Lines of api container logs to print"
+        type: string
+        default: "50"
+      curl_ready:
+        description: "From the Droplet, curl PUBLIC_API_URL/ready (needs DNS + TLS)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Remote compose ps, logs, optional /ready
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          COMPOSE_REL="deploy/${{ inputs.compose_file }}"
+          LOG_TAIL="${{ inputs.log_tail }}"
+          CURL_READY="${{ inputs.curl_ready }}"
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "env REMOTE_PATH=$(printf '%q' "$REMOTE_PATH") COMPOSE_REL=$(printf '%q' "$COMPOSE_REL") LOG_TAIL=$(printf '%q' "$LOG_TAIL") CURL_READY=$(printf '%q' "$CURL_READY") bash -s" <<'EOS'
+          set -euo pipefail
+          cd "$REMOTE_PATH"
+          if [ ! -f deploy/.env ]; then
+            echo "Missing deploy/.env — create from deploy/env.production.example first." >&2
+            exit 1
+          fi
+          echo "=== docker compose ps ==="
+          docker compose -f "$COMPOSE_REL" --env-file deploy/.env ps -a
+          echo ""
+          echo "=== api logs (tail) ==="
+          docker compose -f "$COMPOSE_REL" --env-file deploy/.env logs --no-color --tail "$LOG_TAIL" api || true
+          echo ""
+          if [ "$CURL_READY" = "true" ]; then
+            BASE=$(grep -E '^PUBLIC_API_URL=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
+            if [ -z "$BASE" ]; then
+              H=$(grep -E '^API_HOST=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
+              BASE="https://$H"
+            fi
+            echo "=== curl $BASE/ready (from Droplet) ==="
+            curl -fsS --connect-timeout 15 --max-time 30 "$BASE/ready" || {
+              echo "curl failed (DNS, TLS, or app not ready). Try again after DNS propagates." >&2
+              exit 1
+            }
+            echo ""
+          else
+            echo "Skipping /ready curl (curl_ready=false)."
+          fi
+          EOS

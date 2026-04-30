@@ -1,0 +1,205 @@
+# Deploy repo to your DigitalOcean Droplet over SSH and rebuild the production stack.
+#
+# Required repository secrets:
+#   DROPLET_HOST          — public IPv4 or DNS
+#   DROPLET_USER          — e.g. root
+#   DROPLET_SSH_PRIVATE_KEY — full private key (ed25519 or RSA), multiline
+#
+# Optional repository variables (Settings → Secrets and variables → Actions → Variables):
+#   DROPLET_REMOTE_PATH   — default /opt/parking-acquisition-agents
+#
+# Optional workflow input verify_public_ready (default true): curls PUBLIC_API_URL/ready from the Droplet after deploy.
+#
+# Optional Slack ping after a successful deploy:
+#   slack_notify (default false) — POST /internal/slack/test-message from the Droplet
+#   Repository secret SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY — same value as INTERNAL_API_KEY in deploy/.env when the API enforces it
+
+name: Deploy to Droplet
+
+on:
+  workflow_dispatch:
+    inputs:
+      compose_file:
+        description: "Compose file (under deploy/)"
+        type: choice
+        default: docker-compose.production.yml
+        options:
+          - docker-compose.production.yml
+          - docker-compose.production.ghcr.yml
+          - docker-compose.production.ghcr-full.yml
+      verify_public_ready:
+        description: "After compose up, curl PUBLIC_API_URL/ready from the Droplet (needs DNS + TLS)"
+        type: boolean
+        default: true
+      slack_notify:
+        description: "After deploy (and verify if enabled), POST /internal/slack/test-message — needs Slack env on Droplet"
+        type: boolean
+        default: false
+      slack_notify_text:
+        description: "Slack message body (plain text, max 2000). Leave empty for a default line with repo / sha / run link."
+        type: string
+        default: ""
+      slack_notify_channel_id:
+        description: "Optional Slack channel ID (C…). Empty uses SLACK_DIGEST_CHANNEL_ID from deploy/.env on the server."
+        type: string
+        default: ""
+
+concurrency:
+  group: deploy-droplet-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Ensure remote directory
+        run: |
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" "mkdir -p '$REMOTE_PATH'"
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+
+      - name: Rsync application
+        run: |
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          rsync -az --delete \
+            --exclude .git \
+            --exclude node_modules \
+            --exclude .venv \
+            --exclude __pycache__ \
+            --exclude .next \
+            --exclude '*.pyc' \
+            --exclude .env \
+            --exclude deploy/.env \
+            ./ "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}:$REMOTE_PATH/"
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+
+      - name: Require deploy/.env on Droplet
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          USER_HOST="${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}"
+          ssh -oBatchMode=yes "$USER_HOST" bash -s <<EOF
+          set -euo pipefail
+          cd "${REMOTE_PATH}"
+          if [ -f deploy/.env ]; then
+            exit 0
+          fi
+          echo "Missing: ${REMOTE_PATH}/deploy/.env on the Droplet." >&2
+          echo "Bootstrap (interactive): ssh -t ${USER_HOST} \"cd '${REMOTE_PATH}/deploy' && cp env.production.example .env && chmod 600 .env && (command -v nano >/dev/null 2>&1 && nano .env || vi .env)\"" >&2
+          echo "Then re-run Deploy to Droplet." >&2
+          exit 1
+          EOF
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+
+      - name: Pull GHCR images
+        if: inputs.compose_file == 'docker-compose.production.ghcr.yml' || inputs.compose_file == 'docker-compose.production.ghcr-full.yml'
+        run: |
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          COMPOSE_FILE="deploy/${{ inputs.compose_file }}"
+          ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "set -euo pipefail && cd '$REMOTE_PATH' && docker compose -f '$COMPOSE_FILE' --env-file deploy/.env pull"
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+
+      - name: Docker compose up
+        run: |
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          COMPOSE_FILE="deploy/${{ inputs.compose_file }}"
+          ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "set -euo pipefail && cd '$REMOTE_PATH' && docker compose -f '$COMPOSE_FILE' --env-file deploy/.env up -d --build && docker compose -f '$COMPOSE_FILE' --env-file deploy/.env ps"
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+
+      - name: Verify /ready (on Droplet)
+        if: inputs.verify_public_ready
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "env REMOTE_PATH=$(printf '%q' "$REMOTE_PATH") bash -s" <<'EOS'
+          set -euo pipefail
+          cd "$REMOTE_PATH"
+          test -f deploy/.env
+          BASE=$(grep -E '^PUBLIC_API_URL=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
+          if [ -z "$BASE" ]; then
+            H=$(grep -E '^API_HOST=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
+            BASE="https://$H"
+          fi
+          echo "GET $BASE/ready"
+          curl -fsS --connect-timeout 15 --max-time 30 "$BASE/ready"
+          echo
+          EOS
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+
+      - name: Notify Slack (internal API)
+        if: inputs.slack_notify
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+          SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
+        run: |
+          set -euo pipefail
+          REPO="${{ github.repository }}"
+          REF="${{ github.ref_name }}"
+          SHA="${{ github.sha }}"
+          SHA7="${SHA:0:7}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          DEFAULT_MSG="Deploy OK: ${REPO} @ ${SHA7} (${REF}) — ${RUN_URL}"
+          TEXT_INPUT="${{ inputs.slack_notify_text }}"
+          if [ -n "$TEXT_INPUT" ]; then NOTIFY_TEXT="$TEXT_INPUT"; else NOTIFY_TEXT="$DEFAULT_MSG"; fi
+          export NOTIFY_TEXT
+          export NOTIFY_CHANNEL_ID="${{ inputs.slack_notify_channel_id }}"
+          PAYLOAD_JSON=$(python3 <<'PY'
+          import json
+          import os
+
+          body = {"text": os.environ["NOTIFY_TEXT"]}
+          cid = (os.environ.get("NOTIFY_CHANNEL_ID") or "").strip()
+          if cid:
+              body["channel_id"] = cid
+          print(json.dumps(body))
+          PY
+          )
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
+          export PAYLOAD_JSON
+          export KEY
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "env REMOTE_PATH=$(printf '%q' "$REMOTE_PATH") PAYLOAD_JSON=$(printf '%q' "$PAYLOAD_JSON") KEY=$(printf '%q' "$KEY") bash -s" <<'EOS'
+          set -euo pipefail
+          cd "$REMOTE_PATH"
+          test -f deploy/.env
+          BASE=$(grep -E '^PUBLIC_API_URL=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
+          if [ -z "$BASE" ]; then
+            H=$(grep -E '^API_HOST=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
+            BASE="https://$H"
+          fi
+          echo "POST $BASE/internal/slack/test-message"
+          if [ -n "$KEY" ]; then
+            curl -fsS --connect-timeout 15 --max-time 60 -X POST "$BASE/internal/slack/test-message" \
+              -H "Content-Type: application/json" \
+              -H "X-Internal-Key: $KEY" \
+              -d "$PAYLOAD_JSON"
+          else
+            curl -fsS --connect-timeout 15 --max-time 60 -X POST "$BASE/internal/slack/test-message" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD_JSON"
+          fi
+          echo
+          EOS

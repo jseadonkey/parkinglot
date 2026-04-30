@@ -1,0 +1,43 @@
+# Washington (State of Washington) — Puget Sound pilot
+# CRS for stored geometries (PostGIS).
+crs: EPSG:4326
+
+region:
+  name: "Puget Sound — Washington"
+  state_fips: "53"
+  # Core Seattle metro counties (expand via config as you add ingest coverage)
+  county_fips:
+    - "53033" # King
+    - "53061" # Snohomish
+    - "53053" # Pierce
+  primary_metro_cbsa: "42660" # Seattle-Tacoma-Bellevue, WA
+
+deal:
+  primary_structure: ground_lease
+  allowed_structures:
+    - ground_lease
+    - purchase_option
+  templates_require_legal_review: true
+
+compliance:
+  allowed_outreach_channels: []
+  require_human_approval_for:
+    - outbound_message
+    - contract_send
+    - contract_execute
+  tcpa_can_spam_review_required: true
+
+scoring:
+  min_lot_sqft: 5000
+  weights:
+    zoning_permitted_surface_parking: 40
+    lot_size: 20
+    corner_lot: 10
+    near_demand_generator_m: 30
+  demand_generator_buffer_m: 400
+  demand_generators: []
+
+data_sources:
+  parcel_vendor: "TBD — see docs/washington-data.md"
+  zoning_vendor: "TBD — see docs/washington-data.md"
+  poi_source: "osm_or_commercial_tbd"

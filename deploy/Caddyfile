@@ -1,0 +1,16 @@
+# TLS via Let's Encrypt (HTTP-01). Point UI_HOST and API_HOST DNS A/AAAA records at this Droplet first.
+# Env vars are set by docker compose (see deploy/env.production.example).
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$UI_HOST} {
+	encode gzip
+	reverse_proxy approval-ui:3000
+}
+
+{$API_HOST} {
+	encode gzip
+	reverse_proxy api:8000
+}
