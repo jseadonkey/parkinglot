@@ -28,6 +28,7 @@ class ParcelScoreRead(BaseModel):
 
     id: uuid.UUID
     parcel_id: uuid.UUID
+    score_profile: str
     total_score: float
     breakdown: dict[str, Any]
     pilot_snapshot: dict[str, Any] | None

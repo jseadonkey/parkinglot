@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from parking_core.models import ScoreResult
+from parking_core.models import OwnerOutreachBrief, ScoreResult
 
 
 def build_deal_memo_markdown(
@@ -11,6 +11,7 @@ def build_deal_memo_markdown(
     lot_sqft: float | None,
     score: ScoreResult,
     owner_lines: list[str],
+    outreach_brief: OwnerOutreachBrief | None = None,
 ) -> tuple[str, str, list[str]]:
     title = f"Deal memo — {apn} ({county_fips})"
     open_questions = [
@@ -41,6 +42,49 @@ def build_deal_memo_markdown(
             "## Owner candidates (enrichment)",
             "\n".join(f"- {line}" for line in owner_lines) or "- (none)",
             "",
+        ]
+    )
+    if outreach_brief is not None:
+        ob = outreach_brief
+        step_lines = []
+        for s in ob.steps:
+            step_lines.append(
+                f"{s.rank}. **{s.title}** (`{s.channel.value}`) — conf {s.confidence:.2f}, "
+                f"human={'yes' if s.requires_human else 'no'}\n   - {s.instruction}"
+            )
+        gap_lines = "\n".join(f"- {g}" for g in ob.data_gaps) or "- (none)"
+        comp_lines = "\n".join(f"- {c}" for c in ob.compliance_notes) or "- (none)"
+        contact_bits = [
+            f"- **Recorded owner**: {ob.recorded_owner_one_liner}",
+        ]
+        if ob.mailing_address_guess:
+            contact_bits.append(f"- **Mailing (guess)**: {ob.mailing_address_guess}")
+        if ob.situs_address_guess:
+            contact_bits.append(f"- **Situs (guess)**: {ob.situs_address_guess}")
+        if ob.phone_guess:
+            contact_bits.append(f"- **Phone (guess)**: {ob.phone_guess}")
+        if ob.email_guess:
+            contact_bits.append(f"- **Email (guess)**: {ob.email_guess}")
+        extra = "\n".join(
+            [
+                "",
+                "## Owner outreach brief (deterministic rules)",
+                "\n".join(contact_bits),
+                "",
+                "### Prioritized steps",
+                "\n".join(step_lines) if step_lines else "- (none)",
+                "",
+                "### Data gaps",
+                gap_lines,
+                "",
+                "### Compliance",
+                comp_lines,
+                "",
+            ]
+        )
+        md = md + extra
+    md += "\n".join(
+        [
             "## Non-binding next steps",
             "- Human review of this memo and attached draft contract.",
             "- Counsel review before any outreach or execution.",

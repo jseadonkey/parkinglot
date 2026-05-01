@@ -19,15 +19,17 @@ Single place for **names, IDs, and paths** this codebase assumes. Update this fi
 | **Worker / Beat health** | Compose sets **`healthcheck.disable: true`** on **worker** and **beat** (they do not serve `:8000`; image-level HTTP checks are wrong for Celery). |
 | **API (localhost on droplet)** | `http://127.0.0.1:18000` |
 | **Deploy / code sync** | Prefer **`git pull`** (or Actions deploy) so **`services/api/app`** stays consistent. Copying single files (e.g. only `internal.py`) can break imports against `models.py` / `schemas.py`. |
-| **Internal Slack monitoring** | `GET /internal/slack/status`, `GET /internal/slack/last-digest`, `GET /internal/slack/digest-preview`, `POST /internal/slack/digest-now`, `POST /internal/slack/test-message` (some routes require `X-Internal-Key` when `INTERNAL_API_KEY` is set — see `docs/SLACK.md`). |
+| **Internal Slack monitoring** | `GET /internal/slack/status`, `GET /internal/slack/digest-preview`, `POST /internal/slack/digest-now`, `POST /internal/slack/test-message` (some routes require `X-Internal-Key` when `INTERNAL_API_KEY` is set — see `docs/SLACK.md`). |
 
 ## Slack (digest + internal routes)
 
 | Item | Value |
 |------|--------|
 | **Digest channel (human name)** | `#gf-parkinglot-agents-chat` |
-| **Digest channel ID** | `C08OVPSAH44` (also default in `scripts/apply_slack_token.py`) |
-| **Env vars** | `SLACK_BOT_TOKEN` (`xoxb-…`), `SLACK_DIGEST_CHANNEL_ID` |
+| **Digest channel ID** | **`C0B0VPSAH44`** for `#gf-parkinglot-agents-chat` in **Purveyors of Leisure** (copy from **Channel details** in Slack — IDs differ per workspace). Default in `scripts/apply_slack_token.py`. |
+| **Env vars** | `SLACK_BOT_TOKEN` (`xoxb-…`), `SLACK_DIGEST_CHANNEL_ID`, optional `SLACK_AGENT_EVENT_UPDATES=1` (worker posts per ingest/pipeline lines — see `docs/SLACK.md`) |
+| **Slack & data** | Pipeline inputs and digests are **not sensitive** — OK to post to Slack; still keep **`SLACK_BOT_TOKEN`** secret ([`SLACK.md`](SLACK.md#non-sensitive-pilot-data)). |
+| **Production API** | `deploy/docker-compose.production*.yml` pass the same `SLACK_*` values to **`api`** as **worker** / **beat** so `/internal/slack/*` matches digest config. |
 | **Apply token on server** | `cd /opt/workspaces/parkinglot && python3 scripts/apply_slack_token.py 'xoxb-…'` |
 
 ### Bot name (not in git — fill once)

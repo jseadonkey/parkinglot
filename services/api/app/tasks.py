@@ -15,9 +15,17 @@ from app.celery_app import celery
 from app.config import get_settings
 from app.contract_render import render_ground_lease_draft
 from app.db.models import ApprovalRequest, ContractDraft, DealMemo, OwnerCandidateRow, Parcel, ParcelScore, WorkflowRun
+from app.scoring_profiles import ALL_PROFILES, ENTITLEMENT, STRATEGIC
 from app.db.session import SessionLocal
 from app.memo_render import build_deal_memo_markdown
-from app.slack_digest import build_slack_digest_blocks, post_digest_to_slack
+from app.slack_digest import (
+    build_dual_agent_discussion_posts,
+    build_qualified_parcels_report_blocks,
+    build_slack_digest_blocks,
+    post_agent_event_to_slack,
+    post_blocks_to_slack_channel,
+    post_digest_to_slack,
+)
 from app.storage import put_text_object
 from parking_core.models import OwnerCandidate, ParcelFeature
 from parking_core.pilot import load_pilot_config
@@ -59,7 +67,9 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
             db.add(run)
             db.commit()
             raise ValueError("parcel not found")
-        pilot = load_pilot_config(get_settings().pilot_config_path)
+        settings = get_settings()
+        pilot_ent = load_pilot_config(settings.pilot_config_path)
+        pilot_str = load_pilot_config(settings.pilot_strategic_config_path)
 
         feature = ParcelFeature(
             apn=parcel.apn,
@@ -70,17 +80,35 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
             is_corner_lot=parcel.is_corner_lot,
             distance_to_nearest_demand_m=parcel.distance_to_nearest_demand_m,
         )
-        score = score_parcel(feature, pilot)
+        score = score_parcel(feature, pilot_ent)
+        score_strategic = score_parcel(feature, pilot_str)
 
-        db.execute(delete(ParcelScore).where(ParcelScore.parcel_id == parcel.id))
-        ps = ParcelScore(
-            id=uuid.uuid4(),
-            parcel_id=parcel.id,
-            total_score=score.total_score,
-            breakdown=score.breakdown.model_dump(),
-            pilot_snapshot=score.pilot_snapshot,
+        db.execute(
+            delete(ParcelScore).where(
+                ParcelScore.parcel_id == parcel.id,
+                ParcelScore.score_profile.in_(ALL_PROFILES),
+            )
         )
-        db.add(ps)
+        db.add(
+            ParcelScore(
+                id=uuid.uuid4(),
+                parcel_id=parcel.id,
+                score_profile=ENTITLEMENT,
+                total_score=score.total_score,
+                breakdown=score.breakdown.model_dump(),
+                pilot_snapshot=score.pilot_snapshot,
+            )
+        )
+        db.add(
+            ParcelScore(
+                id=uuid.uuid4(),
+                parcel_id=parcel.id,
+                score_profile=STRATEGIC,
+                total_score=score_strategic.total_score,
+                breakdown=score_strategic.breakdown.model_dump(),
+                pilot_snapshot=score_strategic.pilot_snapshot,
+            )
+        )
 
         run.current_step = WorkflowStep.enrich.value
         db.add(run)
@@ -175,12 +203,27 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
             entity_id=str(run.id),
             meta={"parcel_id": parcel_id, "step": run.current_step},
         )
+        post_agent_event_to_slack(
+            get_settings(),
+            agent="Scoring & pipeline agent",
+            detail=(
+                f"Parcel `{parcel.apn}` — score *{score.total_score:.1f}*; "
+                f"*Human-gate coordinator*: 2 pending approvals (deal memo + contract); "
+                f"workflow `{run.status}`."
+            ),
+        )
         return {"workflow_run_id": str(run.id), "status": run.status}
     except Exception as exc:  # noqa: BLE001
         run.status = WorkflowStatus.failed.value
         run.error = str(exc)
         db.add(run)
         db.commit()
+        err_preview = str(exc)[:800]
+        post_agent_event_to_slack(
+            get_settings(),
+            agent="Scoring & pipeline agent",
+            detail=f"Pipeline failed for parcel `{parcel_id}`: `{err_preview}`",
+        )
         raise
     finally:
         db.close()
@@ -258,7 +301,12 @@ def ingest_geojson_path(
                 pid = str(p.id)
                 inserted += 1
             else:
-                db.execute(delete(ParcelScore).where(ParcelScore.parcel_id == existing.id))
+                db.execute(
+                    delete(ParcelScore).where(
+                        ParcelScore.parcel_id == existing.id,
+                        ParcelScore.score_profile.in_(ALL_PROFILES),
+                    )
+                )
                 existing.lot_sqft = lot_sqft
                 existing.zoning_code = zoning_code
                 existing.zoning_allows_surface_parking = bool(attrs.get("zoning_allows_surface_parking"))
@@ -296,6 +344,13 @@ def ingest_geojson_path(
                     max_auto_pipeline,
                     len(ids),
                 )
+        label = Path(path).name
+        ingest_detail = (
+            f"File `{label}` — inserted *{inserted}*, updated *{updated}*, skipped *{skipped}*."
+        )
+        if auto_run_pipeline and ids:
+            ingest_detail += f" Pipelines enqueued: *{min(len(ids), max_auto_pipeline)}*."
+        post_agent_event_to_slack(get_settings(), agent="Ingest agent", detail=ingest_detail)
         return {
             "parcel_ids": ids,
             "inserted": inserted,
@@ -312,11 +367,75 @@ def ingest_geojson_path(
                 logger.warning("ingest_geojson_path: could not delete temp file %s", path)
 
 
+@celery.task(name="app.tasks.slack_qualified_parcels_report")
+def slack_qualified_parcels_report() -> dict[str, Any]:
+    """Post Block Kit summary of qualified vs not-qualified parcels (latest scores + rationale)."""
+    settings = get_settings()
+    token = (settings.slack_bot_token or "").strip()
+    channel = (settings.slack_digest_channel_id or "").strip()
+    if not token or not channel:
+        logger.warning(
+            "slack_qualified_parcels_report SKIPPED: missing SLACK_BOT_TOKEN or SLACK_DIGEST_CHANNEL_ID",
+        )
+        return {"skipped": True, "reason": "slack not configured"}
+    db = _session()
+    try:
+        blocks, fallback = build_qualified_parcels_report_blocks(db, settings=settings)
+        posted = post_digest_to_slack(settings, blocks, fallback)
+        return {"skipped": False, **posted}
+    except Exception:
+        logger.exception("slack_qualified_parcels_report failed")
+        raise
+    finally:
+        db.close()
+
+
+@celery.task(name="app.tasks.slack_dual_agent_discussion")
+def slack_dual_agent_discussion() -> dict[str, Any]:
+    """Post 3 sequential messages to SLACK_AGENT_DISCUSSION_CHANNEL_ID (Atlas, Beacon, joint)."""
+    settings = get_settings()
+    token = (settings.slack_bot_token or "").strip()
+    channel = (settings.slack_agent_discussion_channel_id or "").strip()
+    if not token or not channel:
+        logger.warning(
+            "slack_dual_agent_discussion SKIPPED: missing SLACK_BOT_TOKEN or SLACK_AGENT_DISCUSSION_CHANNEL_ID",
+        )
+        return {"skipped": True, "reason": "slack agent channel not configured"}
+    db = _session()
+    try:
+        posts = build_dual_agent_discussion_posts(db, settings=settings)
+        out: list[dict[str, Any]] = []
+        for blocks, fallback in posts:
+            out.append(
+                post_blocks_to_slack_channel(
+                    settings,
+                    channel_id=channel,
+                    blocks=blocks,
+                    fallback=fallback,
+                )
+            )
+        return {"skipped": False, "message_count": len(out), "posts": out}
+    except Exception:
+        logger.exception("slack_dual_agent_discussion failed")
+        raise
+    finally:
+        db.close()
+
+
 @celery.task(name="app.tasks.slack_agent_digest")
 def slack_agent_digest() -> dict[str, Any]:
     """Scheduled standup: post a Block Kit digest to Slack (worker executes; Beat only schedules)."""
     settings = get_settings()
-    if not (settings.slack_bot_token or "").strip() or not (settings.slack_digest_channel_id or "").strip():
+    token = (settings.slack_bot_token or "").strip()
+    channel = (settings.slack_digest_channel_id or "").strip()
+    if not token or not channel:
+        logger.warning(
+            "slack_agent_digest SKIPPED: worker missing SLACK_BOT_TOKEN and/or SLACK_DIGEST_CHANNEL_ID "
+            "(digest no-ops until both are set; restart worker + beat after updating deploy/.env). "
+            "has_token=%s has_channel=%s",
+            bool(token),
+            bool(channel),
+        )
         return {"skipped": True, "reason": "slack not configured (set SLACK_BOT_TOKEN and SLACK_DIGEST_CHANNEL_ID)"}
     db = _session()
     try:

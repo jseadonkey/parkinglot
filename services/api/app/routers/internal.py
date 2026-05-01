@@ -14,8 +14,19 @@ from app.db.models import Parcel, ParcelScore
 from app.db.session import get_db
 from app.deps_internal import require_internal_key
 from app.schemas import IngestGeojsonServerPathRequest, SlackTestMessageRequest
-from app.slack_digest import post_text_to_slack
-from app.tasks import ingest_geojson_path, run_pipeline, slack_agent_digest
+from app.slack_digest import (
+    build_dual_agent_discussion_posts,
+    build_slack_digest_blocks,
+    post_text_to_slack,
+    slack_agent_event_updates_enabled,
+)
+from app.tasks import (
+    ingest_geojson_path,
+    run_pipeline,
+    slack_agent_digest,
+    slack_dual_agent_discussion,
+    slack_qualified_parcels_report,
+)
 
 router = APIRouter(
     prefix="/internal",
@@ -55,10 +66,30 @@ def slack_config_status() -> dict[str, bool]:
     s = get_settings()
     has_token = bool((s.slack_bot_token or "").strip())
     has_channel = bool((s.slack_digest_channel_id or "").strip())
+    has_agent_ch = bool((s.slack_agent_discussion_channel_id or "").strip())
     return {
         "slack_digest_configured": has_token and has_channel,
         "has_bot_token": has_token,
         "has_digest_channel_id": has_channel,
+        "slack_dual_agent_configured": has_token and has_agent_ch,
+        "has_agent_discussion_channel_id": has_agent_ch,
+        "slack_agent_event_updates_enabled": slack_agent_event_updates_enabled(s),
+    }
+
+
+@router.get("/slack/digest-preview")
+def slack_digest_preview(hours: int = 4, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Build the next digest body from the DB without posting to Slack (debug Beat / channel config)."""
+    h = min(max(hours, 1), 24)
+    blocks, fallback = build_slack_digest_blocks(db, hours=h)
+    s = get_settings()
+    ch = (s.slack_digest_channel_id or "").strip()
+    return {
+        "hours": h,
+        "slack_digest_configured": bool((s.slack_bot_token or "").strip() and ch),
+        "digest_channel_id_set": bool(ch),
+        "fallback_preview": fallback,
+        "blocks": blocks,
     }
 
 
@@ -66,6 +97,30 @@ def slack_config_status() -> dict[str, bool]:
 def trigger_slack_digest() -> dict[str, str]:
     """Enqueue the same digest task Beat runs (for testing or ad-hoc standup)."""
     async_result = slack_agent_digest.delay()
+    return {"task_id": async_result.id}
+
+
+@router.post("/slack/qualified-parcels-now")
+def trigger_qualified_parcels_report() -> dict[str, str]:
+    """Enqueue qualified-parcels Slack report (same task Beat runs daily)."""
+    async_result = slack_qualified_parcels_report.delay()
+    return {"task_id": async_result.id}
+
+
+@router.get("/slack/agent-discussion-preview")
+def slack_agent_discussion_preview(db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Build dual-agent Slack payloads without posting (debug channel + DB)."""
+    posts = build_dual_agent_discussion_posts(db, settings=get_settings())
+    return {
+        "message_count": len(posts),
+        "messages": [{"fallback": fb, "blocks": blocks} for blocks, fb in posts],
+    }
+
+
+@router.post("/slack/agent-discussion-now")
+def trigger_agent_discussion() -> dict[str, str]:
+    """Enqueue dual-agent discussion (same task Beat posts to agent channel)."""
+    async_result = slack_dual_agent_discussion.delay()
     return {"task_id": async_result.id}
 
 

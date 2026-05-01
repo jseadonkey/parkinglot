@@ -21,6 +21,14 @@ celery.conf.update(
             "task": "app.tasks.slack_agent_digest",
             "schedule": crontab(minute=0, hour="*/4"),
         },
+        "slack-qualified-parcels-daily": {
+            "task": "app.tasks.slack_qualified_parcels_report",
+            "schedule": crontab(minute=0, hour=14),
+        },
+        "slack-dual-agent-discussion-daily": {
+            "task": "app.tasks.slack_dual_agent_discussion",
+            "schedule": crontab(minute=30, hour=15),
+        },
     },
 )
 

@@ -11,7 +11,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = ROOT / ".env"
-DEFAULT_CHANNEL = "C08OVPSAH44"
+# Purveyors of Leisure — #gf-parkinglot-agents-chat (copy from Slack channel details if yours differs).
+DEFAULT_CHANNEL = "C0B0VPSAH44"
 
 
 def _drop_slack_assignment(line: str) -> bool:

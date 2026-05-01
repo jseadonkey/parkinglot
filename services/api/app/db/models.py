@@ -39,6 +39,8 @@ class ParcelScore(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     parcel_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("parcels.id", ondelete="CASCADE"))
+    # entitlement = zoning-forward (pilot.yaml); strategic = demand/visibility-forward (pilot_strategic.yaml)
+    score_profile: Mapped[str] = mapped_column(String(32), nullable=False, default="entitlement")
     total_score: Mapped[float] = mapped_column(Float, nullable=False)
     breakdown: Mapped[dict] = mapped_column(JSONB, nullable=False)
     pilot_snapshot: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

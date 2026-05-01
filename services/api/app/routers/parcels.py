@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.db.models import Parcel, ParcelScore, WorkflowRun
 from app.db.session import get_db
 from app.schemas import ParcelRead, ParcelScoreRead, WorkflowRunRead
+from app.scoring_profiles import ENTITLEMENT, ScoreProfile
 from app.tasks import run_pipeline
 from parking_core.pilot import load_pilot_config
 
@@ -34,6 +35,7 @@ def list_parcels(
         latest_total = (
             select(ParcelScore.total_score)
             .where(ParcelScore.parcel_id == Parcel.id)
+            .where(ParcelScore.score_profile == ENTITLEMENT)
             .order_by(desc(ParcelScore.created_at))
             .limit(1)
             .scalar_subquery()
@@ -76,10 +78,15 @@ def list_workflow_runs_for_parcel(
 
 
 @router.get("/{parcel_id}/score", response_model=ParcelScoreRead)
-def get_latest_score(parcel_id: uuid.UUID, db: Session = Depends(get_db)) -> ParcelScore:
+def get_latest_score(
+    parcel_id: uuid.UUID,
+    profile: ScoreProfile = ENTITLEMENT,
+    db: Session = Depends(get_db),
+) -> ParcelScore:
     stmt = (
         select(ParcelScore)
         .where(ParcelScore.parcel_id == parcel_id)
+        .where(ParcelScore.score_profile == profile)
         .order_by(ParcelScore.created_at.desc())
         .limit(1)
     )

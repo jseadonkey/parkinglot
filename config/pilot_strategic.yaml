@@ -1,0 +1,50 @@
+# Alternate scoring profile — "strategic / demand" agent (Agent Beacon).
+# Same region and deal rails as pilot.yaml; different scoring philosophy:
+# emphasize proximity to demand and corner visibility; zoning is still important but weighted lower.
+# CRS and ingest geometry unchanged.
+
+crs: EPSG:4326
+
+region:
+  name: "Puget Sound — Washington"
+  state_fips: "53"
+  county_fips:
+    - "53033"
+    - "53061"
+    - "53053"
+  primary_metro_cbsa: "42660"
+
+deal:
+  primary_structure: ground_lease
+  allowed_structures:
+    - ground_lease
+    - purchase_option
+  templates_require_legal_review: true
+
+compliance:
+  allowed_outreach_channels: []
+  require_human_approval_for:
+    - outbound_message
+    - contract_send
+    - contract_execute
+  tcpa_can_spam_review_required: true
+
+scoring:
+  # Slightly smaller minimum — urban pads can still work with entitlement/legal path elsewhere.
+  min_lot_sqft: 4000
+  qualified_min_score: 52
+  weights:
+    zoning_permitted_surface_parking: 25
+    lot_size: 20
+    corner_lot: 15
+    near_demand_generator_m: 40
+  demand_generator_buffer_m: 500
+  demand_generators:
+    - name: "Seattle downtown (illustrative)"
+      lat: 47.6062
+      lon: -122.3321
+
+data_sources:
+  parcel_vendor: "TBD — see docs/washington-data.md"
+  zoning_vendor: "TBD — see docs/washington-data.md"
+  poi_source: "osm_or_commercial_tbd"

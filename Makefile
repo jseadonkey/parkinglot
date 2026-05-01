@@ -1,7 +1,8 @@
-.PHONY: help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
+.PHONY: help verify-sample local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
 
 help:
 	@echo "Targets:"
+	@echo "  make verify-sample      - venv + pytest sample GeoJSON trace (scores, enrichment, memo)"
 	@echo "  make local              - docker compose (dev: Postgres, Redis, MinIO, api, worker, UI)"
 	@echo "  make slack-env-local    - merge SLACK_* into .env (needs SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID in env)"
 	@echo "  make droplet-sync       - rsync repo to Droplet (needs DROPLET=ip, optional REMOTE_PATH / SSH_USER)"
@@ -16,6 +17,10 @@ help:
 	@echo "  make prod-down          - stop production stack (default compose file)"
 	@echo "  make tf-init       - terraform init -upgrade (infra/terraform)"
 	@echo "  make tf-plan       - terraform plan (export TF_VAR_do_token and SPACES_* first)"
+
+verify-sample:
+	@chmod +x scripts/verify-sample-trace.sh
+	@./scripts/verify-sample-trace.sh
 
 local:
 	docker compose up --build

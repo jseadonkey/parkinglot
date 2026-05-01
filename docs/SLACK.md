@@ -1,16 +1,33 @@
 # Slack integration
 
-The stack can post a **recurring “agent standup”** to a Slack channel: one Block Kit message every **4 hours (UTC)** summarizing what the pipeline has been doing (new parcels, workflow status changes, pending human approvals, recent audit lines). This is **outbound notification**, not a full chat employee — see [Limits](#limits-and-future-work) below.
+The stack can post a **recurring “agent standup”** to a Slack channel: one Block Kit message every **4 hours (UTC)** summarizing what the pipeline has been doing (new parcels, workflow status changes, pending human approvals, recent audit lines). **Once per day (14:00 UTC)** it also posts a **qualified-parcels report**: latest score per parcel vs `qualified_min_score` from the pilot config, with a short **why** line (zoning, lot size, corner, demand) for qualified rows and a sample of not-qualified rows.
+
+Separately, you can configure a **dedicated “agent discussion” channel** where the two deterministic scoring agents post three messages: **Atlas** (entitlement lens), **Beacon** (demand/visibility lens), then a **joint comparison** (consensus + disagreements). This is **outbound notification**, not a full chat employee — see [Limits](#limits-and-future-work) below.
+
+## Non-sensitive pilot data
+
+The data agents work on here (parcel attributes, scores, workflow status, sample/bundled GeoJSON) is **not sensitive**. Posting digests or optional agent lines to Slack is fine from a data-classification standpoint—use Slack for visibility. You should still **protect the bot token** (`SLACK_BOT_TOKEN`); it is a credential, not the parcel payload.
 
 ## What runs where
 
 | Component | Role |
 |-----------|------|
-| **Celery Beat** (`beat` service in compose) | Sends `slack_agent_digest` to the broker on a cron (`minute=0`, `hour=*/4` UTC). |
-| **Celery worker** | Executes `slack_agent_digest`: reads Postgres, calls Slack `chat.postMessage`. |
-| **FastAPI** | `POST /internal/slack/digest-now` enqueues the same task (optional manual test; requires `X-Internal-Key` when `INTERNAL_API_KEY` is set). |
+| **Celery Beat** (`beat` service in compose) | Sends `slack_agent_digest` every **4h** (`hour=*/4` UTC), `slack_qualified_parcels_report` once daily (**14:00 UTC**), and `slack_dual_agent_discussion` once daily (**15:30 UTC**). |
+| **Celery worker** | Executes those tasks: reads Postgres, calls Slack `chat.postMessage` to **`SLACK_DIGEST_CHANNEL_ID`** (digest/verified channel) and optionally **`SLACK_AGENT_DISCUSSION_CHANNEL_ID`** (agents-only channel). |
+| **FastAPI** | `POST /internal/slack/digest-now`, `POST /internal/slack/qualified-parcels-now`, and `POST /internal/slack/agent-discussion-now` enqueue the matching tasks (manual test; requires `X-Internal-Key` when `INTERNAL_API_KEY` is set). |
 
-If **`SLACK_BOT_TOKEN`** or **`SLACK_DIGEST_CHANNEL_ID`** is unset, the task **no-ops** (returns `skipped` in the task result) so stacks without Slack keep working.
+If Slack env is unset, tasks **no-op** (return `skipped` in the task result) so stacks without Slack keep working. The dual-agent discussion needs **`SLACK_BOT_TOKEN`** and **`SLACK_AGENT_DISCUSSION_CHANNEL_ID`**.
+
+### Per-task “agent” updates (optional)
+
+Set **`SLACK_AGENT_EVENT_UPDATES=1`** (or `true` / `yes` / `on`) in the same env as the **Celery worker** (and API if you want `GET /internal/slack/status` to report the flag). When Slack is fully configured, the worker posts short messages for:
+
+- **Ingest agent** — after each `ingest_geojson_path` run (counts + optional pipeline enqueue summary).
+- **Scoring & pipeline agent** — on each `run_pipeline` success or failure (includes a **Human-gate coordinator** line on success: pending approvals).
+
+Leave unset in production if you only want the **4-hour digest** and manual/API test messages — bulk ingest can generate many Slack lines.
+
+**Production compose:** the **`api`** service receives the same **`SLACK_*`** variables as **worker** / **beat** so `GET /internal/slack/status` and **`POST /internal/slack/test-message`** match the worker’s Slack configuration.
 
 ## Slack app setup
 
@@ -68,6 +85,12 @@ With **`X-Internal-Key`** set as for other `/internal/*` routes:
 - **Manual fire:**  
   `curl -sS -X POST "https://$API_HOST/internal/slack/digest-now" -H "X-Internal-Key: $INTERNAL_API_KEY"`  
   Then check **`GET /internal/tasks/{task_id}`** for Celery state.
+- **Qualified-parcels report (same channel):**  
+  `curl -sS -X POST "https://$API_HOST/internal/slack/qualified-parcels-now" -H "X-Internal-Key: $INTERNAL_API_KEY"`  
+  Same polling as above. Beat runs this daily; adjust time in `app/celery_app.py` (`slack-qualified-parcels-daily`).
+- **Dual-agent discussion (agents-only channel):**  
+  `curl -sS -X POST "https://$API_HOST/internal/slack/agent-discussion-now" -H "X-Internal-Key: $INTERNAL_API_KEY"`  
+  Beat runs this daily; adjust time in `app/celery_app.py` (`slack-dual-agent-discussion-daily`). You can preview the payload (no posting) via `GET /internal/slack/agent-discussion-preview`.
 - **Schedule:** Defined in `app/celery_app.py` (`beat_schedule`). To change cadence, edit the `crontab` and redeploy Beat.
 
 ### Post-deploy Slack ping from GitHub Actions
@@ -97,7 +120,8 @@ Workflow file: [`.github/workflows/slack-digest-now-via-droplet.yml`](../.github
 | Symptom | What to check |
 |--------|----------------|
 | Digest never appears | **`GET /internal/slack/status`** — both flags should be true. Worker logs for `slack_agent_digest`. **Beat** container running (`docker compose ps beat`). |
-| `not_in_channel` / `channel_not_found` | Bot not invited: **`/invite @YourApp`** in that channel. **`SLACK_DIGEST_CHANNEL_ID`** must match the channel (public `C…`, private often `G…`). |
+| `not_in_channel` | Bot not invited: **`/invite @YourApp`** in that channel. |
+| `channel_not_found` (token OK) | **Wrong channel for this workspace** — copy the ID from Slack (**About / channel details**), or set **`SLACK_DIGEST_CHANNEL_ID=gf-parkinglot-agents-chat`**. |
 | `invalid_auth` / `token_revoked` | Regenerate token in Slack app **OAuth** page; update **`SLACK_BOT_TOKEN`** and restart **worker** + **beat**. |
 | `missing_scope` | Re-add **`chat:write`** (and reinstall app to workspace). |
 | Task returns `skipped` | One of **`SLACK_BOT_TOKEN`** / **`SLACK_DIGEST_CHANNEL_ID`** is empty in the **worker** environment. |

@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     celery_broker_url: str = "redis://localhost:6379/0"
     celery_result_backend: str = "redis://localhost:6379/0"
     pilot_config_path: str = "./config/pilot.yaml"
+    pilot_strategic_config_path: str = Field(
+        default="./config/pilot_strategic.yaml",
+        validation_alias=AliasChoices("PILOT_STRATEGIC_CONFIG_PATH", "pilot_strategic_config_path"),
+    )
     storage_endpoint: str = "http://localhost:9000"
     storage_access_key: str = "minio"
     storage_secret_key: str = "minio12345"
@@ -36,6 +40,19 @@ class Settings(BaseSettings):
     slack_digest_channel_id: str = Field(
         default="",
         validation_alias=AliasChoices("SLACK_DIGEST_CHANNEL_ID", "slack_digest_channel_id"),
+    )
+    # Dedicated channel for dual-agent score comparison messages (optional).
+    slack_agent_discussion_channel_id: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "SLACK_AGENT_DISCUSSION_CHANNEL_ID",
+            "slack_agent_discussion_channel_id",
+        ),
+    )
+    # When set to 1/true/yes/on: worker posts short Slack lines for ingest + pipeline tasks (in addition to digest).
+    slack_agent_event_updates: str = Field(
+        default="",
+        validation_alias=AliasChoices("SLACK_AGENT_EVENT_UPDATES", "slack_agent_event_updates"),
     )
 
 
