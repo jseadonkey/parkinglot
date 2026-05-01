@@ -16,7 +16,8 @@ From GitHub (no SSH to your laptop): **Actions → Droplet endpoint checks** cur
 ## Logs (Droplet)
 
 ```bash
-cd /opt/parking-acquisition-agents
+cd /opt/workspaces/parkinglot
+# (Legacy path on some hosts: `/opt/parking-acquisition-agents` — see docs/PROJECT-FACTS.md.)
 # Managed Postgres only (default production compose):
 docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env logs -f --tail=200 api worker beat caddy
 
@@ -48,7 +49,7 @@ For a full picture, combine **worker logs**, **`/workflow-runs`**, **`/approvals
 ## Deploy updates from your laptop
 
 1. `git push` your changes (or ensure local tree matches what you want on the server).
-2. `./scripts/sync-to-droplet.sh` (set `DROPLET`, optional `REMOTE_PATH` / `SSH_USER`).
+2. `./scripts/sync-to-droplet.sh` (set `DROPLET`; optional `REMOTE_PATH` / `SSH_USER` — default remote path is `/opt/workspaces/parkinglot`).
 3. `./scripts/remote-rebuild.sh`
 
 For **GHCR-only** stacks, push new images from CI first, then on the Droplet `docker compose -f deploy/docker-compose.production.ghcr.yml --env-file deploy/.env pull && ... up -d` (or use the full GHCR compose) — see [GHCR-DEPLOY.md](GHCR-DEPLOY.md).
