@@ -55,6 +55,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       PILOT_CONFIG_PATH: /app/config/pilot.yaml
       PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+      PILOT_IDENTIFICATION_CONFIG_PATH: /app/config/pilot_identification.yaml
       STORAGE_ENDPOINT: http://minio:9000
       STORAGE_ACCESS_KEY: minio
       STORAGE_SECRET_KEY: minio12345
@@ -104,6 +105,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       PILOT_CONFIG_PATH: /app/config/pilot.yaml
       PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+      PILOT_IDENTIFICATION_CONFIG_PATH: /app/config/pilot_identification.yaml
       STORAGE_ENDPOINT: http://minio:9000
       STORAGE_ACCESS_KEY: minio
       STORAGE_SECRET_KEY: minio12345
@@ -138,6 +140,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       PILOT_CONFIG_PATH: /app/config/pilot.yaml
       PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+      PILOT_IDENTIFICATION_CONFIG_PATH: /app/config/pilot_identification.yaml
       STORAGE_ENDPOINT: http://minio:9000
       STORAGE_ACCESS_KEY: minio
       STORAGE_SECRET_KEY: minio12345
@@ -174,6 +177,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       PILOT_CONFIG_PATH: /app/config/pilot.yaml
       PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+      PILOT_IDENTIFICATION_CONFIG_PATH: /app/config/pilot_identification.yaml
       STORAGE_ENDPOINT: http://minio:9000
       STORAGE_ACCESS_KEY: minio
       STORAGE_SECRET_KEY: minio12345

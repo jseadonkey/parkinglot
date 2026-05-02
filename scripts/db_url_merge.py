@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import unquote, urlparse, urlunparse
 
@@ -26,7 +26,8 @@ def _reject_placeholder_password(uri: str) -> None:
     if not pw.strip():
         raise ValueError(
             "The connection string has no password. In DigitalOcean use Connection details → "
-            "show next to the password, then Copy the full postgresql:// line (or build the URI with the real password)."
+            "show next to the password, then Copy the full postgresql:// line "
+            "(or build the URI with the real password)."
         )
     low = pw.lower()
     for bad in _BAD_PASSWORD_FRAGMENTS:
@@ -68,7 +69,7 @@ def merge_database_url_into_deploy_env(repo_root: Path, raw_connection: str) -> 
 
     new_line = normalize_raw_to_env_line(raw_connection)
 
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     backup = env_path.with_suffix(f".env.bak.{stamp}")
     shutil.copy2(env_path, backup)
 

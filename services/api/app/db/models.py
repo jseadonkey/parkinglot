@@ -23,6 +23,7 @@ class Parcel(Base):
     is_corner_lot: Mapped[bool] = mapped_column(default=False)
     distance_to_nearest_demand_m: Mapped[float | None] = mapped_column(Float, nullable=True)
     raw_properties: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    owner_outreach_brief: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     footprint: Mapped[object | None] = mapped_column(
         geoalchemy2.Geometry(geometry_type="MULTIPOLYGON", srid=4326),
         nullable=True,
@@ -59,6 +60,7 @@ class OwnerCandidateRow(Base):
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
     source: Mapped[str] = mapped_column(String(128), nullable=False)
     raw: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    normalized_owner_key: Mapped[str | None] = mapped_column(String(256), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     parcel: Mapped[Parcel] = relationship(back_populates="owners")

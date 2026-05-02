@@ -27,7 +27,8 @@ def main() -> int:
         return 1
 
     print(
-        "Copy ONE line from DigitalOcean (full postgresql://… URI from Connection details — often the **Copy** button).\n"
+        "Copy ONE line from DigitalOcean "
+        "(full postgresql://… URI from Connection details — often the **Copy** button).\n"
         "Paste it below and press Enter.\n"
     )
     raw = input().strip()

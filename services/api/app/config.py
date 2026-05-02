@@ -25,10 +25,25 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     celery_broker_url: str = "redis://localhost:6379/0"
     celery_result_backend: str = "redis://localhost:6379/0"
-    pilot_config_path: str = "./config/pilot.yaml"
+    pilot_config_path: str = Field(
+        default="./config/pilot.yaml",
+        validation_alias=AliasChoices("PILOT_CONFIG_PATH", "pilot_config_path"),
+    )
     pilot_strategic_config_path: str = Field(
         default="./config/pilot_strategic.yaml",
         validation_alias=AliasChoices("PILOT_STRATEGIC_CONFIG_PATH", "pilot_strategic_config_path"),
+    )
+    pilot_identification_config_path: str = Field(
+        default="./config/pilot_identification.yaml",
+        validation_alias=AliasChoices(
+            "PILOT_IDENTIFICATION_CONFIG_PATH",
+            "pilot_identification_config_path",
+        ),
+    )
+    # Empty = resolve default rules file under /app/data (Docker) or repo data/zoning/wa (see geojson_loader).
+    zoning_rules_path: str = Field(
+        default="",
+        validation_alias=AliasChoices("ZONING_RULES_PATH", "zoning_rules_path"),
     )
     storage_endpoint: str = "http://localhost:9000"
     storage_access_key: str = "minio"
@@ -177,6 +192,29 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices(
             "EXPLORATION_CAMPAIGN_CRONTAB_MINUTE",
             "exploration_campaign_crontab_minute",
+        ),
+    )
+
+    # Optional licensed vendor webhook for owner/contact enrichment (POST JSON from pipeline).
+    owner_vendor_lookup_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "OWNER_VENDOR_LOOKUP_ENABLED",
+            "owner_vendor_lookup_enabled",
+        ),
+    )
+    owner_vendor_lookup_url: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "OWNER_VENDOR_LOOKUP_URL",
+            "owner_vendor_lookup_url",
+        ),
+    )
+    owner_vendor_lookup_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "OWNER_VENDOR_LOOKUP_API_KEY",
+            "owner_vendor_lookup_api_key",
         ),
     )
 

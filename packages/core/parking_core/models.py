@@ -75,7 +75,14 @@ class RegistryLookupSummary(BaseModel):
     state: str
     provider: str
     query_used: str
-    outcome: Literal["hit", "no_results", "error", "skipped_not_wa", "skipped_not_entity"]
+    outcome: Literal[
+        "hit",
+        "no_results",
+        "error",
+        "skipped_not_wa",
+        "skipped_not_entity",
+        "manual_url_only",
+    ]
     http_status: int | None = None
     raw_result_count: int = 0
     top_match_name: str | None = None
@@ -87,6 +94,7 @@ class RegistryLookupSummary(BaseModel):
     principal_address_line: str | None = None
     detail_http_status: int | None = None
     detail_fetch_error: str | None = None
+    notes: str | None = Field(default=None, description="Human-readable context (not from registry payload).")
 
 
 class VendorContactHint(BaseModel):
@@ -112,7 +120,7 @@ class OwnerOutreachBrief(BaseModel):
     Deterministic v1 rules; swap in vendor / LLM enrichment later without changing the shape.
     """
 
-    schema_version: str = "1"
+    schema_version: str = "2"
     county_fips: str
     apn: str
     recorded_owner_one_liner: str
@@ -125,6 +133,25 @@ class OwnerOutreachBrief(BaseModel):
     compliance_notes: list[str] = Field(default_factory=list)
     registry_lookup: RegistryLookupSummary | None = None
     vendor_lookup: VendorLookupSummary | None = None
+    normalized_owner_key: str | None = Field(
+        default=None,
+        description="US-state-scoped dedupe key for portfolio rollup (see enrichment.normalize).",
+    )
+    same_owner_qualified_other_count: int | None = Field(
+        default=None,
+        description=(
+            "Other parcels in DB with same normalized_owner_key whose latest entitlement score "
+            "meets pilot floor."
+        ),
+    )
+    same_owner_peer_examples: list[str] = Field(
+        default_factory=list,
+        description='Short labels e.g. "53033 / 1234567890" for peer parcels.',
+    )
+    manual_research_checklist: list[str] = Field(
+        default_factory=list,
+        description="Human-only OSINT-style prompts (no automated scraping).",
+    )
     computed_at: datetime | None = Field(
         default=None,
         description="UTC timestamp when this brief was last persisted (recompute or pipeline).",

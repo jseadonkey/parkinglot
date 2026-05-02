@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import UTC, datetime
 from typing import Any
 
 from parking_core.models import (
@@ -9,6 +10,8 @@ from parking_core.models import (
     OwnerCandidate,
     OwnerKind,
     OwnerOutreachBrief,
+    RegistryLookupSummary,
+    VendorLookupSummary,
 )
 
 _WA_STATE_FIPS_PREFIX = "53"
@@ -110,12 +113,48 @@ def _is_washington_county(county_fips: str) -> bool:
     return len(cf) == 5 and cf.startswith(_WA_STATE_FIPS_PREFIX)
 
 
+def build_manual_research_checklist(
+    *,
+    county_fips: str,
+    primary: OwnerCandidate | None,
+) -> list[str]:
+    """Human-only diligence prompts (county recorder, SOS, related parcels). No automated scraping."""
+    lines: list[str] = [
+        f"County recorder / auditor ({county_fips}): confirm grantee matches recorded owner and note deed exceptions.",
+        "Assessor vs tax bill mailing: verify current billing contact if different from legal owner.",
+    ]
+    if primary is None or primary.kind == OwnerKind.unknown:
+        lines.append("Resolve owner from full assessor roll export or title-grade vendor before outreach.")
+        return lines
+    if primary.kind == OwnerKind.entity:
+        lines.extend(
+            [
+                "Secretary of State (entity): confirm good standing, registered agent, and governors/managers.",
+                "Related parcels: search county GIS / tax portal for same mailing address or parent LLC.",
+                "News / litigation: lightweight manual search for bankruptcies or land-use disputes (counsel-guided).",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "Individual owner: confirm identity across recorder filings; treat OSINT hits as unverified leads.",
+                "Privacy / consent: phone/email from third-party lists require vendor permissible purpose + counsel.",
+            ]
+        )
+    return lines
+
+
 def build_owner_outreach_brief(
     *,
     county_fips: str,
     apn: str,
     raw_properties: dict[str, Any] | None,
     owners: list[OwnerCandidate],
+    normalized_owner_key: str | None = None,
+    registry_lookup: RegistryLookupSummary | None = None,
+    vendor_lookup: VendorLookupSummary | None = None,
+    same_owner_qualified_other_count: int | None = None,
+    same_owner_peer_examples: list[str] | None = None,
 ) -> OwnerOutreachBrief:
     props = raw_properties or {}
     primary = owners[0] if owners else None
@@ -240,7 +279,15 @@ def build_owner_outreach_brief(
     compliance = [
         "Counsel must approve templates and channels before any outbound contact.",
         "Do not automate calls or texts without an explicit compliance review.",
+        "Automated owner enrichment must follow vendor contracts and permitted-use policies.",
     ]
+
+    research = build_manual_research_checklist(county_fips=county_fips, primary=primary)
+    if same_owner_qualified_other_count and same_owner_qualified_other_count > 0:
+        gaps.append(
+            f"Portfolio signal: {same_owner_qualified_other_count} other qualified parcel(s) share "
+            "normalized_owner_key — validate before assuming common control."
+        )
 
     return OwnerOutreachBrief(
         county_fips=county_fips,
@@ -253,5 +300,12 @@ def build_owner_outreach_brief(
         steps=steps,
         data_gaps=gaps,
         compliance_notes=compliance,
+        registry_lookup=registry_lookup,
+        vendor_lookup=vendor_lookup,
+        normalized_owner_key=normalized_owner_key,
+        same_owner_qualified_other_count=same_owner_qualified_other_count,
+        same_owner_peer_examples=list(same_owner_peer_examples or []),
+        manual_research_checklist=research,
+        computed_at=datetime.now(tz=UTC),
     )
 

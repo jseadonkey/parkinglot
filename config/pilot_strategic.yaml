@@ -82,5 +82,5 @@ scoring:
 
 data_sources:
   parcel_vendor: "TBD — see docs/washington-data.md"
-  zoning_vendor: "TBD — see docs/washington-data.md"
+  zoning_vendor: "docs/zoning-sources-kent.md + data/zoning/wa/kent_king_surface_parking_rules.yaml"
   poi_source: "osm_or_commercial_tbd"

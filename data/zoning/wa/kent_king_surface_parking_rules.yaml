@@ -1,0 +1,23 @@
+# Surface parking suitability by zone code (Kent city + King unincorporated).
+# NOT LEGAL ADVICE — placeholders until GIS/counsel curate per ordinance.
+# Unknown codes use default_when_unknown (conservative false).
+
+version: 1
+default_when_unknown: false
+
+jurisdictions:
+  kent_city:
+    source_url: "https://gis-cityofkent.opendata.arcgis.com/datasets/kent-zoning-districts"
+    zones:
+      # Example placeholder — replace with ordinance-backed entries:
+      # "C-1":
+      #   allows_surface_parking: false
+      #   note: "Verify commercial parking allowances in Kent zoning code."
+
+  king_unincorporated:
+    source_url: "https://gis-kingcounty.opendata.arcgis.com/datasets/kingcounty::zoning-for-unincorporated-king-county"
+    zones:
+      # Example placeholder — King County uses CURRZONE-style codes on zoning_area:
+      # "R-4":
+      #   allows_surface_parking: false
+      #   note: "Verify KC Title 21 / zoning map for outright parking uses."
