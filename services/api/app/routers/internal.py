@@ -12,6 +12,7 @@ from app.celery_app import celery
 from app.config import get_settings
 from app.db.models import Parcel
 from app.db.session import get_db
+from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
 from app.deps_internal import require_internal_key
 from app.schemas import IngestGeojsonServerPathRequest, IngestWatechCountyRequest, SlackTestMessageRequest
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
@@ -312,3 +313,48 @@ def enqueue_unscored_pipelines(
 ) -> dict[str, Any]:
     """Enqueue ``run_pipeline`` for parcels that have no ``parcel_scores`` row yet (cap 500)."""
     return enqueue_unscored_pipeline_jobs(limit)
+
+
+@router.get("/owners/peers-by-key")
+def peers_by_normalized_owner_key(
+    normalized_owner_key: str,
+    limit: int = 200,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Qualified parcels (latest entitlement ≥ pilot floor) sharing ``normalized_owner_key``."""
+    settings = get_settings()
+    pilot = load_pilot_config(settings.pilot_config_path)
+    floor = float(pilot.scoring.qualified_min_score)
+    lim = min(max(limit, 1), 500)
+    parcels = list_peer_parcel_summaries(
+        db,
+        normalized_owner_key=normalized_owner_key,
+        entitlement_floor=floor,
+        limit=lim,
+    )
+    return {
+        "normalized_owner_key": normalized_owner_key,
+        "qualified_min_entitlement_score": floor,
+        "parcel_count": len(parcels),
+        "parcels": parcels,
+    }
+
+
+@router.get("/owners/portfolios-ranked")
+def portfolios_ranked(
+    min_peers: int = 2,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Owner keys with multiple qualified parcels (rollup candidates)."""
+    settings = get_settings()
+    pilot = load_pilot_config(settings.pilot_config_path)
+    floor = float(pilot.scoring.qualified_min_score)
+    mp = min(max(min_peers, 2), 500)
+    lim = min(max(limit, 1), 200)
+    rows = rank_owner_portfolios(db, entitlement_floor=floor, min_peers=mp, limit=lim)
+    return {
+        "qualified_min_entitlement_score": floor,
+        "min_peers": mp,
+        "portfolios": rows,
+    }

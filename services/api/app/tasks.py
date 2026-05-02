@@ -23,6 +23,7 @@ from app.exploration_campaign import (
     load_campaign_config,
 )
 from app.memo_render import build_deal_memo_markdown
+from app.owner_portfolio import count_qualified_peer_parcels
 from app.scoring_profiles import (
     ENTITLEMENT,
     IDENTIFICATION,
@@ -40,8 +41,11 @@ from app.slack_digest import (
 from app.storage import put_text_object
 from parking_core.models import OwnerCandidate, ParcelFeature
 from parking_core.pilot import load_pilot_config
+from parking_enrichment.owner_normalize import scoped_owner_key
 from parking_enrichment.owner_outreach_agent import build_owner_outreach_brief
 from parking_enrichment.pipeline import enrich_from_parcel_row
+from parking_enrichment.registry_lookup import lookup_secretary_of_state_stub
+from parking_enrichment.vendor_lookup_client import fetch_vendor_owner_enrichment
 from parking_scoring.engine import score_parcel
 from parking_workflows.state import WorkflowStatus, WorkflowStep
 
@@ -194,6 +198,9 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
 
         db.execute(delete(OwnerCandidateRow).where(OwnerCandidateRow.parcel_id == parcel.id))
         enriched: list[OwnerCandidate] = list(enrich_from_parcel_row(parcel.raw_properties or {}))
+        norm_key: str | None = None
+        if enriched:
+            norm_key = scoped_owner_key(enriched[0].display_name, county_fips=parcel.county_fips)
         for cand in enriched:
             db.add(
                 OwnerCandidateRow(
@@ -204,13 +211,51 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
                     confidence=cand.confidence,
                     source=cand.source,
                     raw=cand.raw,
+                    normalized_owner_key=norm_key,
                 )
             )
+
+        floor = float(load_pilot_config(settings.pilot_config_path).scoring.qualified_min_score)
+        peer_count, peer_examples = (0, [])
+        if norm_key:
+            peer_count, peer_examples = count_qualified_peer_parcels(
+                db,
+                parcel_id=parcel.id,
+                normalized_owner_key=norm_key,
+                entitlement_floor=floor,
+            )
+
+        registry = None
+        if enriched:
+            registry = lookup_secretary_of_state_stub(
+                county_fips=parcel.county_fips,
+                owner_kind=enriched[0].kind,
+                query_name=enriched[0].display_name,
+            )
+
+        vendor = fetch_vendor_owner_enrichment(
+            enabled=settings.owner_vendor_lookup_enabled,
+            url=(settings.owner_vendor_lookup_url or "").strip() or None,
+            api_key=(settings.owner_vendor_lookup_api_key or "").strip() or None,
+            parcel_id=str(parcel.id),
+            county_fips=parcel.county_fips,
+            apn=parcel.apn,
+            owners=[
+                {"display_name": o.display_name, "kind": o.kind.value, "confidence": o.confidence}
+                for o in enriched
+            ],
+        )
+
         outreach_brief = build_owner_outreach_brief(
             county_fips=parcel.county_fips,
             apn=parcel.apn,
             raw_properties=parcel.raw_properties or {},
             owners=enriched,
+            normalized_owner_key=norm_key,
+            registry_lookup=registry,
+            vendor_lookup=vendor,
+            same_owner_qualified_other_count=peer_count,
+            same_owner_peer_examples=peer_examples,
         )
         parcel.owner_outreach_brief = outreach_brief.model_dump(mode="json")
         db.add(parcel)

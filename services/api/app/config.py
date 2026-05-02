@@ -195,6 +195,29 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Optional licensed vendor webhook for owner/contact enrichment (POST JSON from pipeline).
+    owner_vendor_lookup_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "OWNER_VENDOR_LOOKUP_ENABLED",
+            "owner_vendor_lookup_enabled",
+        ),
+    )
+    owner_vendor_lookup_url: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "OWNER_VENDOR_LOOKUP_URL",
+            "owner_vendor_lookup_url",
+        ),
+    )
+    owner_vendor_lookup_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "OWNER_VENDOR_LOOKUP_API_KEY",
+            "owner_vendor_lookup_api_key",
+        ),
+    )
+
     @field_validator("exploration_campaign_start_date", mode="before")
     @classmethod
     def exploration_start_date_empty_ok(cls, v: Any) -> Any:
