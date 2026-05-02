@@ -56,9 +56,12 @@ Scoring is **deterministic** from `config/pilot.yaml` (entitlement) and `config/
    After you spatially join zoning into GeoJSON (same property aliases as ingest — `ZONING`, `ZONING_JURISDICTION`, `IS_CORNER`, `DIST_DEMAND_M`, …), call **`POST /internal/ingest/merge-geojson-attributes`** with JSON `{"path":"/abs/path/overlay.geojson","refresh_pipeline":true}`. Updates existing parcels only; refreshes Cartographer identification scores and optionally re-enqueues `run_pipeline`.
 
 4. **Refresh demand distance from pilot POIs**  
-   **`POST /internal/metrics/refresh-demand-distances?limit=500`** recomputes centroid → nearest generator using **`config/pilot.yaml`** `demand_generators` (optional `county_fips=53033`). Refreshes identification scores.
+   **`POST /internal/metrics/refresh-demand-distances?limit=2000`** recomputes centroid → nearest generator using **`config/pilot.yaml`** `demand_generators` (optional `county_fips=53033`). For each parcel updated in this batch, the worker also **re-upserts** the identification (Cartographer) score — but only for parcels **included** in the batch (recent-by-default ordering).
 
-5. **Confirm**  
+5. **Backfill identification only (Cartographer)**  
+   When **`GET /internal/stats/export-readiness`** shows **`parcels_missing_score_identification`** but you do not need another demand-distance pass, call **`POST /internal/metrics/refresh-identification-scores?limit=2000`** (optional `county_fips=53033`). This Celery task upserts identification scores for parcels **missing** an identification `parcel_scores` row (no full re-ingest). Automated runner: [`scripts/execute-phase-a.sh`](../scripts/execute-phase-a.sh) (`PHASE_A_REFRESH_IDENTIFICATION`, `PHASE_A_IDENT_LIMIT`).
+
+6. **Confirm**  
    `GET /internal/stats/scoring-summary` (same internal auth) — expect non-zero `total_parcels`, `parcels_with_latest_*_score`, and `qualified_count_*` once pipelines finish.  
    **`GET /internal/stats/export-readiness`** — null/gap **counts** for footprint, zoning, lot size, demand distance, and each score profile (stakeholder CSV dry-run). Poll **`GET /internal/tasks/{task_id}`** after async POSTs.
 

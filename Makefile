@@ -4,7 +4,7 @@ help:
 	@echo "Targets:"
 	@echo "  make verify-sample      - venv + pytest sample GeoJSON trace (scores, enrichment, memo)"
 	@echo "  make export-readiness   - print CSV column gap counts (needs DATABASE_URL)"
-	@echo "  make phase-a-run        - Phase A: readiness + enqueue-incomplete + refresh-demand (needs DATABASE_URL; see scripts/execute-phase-a.sh)"
+	@echo "  make phase-a-run        - Phase A: readiness + enqueue + identification backfill + demand refresh (needs DATABASE_URL; see scripts/execute-phase-a.sh)"
 	@echo "  make local              - docker compose (dev: Postgres, Redis, MinIO, api, worker, UI)"
 	@echo "  make slack-env-local    - merge SLACK_* into .env (needs SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID in env)"
 	@echo "  make droplet-sync       - rsync repo to Droplet (needs DROPLET=ip, optional REMOTE_PATH / SSH_USER)"
