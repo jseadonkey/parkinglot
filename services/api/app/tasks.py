@@ -8,7 +8,7 @@ from typing import Any
 
 from geoalchemy2.elements import WKTElement
 from shapely.geometry import MultiPolygon, Polygon
-from sqlalchemy import delete, exists, select
+from sqlalchemy import delete, exists, not_, or_, select
 from sqlalchemy.orm import Session
 
 from app.audit import write_audit
@@ -53,10 +53,10 @@ logger = logging.getLogger(__name__)
 
 
 def enqueue_unscored_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
-    """Enqueue ``run_pipeline`` for parcels missing pipeline scores (Atlas/Beacon).
+    """Enqueue ``run_pipeline`` for parcels missing an **entitlement** score row.
 
-    Parcels may already have an ingest-time ``identification`` score; we key off missing
-    ``entitlement`` as the signal that the full pipeline has not completed.
+    Parcels may already have an ingest-time ``identification`` score; missing **strategic**
+    alone does **not** match — use ``enqueue_incomplete_pipeline_jobs`` for that.
 
     Used by ``POST /internal/pipeline/enqueue-unscored`` and periodic Beat.
     """
@@ -80,6 +80,37 @@ def enqueue_unscored_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
         for pid in ids:
             run_pipeline.delay(pid)
         return {"enqueued": len(ids), "parcel_ids": ids}
+    finally:
+        db.close()
+
+
+def enqueue_incomplete_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
+    """Enqueue ``run_pipeline`` when entitlement **or** strategic score is missing."""
+    cap = min(max(limit, 1), 500)
+    db = _session()
+    try:
+        has_ent = exists(
+            select(1).where(
+                ParcelScore.parcel_id == Parcel.id,
+                ParcelScore.score_profile == ENTITLEMENT,
+            )
+        )
+        has_str = exists(
+            select(1).where(
+                ParcelScore.parcel_id == Parcel.id,
+                ParcelScore.score_profile == STRATEGIC,
+            )
+        )
+        stmt = (
+            select(Parcel.id)
+            .where(or_(not_(has_ent), not_(has_str)))
+            .order_by(Parcel.created_at.desc())
+            .limit(cap)
+        )
+        ids = [str(i) for i in db.scalars(stmt)]
+        for pid in ids:
+            run_pipeline.delay(pid)
+        return {"enqueued": len(ids), "parcel_ids": ids, "mode": "missing_entitlement_or_strategic"}
     finally:
         db.close()
 
@@ -467,11 +498,11 @@ def fetch_watech_county_and_ingest(
 
 @celery.task(name="app.tasks.enqueue_unscored_pipelines_scheduled")
 def enqueue_unscored_pipelines_scheduled(limit: int = 100) -> dict[str, Any]:
-    """Beat: enqueue ``run_pipeline`` for parcels missing any ``parcel_scores`` row (bounded batch)."""
-    out = enqueue_unscored_pipeline_jobs(limit)
+    """Beat: enqueue ``run_pipeline`` for parcels missing entitlement **or** strategic scores."""
+    out = enqueue_incomplete_pipeline_jobs(limit)
     if out["enqueued"]:
         logger.info(
-            "enqueue_unscored_pipelines_scheduled: enqueued %s pipeline(s)",
+            "enqueue_unscored_pipelines_scheduled: enqueued %s incomplete pipeline(s)",
             out["enqueued"],
         )
     return out
@@ -617,6 +648,153 @@ def ingest_geojson_path(
                 Path(path).unlink(missing_ok=True)
             except OSError:
                 logger.warning("ingest_geojson_path: could not delete temp file %s", path)
+
+
+@celery.task(name="app.tasks.merge_parcel_attributes_geojson")
+def merge_parcel_attributes_geojson(
+    path: str,
+    default_county_fips: str | None = None,
+    delete_after: bool = False,
+    refresh_pipeline: bool = True,
+    max_pipeline: int = 100,
+) -> dict[str, Any]:
+    """Update existing parcels from a GeoJSON overlay (zoning, corner, demand distance, lot_sqft).
+
+    Does **not** insert new parcels. Use after spatial joins or assessor enrichments land in GeoJSON
+    properties (``ZONING``, ``ZONING_JURISDICTION``, ``IS_CORNER``, ``DIST_DEMAND_M``, etc.).
+    """
+    from parking_ingestion.geojson_loader import iter_parcels_from_geojson_dict, load_geojson_path
+
+    data = load_geojson_path(Path(path))
+    db = _session()
+    zrp = (get_settings().zoning_rules_path or "").strip()
+    zoning_rules_arg = Path(zrp) if zrp else None
+    pilot = load_pilot_config(get_settings().pilot_config_path)
+    updated = 0
+    skipped_region = 0
+    not_found = 0
+    pipeline_ids: list[str] = []
+    try:
+        for attrs, _geom in iter_parcels_from_geojson_dict(data, rules_path=zoning_rules_arg):
+            county = str(attrs["county_fips"] or "").strip() or (default_county_fips or "").strip()
+            apn = str(attrs["apn"] or "").strip()
+            if not apn or not county:
+                continue
+            if pilot.region.county_fips and county not in pilot.region.county_fips:
+                skipped_region += 1
+                continue
+            row = db.scalars(
+                select(Parcel).where(Parcel.county_fips == county, Parcel.apn == apn).limit(1)
+            ).first()
+            if row is None:
+                not_found += 1
+                continue
+            if attrs.get("zoning_code") is not None:
+                row.zoning_code = str(attrs["zoning_code"])
+            row.zoning_allows_surface_parking = bool(attrs.get("zoning_allows_surface_parking"))
+            row.is_corner_lot = bool(attrs.get("is_corner_lot"))
+            if attrs.get("distance_to_nearest_demand_m") is not None:
+                row.distance_to_nearest_demand_m = float(attrs["distance_to_nearest_demand_m"])
+            if attrs.get("lot_sqft") is not None:
+                row.lot_sqft = float(attrs["lot_sqft"])
+            overlay = attrs.get("raw_properties") or {}
+            if isinstance(overlay, dict) and overlay:
+                merged = dict(row.raw_properties or {})
+                merged.update({k: v for k, v in overlay.items() if v is not None})
+                row.raw_properties = merged
+            db.add(row)
+            db.flush()
+            _upsert_identification_score(db, row)
+            updated += 1
+            pipeline_ids.append(str(row.id))
+        db.commit()
+        write_audit(
+            db,
+            actor="system",
+            action="parcels_merge_attributes",
+            entity_type="parcel",
+            entity_id=None,
+            meta={
+                "source_path": path,
+                "updated": updated,
+                "not_found": not_found,
+                "skipped_region": skipped_region,
+            },
+        )
+        cap = min(max(max_pipeline, 0), 5000)
+        enq = 0
+        if refresh_pipeline and pipeline_ids and cap > 0:
+            for pid in pipeline_ids[:cap]:
+                run_pipeline.delay(pid)
+                enq += 1
+        post_agent_event_to_slack(
+            get_settings(),
+            agent="Cartographer (attribute merge)",
+            detail=(
+                f"Merged GeoJSON overlay `{Path(path).name}` — updated *{updated}*, "
+                f"no row *{not_found}*, skipped pilot *{skipped_region}*; pipelines *{enq}*."
+            ),
+        )
+        return {
+            "updated": updated,
+            "not_found": not_found,
+            "skipped_wrong_region": skipped_region,
+            "pipelines_enqueued": enq,
+            "parcel_ids": pipeline_ids[:20],
+        }
+    finally:
+        db.close()
+        if delete_after:
+            try:
+                Path(path).unlink(missing_ok=True)
+            except OSError:
+                logger.warning("merge_parcel_attributes_geojson: could not delete temp file %s", path)
+
+
+@celery.task(name="app.tasks.refresh_demand_distances_batch")
+def refresh_demand_distances_batch(
+    limit: int = 500,
+    county_fips: str | None = None,
+) -> dict[str, Any]:
+    """Recompute ``distance_to_nearest_demand_m`` from pilot.yaml demand generators (centroid → POI)."""
+    from geoalchemy2.shape import to_shape
+
+    from parking_ingestion.parcel_metrics import min_distance_to_generators_m
+
+    settings = get_settings()
+    pilot = load_pilot_config(settings.pilot_config_path)
+    if not pilot.scoring.demand_generators:
+        return {"skipped": True, "reason": "no_demand_generators_in_pilot", "updated": 0}
+
+    lim = min(max(limit, 1), 5000)
+    db = _session()
+    n = 0
+    try:
+        stmt = select(Parcel).where(Parcel.footprint.isnot(None))
+        cf = (county_fips or "").strip()
+        if cf:
+            stmt = stmt.where(Parcel.county_fips == cf)
+        stmt = stmt.order_by(Parcel.created_at.desc()).limit(lim)
+        for parcel in db.scalars(stmt):
+            geom = to_shape(parcel.footprint)
+            if geom.is_empty:
+                continue
+            c = geom.centroid
+            dmin = min_distance_to_generators_m(c.y, c.x, pilot.scoring.demand_generators)
+            parcel.distance_to_nearest_demand_m = dmin
+            db.add(parcel)
+            db.flush()
+            _upsert_identification_score(db, parcel)
+            n += 1
+        db.commit()
+        post_agent_event_to_slack(
+            settings,
+            agent="Beacon (demand distance refresh)",
+            detail=f"Refreshed demand distance for *{n}* parcel(s)" + (f" in `{cf}`." if cf else "."),
+        )
+        return {"updated": n, "county_fips": cf or None, "limit": lim}
+    finally:
+        db.close()
 
 
 @celery.task(name="app.tasks.slack_qualified_parcels_report")

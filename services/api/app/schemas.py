@@ -116,6 +116,28 @@ class IngestGeojsonServerPathRequest(BaseModel):
         return v
 
 
+class MergeGeojsonAttributesRequest(BaseModel):
+    """Path to GeoJSON whose properties update existing parcels (same loader as full ingest)."""
+
+    path: str = Field(min_length=1, max_length=4096)
+    default_county_fips: str | None = None
+    delete_after: bool = False
+    refresh_pipeline: bool = True
+    max_pipeline: int = Field(default=100, ge=0, le=5000)
+
+    @field_validator("path")
+    @classmethod
+    def merge_path_sanity(cls, v: str) -> str:
+        if "\x00" in v or "\n" in v or "\r" in v:
+            msg = "invalid path"
+            raise ValueError(msg)
+        parts = Path(v).parts
+        if ".." in parts:
+            msg = "path cannot contain parent directory segments"
+            raise ValueError(msg)
+        return v
+
+
 class SlackTestMessageRequest(BaseModel):
     """One-off Slack message for smoke testing.
 

@@ -14,7 +14,12 @@ from app.db.models import Parcel
 from app.db.session import get_db
 from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
 from app.deps_internal import require_internal_key
-from app.schemas import IngestGeojsonServerPathRequest, IngestWatechCountyRequest, SlackTestMessageRequest
+from app.schemas import (
+    IngestGeojsonServerPathRequest,
+    IngestWatechCountyRequest,
+    MergeGeojsonAttributesRequest,
+    SlackTestMessageRequest,
+)
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
 from app.slack_digest import (
     _fetch_latest_scores_per_parcel,
@@ -25,9 +30,12 @@ from app.slack_digest import (
     slack_agent_event_updates_enabled,
 )
 from app.tasks import (
+    enqueue_incomplete_pipeline_jobs,
     enqueue_unscored_pipeline_jobs,
     fetch_watech_county_and_ingest,
     ingest_geojson_path,
+    merge_parcel_attributes_geojson,
+    refresh_demand_distances_batch,
     slack_agent_digest,
     slack_dual_agent_discussion,
     slack_qualified_parcels_report,
@@ -311,8 +319,42 @@ def ingest_watech_county(body: IngestWatechCountyRequest) -> dict[str, object]:
 def enqueue_unscored_pipelines(
     limit: int = 100,
 ) -> dict[str, Any]:
-    """Enqueue ``run_pipeline`` for parcels that have no ``parcel_scores`` row yet (cap 500)."""
+    """Enqueue ``run_pipeline`` for parcels missing latest **entitlement** score (cap 500)."""
     return enqueue_unscored_pipeline_jobs(limit)
+
+
+@router.post("/pipeline/enqueue-incomplete")
+def enqueue_incomplete_pipelines(
+    limit: int = 100,
+) -> dict[str, Any]:
+    """Enqueue ``run_pipeline`` when **entitlement** or **strategic** score is missing (Atlas/Beacon pair)."""
+    return enqueue_incomplete_pipeline_jobs(limit)
+
+
+@router.post("/ingest/merge-geojson-attributes")
+def merge_geojson_attributes(body: MergeGeojsonAttributesRequest) -> dict[str, Any]:
+    """Update zoning/corner/demand/lot fields on existing parcels from a GeoJSON overlay (Celery)."""
+    async_result = merge_parcel_attributes_geojson.delay(
+        body.path,
+        default_county_fips=body.default_county_fips,
+        delete_after=body.delete_after,
+        refresh_pipeline=body.refresh_pipeline,
+        max_pipeline=body.max_pipeline,
+    )
+    return {"task_id": async_result.id}
+
+
+@router.post("/metrics/refresh-demand-distances")
+def refresh_demand_distances(
+    limit: int = 500,
+    county_fips: str | None = None,
+) -> dict[str, Any]:
+    """Recompute centroid→demand POI distance from ``pilot.yaml`` generators (Celery)."""
+    async_result = refresh_demand_distances_batch.delay(
+        limit=limit,
+        county_fips=county_fips,
+    )
+    return {"task_id": async_result.id}
 
 
 @router.get("/owners/peers-by-key")

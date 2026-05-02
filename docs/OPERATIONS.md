@@ -45,11 +45,18 @@ Scoring is **deterministic** from `config/pilot.yaml` (entitlement) and `config/
    - **Quick check:** from the Droplet, with `INTERNAL_API_KEY` in `deploy/.env`, call **`POST /internal/ingest/sample`**. This loads `data/sample_parcels.geojson` and, by default, **enqueues the full pipeline** (dual scores + workflow run).  
    - **Production:** `scp` a county export to the repo’s `data/` (mounted read-only at `/app/data/...` in containers) and call **`POST /internal/ingest/geojson-server-path`** with `auto_run_pipeline: true` in the JSON body, or set **`SCHEDULED_GEOJSON_INGEST_*`** in `deploy/.env` and **recreate** `worker` + **beat** so Beat can run `ingest_geojson_path` on a schedule. Compose must pass those variables (see `deploy/docker-compose.production*.yml`).
 
-2. **Score anything that only has parcel rows**  
-   `POST /internal/pipeline/enqueue-unscored?limit=200` enqueues `run_pipeline` for parcels with **no** `parcel_scores` yet (up to 500).  
-   **By default**, Celery Beat also runs this on a schedule (every **4 hours** UTC by default, bounded batch — see **`SCHEDULED_ENQUEUE_*`** in `deploy/env.production.example`). Restart **worker + beat** after changing those variables.
+2. **Backfill scoring (Atlas + Beacon)**  
+   - `POST /internal/pipeline/enqueue-unscored?limit=200` — parcels **missing entitlement** (`parcel_scores` with profile `entitlement`), up to 500.  
+   - `POST /internal/pipeline/enqueue-incomplete?limit=200` — parcels missing **entitlement or strategic** (use after migrations or partial pipeline failures).  
+   **By default**, Celery Beat runs the same **incomplete-pair** logic on a schedule (parcels missing entitlement or strategic — every **4 hours** UTC by default — see **`SCHEDULED_ENQUEUE_*`** in `deploy/env.production.example`). Restart **worker + beat** after changing those variables.
 
-3. **Confirm**  
+3. **Enrich attributes without replacing footprints** (zoning overlay, corner flags, demand distance on props)  
+   After you spatially join zoning into GeoJSON (same property aliases as ingest — `ZONING`, `ZONING_JURISDICTION`, `IS_CORNER`, `DIST_DEMAND_M`, …), call **`POST /internal/ingest/merge-geojson-attributes`** with JSON `{"path":"/abs/path/overlay.geojson","refresh_pipeline":true}`. Updates existing parcels only; refreshes Cartographer identification scores and optionally re-enqueues `run_pipeline`.
+
+4. **Refresh demand distance from pilot POIs**  
+   **`POST /internal/metrics/refresh-demand-distances?limit=500`** recomputes centroid → nearest generator using **`config/pilot.yaml`** `demand_generators` (optional `county_fips=53033`). Refreshes identification scores.
+
+5. **Confirm**  
    `GET /internal/stats/scoring-summary` (same internal auth) — expect non-zero `total_parcels`, `parcels_with_latest_*_score`, and `qualified_count_*` once pipelines finish. Poll **`GET /internal/tasks/{task_id}`** after async POSTs.
 
 Pilot region filters are in **`config/pilot.yaml`** (`region.county_fips`). Features outside those counties are skipped at ingest.
