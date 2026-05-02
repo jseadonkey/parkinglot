@@ -53,6 +53,22 @@ if _ingest_path:
         _s.scheduled_geojson_ingest_crontab_minute,
     )
 
+if _s.scheduled_enqueue_unscored_enabled:
+    beat_schedule["enqueue-unscored-pipelines"] = {
+        "task": "app.tasks.enqueue_unscored_pipelines_scheduled",
+        "schedule": crontab(
+            minute=_s.scheduled_enqueue_unscored_crontab_minute,
+            hour=_s.scheduled_enqueue_unscored_crontab_hour,
+        ),
+        "kwargs": {"limit": _s.scheduled_enqueue_unscored_limit},
+    }
+    logger.info(
+        "Beat: enqueue unscored pipelines — hour=%s minute=%02d limit=%s",
+        _s.scheduled_enqueue_unscored_crontab_hour,
+        _s.scheduled_enqueue_unscored_crontab_minute,
+        _s.scheduled_enqueue_unscored_limit,
+    )
+
 celery = Celery("parking", broker=broker, backend=backend)
 celery.conf.update(
     task_serializer="json",

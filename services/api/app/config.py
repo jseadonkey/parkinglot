@@ -102,6 +102,41 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Periodic pipeline backlog drain (parcels with no parcel_scores yet).
+    scheduled_enqueue_unscored_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "SCHEDULED_ENQUEUE_UNSCORED_ENABLED",
+            "scheduled_enqueue_unscored_enabled",
+        ),
+    )
+    scheduled_enqueue_unscored_limit: int = Field(
+        default=150,
+        ge=1,
+        le=500,
+        validation_alias=AliasChoices(
+            "SCHEDULED_ENQUEUE_UNSCORED_LIMIT",
+            "scheduled_enqueue_unscored_limit",
+        ),
+    )
+    scheduled_enqueue_unscored_crontab_minute: int = Field(
+        default=25,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "SCHEDULED_ENQUEUE_UNSCORED_CRONTAB_MINUTE",
+            "scheduled_enqueue_unscored_crontab_minute",
+        ),
+    )
+    # Celery crontab hour: int hour, "*", or "*/n" (e.g. "*/4" = every 4 hours UTC).
+    scheduled_enqueue_unscored_crontab_hour: str = Field(
+        default="*/4",
+        validation_alias=AliasChoices(
+            "SCHEDULED_ENQUEUE_UNSCORED_CRONTAB_HOUR",
+            "scheduled_enqueue_unscored_crontab_hour",
+        ),
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

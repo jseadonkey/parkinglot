@@ -5,12 +5,12 @@ from tempfile import NamedTemporaryFile
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from sqlalchemy import exists, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.celery_app import celery
 from app.config import get_settings
-from app.db.models import Parcel, ParcelScore
+from app.db.models import Parcel
 from app.db.session import get_db
 from app.deps_internal import require_internal_key
 from app.schemas import IngestGeojsonServerPathRequest, SlackTestMessageRequest
@@ -24,8 +24,8 @@ from app.slack_digest import (
     slack_agent_event_updates_enabled,
 )
 from app.tasks import (
+    enqueue_unscored_pipeline_jobs,
     ingest_geojson_path,
-    run_pipeline,
     slack_agent_digest,
     slack_dual_agent_discussion,
     slack_qualified_parcels_report,
@@ -290,17 +290,6 @@ def ingest_geojson_server_path(body: IngestGeojsonServerPathRequest) -> dict[str
 @router.post("/pipeline/enqueue-unscored")
 def enqueue_unscored_pipelines(
     limit: int = 100,
-    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Enqueue ``run_pipeline`` for parcels that have no ``parcel_scores`` row yet (cap 500)."""
-    cap = min(max(limit, 1), 500)
-    stmt = (
-        select(Parcel.id)
-        .where(~exists(select(1).where(ParcelScore.parcel_id == Parcel.id)))
-        .order_by(Parcel.created_at.desc())
-        .limit(cap)
-    )
-    ids = [str(i) for i in db.scalars(stmt)]
-    for pid in ids:
-        run_pipeline.delay(pid)
-    return {"enqueued": len(ids), "parcel_ids": ids}
+    return enqueue_unscored_pipeline_jobs(limit)

@@ -7,7 +7,7 @@ from typing import Any
 
 from geoalchemy2.elements import WKTElement
 from shapely.geometry import MultiPolygon, Polygon
-from sqlalchemy import delete, select
+from sqlalchemy import delete, exists, select
 from sqlalchemy.orm import Session
 
 from app.audit import write_audit
@@ -35,6 +35,28 @@ from parking_scoring.engine import score_parcel
 from parking_workflows.state import WorkflowStatus, WorkflowStep
 
 logger = logging.getLogger(__name__)
+
+
+def enqueue_unscored_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
+    """Enqueue ``run_pipeline`` for parcels that have no ``parcel_scores`` row yet (cap 500).
+
+    Used by ``POST /internal/pipeline/enqueue-unscored`` and periodic Beat.
+    """
+    cap = min(max(limit, 1), 500)
+    db = _session()
+    try:
+        stmt = (
+            select(Parcel.id)
+            .where(~exists(select(1).where(ParcelScore.parcel_id == Parcel.id)))
+            .order_by(Parcel.created_at.desc())
+            .limit(cap)
+        )
+        ids = [str(i) for i in db.scalars(stmt)]
+        for pid in ids:
+            run_pipeline.delay(pid)
+        return {"enqueued": len(ids), "parcel_ids": ids}
+    finally:
+        db.close()
 
 
 def _session() -> Session:
@@ -227,6 +249,18 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
         raise
     finally:
         db.close()
+
+
+@celery.task(name="app.tasks.enqueue_unscored_pipelines_scheduled")
+def enqueue_unscored_pipelines_scheduled(limit: int = 100) -> dict[str, Any]:
+    """Beat: enqueue ``run_pipeline`` for parcels missing any ``parcel_scores`` row (bounded batch)."""
+    out = enqueue_unscored_pipeline_jobs(limit)
+    if out["enqueued"]:
+        logger.info(
+            "enqueue_unscored_pipelines_scheduled: enqueued %s pipeline(s)",
+            out["enqueued"],
+        )
+    return out
 
 
 @celery.task(name="app.tasks.ingest_geojson_path")

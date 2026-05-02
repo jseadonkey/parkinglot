@@ -46,7 +46,8 @@ Scoring is **deterministic** from `config/pilot.yaml` (entitlement) and `config/
    - **Production:** `scp` a county export to the repo’s `data/` (mounted read-only at `/app/data/...` in containers) and call **`POST /internal/ingest/geojson-server-path`** with `auto_run_pipeline: true` in the JSON body, or set **`SCHEDULED_GEOJSON_INGEST_*`** in `deploy/.env` and **recreate** `worker` + **beat** so Beat can run `ingest_geojson_path` on a schedule. Compose must pass those variables (see `deploy/docker-compose.production*.yml`).
 
 2. **Score anything that only has parcel rows**  
-   `POST /internal/pipeline/enqueue-unscored?limit=200` enqueues `run_pipeline` for parcels with **no** `parcel_scores` yet (up to 500).
+   `POST /internal/pipeline/enqueue-unscored?limit=200` enqueues `run_pipeline` for parcels with **no** `parcel_scores` yet (up to 500).  
+   **By default**, Celery Beat also runs this on a schedule (every **4 hours** UTC by default, bounded batch — see **`SCHEDULED_ENQUEUE_*`** in `deploy/env.production.example`). Restart **worker + beat** after changing those variables.
 
 3. **Confirm**  
    `GET /internal/stats/scoring-summary` (same internal auth) — expect non-zero `total_parcels`, `parcels_with_latest_*_score`, and `qualified_count_*` once pipelines finish. Poll **`GET /internal/tasks/{task_id}`** after async POSTs.
