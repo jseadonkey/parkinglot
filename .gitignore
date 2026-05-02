@@ -1,5 +1,7 @@
 .env
 .env.local
+.env.github
+.env.github.*
 deploy/.env
 .venv
 __pycache__/
