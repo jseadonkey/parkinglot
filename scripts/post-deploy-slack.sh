@@ -53,32 +53,70 @@ LOCAL_FB="${LOCAL_FB:-http://127.0.0.1:18000}"
 MODE="${1:-none}"
 
 # POST from inside the api container (no host port / DNS required).
-_compose_api_post() {
+_compose_api_post_once() {
   local path="$1"
+  shift
   cd "$ROOT"
-  local args=( -f deploy/docker-compose.production.yml --env-file deploy/.env )
-  if [[ -f deploy/docker-compose.postgis-addon.yml ]]; then
-    args+=( -f deploy/docker-compose.postgis-addon.yml )
-  fi
-  echo "POST http://127.0.0.1:8000${path} (via docker compose exec api)" >&2
-  POST_DEPLOY_PATH="$path" POST_DEPLOY_KEY="$KEY" docker compose "${args[@]}" exec -T \
+  echo "POST http://127.0.0.1:8000${path} (via docker compose exec api $@)" >&2
+  POST_DEPLOY_PATH="$path" POST_DEPLOY_KEY="$KEY" docker compose "$@" exec -T \
     -e POST_DEPLOY_PATH -e POST_DEPLOY_KEY \
     api python -c "
-import os, urllib.request
+import os, sys, urllib.error, urllib.request
 path = os.environ['POST_DEPLOY_PATH']
 key = (os.environ.get('POST_DEPLOY_KEY') or '').strip()
 url = 'http://127.0.0.1:8000' + path
 req = urllib.request.Request(url, data=b'{}', method='POST', headers={'Content-Type': 'application/json'})
 if key:
     req.add_header('X-Internal-Key', key)
-resp = urllib.request.urlopen(req, timeout=120)
-print(resp.read().decode())
+try:
+    resp = urllib.request.urlopen(req, timeout=120)
+    sys.stdout.write(resp.read().decode())
+except urllib.error.HTTPError as e:
+    sys.stderr.write(e.read().decode() if e.fp else str(e))
+    raise
+except urllib.error.URLError as e:
+    sys.stderr.write(str(e) + '\\n')
+    raise
 "
 }
 
+_compose_api_post() {
+  local path="$1"
+  local attempt=1
+  local max="${POST_DEPLOY_COMPOSE_RETRIES:-6}"
+  local wait="${POST_DEPLOY_COMPOSE_WAIT:-12}"
+  while [[ "$attempt" -le "$max" ]]; do
+    set +e
+    if [[ -f deploy/docker-compose.postgis-addon.yml ]]; then
+      _compose_api_post_once "$path" -f deploy/docker-compose.production.yml -f deploy/docker-compose.postgis-addon.yml --env-file deploy/.env
+    else
+      _compose_api_post_once "$path" -f deploy/docker-compose.production.yml --env-file deploy/.env
+    fi
+    local ec=$?
+    if [[ "$ec" -eq 0 ]]; then
+      set -e
+      return 0
+    fi
+    set -e
+    echo "docker compose exec attempt $attempt/$max failed (exit $ec); sleeping ${wait}s (API may still be starting)…" >&2
+    sleep "$wait"
+    attempt=$((attempt + 1))
+  done
+  # Second strategy: stack might have been started without postgis override file.
+  if [[ -f deploy/docker-compose.postgis-addon.yml ]]; then
+    echo "Retrying compose exec without postgis-addon overlay…" >&2
+    set +e
+    _compose_api_post_once "$path" -f deploy/docker-compose.production.yml --env-file deploy/.env
+    local ec2=$?
+    set -e
+    [[ "$ec2" -eq 0 ]] && return 0
+  fi
+  return 1
+}
+
 if [[ "$MODE" != "none" ]]; then
-  echo "Waiting briefly for API/worker to accept connections…"
-  sleep 3
+  echo "Waiting for API after compose (alembic + uvicorn may take up to ~90s)…"
+  sleep "${POST_DEPLOY_INITIAL_WAIT:-25}"
 fi
 
 _do_post() {

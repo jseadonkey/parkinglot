@@ -74,6 +74,9 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      # Silence GitHub deprecation warning for actions running on Node 20 (until default is Node 24).
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
 
@@ -185,7 +188,10 @@ jobs:
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
+      # Do not fail the whole deploy if Slack enqueue fails (containers are already updated).
       - name: Enqueue Slack tasks (post-deploy script)
+        id: post_slack
+        continue-on-error: true
         if: steps.opts.outputs.post_slack_tasks != 'none'
         run: |
           set -euo pipefail
@@ -204,6 +210,15 @@ jobs:
           EOS
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+
+      - name: Post-deploy Slack status
+        if: steps.opts.outputs.post_slack_tasks != 'none' && always()
+        run: |
+          if [ "${{ steps.post_slack.outcome }}" = "success" ]; then
+            echo "Post-deploy Slack enqueue: OK"
+          else
+            echo "::warning::Post-deploy Slack enqueue failed — check api/worker logs on the Droplet and re-run digest manually."
+          fi
 
       - name: Verify /ready (on Droplet)
         if: steps.opts.outputs.verify_public_ready == 'true'
