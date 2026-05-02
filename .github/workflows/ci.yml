@@ -1,7 +1,10 @@
 name: CI
 
 on:
+  # Avoid running lint/test twice on every PR update (push + pull_request). Feature
+  # branches get CI from pull_request; main gets CI when commits land after merge.
   push:
+    branches: [main]
     paths-ignore:
       - "ops/deploy-last-run.json"
   pull_request:
