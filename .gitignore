@@ -3,6 +3,9 @@
 .env.github
 .env.github.*
 deploy/.env
+# Droplet-side backups from db_url merge scripts — may contain DATABASE_URL; never commit
+deploy/.env*.bak*
+deploy/.env.env.bak.*
 .venv
 __pycache__/
 *.py[cod]
