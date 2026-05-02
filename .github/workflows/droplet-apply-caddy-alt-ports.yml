@@ -1,0 +1,56 @@
+# One-click fix when: "Bind for 0.0.0.0:80 failed: port is already allocated"
+# SSHs to the Droplet, runs scripts/droplet_apply_caddy_alt_ports.sh (alternate Caddy ports + compose up).
+#
+# Same secrets as Deploy: DROPLET_HOST, DROPLET_USER, DROPLET_SSH_PRIVATE_KEY
+# Variable DROPLET_REMOTE_PATH (e.g. /opt/workspaces/parkinglot)
+
+name: Droplet — apply Caddy alternate ports (80 clash)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Sanitize remote path
+        run: |
+          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          CLEAN="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$CLEAN" ] || CLEAN="/opt/parking-acquisition-agents"
+          echo "DEPLOY_REMOTE_PATH=$CLEAN" >> "$GITHUB_ENV"
+          echo "Using DEPLOY_REMOTE_PATH=$CLEAN"
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+
+      - name: Upload script and run on Droplet
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          USER_HOST="${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}"
+          scp -oBatchMode=yes scripts/droplet_apply_caddy_alt_ports.sh "${USER_HOST}:/tmp/droplet_apply_caddy_alt_ports.sh"
+          ssh -oBatchMode=yes "${USER_HOST}" bash -s -- "$REMOTE_PATH" <<'EOS'
+          set -euo pipefail
+          REMOTE_PATH="$1"
+          chmod +x /tmp/droplet_apply_caddy_alt_ports.sh
+          bash /tmp/droplet_apply_caddy_alt_ports.sh "$REMOTE_PATH"
+          rm -f /tmp/droplet_apply_caddy_alt_ports.sh
+          EOS
