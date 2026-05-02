@@ -1,14 +1,14 @@
 {
-  "id": 25242889367,
+  "id": 25243860974,
   "conclusion": "failure",
   "status": "completed",
   "head_branch": "cursor/dual-scoring-agents-slack-channel",
-  "head_sha": "486f9cc42ea5c2996b0d071cde903179e3aac5a7",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25242889367",
-  "created_at": "2026-05-02T03:38:19Z",
-  "updated_at": "2026-05-02T03:38:31Z",
-  "display_title": "feat(ingest): WaTech public statewide parcels fetch + /internal/inges…",
+  "head_sha": "90f20d2cc30156715e9eb1cd10b35b723ccb26f7",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25243860974",
+  "created_at": "2026-05-02T04:34:55Z",
+  "updated_at": "2026-05-02T04:35:10Z",
+  "display_title": "docs(deploy): note managed Postgres trusted sources for Droplet",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-02T03:38:38Z"
+  "snapshot_recorded_at": "2026-05-02T04:35:17Z"
 }
