@@ -1,14 +1,14 @@
 {
-  "id": 25242203783,
+  "id": 25242376637,
   "conclusion": "failure",
   "status": "completed",
   "head_branch": "cursor/dual-scoring-agents-slack-channel",
-  "head_sha": "ce77a231644ba6a2f63db0027215fd7c0e6ce4ac",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25242203783",
-  "created_at": "2026-05-02T03:03:02Z",
-  "updated_at": "2026-05-02T03:03:15Z",
-  "display_title": "ops: auto-record deploy outcome to ops/deploy-last-run.json; quiet CI…",
+  "head_sha": "b92cf3084656c4534f449d669706c2233d4b7490",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25242376637",
+  "created_at": "2026-05-02T03:11:57Z",
+  "updated_at": "2026-05-02T03:12:12Z",
+  "display_title": "fix(ci): sanitize DROPLET_REMOTE_PATH for rsync/SSH (newline bug)",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-02T03:03:27Z"
+  "snapshot_recorded_at": "2026-05-02T03:12:20Z"
 }
