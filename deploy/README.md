@@ -9,7 +9,7 @@ The repo is meant to sit in a single directory on the Droplet, with `docker comp
 | **Default path** | `/opt/parking-acquisition-agents` |
 | **Folder name** | `parking-acquisition-agents` (matches the git clone / rsync target) |
 
-You can use another path (e.g. `/home/deploy/app`); set **`REMOTE_PATH`** for [`scripts/sync-to-droplet.sh`](../scripts/sync-to-droplet.sh) and [`scripts/remote-rebuild.sh`](../scripts/remote-rebuild.sh), or GitHub variable **`DROPLET_REMOTE_PATH`** for [`.github/workflows/deploy-droplet.yml`](../.github/workflows/deploy-droplet.yml). If unset, those tools default to `/opt/parking-acquisition-agents`.
+You can use another path (e.g. `/home/deploy/app`); set **`REMOTE_PATH`** for [`scripts/sync-to-droplet.sh`](../scripts/sync-to-droplet.sh) and [`scripts/remote-rebuild.sh`](../scripts/remote-rebuild.sh), or GitHub variable **`DROPLET_REMOTE_PATH`** for [`.github/workflows/deploy-droplet.yml`](../.github/workflows/deploy-droplet.yml). If unset, those tools default to **`/opt/parking-acquisition-agents`** ([docs/DROPLET_REPO_PATH.md](../docs/DROPLET_REPO_PATH.md)).
 
 On the server, secrets live in **`deploy/.env`** next to the compose files (that file is never committed).
 
@@ -17,7 +17,7 @@ On the server, secrets live in **`deploy/.env`** next to the compose files (that
 - **Slack (optional):** [docs/SLACK.md](../docs/SLACK.md) — set `SLACK_BOT_TOKEN` and `SLACK_DIGEST_CHANNEL_ID` in `deploy/.env`.
 - **Env template**: [`env.production.example`](env.production.example) → copy to `deploy/.env` on the server (gitignored).
 - **Managed Postgres firewall:** In **Databases → your cluster → Settings** (or **Trusted sources**), allow your **Droplet** as a trusted resource, or add the Droplet’s **public IPv4**. Otherwise connections from the app on the Droplet often fail with timeouts / “connection refused” even when `DATABASE_URL` is correct.
-- **Easier than editing `nano`:** On the Droplet, from the repo root (e.g. `/opt/workspaces/parkinglot`), run **`python3 scripts/droplet_set_database_url.py`** — it prompts for host and password (hidden) and updates **`deploy/.env`** with **`DATABASE_URL`** (backs up `.env` first). Needs the script on disk (from **`git pull`** or after a deploy **rsync**).
+- **Easier than editing `nano`:** On the Droplet, from the repo root (**`/opt/parking-acquisition-agents`** — see [docs/DROPLET_REPO_PATH.md](../docs/DROPLET_REPO_PATH.md)), run **`python3 scripts/droplet_set_database_url.py`** — it prompts for host and password (hidden) and updates **`deploy/.env`** with **`DATABASE_URL`** (backs up `.env` first). Needs the script on disk (from **`git pull`** or after a deploy **rsync**).
 - **Easiest (one paste):** **`python3 scripts/droplet_paste_database_uri.py`** — in the DO panel use **Copy** on the full **`postgresql://…`** connection URI (one line), paste when the script asks, Enter. Converts to **`postgresql+psycopg://`** automatically.
 - **No Droplet typing:** Add GitHub repository secret **`DEPLOY_DATABASE_URL`** (paste the full **`postgresql://…`** URI once), then under **Actions** run **`droplet-set-database-url-from-secret.yml`** (**Droplet — set DATABASE_URL from GitHub secret**). Uses the same SSH secrets as **Deploy to Droplet**. Set repository variable **`DROPLET_REMOTE_PATH`** if your app is not at **`/opt/parking-acquisition-agents`** (e.g. **`/opt/workspaces/parkinglot`**).
 - **Edge proxy**: [`Caddyfile`](Caddyfile) — `UI_HOST` and `API_HOST` must have DNS pointing at the Droplet before TLS will succeed.

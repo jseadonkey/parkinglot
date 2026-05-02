@@ -4,7 +4,7 @@ Use this when **Cursor**, **Makefile** targets, or **scripts** need **non-intera
 
 ## Canonical host and paths
 
-See [PROJECT-FACTS.md](PROJECT-FACTS.md) for the current **public IPv4**, **Slack channel IDs**, and **`/opt/workspaces/parkinglot`**.
+See [PROJECT-FACTS.md](PROJECT-FACTS.md) for **public IPv4** and **Slack channel IDs**. Canonical repo root on the Droplet is **`/opt/parking-acquisition-agents`** ([DROPLET_REPO_PATH.md](DROPLET_REPO_PATH.md)).
 
 ## Key-based login (laptop → Droplet)
 

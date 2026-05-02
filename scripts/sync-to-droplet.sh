@@ -7,7 +7,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 : "${DROPLET:?Set DROPLET to the Droplet IPv4 or hostname}"
-REMOTE_PATH="${REMOTE_PATH:-/opt/workspaces/parkinglot}"
+REMOTE_PATH="${REMOTE_PATH:-/opt/parking-acquisition-agents}"
 SSH_USER="${SSH_USER:-root}"
 
 echo "Syncing $ROOT -> ${SSH_USER}@${DROPLET}:${REMOTE_PATH}"

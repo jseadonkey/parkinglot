@@ -6,7 +6,7 @@ set -euo pipefail
 
 DROPLET_HOST="${DROPLET_HOST:-209.38.142.108}"
 DROPLET_USER="${DROPLET_USER:-root}"
-REMOTE_PATH="${REMOTE_PATH:-/opt/workspaces/parkinglot}"
+REMOTE_PATH="${REMOTE_PATH:-/opt/parking-acquisition-agents}"
 
 RSYNC_DELETE=()
 if [[ "${1:-}" == "--delete" ]]; then

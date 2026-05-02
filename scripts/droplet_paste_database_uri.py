@@ -8,7 +8,7 @@ If Copy only gives separate fields, use `droplet_set_database_url.py` instead.
 
 Usage:
   python3 scripts/droplet_paste_database_uri.py
-  python3 scripts/droplet_paste_database_uri.py /opt/workspaces/parkinglot
+  python3 scripts/droplet_paste_database_uri.py /opt/parking-acquisition-agents
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from db_url_merge import merge_database_url_into_deploy_env
 
 def main() -> int:
     args = [a for a in sys.argv[1:] if a]
-    repo = Path(args[0]).resolve() if args else Path("/opt/workspaces/parkinglot")
+    repo = Path(args[0]).resolve() if args else Path("/opt/parking-acquisition-agents")
     env_path = repo / "deploy" / ".env"
     if not env_path.is_file():
         print(f"Missing {env_path}", file=sys.stderr)
