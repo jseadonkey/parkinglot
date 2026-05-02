@@ -1,14 +1,14 @@
 {
-  "id": 25242719603,
+  "id": 25242860778,
   "conclusion": "failure",
   "status": "completed",
   "head_branch": "cursor/dual-scoring-agents-slack-channel",
-  "head_sha": "d38245eddba0a68fd8591ab1f814ba5474d0da21",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25242719603",
-  "created_at": "2026-05-02T03:29:51Z",
-  "updated_at": "2026-05-02T03:30:05Z",
-  "display_title": "feat(celery): schedule periodic enqueue of unscored parcel pipelines",
+  "head_sha": "8e3c14b5946f83731197ab89fd238443cc01e117",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25242860778",
+  "created_at": "2026-05-02T03:36:35Z",
+  "updated_at": "2026-05-02T03:36:54Z",
+  "display_title": "feat(ops): WA 7-day exploration campaign, compose env, empty start da…",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-02T03:30:11Z"
+  "snapshot_recorded_at": "2026-05-02T03:37:00Z"
 }
