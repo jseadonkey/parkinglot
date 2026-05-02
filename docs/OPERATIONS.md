@@ -1,5 +1,7 @@
 # Operations (production)
 
+**Batch checklist (DNS, deploy, phases A–C, GIS/vendor backlog in one place):** [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md).
+
 ## Health and uptime
 
 - **Liveness**: `GET /health` — process up (no dependency checks).

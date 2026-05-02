@@ -1,4 +1,4 @@
-.PHONY: help verify-sample export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
+.PHONY: help verify-sample export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay operator-todos local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
 
 help:
 	@echo "Targets:"
@@ -23,6 +23,10 @@ help:
 	@echo "  make prod-down          - stop production stack (default compose file)"
 	@echo "  make tf-init       - terraform init -upgrade (infra/terraform)"
 	@echo "  make tf-plan       - terraform plan (export TF_VAR_do_token and SPACES_* first)"
+	@echo "  make operator-todos - print path to bundled Droplet/GIS checklist (docs)"
+
+operator-todos:
+	@echo "Bundled operator checklist (DNS, deploy, phases, backlog): docs/OPERATOR-TODO-BUNDLE.md"
 
 verify-sample:
 	@chmod +x scripts/verify-sample-trace.sh
