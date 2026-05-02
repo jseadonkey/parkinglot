@@ -1,14 +1,14 @@
 {
-  "id": 25259605482,
+  "id": 25264316059,
   "conclusion": "success",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "5b75c960fd55390f37db4d9f2b665c7ba815f4af",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25259605482",
-  "created_at": "2026-05-02T19:09:23Z",
-  "updated_at": "2026-05-02T19:09:51Z",
-  "display_title": "Deploy to Droplet",
-  "event": "workflow_dispatch",
+  "head_sha": "b67713dab39bd9e3c92f5b4870a3fbdca6c2221b",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25264316059",
+  "created_at": "2026-05-02T23:16:32Z",
+  "updated_at": "2026-05-02T23:17:56Z",
+  "display_title": "Merge pull request #7 from jseadonkey/cursor/gitignore-deploy-env-bac…",
+  "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-02T19:09:58Z"
+  "snapshot_recorded_at": "2026-05-02T23:18:03Z"
 }
