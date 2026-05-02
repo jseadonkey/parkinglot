@@ -37,6 +37,14 @@ Zoning is **municipal** in Washington (city + county). Map county open GIS + cit
 
 There is **no Seattle DO datacenter**. Use **`sfo3`** (or `sfo2`) for lowest latency from Washington to DigitalOcean; droplet, managed Postgres, and Spaces should use the **same region slug** for simpler networking and Spaces colocation.
 
+## Submarket boundary (Kent city)
+
+For **Kent-only** scoring without depending on zoning portal URLs, use the bundled **city limit** polygon:
+
+- **`data/boundaries/wa/kent_city_census_places.geojson`** — Kent city incorporated place (EPSG:4326), sourced from US Census TIGERweb (see `data/boundaries/README.md` for refresh steps).
+
+Intersect parcel footprints with this geometry in PostGIS (or pre-filter exports) to restrict pipelines to the south-end anchor city.
+
 ## Getting parcel lots into the app (GeoJSON)
 
 1. Export or build a **polygon** GeoJSON **FeatureCollection** for parcels in pilot counties (`53033`, `53061`, `53053` — see `config/pilot.yaml`). Each feature should carry at least a parcel identifier and ideally lot size; the loader maps common column names (`APN`, `PIN`, `PARCEL_ID`, `COUNTY_FIPS`, `LOT_SQFT`, `CALC_ACRES` / `ACRES`, zoning flags — see `services/ingestion/parking_ingestion/geojson_loader.py`).
