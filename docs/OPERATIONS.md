@@ -39,6 +39,8 @@ For a full picture, combine **worker logs**, **`/workflow-runs`**, **`/approvals
 
 ## Parcels: ingest, score, and “agents”
 
+End-to-end phased checklist (**CSV columns, zoning overlays, owner rollup, multi-county**): [PHASED-EXECUTION-PLAN-A-E.md](PHASED-EXECUTION-PLAN-A-E.md).
+
 Scoring is **deterministic** from `config/pilot.yaml` (entitlement) and `config/pilot_strategic.yaml` (strategic). The worker runs **`run_pipeline`** per parcel; nothing “discovers” lots until **parcel rows exist** in Postgres.
 
 1. **Load parcels (GeoJSON)**  
