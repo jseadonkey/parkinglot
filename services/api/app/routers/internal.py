@@ -13,7 +13,7 @@ from app.config import get_settings
 from app.db.models import Parcel
 from app.db.session import get_db
 from app.deps_internal import require_internal_key
-from app.schemas import IngestGeojsonServerPathRequest, SlackTestMessageRequest
+from app.schemas import IngestGeojsonServerPathRequest, IngestWatechCountyRequest, SlackTestMessageRequest
 from app.scoring_profiles import ENTITLEMENT, STRATEGIC
 from app.slack_digest import (
     _fetch_latest_scores_per_parcel,
@@ -25,6 +25,7 @@ from app.slack_digest import (
 )
 from app.tasks import (
     enqueue_unscored_pipeline_jobs,
+    fetch_watech_county_and_ingest,
     ingest_geojson_path,
     slack_agent_digest,
     slack_dual_agent_discussion,
@@ -285,6 +286,18 @@ def ingest_geojson_server_path(body: IngestGeojsonServerPathRequest) -> dict[str
         "auto_run_pipeline": body.auto_run_pipeline,
         "max_auto_pipeline": body.max_auto_pipeline,
     }
+
+
+@router.post("/ingest/watech-county")
+def ingest_watech_county(body: IngestWatechCountyRequest) -> dict[str, object]:
+    """Fetch public WaTech parcel polygons for one county; enqueue download+ingest on the worker."""
+    async_result = fetch_watech_county_and_ingest.delay(
+        county_fips=body.county_fips,
+        max_features=body.max_features,
+        auto_run_pipeline=body.auto_run_pipeline,
+        max_auto_pipeline=body.max_auto_pipeline,
+    )
+    return {"fetch_task_id": async_result.id}
 
 
 @router.post("/pipeline/enqueue-unscored")
