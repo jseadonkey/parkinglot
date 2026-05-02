@@ -48,3 +48,9 @@ GitHub: repository variable **`DROPLET_REMOTE_PATH`** = `/opt/workspaces/parking
 cd /opt/parking-acquisition-agents && git rev-parse --show-toplevel
 docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env config --quiet && echo OK
 ```
+
+After editing **`deploy/.env`**, check for placeholder **`PUBLIC_API_URL`** / **`example.com`** hosts:
+
+```bash
+python3 scripts/check_deploy_env_warnings.py
+```
