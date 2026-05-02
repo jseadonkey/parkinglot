@@ -28,6 +28,10 @@ from app.schemas import (
     IngestSampleQueuedResponse,
     IngestWatechCountyRequest,
     MergeGeojsonAttributesRequest,
+    OwnerPortfolioRankRow,
+    OwnersPeersByKeyResponse,
+    OwnersPortfoliosRankedResponse,
+    PeerParcelSummary,
     ScoringSummaryResponse,
     SlackAgentDiscussionMessagePreview,
     SlackAgentDiscussionPreviewResponse,
@@ -411,12 +415,12 @@ def refresh_identification_scores(
     return CeleryTaskIdResponse(task_id=async_result.id)
 
 
-@router.get("/owners/peers-by-key")
+@router.get("/owners/peers-by-key", response_model=OwnersPeersByKeyResponse)
 def peers_by_normalized_owner_key(
     normalized_owner_key: str,
     limit: int = 200,
     db: Session = Depends(get_db),
-) -> dict[str, Any]:
+) -> OwnersPeersByKeyResponse:
     """Qualified parcels (latest entitlement ≥ pilot floor) sharing ``normalized_owner_key``."""
     settings = get_settings()
     pilot = load_pilot_config(settings.pilot_config_path)
@@ -428,20 +432,20 @@ def peers_by_normalized_owner_key(
         entitlement_floor=floor,
         limit=lim,
     )
-    return {
-        "normalized_owner_key": normalized_owner_key,
-        "qualified_min_entitlement_score": floor,
-        "parcel_count": len(parcels),
-        "parcels": parcels,
-    }
+    return OwnersPeersByKeyResponse(
+        normalized_owner_key=normalized_owner_key,
+        qualified_min_entitlement_score=floor,
+        parcel_count=len(parcels),
+        parcels=[PeerParcelSummary(**p) for p in parcels],
+    )
 
 
-@router.get("/owners/portfolios-ranked")
+@router.get("/owners/portfolios-ranked", response_model=OwnersPortfoliosRankedResponse)
 def portfolios_ranked(
     min_peers: int = 2,
     limit: int = 50,
     db: Session = Depends(get_db),
-) -> dict[str, Any]:
+) -> OwnersPortfoliosRankedResponse:
     """Owner keys with multiple qualified parcels (rollup candidates)."""
     settings = get_settings()
     pilot = load_pilot_config(settings.pilot_config_path)
@@ -449,8 +453,8 @@ def portfolios_ranked(
     mp = min(max(min_peers, 2), 500)
     lim = min(max(limit, 1), 200)
     rows = rank_owner_portfolios(db, entitlement_floor=floor, min_peers=mp, limit=lim)
-    return {
-        "qualified_min_entitlement_score": floor,
-        "min_peers": mp,
-        "portfolios": rows,
-    }
+    return OwnersPortfoliosRankedResponse(
+        qualified_min_entitlement_score=floor,
+        min_peers=mp,
+        portfolios=[OwnerPortfolioRankRow(**r) for r in rows],
+    )

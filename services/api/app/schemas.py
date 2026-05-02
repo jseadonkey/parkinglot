@@ -279,6 +279,39 @@ class CeleryTaskStatusResponse(BaseModel):
     traceback: str | None = None
 
 
+class PeerParcelSummary(BaseModel):
+    """One parcel in GET /internal/owners/peers-by-key (qualified by latest entitlement)."""
+
+    parcel_id: str
+    apn: str
+    county_fips: str
+    latest_entitlement_score: float
+
+
+class OwnersPeersByKeyResponse(BaseModel):
+    """GET /internal/owners/peers-by-key — qualified parcels sharing an owner key."""
+
+    normalized_owner_key: str
+    qualified_min_entitlement_score: float
+    parcel_count: int
+    parcels: list[PeerParcelSummary]
+
+
+class OwnerPortfolioRankRow(BaseModel):
+    """One row in GET /internal/owners/portfolios-ranked."""
+
+    normalized_owner_key: str
+    qualified_parcel_count: int
+
+
+class OwnersPortfoliosRankedResponse(BaseModel):
+    """GET /internal/owners/portfolios-ranked — keys with multiple qualified parcels."""
+
+    qualified_min_entitlement_score: float
+    min_peers: int
+    portfolios: list[OwnerPortfolioRankRow]
+
+
 class MergeGeojsonAttributesRequest(BaseModel):
     """Path to GeoJSON whose properties update existing parcels (same loader as full ingest)."""
 
