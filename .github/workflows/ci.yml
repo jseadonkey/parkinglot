@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
     paths-ignore:
       - "ops/deploy-last-run.json"
   pull_request:
@@ -89,3 +88,11 @@ jobs:
             -f deploy/docker-compose.production.yml \
             -f deploy/docker-compose.postgis-addon.yml \
             --env-file deploy/ci.env config --quiet
+
+      - name: Syntax-check phase runner scripts (bash)
+        run: |
+          set -euo pipefail
+          for f in scripts/execute-phase-a.sh scripts/execute-phase-b.sh scripts/execute-phase-c.sh; do
+            echo "bash -n $f"
+            bash -n "$f"
+          done

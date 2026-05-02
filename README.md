@@ -43,7 +43,9 @@ Closest DO region to Washington is **`sfo3`** (no Seattle datacenter); use the s
 
 Production runbook: [docs/OPERATIONS.md](docs/OPERATIONS.md) (health vs ready, logs, deploy scripts, uptime checks).
 
-**Shortcuts:** `make help` (see [Makefile](Makefile)).
+**Phased rollout (stakeholder CSV → zoning overlay → outreach → multi-county):** status table in [docs/PHASED-EXECUTION-PLAN-A-E.md](docs/PHASED-EXECUTION-PLAN-A-E.md) (“Where we are — repo vs operations”). Batch your Droplet/GIS/vendor todos in [docs/OPERATOR-TODO-BUNDLE.md](docs/OPERATOR-TODO-BUNDLE.md).
+
+**Shortcuts:** `make help` (see [Makefile](Makefile)); `make operator-todos` prints the bundle path.
 
 **CI deploy:** GitHub Actions → Droplet over SSH — [docs/GITHUB-DEPLOY.md](docs/GITHUB-DEPLOY.md).
 
