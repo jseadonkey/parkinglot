@@ -4,7 +4,38 @@ from __future__ import annotations
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import unquote, urlparse, urlunparse
+
+# Pasted by mistake when copying from DO UI (link label, not the real secret).
+_BAD_PASSWORD_FRAGMENTS = (
+    "show-password",
+    "your_password",
+    "your-password",
+    "paste_password",
+    "pasted_password",
+)
+
+
+def _extract_password_for_check(uri: str) -> str:
+    u = urlparse(uri.replace("postgresql+psycopg://", "postgresql://", 1))
+    return unquote(u.password or "")
+
+
+def _reject_placeholder_password(uri: str) -> None:
+    pw = _extract_password_for_check(uri)
+    if not pw.strip():
+        raise ValueError(
+            "The connection string has no password. In DigitalOcean use Connection details → "
+            "show next to the password, then Copy the full postgresql:// line (or build the URI with the real password)."
+        )
+    low = pw.lower()
+    for bad in _BAD_PASSWORD_FRAGMENTS:
+        if bad in low:
+            raise ValueError(
+                "The password in this URL looks like a placeholder (e.g. the text 'show-password' from the page). "
+                "In DigitalOcean click show next to the password and copy the real password into the URI, "
+                "or use Copy on the full connection string from Connection details."
+            )
 
 
 def normalize_raw_to_env_line(raw: str) -> str:
@@ -12,6 +43,8 @@ def normalize_raw_to_env_line(raw: str) -> str:
     raw = raw.strip()
     if raw.startswith("DATABASE_URL="):
         raw = raw.split("=", 1)[1].strip()
+
+    _reject_placeholder_password(raw)
 
     u = urlparse(raw)
     if u.scheme not in ("postgresql", "postgres", "postgresql+psycopg"):
