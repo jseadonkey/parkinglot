@@ -15,7 +15,8 @@
 #
 # Reads from deploy/.env:
 #   PUBLIC_API_URL (or API_HOST fallback), INTERNAL_API_KEY (optional X-Internal-Key)
-#   LOCAL_API_FALLBACK — optional; default http://127.0.0.1:18000 if public hostname does not resolve on Droplet
+#   LOCAL_API_FALLBACK — optional host curl fallback if PUBLIC_API_URL fails (DNS/refused)
+#   Final fallback: docker compose exec api → http://127.0.0.1:8000 (see deploy/docker-compose.production.yml)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -51,6 +52,30 @@ LOCAL_FB="$(_env_val LOCAL_API_FALLBACK)"
 LOCAL_FB="${LOCAL_FB:-http://127.0.0.1:18000}"
 MODE="${1:-none}"
 
+# POST from inside the api container (no host port / DNS required).
+_compose_api_post() {
+  local path="$1"
+  cd "$ROOT"
+  local args=( -f deploy/docker-compose.production.yml --env-file deploy/.env )
+  if [[ -f deploy/docker-compose.postgis-addon.yml ]]; then
+    args+=( -f deploy/docker-compose.postgis-addon.yml )
+  fi
+  echo "POST http://127.0.0.1:8000${path} (via docker compose exec api)" >&2
+  POST_DEPLOY_PATH="$path" POST_DEPLOY_KEY="$KEY" docker compose "${args[@]}" exec -T \
+    -e POST_DEPLOY_PATH -e POST_DEPLOY_KEY \
+    api python -c "
+import os, urllib.request
+path = os.environ['POST_DEPLOY_PATH']
+key = (os.environ.get('POST_DEPLOY_KEY') or '').strip()
+url = 'http://127.0.0.1:8000' + path
+req = urllib.request.Request(url, data=b'{}', method='POST', headers={'Content-Type': 'application/json'})
+if key:
+    req.add_header('X-Internal-Key', key)
+resp = urllib.request.urlopen(req, timeout=120)
+print(resp.read().decode())
+"
+}
+
 if [[ "$MODE" != "none" ]]; then
   echo "Waiting briefly for API/worker to accept connections…"
   sleep 3
@@ -73,20 +98,34 @@ _do_post() {
 curl_post() {
   local path="$1"
   local url="${BASE%/}${path}"
+  local ec=0
   echo "POST $url"
   set +e
   _do_post "$url"
-  local ec=$?
+  ec=$?
   set -e
-  if [[ "$ec" -eq 6 && -n "${LOCAL_FB}" ]]; then
-    echo "curl could not resolve host (exit 6); retrying via LOCAL_API_FALLBACK=${LOCAL_FB}" >&2
+  if [[ "$ec" -eq 6 || "$ec" -eq 7 ]] && [[ -n "${LOCAL_FB}" ]]; then
+    echo "curl public URL failed (exit $ec); retrying LOCAL_API_FALLBACK=${LOCAL_FB}" >&2
     url="${LOCAL_FB%/}${path}"
     echo "POST $url"
+    set +e
     _do_post "$url"
     ec=$?
+    set -e
+  fi
+  if [[ "$ec" -ne 0 ]]; then
+    echo "curl still failing (exit $ec); trying docker compose exec api on :8000 …" >&2
+    set +e
+    _compose_api_post "$path"
+    local dc_ec=$?
+    set -e
+    if [[ "$dc_ec" -ne 0 ]]; then
+      echo "docker compose fallback failed (exit $dc_ec)" >&2
+      return "$dc_ec"
+    fi
   fi
   echo
-  return "$ec"
+  return 0
 }
 
 case "$MODE" in
