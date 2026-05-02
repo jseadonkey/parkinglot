@@ -17,7 +17,8 @@
 #   Repository secret SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY — same value as INTERNAL_API_KEY in deploy/.env when the API enforces it
 #
 # Automatic deploy (no GitHub UI): push to `main` or `cursor/dual-scoring-agents-slack-channel` runs the same job with
-#   verify_public_ready=false, post_slack_tasks=all, local PostGIS addon on. Adjust branches in `on.push` if needed.
+#   verify_public_ready=false, post_slack_tasks=all, use_local_postgis=false (Managed Postgres in deploy/.env). For a
+#   on-VM PostGIS container instead, run workflow_dispatch and set use_local_postgis=true. Adjust branches in `on.push` if needed.
 
 name: Deploy to Droplet
 
@@ -93,7 +94,7 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "push" ]; then
             echo "compose_file=docker-compose.production.yml" >> "$GITHUB_OUTPUT"
-            echo "use_local_postgis=true" >> "$GITHUB_OUTPUT"
+            echo "use_local_postgis=false" >> "$GITHUB_OUTPUT"
             echo "verify_public_ready=false" >> "$GITHUB_OUTPUT"
             echo "post_slack_tasks=all" >> "$GITHUB_OUTPUT"
           else
