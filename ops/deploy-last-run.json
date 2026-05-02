@@ -1,14 +1,14 @@
 {
-  "id": 25244249149,
-  "conclusion": "success",
+  "id": 25244299705,
+  "conclusion": "failure",
   "status": "completed",
   "head_branch": "cursor/dual-scoring-agents-slack-channel",
-  "head_sha": "4d2ca0ba606e9859ee6f61c42214c31844218374",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25244249149",
-  "created_at": "2026-05-02T04:58:21Z",
-  "updated_at": "2026-05-02T04:58:53Z",
-  "display_title": "feat(scripts): one-paste DATABASE_URL from DO postgresql:// URI",
+  "head_sha": "c0ce3f761a7793b7b5e0b1cb384cd1e7af2f7e74",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25244299705",
+  "created_at": "2026-05-02T05:01:07Z",
+  "updated_at": "2026-05-02T05:01:38Z",
+  "display_title": "feat(ci): set DATABASE_URL on Droplet from GitHub secret DEPLOY_DATAB…",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-02T04:59:00Z"
+  "snapshot_recorded_at": "2026-05-02T05:01:45Z"
 }
