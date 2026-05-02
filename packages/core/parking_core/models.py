@@ -139,7 +139,10 @@ class OwnerOutreachBrief(BaseModel):
     )
     same_owner_qualified_other_count: int | None = Field(
         default=None,
-        description="Other parcels in DB with same normalized_owner_key whose latest entitlement score meets pilot floor.",
+        description=(
+            "Other parcels in DB with same normalized_owner_key whose latest entitlement score "
+            "meets pilot floor."
+        ),
     )
     same_owner_peer_examples: list[str] = Field(
         default_factory=list,

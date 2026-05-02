@@ -12,9 +12,9 @@ from app.celery_app import celery
 from app.config import get_settings
 from app.db.models import Parcel
 from app.db.session import get_db
-from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
 from app.deps_internal import require_internal_key
 from app.export_readiness import export_readiness_summary
+from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
 from app.schemas import (
     CeleryTaskIdResponse,
     EnqueueIncompleteResponse,

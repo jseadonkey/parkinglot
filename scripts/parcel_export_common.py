@@ -76,7 +76,8 @@ def build_scored_parcels_statement(
     """Build SELECT for parcels with latest scores per profile.
 
     * **full_csv** — includes extra parcel columns; ordered by APN / county (stable dump).
-    * **visual_review** — core columns + centroids; ordered by identification then entitlement (desc, nulls last) for shortlists.
+    * **visual_review** — core columns + centroids; ordered by identification then entitlement
+      (desc, nulls last) for shortlists.
     """
     from sqlalchemy import and_, literal_column, select
 

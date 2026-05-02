@@ -8,7 +8,7 @@ from sqlalchemy import exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore
-from app.scoring_profiles import IDENTIFICATION, ENTITLEMENT, STRATEGIC
+from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
 
 
 def _pct(part: int, total: int) -> float:
@@ -76,11 +76,14 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
         "If entitlement or strategic gaps: POST /internal/pipeline/enqueue-incomplete?limit=500",
         "If identification gaps: POST /internal/metrics/refresh-identification-scores?limit=2000 (or re-ingest).",
         "If demand distance gaps: POST /internal/metrics/refresh-demand-distances?limit=2000",
-        "If zoning gaps: spatial join → GeoJSON overlay → POST /internal/ingest/merge-geojson-attributes (or scripts/execute-phase-b.sh).",
+        "If zoning gaps: spatial join → GeoJSON overlay → "
+        "POST /internal/ingest/merge-geojson-attributes (or scripts/execute-phase-b.sh).",
     ]
     if miss_brief > 0:
         recommended_next_steps.append(
-            "If owner outreach brief gaps: POST /internal/pipeline/enqueue-incomplete, per-parcel POST /parcels/{id}/outreach/recompute, or scripts/execute-phase-c.sh (smoke) — see docs/OPERATIONS.md (owner outreach)."
+            "If owner outreach brief gaps: POST /internal/pipeline/enqueue-incomplete, "
+            "per-parcel POST /parcels/{id}/outreach/recompute, or scripts/execute-phase-c.sh (smoke) "
+            "— see docs/OPERATIONS.md (owner outreach)."
         )
 
     return {

@@ -20,7 +20,7 @@ jobs:
       - name: Install Ruff
         run: pip install ruff==0.9.7
       - name: Ruff check
-        run: ruff check packages/core services/api/app services/scoring services/ingestion services/enrichment services/workflows services/api/tests
+        run: ruff check packages/core services/api/app services/scoring services/ingestion services/enrichment services/workflows services/api/tests scripts
 
   test-api:
     runs-on: ubuntu-latest

@@ -17,7 +17,7 @@ import getpass
 import os
 import shutil
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -26,7 +26,11 @@ def main() -> int:
     repo = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path("/opt/workspaces/parkinglot")
     env_path = repo / "deploy" / ".env"
     if not env_path.is_file():
-        print(f"Missing {env_path} — create it first: cd {repo / 'deploy'} && cp env.production.example .env", file=sys.stderr)
+        print(
+            f"Missing {env_path} — create it first: cd {repo / 'deploy'} "
+            "&& cp env.production.example .env",
+            file=sys.stderr,
+        )
         return 1
 
     print("Have DigitalOcean open: Databases → your cluster → Connection details.\n")
@@ -45,14 +49,16 @@ def main() -> int:
         password = getpass.getpass("Database password (hidden, no characters will show): ")
         if not password:
             print(
-                "No password was received. Common fix: in DigitalOcean click **show** next to the password, copy it, "
-                "then in this terminal use the **Edit** menu → **Paste** (or right‑click → Paste) at the password prompt, then Enter.\n",
+                "No password was received. Common fix: in DigitalOcean click **show** next to the password, "
+                "copy it, then in this terminal use the **Edit** menu → **Paste** "
+                "(or right‑click → Paste) at the password prompt, then Enter.\n",
                 file=sys.stderr,
             )
             password = getpass.getpass("Database password (try again, hidden): ")
     if not password:
         print(
-            "Password is still empty. You can run once with the password in the environment (only you on the server), then unset it:\n"
+            "Password is still empty. You can run once with the password in the environment "
+            "(only you on the server), then unset it:\n"
             "  DO_DB_PASSWORD='paste-from-DO-here' python3 scripts/droplet_set_database_url.py\n"
             "  unset DO_DB_PASSWORD",
             file=sys.stderr,
@@ -62,7 +68,7 @@ def main() -> int:
     enc = quote(password, safe="")
     new_line = f"DATABASE_URL=postgresql+psycopg://{user}:{enc}@{host}:{port}/{db}?sslmode=require"
 
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     backup = env_path.with_suffix(f".env.bak.{stamp}")
     shutil.copy2(env_path, backup)
     print(f"Backup: {backup}")

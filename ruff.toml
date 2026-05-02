@@ -8,6 +8,7 @@ src = [
   "services/ingestion",
   "services/enrichment",
   "services/workflows",
+  "scripts",
 ]
 
 exclude = [

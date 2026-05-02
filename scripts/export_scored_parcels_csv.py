@@ -16,7 +16,8 @@ Examples (from repo root; ``services/api`` is added to ``sys.path`` automaticall
     STORAGE_ACCESS_KEY=... STORAGE_SECRET_KEY=... STORAGE_BUCKET=my-bucket STORAGE_REGION=us-east-1 \\
     python3 scripts/export_scored_parcels_csv.py --publish-spaces -o scores.csv
 
-Install deps once: ``pip install -e services/api`` (venv recommended). Default output: ./parcel_scores_export.csv (``-o -`` = stdout).
+Install deps once: ``pip install -e services/api`` (venv recommended).
+Default output: ./parcel_scores_export.csv (``-o -`` = stdout).
 """
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ import csv
 import os
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -263,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.publish_spaces:
             assert upload_src is not None
-            ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
             object_key = f"exports/parcel_scores_{ts}.csv"
             url, mode = upload_parcel_scores_csv(
                 upload_src,
