@@ -5,7 +5,7 @@ from tempfile import NamedTemporaryFile
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from sqlalchemy import exists, select
+from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
 from app.celery_app import celery
@@ -14,7 +14,10 @@ from app.db.models import Parcel, ParcelScore
 from app.db.session import get_db
 from app.deps_internal import require_internal_key
 from app.schemas import IngestGeojsonServerPathRequest, SlackTestMessageRequest
+from app.scoring_profiles import ENTITLEMENT, STRATEGIC
 from app.slack_digest import (
+    _fetch_latest_scores_per_parcel,
+    _paired_latest_scores,
     build_dual_agent_discussion_posts,
     build_slack_digest_blocks,
     post_text_to_slack,
@@ -27,6 +30,7 @@ from app.tasks import (
     slack_dual_agent_discussion,
     slack_qualified_parcels_report,
 )
+from parking_core.pilot import load_pilot_config
 
 router = APIRouter(
     prefix="/internal",
@@ -77,6 +81,38 @@ def slack_config_status() -> dict[str, bool]:
     }
 
 
+@router.get("/stats/scoring-summary")
+def scoring_summary(db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Counts parcels and latest scores vs pilot floors (read-only; no Slack)."""
+    settings = get_settings()
+    pilot_e = load_pilot_config(settings.pilot_config_path)
+    pilot_s = load_pilot_config(settings.pilot_strategic_config_path)
+    floor_e = float(pilot_e.scoring.qualified_min_score)
+    floor_s = float(pilot_s.scoring.qualified_min_score)
+
+    ent_rows = _fetch_latest_scores_per_parcel(db, profile=ENTITLEMENT)
+    str_rows = _fetch_latest_scores_per_parcel(db, profile=STRATEGIC)
+    paired = _paired_latest_scores(db)
+
+    q_ent = sum(1 for _, ps in ent_rows if float(ps.total_score) >= floor_e)
+    q_str = sum(1 for _, ps in str_rows if float(ps.total_score) >= floor_s)
+
+    total_parcels = db.scalar(select(func.count()).select_from(Parcel))
+    if total_parcels is None:
+        total_parcels = 0
+
+    return {
+        "total_parcels": int(total_parcels),
+        "parcels_with_latest_entitlement_score": len(ent_rows),
+        "parcels_with_latest_strategic_score": len(str_rows),
+        "parcels_with_both_profiles_scored": len(paired),
+        "qualified_count_entitlement": q_ent,
+        "qualified_count_strategic": q_str,
+        "qualified_min_score": {"entitlement": floor_e, "strategic": floor_s},
+        "pilot_region": pilot_e.region.name,
+    }
+
+
 @router.get("/slack/digest-preview")
 def slack_digest_preview(hours: int = 4, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Build the next digest body from the DB without posting to Slack (debug Beat / channel config)."""
@@ -122,6 +158,19 @@ def trigger_agent_discussion() -> dict[str, str]:
     """Enqueue dual-agent discussion (same task Beat posts to agent channel)."""
     async_result = slack_dual_agent_discussion.delay()
     return {"task_id": async_result.id}
+
+
+@router.post("/slack/full-update-now")
+def trigger_full_slack_update() -> dict[str, str]:
+    """Enqueue digest, qualified-parcels report, and dual-agent discussion (one POST)."""
+    d = slack_agent_digest.delay()
+    q = slack_qualified_parcels_report.delay()
+    a = slack_dual_agent_discussion.delay()
+    return {
+        "digest_task_id": d.id,
+        "qualified_parcels_task_id": q.id,
+        "agent_discussion_task_id": a.id,
+    }
 
 
 @router.post("/slack/test-message")

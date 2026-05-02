@@ -3,7 +3,8 @@
 # Enqueues Celery Slack jobs via the public API URL from deploy/.env.
 #
 # Usage:
-#   ./scripts/post-deploy-slack.sh all
+#   ./scripts/post-deploy-slack.sh all    # POST /internal/slack/full-update-now (digest + qualified + dual-agent)
+#   ./scripts/post-deploy-slack.sh full  # same as all
 #   ./scripts/post-deploy-slack.sh digest
 #   ./scripts/post-deploy-slack.sh qualified
 #   ./scripts/post-deploy-slack.sh discussion
@@ -80,13 +81,11 @@ case "$MODE" in
   discussion)
     curl_post "/internal/slack/agent-discussion-now"
     ;;
-  all)
-    curl_post "/internal/slack/digest-now"
-    curl_post "/internal/slack/qualified-parcels-now"
-    curl_post "/internal/slack/agent-discussion-now"
+  all|full)
+    curl_post "/internal/slack/full-update-now"
     ;;
   *)
-    echo "Usage: $0 {all|digest|qualified|discussion|none}" >&2
+    echo "Usage: $0 {all|full|digest|qualified|discussion|none}" >&2
     exit 2
     ;;
 esac
