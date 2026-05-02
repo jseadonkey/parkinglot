@@ -166,6 +166,65 @@ class ExportReadinessResponse(BaseModel):
     recommended_next_steps: list[str]
 
 
+class QualifiedMinScores(BaseModel):
+    """Pilot qualification floors per score profile (from pilot YAML)."""
+
+    entitlement: float
+    strategic: float
+    identification: float
+
+
+class ScoringSummaryResponse(BaseModel):
+    """GET /internal/stats/scoring-summary — counts vs pilot floors."""
+
+    total_parcels: int
+    parcels_with_latest_entitlement_score: int
+    parcels_with_latest_strategic_score: int
+    parcels_with_latest_identification_score: int
+    parcels_with_both_profiles_scored: int
+    qualified_count_entitlement: int
+    qualified_count_strategic: int
+    qualified_count_identification: int
+    qualified_min_score: QualifiedMinScores
+    pilot_region: str
+
+
+class IngestSampleQueuedResponse(BaseModel):
+    """Bundled sample GeoJSON — ingest Celery task queued."""
+
+    task_id: str
+    path: str
+    auto_run_pipeline: bool
+    max_auto_pipeline: int
+
+
+class IngestGeojsonUploadQueuedResponse(BaseModel):
+    """Uploaded GeoJSON — ingest Celery task queued."""
+
+    task_id: str
+    filename: str | None = None
+    default_county_fips: str | None = None
+    auto_run_pipeline: bool
+    max_auto_pipeline: int
+
+
+class IngestGeojsonPathQueuedResponse(BaseModel):
+    """Server filesystem GeoJSON — ingest Celery task queued."""
+
+    task_id: str
+    path: str
+    auto_run_pipeline: bool
+    max_auto_pipeline: int
+
+
+class FullSlackUpdateResponse(BaseModel):
+    """POST /internal/slack/full-update-now — three Slack-related Celery tasks."""
+
+    digest_task_id: str
+    qualified_parcels_task_id: str
+    agent_discussion_task_id: str
+
+
 class MergeGeojsonAttributesRequest(BaseModel):
     """Path to GeoJSON whose properties update existing parcels (same loader as full ingest)."""
 

@@ -20,9 +20,14 @@ from app.schemas import (
     EnqueueIncompleteResponse,
     EnqueueUnscoredResponse,
     ExportReadinessResponse,
+    FullSlackUpdateResponse,
+    IngestGeojsonPathQueuedResponse,
     IngestGeojsonServerPathRequest,
+    IngestGeojsonUploadQueuedResponse,
+    IngestSampleQueuedResponse,
     IngestWatechCountyRequest,
     MergeGeojsonAttributesRequest,
+    ScoringSummaryResponse,
     SlackTestMessageRequest,
     WaTechCountyQueuedResponse,
 )
@@ -105,8 +110,8 @@ def export_readiness(db: Session = Depends(get_db)) -> ExportReadinessResponse:
     return ExportReadinessResponse(**raw)
 
 
-@router.get("/stats/scoring-summary")
-def scoring_summary(db: Session = Depends(get_db)) -> dict[str, Any]:
+@router.get("/stats/scoring-summary", response_model=ScoringSummaryResponse)
+def scoring_summary(db: Session = Depends(get_db)) -> ScoringSummaryResponse:
     """Counts parcels and latest scores vs pilot floors (read-only; no Slack)."""
     settings = get_settings()
     pilot_e = load_pilot_config(settings.pilot_config_path)
@@ -129,18 +134,22 @@ def scoring_summary(db: Session = Depends(get_db)) -> dict[str, Any]:
     if total_parcels is None:
         total_parcels = 0
 
-    return {
-        "total_parcels": int(total_parcels),
-        "parcels_with_latest_entitlement_score": len(ent_rows),
-        "parcels_with_latest_strategic_score": len(str_rows),
-        "parcels_with_latest_identification_score": len(id_rows),
-        "parcels_with_both_profiles_scored": len(paired),
-        "qualified_count_entitlement": q_ent,
-        "qualified_count_strategic": q_str,
-        "qualified_count_identification": q_id,
-        "qualified_min_score": {"entitlement": floor_e, "strategic": floor_s, "identification": floor_i},
-        "pilot_region": pilot_e.region.name,
-    }
+    return ScoringSummaryResponse(
+        total_parcels=int(total_parcels),
+        parcels_with_latest_entitlement_score=len(ent_rows),
+        parcels_with_latest_strategic_score=len(str_rows),
+        parcels_with_latest_identification_score=len(id_rows),
+        parcels_with_both_profiles_scored=len(paired),
+        qualified_count_entitlement=q_ent,
+        qualified_count_strategic=q_str,
+        qualified_count_identification=q_id,
+        qualified_min_score={
+            "entitlement": floor_e,
+            "strategic": floor_s,
+            "identification": floor_i,
+        },
+        pilot_region=pilot_e.region.name,
+    )
 
 
 @router.get("/slack/digest-preview")
@@ -159,18 +168,18 @@ def slack_digest_preview(hours: int = 4, db: Session = Depends(get_db)) -> dict[
     }
 
 
-@router.post("/slack/digest-now")
-def trigger_slack_digest() -> dict[str, str]:
+@router.post("/slack/digest-now", response_model=CeleryTaskIdResponse)
+def trigger_slack_digest() -> CeleryTaskIdResponse:
     """Enqueue the same digest task Beat runs (for testing or ad-hoc standup)."""
     async_result = slack_agent_digest.delay()
-    return {"task_id": async_result.id}
+    return CeleryTaskIdResponse(task_id=async_result.id)
 
 
-@router.post("/slack/qualified-parcels-now")
-def trigger_qualified_parcels_report() -> dict[str, str]:
+@router.post("/slack/qualified-parcels-now", response_model=CeleryTaskIdResponse)
+def trigger_qualified_parcels_report() -> CeleryTaskIdResponse:
     """Enqueue qualified-parcels Slack report (same task Beat runs daily)."""
     async_result = slack_qualified_parcels_report.delay()
-    return {"task_id": async_result.id}
+    return CeleryTaskIdResponse(task_id=async_result.id)
 
 
 @router.get("/slack/agent-discussion-preview")
@@ -183,24 +192,24 @@ def slack_agent_discussion_preview(db: Session = Depends(get_db)) -> dict[str, A
     }
 
 
-@router.post("/slack/agent-discussion-now")
-def trigger_agent_discussion() -> dict[str, str]:
+@router.post("/slack/agent-discussion-now", response_model=CeleryTaskIdResponse)
+def trigger_agent_discussion() -> CeleryTaskIdResponse:
     """Enqueue dual-agent discussion (same task Beat posts to agent channel)."""
     async_result = slack_dual_agent_discussion.delay()
-    return {"task_id": async_result.id}
+    return CeleryTaskIdResponse(task_id=async_result.id)
 
 
-@router.post("/slack/full-update-now")
-def trigger_full_slack_update() -> dict[str, str]:
+@router.post("/slack/full-update-now", response_model=FullSlackUpdateResponse)
+def trigger_full_slack_update() -> FullSlackUpdateResponse:
     """Enqueue digest, qualified-parcels report, and dual-agent discussion (one POST)."""
     d = slack_agent_digest.delay()
     q = slack_qualified_parcels_report.delay()
     a = slack_dual_agent_discussion.delay()
-    return {
-        "digest_task_id": d.id,
-        "qualified_parcels_task_id": q.id,
-        "agent_discussion_task_id": a.id,
-    }
+    return FullSlackUpdateResponse(
+        digest_task_id=d.id,
+        qualified_parcels_task_id=q.id,
+        agent_discussion_task_id=a.id,
+    )
 
 
 @router.post("/slack/test-message")
@@ -214,14 +223,14 @@ def slack_test_message(body: SlackTestMessageRequest) -> dict[str, object]:
     return {"ok": bool(resp.get("ok")), "ts": resp.get("ts"), "channel": resp.get("channel")}
 
 
-@router.post("/ingest/sample")
+@router.post("/ingest/sample", response_model=IngestSampleQueuedResponse)
 def ingest_sample(
     auto_run_pipeline: bool = Query(
         default=True,
         description="Enqueue scoring/enrichment pipeline per parcel after ingest (recommended).",
     ),
     max_auto_pipeline: int = Query(default=100, ge=1, le=5000),
-) -> dict[str, object]:
+) -> IngestSampleQueuedResponse:
     """Load bundled GeoJSON for the pilot county (dev convenience).
 
     By default runs the full pipeline so parcels get dual scores and workflow runs.
@@ -240,18 +249,18 @@ def ingest_sample(
         max_auto_pipeline=max_auto_pipeline,
         delete_after=False,
     )
-    return {
-        "task_id": async_result.id,
-        "path": str(path),
-        "auto_run_pipeline": auto_run_pipeline,
-        "max_auto_pipeline": max_auto_pipeline,
-    }
+    return IngestSampleQueuedResponse(
+        task_id=async_result.id,
+        path=str(path),
+        auto_run_pipeline=auto_run_pipeline,
+        max_auto_pipeline=max_auto_pipeline,
+    )
 
 
 _MAX_GEOJSON_BYTES = 50 * 1024 * 1024
 
 
-@router.post("/ingest/geojson-upload")
+@router.post("/ingest/geojson-upload", response_model=IngestGeojsonUploadQueuedResponse)
 def ingest_geojson_upload(
     file: UploadFile = File(..., description="GeoJSON FeatureCollection or single Feature (polygons)."),
     default_county_fips: str | None = Form(
@@ -263,7 +272,7 @@ def ingest_geojson_upload(
         description="Enqueue scoring pipeline per parcel (capped by max_auto_pipeline).",
     ),
     max_auto_pipeline: int = Form(default=100, ge=1, le=5000),
-) -> dict[str, object]:
+) -> IngestGeojsonUploadQueuedResponse:
     """Upload a parcel GeoJSON export; enqueue ``ingest_geojson_path`` (upsert by county + APN/PIN).
 
     Property aliases are normalized in ``parking_ingestion.geojson_loader`` (PIN, acres→sqft, etc.).
@@ -284,17 +293,17 @@ def ingest_geojson_upload(
         max_auto_pipeline=max_auto_pipeline,
         delete_after=True,
     )
-    return {
-        "task_id": async_result.id,
-        "filename": file.filename,
-        "default_county_fips": default_county_fips,
-        "auto_run_pipeline": auto_run_pipeline,
-        "max_auto_pipeline": max_auto_pipeline,
-    }
+    return IngestGeojsonUploadQueuedResponse(
+        task_id=async_result.id,
+        filename=file.filename,
+        default_county_fips=default_county_fips,
+        auto_run_pipeline=auto_run_pipeline,
+        max_auto_pipeline=max_auto_pipeline,
+    )
 
 
-@router.post("/ingest/geojson-server-path")
-def ingest_geojson_server_path(body: IngestGeojsonServerPathRequest) -> dict[str, object]:
+@router.post("/ingest/geojson-server-path", response_model=IngestGeojsonPathQueuedResponse)
+def ingest_geojson_server_path(body: IngestGeojsonServerPathRequest) -> IngestGeojsonPathQueuedResponse:
     """Enqueue ingest for a GeoJSON file already on the server (large county exports).
 
     Same task as upload; use when you ``scp`` or ``rsync`` the file to the Droplet first.
@@ -309,12 +318,12 @@ def ingest_geojson_server_path(body: IngestGeojsonServerPathRequest) -> dict[str
         max_auto_pipeline=body.max_auto_pipeline,
         delete_after=False,
     )
-    return {
-        "task_id": async_result.id,
-        "path": str(p.resolve()),
-        "auto_run_pipeline": body.auto_run_pipeline,
-        "max_auto_pipeline": body.max_auto_pipeline,
-    }
+    return IngestGeojsonPathQueuedResponse(
+        task_id=async_result.id,
+        path=str(p.resolve()),
+        auto_run_pipeline=body.auto_run_pipeline,
+        max_auto_pipeline=body.max_auto_pipeline,
+    )
 
 
 @router.post("/ingest/watech-county", response_model=WaTechCountyQueuedResponse)
