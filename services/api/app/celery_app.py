@@ -53,6 +53,20 @@ if _ingest_path:
         _s.scheduled_geojson_ingest_crontab_minute,
     )
 
+if _s.exploration_campaign_enabled:
+    beat_schedule["wa-exploration-campaign-daily"] = {
+        "task": "app.tasks.exploration_campaign_tick",
+        "schedule": crontab(
+            minute=_s.exploration_campaign_crontab_minute,
+            hour=_s.exploration_campaign_crontab_hour,
+        ),
+    }
+    logger.info(
+        "Beat: WA exploration campaign daily at %02d:%02d UTC",
+        _s.exploration_campaign_crontab_hour,
+        _s.exploration_campaign_crontab_minute,
+    )
+
 if _s.scheduled_enqueue_unscored_enabled:
     beat_schedule["enqueue-unscored-pipelines"] = {
         "task": "app.tasks.enqueue_unscored_pipelines_scheduled",

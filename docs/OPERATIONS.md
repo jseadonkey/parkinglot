@@ -54,6 +54,17 @@ Scoring is **deterministic** from `config/pilot.yaml` (entitlement) and `config/
 
 Pilot region filters are in **`config/pilot.yaml`** (`region.county_fips`). Features outside those counties are skipped at ingest.
 
+### Washington 7-day exploration campaign (optional)
+
+Use this when you want Celery Beat to **pull county GeoJSON files from disk on a daily rotation** over a fixed **7-day calendar window** (counts toward statewide coverage; data acquisition is still **your** GeoJSON exports).
+
+1. **County parcels:** Place one GeoJSON file per county under repo **`data/exploration/`** on the Droplet (mounted at **`/app/data/exploration/`** in containers), named **`{county_fips}.geojson`** (e.g. `53033.geojson`). Missing files are skipped that day and listed in worker logs.
+2. **`deploy/.env`:** Set **`EXPLORATION_CAMPAIGN_ENABLED=true`**, **`EXPLORATION_CAMPAIGN_START_DATE=YYYY-MM-DD`** (first day of the 7-day window, UTC), optionally **`EXPLORATION_CAMPAIGN_CRONTAB_HOUR`** / **`EXPLORATION_CAMPAIGN_CRONTAB_MINUTE`** (default **06:30 UTC**). Omit **`EXPLORATION_CAMPAIGN_START_DATE`** until you are ready; empty values are treated as unset.
+3. **Restart `worker` and `beat`** after changing env so **`celery_app`** reloads Beat entries.
+4. **Logs:** `docker compose … logs -f beat worker` — look for **`exploration_campaign_tick`** and **`WA exploration campaign`**.
+
+This does **not** download assessor data automatically; it only ingests files you stage. **`config/exploration_campaign_wa.yaml`** controls **`duration_days`** (default **7**), path template, and **`max_auto_pipeline_per_county`**.
+
 ## Owner outreach (SOS / vendor)
 
 - **Read stored brief:** `GET /parcels/{parcel_id}/outreach` (404 until a pipeline or recompute has written `owner_outreach_brief`).

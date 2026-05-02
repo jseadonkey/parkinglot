@@ -1,6 +1,8 @@
+from datetime import date
 from functools import lru_cache
+from typing import Any
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -136,6 +138,55 @@ class Settings(BaseSettings):
             "scheduled_enqueue_unscored_crontab_hour",
         ),
     )
+
+    # Washington statewide exploration: daily ingest rotation over pilot.region.county_fips (see docs).
+    exploration_campaign_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "EXPLORATION_CAMPAIGN_ENABLED",
+            "exploration_campaign_enabled",
+        ),
+    )
+    exploration_campaign_config_path: str = Field(
+        default="/app/config/exploration_campaign_wa.yaml",
+        validation_alias=AliasChoices(
+            "EXPLORATION_CAMPAIGN_CONFIG_PATH",
+            "exploration_campaign_config_path",
+        ),
+    )
+    exploration_campaign_start_date: date | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "EXPLORATION_CAMPAIGN_START_DATE",
+            "exploration_campaign_start_date",
+        ),
+    )
+    exploration_campaign_crontab_hour: int = Field(
+        default=6,
+        ge=0,
+        le=23,
+        validation_alias=AliasChoices(
+            "EXPLORATION_CAMPAIGN_CRONTAB_HOUR",
+            "exploration_campaign_crontab_hour",
+        ),
+    )
+    exploration_campaign_crontab_minute: int = Field(
+        default=30,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "EXPLORATION_CAMPAIGN_CRONTAB_MINUTE",
+            "exploration_campaign_crontab_minute",
+        ),
+    )
+
+    @field_validator("exploration_campaign_start_date", mode="before")
+    @classmethod
+    def exploration_start_date_empty_ok(cls, v: Any) -> Any:
+        """Compose often passes ``EXPLORATION_CAMPAIGN_START_DATE=`` when unset; coerce to None."""
+        if v == "":
+            return None
+        return v
 
 
 @lru_cache

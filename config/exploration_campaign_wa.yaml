@@ -1,0 +1,11 @@
+# 7-day statewide rotation (Washington): each county is assigned to one calendar day via round-robin.
+# Parcel eligibility still follows region.county_fips in config/pilot.yaml (must list all target counties).
+#
+# Place GeoJSON exports on the Droplet under the repo data/ tree (mounted at /app/data), named:
+#   data/exploration/{county_fips}.geojson  — e.g. data/exploration/53033.geojson
+# Missing files are skipped that day (logged); add exports as you obtain them.
+
+duration_days: 7
+# Template inside containers (compose mounts ../data → /app/data)
+geojson_path_template: "/app/data/exploration/{county_fips}.geojson"
+max_auto_pipeline_per_county: 120
