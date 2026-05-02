@@ -23,7 +23,12 @@ from app.exploration_campaign import (
     load_campaign_config,
 )
 from app.memo_render import build_deal_memo_markdown
-from app.scoring_profiles import ALL_PROFILES, ENTITLEMENT, STRATEGIC
+from app.scoring_profiles import (
+    ENTITLEMENT,
+    IDENTIFICATION,
+    PIPELINE_PROFILES,
+    STRATEGIC,
+)
 from app.slack_digest import (
     build_dual_agent_discussion_posts,
     build_qualified_parcels_report_blocks,
@@ -44,7 +49,10 @@ logger = logging.getLogger(__name__)
 
 
 def enqueue_unscored_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
-    """Enqueue ``run_pipeline`` for parcels that have no ``parcel_scores`` row yet (cap 500).
+    """Enqueue ``run_pipeline`` for parcels missing pipeline scores (Atlas/Beacon).
+
+    Parcels may already have an ingest-time ``identification`` score; we key off missing
+    ``entitlement`` as the signal that the full pipeline has not completed.
 
     Used by ``POST /internal/pipeline/enqueue-unscored`` and periodic Beat.
     """
@@ -53,7 +61,14 @@ def enqueue_unscored_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
     try:
         stmt = (
             select(Parcel.id)
-            .where(~exists(select(1).where(ParcelScore.parcel_id == Parcel.id)))
+            .where(
+                ~exists(
+                    select(1).where(
+                        ParcelScore.parcel_id == Parcel.id,
+                        ParcelScore.score_profile == ENTITLEMENT,
+                    )
+                )
+            )
             .order_by(Parcel.created_at.desc())
             .limit(cap)
         )
@@ -67,6 +82,41 @@ def enqueue_unscored_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
 
 def _session() -> Session:
     return SessionLocal()
+
+
+def _upsert_identification_score(db: Session, parcel: Parcel) -> None:
+    """Persist ingest-time prescreen score (``identification`` profile)."""
+    settings = get_settings()
+    pilot_id = load_pilot_config(settings.pilot_identification_config_path)
+    feature = ParcelFeature(
+        apn=parcel.apn,
+        county_fips=parcel.county_fips,
+        lot_sqft=parcel.lot_sqft,
+        zoning_code=parcel.zoning_code,
+        zoning_allows_surface_parking=parcel.zoning_allows_surface_parking,
+        is_corner_lot=parcel.is_corner_lot,
+        distance_to_nearest_demand_m=parcel.distance_to_nearest_demand_m,
+    )
+    result = score_parcel(feature, pilot_id)
+    snap = dict(result.pilot_snapshot or {})
+    snap["agent_role"] = "identification_prescreen"
+    snap["agent_label"] = "Agent Cartographer"
+    db.execute(
+        delete(ParcelScore).where(
+            ParcelScore.parcel_id == parcel.id,
+            ParcelScore.score_profile == IDENTIFICATION,
+        )
+    )
+    db.add(
+        ParcelScore(
+            id=uuid.uuid4(),
+            parcel_id=parcel.id,
+            score_profile=IDENTIFICATION,
+            total_score=result.total_score,
+            breakdown=result.breakdown.model_dump(),
+            pilot_snapshot=snap,
+        )
+    )
 
 
 def _to_multi(geom: Polygon | MultiPolygon) -> MultiPolygon:
@@ -114,7 +164,7 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
         db.execute(
             delete(ParcelScore).where(
                 ParcelScore.parcel_id == parcel.id,
-                ParcelScore.score_profile.in_(ALL_PROFILES),
+                ParcelScore.score_profile.in_(PIPELINE_PROFILES),
             )
         )
         db.add(
@@ -402,7 +452,9 @@ def ingest_geojson_path(
     skipped = 0
     try:
         pilot = load_pilot_config(get_settings().pilot_config_path)
-        for attrs, geom in iter_parcels_from_geojson_dict(data):
+        zrp = (get_settings().zoning_rules_path or "").strip()
+        zoning_rules_arg = Path(zrp) if zrp else None
+        for attrs, geom in iter_parcels_from_geojson_dict(data, rules_path=zoning_rules_arg):
             if geom.geom_type not in ("Polygon", "MultiPolygon"):
                 skipped += 1
                 continue
@@ -451,13 +503,14 @@ def ingest_geojson_path(
                 )
                 db.add(p)
                 db.flush()
+                _upsert_identification_score(db, p)
                 pid = str(p.id)
                 inserted += 1
             else:
                 db.execute(
                     delete(ParcelScore).where(
                         ParcelScore.parcel_id == existing.id,
-                        ParcelScore.score_profile.in_(ALL_PROFILES),
+                        ParcelScore.score_profile.in_(PIPELINE_PROFILES),
                     )
                 )
                 existing.lot_sqft = lot_sqft
@@ -469,6 +522,7 @@ def ingest_geojson_path(
                 existing.footprint = footprint
                 db.add(existing)
                 db.flush()
+                _upsert_identification_score(db, existing)
                 pid = str(existing.id)
                 updated += 1
             ids.append(pid)

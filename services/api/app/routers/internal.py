@@ -14,7 +14,7 @@ from app.db.models import Parcel
 from app.db.session import get_db
 from app.deps_internal import require_internal_key
 from app.schemas import IngestGeojsonServerPathRequest, IngestWatechCountyRequest, SlackTestMessageRequest
-from app.scoring_profiles import ENTITLEMENT, STRATEGIC
+from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
 from app.slack_digest import (
     _fetch_latest_scores_per_parcel,
     _paired_latest_scores,
@@ -88,15 +88,19 @@ def scoring_summary(db: Session = Depends(get_db)) -> dict[str, Any]:
     settings = get_settings()
     pilot_e = load_pilot_config(settings.pilot_config_path)
     pilot_s = load_pilot_config(settings.pilot_strategic_config_path)
+    pilot_i = load_pilot_config(settings.pilot_identification_config_path)
     floor_e = float(pilot_e.scoring.qualified_min_score)
     floor_s = float(pilot_s.scoring.qualified_min_score)
+    floor_i = float(pilot_i.scoring.qualified_min_score)
 
     ent_rows = _fetch_latest_scores_per_parcel(db, profile=ENTITLEMENT)
     str_rows = _fetch_latest_scores_per_parcel(db, profile=STRATEGIC)
+    id_rows = _fetch_latest_scores_per_parcel(db, profile=IDENTIFICATION)
     paired = _paired_latest_scores(db)
 
     q_ent = sum(1 for _, ps in ent_rows if float(ps.total_score) >= floor_e)
     q_str = sum(1 for _, ps in str_rows if float(ps.total_score) >= floor_s)
+    q_id = sum(1 for _, ps in id_rows if float(ps.total_score) >= floor_i)
 
     total_parcels = db.scalar(select(func.count()).select_from(Parcel))
     if total_parcels is None:
@@ -106,10 +110,12 @@ def scoring_summary(db: Session = Depends(get_db)) -> dict[str, Any]:
         "total_parcels": int(total_parcels),
         "parcels_with_latest_entitlement_score": len(ent_rows),
         "parcels_with_latest_strategic_score": len(str_rows),
+        "parcels_with_latest_identification_score": len(id_rows),
         "parcels_with_both_profiles_scored": len(paired),
         "qualified_count_entitlement": q_ent,
         "qualified_count_strategic": q_str,
-        "qualified_min_score": {"entitlement": floor_e, "strategic": floor_s},
+        "qualified_count_identification": q_id,
+        "qualified_min_score": {"entitlement": floor_e, "strategic": floor_s, "identification": floor_i},
         "pilot_region": pilot_e.region.name,
     }
 

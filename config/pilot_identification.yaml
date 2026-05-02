@@ -1,7 +1,9 @@
-# Alternate scoring profile — "strategic / demand" agent (Agent Beacon).
-# Same region and deal rails as pilot.yaml; different scoring philosophy:
-# emphasize proximity to demand and corner visibility; zoning is still important but weighted lower.
-# CRS and ingest geometry unchanged.
+# Identification / prescreen agent — same PilotConfig schema as pilot.yaml.
+# Used only when parcels are loaded from GeoJSON (ingest). Produces score_profile=identification:
+# a 0–100 estimate from zoning flags, lot size, corner, and demand proximity using only
+# attributes available at ingest (before enrichment / deal memo pipeline).
+#
+# Tune weights and qualified_min_score independently from Atlas (entitlement) and Beacon (strategic).
 
 crs: EPSG:4326
 
@@ -66,19 +68,20 @@ compliance:
   tcpa_can_spam_review_required: true
 
 scoring:
-  # Slightly smaller minimum — urban pads can still work with entitlement/legal path elsewhere.
-  min_lot_sqft: 4000
-  qualified_min_score: 52
+  min_lot_sqft: 5000
+  # Optional filter if you later expose identification-qualified listings — not used by GET /parcels?qualified_only=
+  qualified_min_score: 45
   weights:
-    zoning_permitted_surface_parking: 25
-    lot_size: 20
-    corner_lot: 15
-    near_demand_generator_m: 40
-  demand_generator_buffer_m: 500
+    zoning_permitted_surface_parking: 45
+    lot_size: 25
+    corner_lot: 10
+    near_demand_generator_m: 20
+  demand_generator_buffer_m: 450
   demand_generators:
-    - name: "Seattle downtown (illustrative)"
-      lat: 47.6062
-      lon: -122.3321
+    # South King / Kent anchor — replace with your submarket POIs.
+    - name: "Kent core / Station corridor (illustrative)"
+      lat: 47.384
+      lon: -122.233
 
 data_sources:
   parcel_vendor: "TBD — see docs/washington-data.md"

@@ -20,7 +20,8 @@ Postgres + PostGIS, Redis, Celery worker, MinIO (S3-compatible for Spaces), Fast
 
 ## Layout
 
-- `config/pilot.yaml` — pilot FIPS, deal type, scoring weights, compliance flags
+- `config/pilot.yaml` — pilot FIPS, deal type, scoring weights, compliance flags  
+- `config/pilot_strategic.yaml` / `config/pilot_identification.yaml` — Beacon (pipeline) and Cartographer (ingest prescreen) scoring profiles
 - `packages/core` — shared Pydantic models and pilot config loader
 - `services/ingestion`, `scoring`, `enrichment`, `workflows` — domain packages
 - `services/api` — HTTP API and Alembic migrations
@@ -50,7 +51,7 @@ Production runbook: [docs/OPERATIONS.md](docs/OPERATIONS.md) (health vs ready, l
 
 **Dependabot:** [`.github/dependabot.yml`](.github/dependabot.yml) for Actions updates.
 
-**Slack (optional):** 4-hour digest to a channel via Celery Beat + worker — [docs/SLACK.md](docs/SLACK.md). Local env merge: `make slack-env-local` (export `SLACK_BOT_TOKEN` and `SLACK_DIGEST_CHANNEL_ID` first).
+**Slack (optional):** recurring digest to a channel every **20 minutes (UTC)** via Celery Beat + worker — [docs/SLACK.md](docs/SLACK.md). Local env merge: `make slack-env-local` (export `SLACK_BOT_TOKEN` and `SLACK_DIGEST_CHANNEL_ID` first).
 
 ## Legal
 

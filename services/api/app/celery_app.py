@@ -14,9 +14,9 @@ backend = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
 logger = logging.getLogger(__name__)
 
 beat_schedule: dict = {
-    "slack-parking-digest-4h": {
+    "slack-parking-digest-20m": {
         "task": "app.tasks.slack_agent_digest",
-        "schedule": crontab(minute=0, hour="*/4"),
+        "schedule": crontab(minute="*/20"),
     },
     "slack-qualified-parcels-daily": {
         "task": "app.tasks.slack_qualified_parcels_report",

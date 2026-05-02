@@ -54,6 +54,22 @@ Scoring is **deterministic** from `config/pilot.yaml` (entitlement) and `config/
 
 Pilot region filters are in **`config/pilot.yaml`** (`region.county_fips`). Features outside those counties are skipped at ingest.
 
+### Parcel scores CSV (stakeholder feedback)
+
+Export latest identification / entitlement / strategic scores per parcel (same profile strings as `app.scoring_profiles`) to a shareable CSV. Requires **`DATABASE_URL`** (same as the API) and the backend Python deps (`pip install -e services/api` from a venv at repo root, or run inside the **`api`** container where `/app` is the API package root). The script adds `services/api` to `sys.path` when run from the repo root, so extra **`PYTHONPATH`** is optional.
+
+```bash
+cd /opt/workspaces/parkinglot
+export DATABASE_URL='postgresql+psycopg://...'
+python3 scripts/export_scored_parcels_csv.py -o parcel_scores_export.csv
+# Optional: --limit 500   ;   -o - for stdout   ;   in api container: PYTHONPATH=/app ...
+```
+
+- **Public HTTPS link (DigitalOcean Spaces)** — same **`STORAGE_*`** variables as the API (`STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`, `STORAGE_BUCKET`, `STORAGE_REGION`). After export, upload with **`--publish-spaces`** (alias **`--upload-public`**). The script prints the **HTTPS URL on stdout** (one line); **`public-read` exposes parcel data** — use only for non-sensitive pilots. Example:
+  `DATABASE_URL=... STORAGE_ENDPOINT=https://sfo3.digitaloceanspaces.com ... python3 scripts/export_scored_parcels_csv.py --publish-spaces -o parcel_scores_export.csv`
+
+For **satellite / map visual review** of a scored shortlist (Google Maps, OpenStreetMap, King County parcel viewer link where applicable), use [`scripts/parcel_visual_review_sheet.py`](../scripts/parcel_visual_review_sheet.py) and see [visual-site-review.md](visual-site-review.md). The API image includes `/app/scripts` after rebuild; otherwise run the script from a repo checkout with the same `DATABASE_URL`.
+
 ### Washington 7-day exploration campaign (optional)
 
 Use this when you want Celery Beat to **pull county GeoJSON files from disk on a daily rotation** over a fixed **7-day calendar window** (counts toward statewide coverage; data acquisition is still **your** GeoJSON exports).

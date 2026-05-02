@@ -7,7 +7,7 @@ My SSH command: ssh root@209.38.142.108
 
 ## Goals
 
-- Operational visibility: recurring Slack "agent standup" digest (~every 4 hours UTC) summarizing ingest, scoring/pipeline activity, approvals, and recent audit activity.
+- Operational visibility: recurring Slack "agent standup" digest (~every 20 minutes UTC) summarizing ingest, scoring/pipeline activity, approvals, and recent audit activity.
 - Between-digest momentum: maintenance tick (~15 minutes by default) enqueues pipeline work for parcels that still need scoring/enrichment.
 - Deal-quality signals: parking suitability + benchmark hourly rates (pilot YAML comps + optional Postgres parking_rate_comps).
 - Owner/outreach: persist owner_outreach_brief and related flows from the pipeline.
