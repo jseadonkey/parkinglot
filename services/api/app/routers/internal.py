@@ -16,6 +16,7 @@ from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolio
 from app.deps_internal import require_internal_key
 from app.export_readiness import export_readiness_summary
 from app.schemas import (
+    ExportReadinessResponse,
     IngestGeojsonServerPathRequest,
     IngestWatechCountyRequest,
     MergeGeojsonAttributesRequest,
@@ -93,10 +94,11 @@ def slack_config_status() -> dict[str, bool]:
     }
 
 
-@router.get("/stats/export-readiness")
-def export_readiness(db: Session = Depends(get_db)) -> dict[str, Any]:
+@router.get("/stats/export-readiness", response_model=ExportReadinessResponse)
+def export_readiness(db: Session = Depends(get_db)) -> ExportReadinessResponse:
     """Null/gap counts for CSV columns and score rows — run before stakeholder exports."""
-    return export_readiness_summary(db)
+    raw = export_readiness_summary(db)
+    return ExportReadinessResponse(**raw)
 
 
 @router.get("/stats/scoring-summary")

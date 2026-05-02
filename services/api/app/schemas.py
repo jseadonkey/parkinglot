@@ -116,6 +116,29 @@ class IngestGeojsonServerPathRequest(BaseModel):
         return v
 
 
+class GapStat(BaseModel):
+    """Single metric: count and percent of parcel rows."""
+
+    count: int
+    pct: float
+
+
+class ExportReadinessResponse(BaseModel):
+    """Shape returned by GET /internal/stats/export-readiness (Phase A–C gap diagnostics)."""
+
+    parcel_row_total: int
+    parcels_missing_footprint: GapStat
+    parcels_missing_zoning_code: GapStat
+    parcels_missing_lot_sqft: GapStat
+    parcels_missing_distance_to_nearest_demand_m: GapStat
+    parcels_missing_score_identification: GapStat
+    parcels_missing_score_entitlement: GapStat
+    parcels_missing_score_strategic: GapStat
+    parcels_missing_entitlement_or_strategic: GapStat
+    parcels_missing_owner_outreach_brief: GapStat
+    recommended_next_steps: list[str]
+
+
 class MergeGeojsonAttributesRequest(BaseModel):
     """Path to GeoJSON whose properties update existing parcels (same loader as full ingest)."""
 
