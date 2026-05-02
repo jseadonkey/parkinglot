@@ -2,7 +2,13 @@
 
 Multi-service system to score pilot parcels for paid parking suitability, enrich owner context, produce deal memos and contract drafts, with **human approval gates** before any outbound communication or contract execution.
 
-CI runs on pushes and pull requests via [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+CI runs on pushes and pull requests via [`.github/workflows/ci.yml`](.github/workflows/ci.yml): **Ruff** (Python packages plus [`scripts/`](scripts/)), **pytest** for [`services/api`](services/api), Docker **smoke builds** for API + approval UI images, **Compose config** validation, and **`bash -n`** on shell helpers (phase runners and [`scripts/ci-api-local.sh`](scripts/ci-api-local.sh)).
+
+**Same checks on your laptop:** `make api-ci` or [`./scripts/ci-api-local.sh`](scripts/ci-api-local.sh). That mirrors the lint + API-test jobs (creates a `.venv` at the repo root on first run; requires network for `pip` until dependencies are installed). Pass through pytest options, e.g. `./scripts/ci-api-local.sh tests/test_openapi.py -v`.
+
+**API contracts:** interactive docs at `/docs`, machine-readable schema at `/openapi.json`. [`services/api/tests/test_openapi.py`](services/api/tests/test_openapi.py) asserts routes and response schema refs stay aligned.
+
+**Rollout vs repo:** what is automated in code versus what operators still run on live infra or GIS is summarized in [docs/PHASED-EXECUTION-PLAN-A-E.md](docs/PHASED-EXECUTION-PLAN-A-E.md) (“Where we are — repo vs operations”) and the batched checklist [docs/OPERATOR-TODO-BUNDLE.md](docs/OPERATOR-TODO-BUNDLE.md).
 
 **Pilot region:** Washington State — Puget Sound counties (King, Snohomish, Pierce) in [`config/pilot.yaml`](config/pilot.yaml). Public GIS entry points: [`docs/washington-data.md`](docs/washington-data.md).
 
@@ -45,7 +51,7 @@ Production runbook: [docs/OPERATIONS.md](docs/OPERATIONS.md) (health vs ready, l
 
 **Phased rollout (stakeholder CSV → zoning overlay → outreach → multi-county):** status table in [docs/PHASED-EXECUTION-PLAN-A-E.md](docs/PHASED-EXECUTION-PLAN-A-E.md) (“Where we are — repo vs operations”). Batch your Droplet/GIS/vendor todos in [docs/OPERATOR-TODO-BUNDLE.md](docs/OPERATOR-TODO-BUNDLE.md).
 
-**Shortcuts:** `make help` (see [Makefile](Makefile)); `make operator-todos` prints the bundle path.
+**Shortcuts:** `make help` (see [Makefile](Makefile)); `make api-ci` runs Ruff + pytest like CI; `make operator-todos` prints the bundle path.
 
 **CI deploy:** GitHub Actions → Droplet over SSH — [docs/GITHUB-DEPLOY.md](docs/GITHUB-DEPLOY.md).
 
