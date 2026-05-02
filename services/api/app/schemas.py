@@ -123,6 +123,33 @@ class GapStat(BaseModel):
     pct: float
 
 
+class CeleryTaskIdResponse(BaseModel):
+    """Async job accepted — poll ``GET /internal/tasks/{task_id}``."""
+
+    task_id: str
+
+
+class WaTechCountyQueuedResponse(BaseModel):
+    """WaTech fetch+ingest scheduled on the worker."""
+
+    fetch_task_id: str
+
+
+class EnqueueUnscoredResponse(BaseModel):
+    """Parcels missing entitlement score — pipelines enqueued directly (not a nested Celery task id)."""
+
+    enqueued: int
+    parcel_ids: list[str]
+
+
+class EnqueueIncompleteResponse(BaseModel):
+    """Parcels missing entitlement or strategic score — pipelines enqueued directly."""
+
+    enqueued: int
+    parcel_ids: list[str]
+    mode: str = Field(description="missing_entitlement_or_strategic")
+
+
 class ExportReadinessResponse(BaseModel):
     """Shape returned by GET /internal/stats/export-readiness (Phase A–C gap diagnostics)."""
 

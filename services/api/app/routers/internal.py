@@ -16,11 +16,15 @@ from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolio
 from app.deps_internal import require_internal_key
 from app.export_readiness import export_readiness_summary
 from app.schemas import (
+    CeleryTaskIdResponse,
+    EnqueueIncompleteResponse,
+    EnqueueUnscoredResponse,
     ExportReadinessResponse,
     IngestGeojsonServerPathRequest,
     IngestWatechCountyRequest,
     MergeGeojsonAttributesRequest,
     SlackTestMessageRequest,
+    WaTechCountyQueuedResponse,
 )
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
 from app.slack_digest import (
@@ -313,8 +317,8 @@ def ingest_geojson_server_path(body: IngestGeojsonServerPathRequest) -> dict[str
     }
 
 
-@router.post("/ingest/watech-county")
-def ingest_watech_county(body: IngestWatechCountyRequest) -> dict[str, object]:
+@router.post("/ingest/watech-county", response_model=WaTechCountyQueuedResponse)
+def ingest_watech_county(body: IngestWatechCountyRequest) -> WaTechCountyQueuedResponse:
     """Fetch public WaTech parcel polygons for one county; enqueue download+ingest on the worker."""
     async_result = fetch_watech_county_and_ingest.delay(
         county_fips=body.county_fips,
@@ -322,27 +326,29 @@ def ingest_watech_county(body: IngestWatechCountyRequest) -> dict[str, object]:
         auto_run_pipeline=body.auto_run_pipeline,
         max_auto_pipeline=body.max_auto_pipeline,
     )
-    return {"fetch_task_id": async_result.id}
+    return WaTechCountyQueuedResponse(fetch_task_id=async_result.id)
 
 
-@router.post("/pipeline/enqueue-unscored")
+@router.post("/pipeline/enqueue-unscored", response_model=EnqueueUnscoredResponse)
 def enqueue_unscored_pipelines(
     limit: int = 100,
-) -> dict[str, Any]:
+) -> EnqueueUnscoredResponse:
     """Enqueue ``run_pipeline`` for parcels missing latest **entitlement** score (cap 500)."""
-    return enqueue_unscored_pipeline_jobs(limit)
+    raw = enqueue_unscored_pipeline_jobs(limit)
+    return EnqueueUnscoredResponse(**raw)
 
 
-@router.post("/pipeline/enqueue-incomplete")
+@router.post("/pipeline/enqueue-incomplete", response_model=EnqueueIncompleteResponse)
 def enqueue_incomplete_pipelines(
     limit: int = 100,
-) -> dict[str, Any]:
+) -> EnqueueIncompleteResponse:
     """Enqueue ``run_pipeline`` when **entitlement** or **strategic** score is missing (Atlas/Beacon pair)."""
-    return enqueue_incomplete_pipeline_jobs(limit)
+    raw = enqueue_incomplete_pipeline_jobs(limit)
+    return EnqueueIncompleteResponse(**raw)
 
 
-@router.post("/ingest/merge-geojson-attributes")
-def merge_geojson_attributes(body: MergeGeojsonAttributesRequest) -> dict[str, Any]:
+@router.post("/ingest/merge-geojson-attributes", response_model=CeleryTaskIdResponse)
+def merge_geojson_attributes(body: MergeGeojsonAttributesRequest) -> CeleryTaskIdResponse:
     """Update zoning/corner/demand/lot fields on existing parcels from a GeoJSON overlay (Celery)."""
     async_result = merge_parcel_attributes_geojson.delay(
         body.path,
@@ -351,33 +357,33 @@ def merge_geojson_attributes(body: MergeGeojsonAttributesRequest) -> dict[str, A
         refresh_pipeline=body.refresh_pipeline,
         max_pipeline=body.max_pipeline,
     )
-    return {"task_id": async_result.id}
+    return CeleryTaskIdResponse(task_id=async_result.id)
 
 
-@router.post("/metrics/refresh-demand-distances")
+@router.post("/metrics/refresh-demand-distances", response_model=CeleryTaskIdResponse)
 def refresh_demand_distances(
     limit: int = 500,
     county_fips: str | None = None,
-) -> dict[str, Any]:
+) -> CeleryTaskIdResponse:
     """Recompute centroid→demand POI distance from ``pilot.yaml`` generators (Celery)."""
     async_result = refresh_demand_distances_batch.delay(
         limit=limit,
         county_fips=county_fips,
     )
-    return {"task_id": async_result.id}
+    return CeleryTaskIdResponse(task_id=async_result.id)
 
 
-@router.post("/metrics/refresh-identification-scores")
+@router.post("/metrics/refresh-identification-scores", response_model=CeleryTaskIdResponse)
 def refresh_identification_scores(
     limit: int = 2000,
     county_fips: str | None = None,
-) -> dict[str, Any]:
+) -> CeleryTaskIdResponse:
     """Upsert identification (Cartographer) scores where missing — no full re-ingest required (Celery)."""
     async_result = refresh_identification_scores_batch.delay(
         limit=limit,
         county_fips=county_fips,
     )
-    return {"task_id": async_result.id}
+    return CeleryTaskIdResponse(task_id=async_result.id)
 
 
 @router.get("/owners/peers-by-key")
