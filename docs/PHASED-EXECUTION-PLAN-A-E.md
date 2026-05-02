@@ -125,6 +125,10 @@ Populate **`zoning_code`** and **`zoning_allows_surface_parking`** (and optional
 - `POST /internal/ingest/merge-geojson-attributes` — `services/api/app/tasks.py` (`merge_parcel_attributes_geojson`)  
 - `docs/zoning-sources-kent.md`, `data/zoning/wa/README.md`
 
+### Backlog — merge a **real** zoning overlay (tracked deliverable)
+
+The codebase includes merge endpoints, **`scripts/execute-phase-b.sh`**, and **`scripts/validate_phase_b_overlay.py`**. What is **not** done until ops/GIS completes it is the **authoritative overlay GeoJSON per pilot county**: spatial join parcel polygons to jurisdiction zoning GIS (outside this repo), properties aligned with **`geojson_loader`** aliases and **`kent_king_surface_parking_rules.yaml`**, staged on the Droplet under **`data/`** (worker path **`/app/data/...`**), then merge + verify **`parcels_missing_zoning_code`** drops and counsel spot-checks **`zoning_allows_surface_parking`**. Treat **“implement Phase B for production parcels”** as **shipping that file + running merge**, not only enabling the automation.
+
 ---
 
 ## Phase C — Owner intelligence, portfolio, compliance
@@ -286,3 +290,5 @@ Repeat Phases A–D for **new counties** and eventually **new states** without f
 ---
 
 *Last updated to match internal routes and scripts in the same repo revision as this file.*
+
+**Outstanding (note for roadmap):** Phase B **backlog** above — production zoning overlay merge per county remains to be executed once GIS delivers the file.
