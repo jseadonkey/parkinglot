@@ -37,6 +37,7 @@ from app.tasks import (
     ingest_geojson_path,
     merge_parcel_attributes_geojson,
     refresh_demand_distances_batch,
+    refresh_identification_scores_batch,
     slack_agent_digest,
     slack_dual_agent_discussion,
     slack_qualified_parcels_report,
@@ -358,6 +359,19 @@ def refresh_demand_distances(
 ) -> dict[str, Any]:
     """Recompute centroid→demand POI distance from ``pilot.yaml`` generators (Celery)."""
     async_result = refresh_demand_distances_batch.delay(
+        limit=limit,
+        county_fips=county_fips,
+    )
+    return {"task_id": async_result.id}
+
+
+@router.post("/metrics/refresh-identification-scores")
+def refresh_identification_scores(
+    limit: int = 2000,
+    county_fips: str | None = None,
+) -> dict[str, Any]:
+    """Upsert identification (Cartographer) scores where missing — no full re-ingest required (Celery)."""
+    async_result = refresh_identification_scores_batch.delay(
         limit=limit,
         county_fips=county_fips,
     )

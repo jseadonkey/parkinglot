@@ -49,8 +49,8 @@ Or run steps manually:
    - Optional filter: `county_fips=53033`.  
    **Done when:** `parcels_missing_distance_to_nearest_demand_m` drops (note: still null if **no generators** in `pilot.yaml` or **no footprint**).
 
-4. **Identification score**  
-   - Normally written at **ingest**. If missing: **re-ingest** affected parcels or fix ingest path; identification is tied to Cartographer prescreen (`pilot_identification.yaml`).  
+4. **Identification score (Cartographer)**  
+   - Normally written at **ingest**. If missing: **`POST /internal/metrics/refresh-identification-scores?limit=2000`** (Celery batch — no full re-ingest), or **re-ingest** / fix source GeoJSON.  
    **Done when:** `parcels_missing_score_identification` is acceptable.
 
 5. **Export + publish**  
@@ -254,6 +254,7 @@ Repeat Phases A–D for **new counties** and eventually **new states** without f
 | Enqueue missing entitlement **or** strategic | `POST /internal/pipeline/enqueue-incomplete` |
 | Enqueue missing entitlement only | `POST /internal/pipeline/enqueue-unscored` |
 | Refresh demand distances | `POST /internal/metrics/refresh-demand-distances` |
+| Backfill identification scores | `POST /internal/metrics/refresh-identification-scores` |
 | Merge zoning / overlay attributes | `POST /internal/ingest/merge-geojson-attributes` |
 | Owner peers by key | `GET /internal/owners/peers-by-key` |
 | Rank portfolios | `GET /internal/owners/portfolios-ranked` |

@@ -797,6 +797,43 @@ def refresh_demand_distances_batch(
         db.close()
 
 
+@celery.task(name="app.tasks.refresh_identification_scores_batch")
+def refresh_identification_scores_batch(
+    limit: int = 2000,
+    county_fips: str | None = None,
+) -> dict[str, Any]:
+    """Upsert ``identification`` scores for parcels that have no identification ``parcel_scores`` row."""
+    lim = min(max(limit, 1), 5000)
+    db = _session()
+    n = 0
+    try:
+        miss_ident = ~exists(
+            select(1).where(
+                ParcelScore.parcel_id == Parcel.id,
+                ParcelScore.score_profile == IDENTIFICATION,
+            )
+        )
+        stmt = select(Parcel).where(miss_ident)
+        cf = (county_fips or "").strip()
+        if cf:
+            stmt = stmt.where(Parcel.county_fips == cf)
+        stmt = stmt.order_by(Parcel.created_at.desc()).limit(lim)
+        for parcel in db.scalars(stmt):
+            _upsert_identification_score(db, parcel)
+            n += 1
+            if n % 200 == 0:
+                db.commit()
+        db.commit()
+        post_agent_event_to_slack(
+            get_settings(),
+            agent="Cartographer (identification refresh)",
+            detail=f"Upserted identification score for *{n}* parcel(s)" + (f" in `{cf}`." if cf else "."),
+        )
+        return {"updated": n, "county_fips": cf or None, "limit": lim}
+    finally:
+        db.close()
+
+
 @celery.task(name="app.tasks.slack_qualified_parcels_report")
 def slack_qualified_parcels_report() -> dict[str, Any]:
     """Post Block Kit summary of qualified vs not-qualified parcels (latest scores + rationale)."""

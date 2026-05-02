@@ -12,12 +12,15 @@
 #   PHASE_A_ENQUEUE_LIMIT       — default 500 (POST .../pipeline/enqueue-incomplete per round)
 #   PHASE_A_ENQUEUE_ROUNDS      — default 1 — repeat enqueue N times (drain backlog > limit)
 #   PHASE_A_ROUND_SLEEP         — seconds between enqueue rounds (default 15)
+#   PHASE_A_REFRESH_IDENTIFICATION — default 1 — POST .../metrics/refresh-identification-scores
+#   PHASE_A_IDENT_LIMIT         — default 2000 (identification backfill batch size)
 #   PHASE_A_DEMAND_LIMIT        — default 2000 (refresh-demand-distances)
-#   PHASE_A_COUNTY_FIPS         — e.g. 53033 — limit demand refresh to one county
+#   PHASE_A_COUNTY_FIPS         — e.g. 53033 — applies to identification + demand refresh
 #   PHASE_A_SKIP_HTTP=1         — only run CLI readiness (no curl to API)
 #   PHASE_A_WAIT_SEC            — sleep after HTTP work before final readiness (default 45)
-#   PHASE_A_POLL_DEMAND_TASK=1  — poll GET /internal/tasks/{id} until SUCCESS/FAILURE
-#   PHASE_A_POLL_TIMEOUT_SEC    — max wait for demand task (default 900)
+#   PHASE_A_POLL_IDENTIFICATION_TASK=1 — poll identification Celery task until done
+#   PHASE_A_POLL_DEMAND_TASK=1  — poll demand-distance Celery task until done
+#   PHASE_A_POLL_TIMEOUT_SEC    — max wait per polled task (default 900)
 #   PHASE_A_POLL_INTERVAL_SEC   — poll interval (default 5)
 #   PHASE_A_EXPORT_PATH         — if set, run export_scored_parcels_csv.py -o "$PHASE_A_EXPORT_PATH"
 #   PHASE_A_PUBLISH_SPACES=1    — add --publish-spaces to export (needs STORAGE_*)
@@ -44,6 +47,9 @@ cd "$ROOT"
 : "${PHASE_A_API_BASE:=http://127.0.0.1:8000}"
 : "${PHASE_A_WAIT_SEC:=45}"
 : "${PHASE_A_SKIP_HTTP:=0}"
+: "${PHASE_A_REFRESH_IDENTIFICATION:=1}"
+: "${PHASE_A_IDENT_LIMIT:=2000}"
+: "${PHASE_A_POLL_IDENTIFICATION_TASK:=0}"
 : "${PHASE_A_POLL_DEMAND_TASK:=0}"
 : "${PHASE_A_POLL_TIMEOUT_SEC:=900}"
 : "${PHASE_A_POLL_INTERVAL_SEC:=5}"
@@ -55,6 +61,37 @@ fi
 
 json_state() {
   echo "$1" | "${PY}" -c "import sys,json; d=json.load(sys.stdin); print(d.get('state',''))" 2>/dev/null || echo ""
+}
+
+poll_until_done() {
+  local tid="$1"
+  local label="$2"
+  [[ -z "$tid" ]] && return 0
+  echo "Polling \"${label}\" until SUCCESS/FAILURE (timeout ${PHASE_A_POLL_TIMEOUT_SEC}s)..."
+  local elapsed=0
+  while [[ "$elapsed" -lt "$PHASE_A_POLL_TIMEOUT_SEC" ]]; do
+    local POLL STATE
+    POLL="$(curl -sS "${KEY_HEADER[@]}" "${BASE}/internal/tasks/${tid}" -H "Accept: application/json" || echo "{}")"
+    STATE="$(json_state "$POLL")"
+    if [[ "$STATE" == "SUCCESS" ]]; then
+      echo "\"${label}\" SUCCESS (${elapsed}s)."
+      echo "$POLL" | "${PY}" -m json.tool 2>/dev/null || echo "$POLL"
+      echo
+      return 0
+    fi
+    if [[ "$STATE" == "FAILURE" ]]; then
+      echo "\"${label}\" FAILURE:" >&2
+      echo "$POLL" | "${PY}" -m json.tool 2>/dev/null || echo "$POLL"
+      echo
+      return 1
+    fi
+    printf "\r  [%s] state=%s %ss/%ss   " "$label" "${STATE:-UNKNOWN}" "$elapsed" "$PHASE_A_POLL_TIMEOUT_SEC"
+    sleep "$PHASE_A_POLL_INTERVAL_SEC"
+    elapsed=$((elapsed + PHASE_A_POLL_INTERVAL_SEC))
+  done
+  echo
+  echo "warning: \"${label}\" poll timed out — check worker logs." >&2
+  return 2
 }
 
 if [[ -z "${DATABASE_URL:-}" ]]; then
@@ -80,7 +117,7 @@ save_json_if_requested before
 echo
 
 if [[ "$PHASE_A_SKIP_HTTP" == "1" ]]; then
-  echo "PHASE_A_SKIP_HTTP=1 — skipping HTTP enqueue + demand refresh."
+  echo "PHASE_A_SKIP_HTTP=1 — skipping HTTP steps (enqueue, identification, demand)."
   exit 0
 fi
 
@@ -108,6 +145,31 @@ for ((round = 1; round <= PHASE_A_ENQUEUE_ROUNDS; round++)); do
   fi
 done
 
+IDENT_TASK_ID=""
+if [[ "${PHASE_A_REFRESH_IDENTIFICATION}" == "1" ]]; then
+  ID_URL="${BASE}/internal/metrics/refresh-identification-scores?limit=${PHASE_A_IDENT_LIMIT}"
+  if [[ -n "${PHASE_A_COUNTY_FIPS:-}" ]]; then
+    ID_URL+="&county_fips=${PHASE_A_COUNTY_FIPS}"
+  fi
+  echo "=== POST ${ID_URL} ==="
+  ID_RESP="$(curl -sS "${KEY_HEADER[@]}" -X POST "$ID_URL" -H "Accept: application/json" || true)"
+  echo "$ID_RESP"
+  IDENT_TASK_ID="$(echo "$ID_RESP" | "${PY}" -c "import sys,json; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null || true)"
+  if [[ -n "$IDENT_TASK_ID" ]]; then
+    echo "Identification refresh task_id: $IDENT_TASK_ID"
+    if [[ "${PHASE_A_POLL_IDENTIFICATION_TASK}" == "1" ]]; then
+      poll_until_done "$IDENT_TASK_ID" "Identification refresh" || true
+    else
+      echo "Poll manually: GET ${BASE}/internal/tasks/${IDENT_TASK_ID}"
+      echo "(Set PHASE_A_POLL_IDENTIFICATION_TASK=1 to wait.)"
+    fi
+  fi
+  echo
+else
+  echo "PHASE_A_REFRESH_IDENTIFICATION=0 — skipping identification backfill."
+  echo
+fi
+
 DEM_URL="${BASE}/internal/metrics/refresh-demand-distances?limit=${PHASE_A_DEMAND_LIMIT}"
 if [[ -n "${PHASE_A_COUNTY_FIPS:-}" ]]; then
   DEM_URL+="&county_fips=${PHASE_A_COUNTY_FIPS}"
@@ -116,36 +178,14 @@ fi
 echo "=== POST ${DEM_URL} ==="
 DEM_RESP="$(curl -sS "${KEY_HEADER[@]}" -X POST "$DEM_URL" -H "Accept: application/json" || true)"
 echo "$DEM_RESP"
-TASK_ID="$(echo "$DEM_RESP" | "${PY}" -c "import sys,json; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null || true)"
+DEM_TASK_ID="$(echo "$DEM_RESP" | "${PY}" -c "import sys,json; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null || true)"
 
-if [[ -n "$TASK_ID" ]]; then
-  echo "Demand refresh task_id: $TASK_ID"
+if [[ -n "$DEM_TASK_ID" ]]; then
+  echo "Demand refresh task_id: $DEM_TASK_ID"
   if [[ "${PHASE_A_POLL_DEMAND_TASK}" == "1" ]]; then
-    echo "Polling task until SUCCESS/FAILURE (timeout ${PHASE_A_POLL_TIMEOUT_SEC}s)..."
-    elapsed=0
-    while [[ "$elapsed" -lt "$PHASE_A_POLL_TIMEOUT_SEC" ]]; do
-      POLL="$(curl -sS "${KEY_HEADER[@]}" "${BASE}/internal/tasks/${TASK_ID}" -H "Accept: application/json" || echo "{}")"
-      STATE="$(json_state "$POLL")"
-      if [[ "$STATE" == "SUCCESS" ]]; then
-        echo "Demand refresh SUCCESS (${elapsed}s)."
-        echo "$POLL" | "${PY}" -m json.tool 2>/dev/null || echo "$POLL"
-        break
-      fi
-      if [[ "$STATE" == "FAILURE" ]]; then
-        echo "Demand refresh FAILURE:" >&2
-        echo "$POLL" | "${PY}" -m json.tool 2>/dev/null || echo "$POLL"
-        break
-      fi
-      printf "\r  ... state=%s %ss/%ss   " "${STATE:-UNKNOWN}" "$elapsed" "$PHASE_A_POLL_TIMEOUT_SEC"
-      sleep "$PHASE_A_POLL_INTERVAL_SEC"
-      elapsed=$((elapsed + PHASE_A_POLL_INTERVAL_SEC))
-    done
-    echo
-    if [[ "$elapsed" -ge "$PHASE_A_POLL_TIMEOUT_SEC" ]] && [[ "$(json_state "$(curl -sS "${KEY_HEADER[@]}" "${BASE}/internal/tasks/${TASK_ID}" -H "Accept: application/json")")" != "SUCCESS" ]]; then
-      echo "warning: poll timed out; workers may still be running — check logs." >&2
-    fi
+    poll_until_done "$DEM_TASK_ID" "Demand distance refresh" || true
   else
-    echo "Poll manually: GET ${BASE}/internal/tasks/${TASK_ID}"
+    echo "Poll manually: GET ${BASE}/internal/tasks/${DEM_TASK_ID}"
     echo "(Set PHASE_A_POLL_DEMAND_TASK=1 to wait automatically.)"
   fi
 fi
