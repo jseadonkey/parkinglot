@@ -99,6 +99,8 @@ This does **not** download assessor data automatically; it only ingests files yo
 
 ## Owner outreach (SOS / vendor)
 
+- **Gap counts:** `python3 scripts/check_export_readiness.py` includes **`parcels_missing_owner_outreach_brief`** (Phase C). Smoke portfolio internals + readiness: [`scripts/execute-phase-c.sh`](../scripts/execute-phase-c.sh) (`make phase-c-run`, optional **`PHASE_C_OWNER_KEY`**).
+- **Portfolio rollup (internal):** `GET /internal/owners/portfolios-ranked?min_peers=2&limit=50`, `GET /internal/owners/peers-by-key?normalized_owner_key=…` (requires **`X-Internal-Key`** when configured).
 - **Read stored brief:** `GET /parcels/{parcel_id}/outreach` (404 until a pipeline or recompute has written `owner_outreach_brief`).
 - **Recompute without full pipeline:** `POST /parcels/{parcel_id}/outreach/recompute` with JSON body `fetch_sos`, `fetch_sos_detail`, `call_vendor` (booleans). Async variant: `.../outreach/recompute/async` → poll `GET /internal/tasks/{task_id}`.
 - **Pipeline-time HTTP (optional):** set `OUTREACH_PIPELINE_FETCH_SOS`, `OUTREACH_PIPELINE_FETCH_SOS_DETAIL`, and/or `OUTREACH_PIPELINE_CALL_VENDOR_WEBHOOK` to `true` so each `run_pipeline` builds the brief with the same integrations (use sparingly: rate limits and vendor cost).

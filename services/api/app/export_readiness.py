@@ -1,4 +1,4 @@
-"""Aggregate counts for CSV export / stakeholder readiness (Phase A diagnostics)."""
+"""Aggregate counts for CSV export / stakeholder readiness (Phase A–C diagnostics)."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ def _pct(part: int, total: int) -> float:
 
 
 def export_readiness_summary(db: Session) -> dict[str, Any]:
-    """Return parcel coverage stats for key CSV columns and score profiles."""
+    """Return parcel coverage stats for scores, CSV columns, and owner outreach brief."""
     total = int(db.scalar(select(func.count()).select_from(Parcel)) or 0)
 
     def count_where(condition: Any) -> int:
@@ -70,6 +70,19 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
         )
     )
 
+    miss_brief = count_where(Parcel.owner_outreach_brief.is_(None))
+
+    recommended_next_steps: list[str] = [
+        "If entitlement or strategic gaps: POST /internal/pipeline/enqueue-incomplete?limit=500",
+        "If identification gaps: POST /internal/metrics/refresh-identification-scores?limit=2000 (or re-ingest).",
+        "If demand distance gaps: POST /internal/metrics/refresh-demand-distances?limit=2000",
+        "If zoning gaps: spatial join → GeoJSON overlay → POST /internal/ingest/merge-geojson-attributes (or scripts/execute-phase-b.sh).",
+    ]
+    if miss_brief > 0:
+        recommended_next_steps.append(
+            "If owner outreach brief gaps: POST /internal/pipeline/enqueue-incomplete, per-parcel POST /parcels/{id}/outreach/recompute, or scripts/execute-phase-c.sh (smoke) — see docs/OPERATIONS.md (owner outreach)."
+        )
+
     return {
         "parcel_row_total": total,
         "parcels_missing_footprint": {"count": no_footprint, "pct": _pct(no_footprint, total)},
@@ -83,10 +96,6 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
         "parcels_missing_score_entitlement": {"count": miss_ent, "pct": _pct(miss_ent, total)},
         "parcels_missing_score_strategic": {"count": miss_str, "pct": _pct(miss_str, total)},
         "parcels_missing_entitlement_or_strategic": {"count": miss_pair, "pct": _pct(miss_pair, total)},
-        "recommended_next_steps": [
-            "If entitlement or strategic gaps: POST /internal/pipeline/enqueue-incomplete?limit=500",
-            "If identification gaps: POST /internal/metrics/refresh-identification-scores?limit=2000 (or re-ingest).",
-            "If demand distance gaps: POST /internal/metrics/refresh-demand-distances?limit=2000",
-            "If zoning gaps: spatial join → GeoJSON overlay → POST /internal/ingest/merge-geojson-attributes (or scripts/execute-phase-b.sh).",
-        ],
+        "parcels_missing_owner_outreach_brief": {"count": miss_brief, "pct": _pct(miss_brief, total)},
+        "recommended_next_steps": recommended_next_steps,
     }

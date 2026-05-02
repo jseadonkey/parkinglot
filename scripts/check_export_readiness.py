@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print gap counts for stakeholder CSV columns (Phase A — before export).
+"""Print gap counts for stakeholder CSV columns and owner outreach brief (Phase A–C — before export).
 
 Uses the same ``DATABASE_URL`` and Python env as ``export_scored_parcels_csv.py``.
 
@@ -61,6 +61,7 @@ def main() -> int:
         "parcels_missing_score_entitlement",
         "parcels_missing_score_strategic",
         "parcels_missing_entitlement_or_strategic",
+        "parcels_missing_owner_outreach_brief",
     ):
         row = data[key]
         print(f"  {key}: {row['count']} ({row['pct']}% of parcels)")

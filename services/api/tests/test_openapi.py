@@ -24,6 +24,8 @@ def test_openapi_lists_workflow_and_internal_task_paths() -> None:
     assert "/internal/metrics/refresh-demand-distances" in paths
     assert "/internal/metrics/refresh-identification-scores" in paths
     assert "/internal/ingest/merge-geojson-attributes" in paths
+    assert "/internal/owners/peers-by-key" in paths
+    assert "/internal/owners/portfolios-ranked" in paths
     assert "/internal/ingest/geojson-upload" in paths
     assert "/internal/ingest/geojson-server-path" in paths
     assert "/internal/pipeline/enqueue-unscored" in paths

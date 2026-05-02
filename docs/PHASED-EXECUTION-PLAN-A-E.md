@@ -164,6 +164,9 @@ Operators can see **recorded owner**, **contact hints from roll**, **multi-parce
    - Set **`OWNER_VENDOR_LOOKUP_ENABLED`**, **`OWNER_VENDOR_LOOKUP_URL`**, **`OWNER_VENDOR_LOOKUP_API_KEY`** (see `deploy/docker-compose.production.yml` / worker env).  
    **Done when:** **`vendor_lookup`** appears on brief with provider outcome; errors surfaced in memo.
 
+6. **Smoke readiness + portfolio APIs**  
+   - **`scripts/execute-phase-c.sh`** — prints **`parcels_missing_owner_outreach_brief`** (via **`check_export_readiness.py`**), **`GET /internal/owners/portfolios-ranked`**, optional **`GET /internal/owners/peers-by-key`** when **`PHASE_C_OWNER_KEY`** is set (`make phase-c-run`). Use after pipelines have run for parcels you care about.
+
 ### Exit criteria (Phase C)
 
 - Owner lines + outreach sections appear on deal memos for pipeline-completed parcels.  
@@ -273,7 +276,7 @@ Repeat Phases A–D for **new counties** and eventually **new states** without f
 | Rank portfolios | `GET /internal/owners/portfolios-ranked` |
 | Celery task status | `GET /internal/tasks/{task_id}` |
 
-**Shell helpers:** Phase A — [`scripts/execute-phase-a.sh`](../scripts/execute-phase-a.sh); Phase B overlay — [`scripts/execute-phase-b.sh`](../scripts/execute-phase-b.sh); Phase B dry-run — [`scripts/validate_phase_b_overlay.py`](../scripts/validate_phase_b_overlay.py) (`make validate-phase-b-overlay`).
+**Shell helpers:** Phase A — [`scripts/execute-phase-a.sh`](../scripts/execute-phase-a.sh); Phase B overlay — [`scripts/execute-phase-b.sh`](../scripts/execute-phase-b.sh); Phase B dry-run — [`scripts/validate_phase_b_overlay.py`](../scripts/validate_phase_b_overlay.py) (`make validate-phase-b-overlay`); Phase C — [`scripts/execute-phase-c.sh`](../scripts/execute-phase-c.sh) (`make phase-c-run`).
 
 ---
 
