@@ -89,10 +89,10 @@ jobs:
             -f deploy/docker-compose.postgis-addon.yml \
             --env-file deploy/ci.env config --quiet
 
-      - name: Syntax-check phase runner scripts (bash)
+      - name: Syntax-check bash scripts (phase runners + ci-api-local)
         run: |
           set -euo pipefail
-          for f in scripts/execute-phase-a.sh scripts/execute-phase-b.sh scripts/execute-phase-c.sh; do
+          for f in scripts/execute-phase-a.sh scripts/execute-phase-b.sh scripts/execute-phase-c.sh scripts/ci-api-local.sh; do
             echo "bash -n $f"
             bash -n "$f"
           done
