@@ -29,6 +29,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            packages/core/pyproject.toml
+            services/scoring/pyproject.toml
+            services/ingestion/pyproject.toml
+            services/enrichment/pyproject.toml
+            services/workflows/pyproject.toml
+            services/api/pyproject.toml
       - name: Install workspace packages
         run: |
           set -euo pipefail
@@ -43,8 +51,18 @@ jobs:
         working-directory: services/api
         run: pytest
 
-      - name: OpenAPI JSON export smoke
-        run: python3 scripts/export_openapi_json.py --indent 0 | python3 -m json.tool > /dev/null
+      - name: OpenAPI JSON export
+        run: |
+          set -euo pipefail
+          python3 scripts/export_openapi_json.py -o openapi.json
+          python3 -m json.tool openapi.json > /dev/null
+
+      - uses: actions/upload-artifact@v4
+        name: Upload OpenAPI JSON
+        with:
+          name: openapi
+          path: openapi.json
+          retention-days: 14
 
   validate:
     runs-on: ubuntu-latest

@@ -7,6 +7,8 @@ deploy/.env
 deploy/.env*.bak*
 deploy/.env.env.bak.*
 .venv
+# Accidental root snapshot from export_openapi_json.py -o openapi.json
+/openapi.json
 __pycache__/
 *.py[cod]
 .pytest_cache/
