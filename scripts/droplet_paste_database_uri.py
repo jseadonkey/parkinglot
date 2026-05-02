@@ -12,11 +12,10 @@ Usage:
 """
 from __future__ import annotations
 
-import shutil
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlparse, urlunparse
+
+from db_url_merge import merge_database_url_into_deploy_env
 
 
 def main() -> int:
@@ -32,37 +31,13 @@ def main() -> int:
         "Paste it below and press Enter.\n"
     )
     raw = input().strip()
-    if raw.startswith("DATABASE_URL="):
-        raw = raw.split("=", 1)[1].strip()
-
-    u = urlparse(raw)
-    if u.scheme not in ("postgresql", "postgres"):
-        print(f"Expected postgresql:// URL, got scheme={u.scheme!r}", file=sys.stderr)
+    try:
+        removed, backup = merge_database_url_into_deploy_env(repo, raw)
+    except ValueError as e:
+        print(str(e), file=sys.stderr)
         return 1
 
-    # SQLAlchemy/psycopg driver prefix
-    fixed = urlunparse(("postgresql+psycopg", u.netloc, u.path, "", u.query, u.fragment))
-    new_line = f"DATABASE_URL={fixed}"
-
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    backup = env_path.with_suffix(f".env.bak.{stamp}")
-    shutil.copy2(env_path, backup)
     print(f"Backup: {backup}")
-
-    text = env_path.read_text(encoding="utf-8")
-    lines_out: list[str] = []
-    removed = 0
-    for line in text.splitlines():
-        if line.startswith("DATABASE_URL="):
-            removed += 1
-            continue
-        lines_out.append(line)
-    while lines_out and lines_out[-1].strip() == "":
-        lines_out.pop()
-    lines_out.append(new_line)
-    lines_out.append("")
-    env_path.write_text("\n".join(lines_out), encoding="utf-8")
-
     print(f"Updated DATABASE_URL ({removed} old line(s) replaced).")
     print("Next: GitHub → Actions → Deploy to Droplet.")
     return 0
