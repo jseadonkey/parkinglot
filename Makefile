@@ -1,9 +1,10 @@
-.PHONY: help verify-sample api-ci export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay operator-todos local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
+.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay operator-todos local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
 
 help:
 	@echo "Targets:"
 	@echo "  make verify-sample      - venv + pytest sample GeoJSON trace (scores, enrichment, memo)"
 	@echo "  make api-ci             - venv + Ruff + pytest (same paths as GitHub Actions CI)"
+	@echo "  make openapi-export     - print OpenAPI JSON (needs .venv + deps like api-ci)"
 	@echo "  make export-readiness   - print CSV column gap counts (needs DATABASE_URL)"
 	@echo "  make readiness          - alias for export-readiness (Phase A–C gap summary)"
 	@echo "  make phase-a-run        - Phase A: readiness + enqueue + identification backfill + demand refresh (needs DATABASE_URL; see scripts/execute-phase-a.sh)"
@@ -36,6 +37,10 @@ verify-sample:
 api-ci:
 	@chmod +x scripts/ci-api-local.sh
 	@./scripts/ci-api-local.sh
+
+openapi-export:
+	@test -d .venv || (echo "Create .venv and run make api-ci once (or pip install workspace packages)"; exit 1)
+	@. .venv/bin/activate && python3 scripts/export_openapi_json.py
 
 export-readiness:
 	@test -n "$$DATABASE_URL" || (echo "export DATABASE_URL first"; exit 1)
