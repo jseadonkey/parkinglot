@@ -205,8 +205,8 @@ jobs:
           cd "$REMOTE_PATH"
           test -f deploy/.env
           test -f scripts/post-deploy-slack.sh
-          chmod +x scripts/post-deploy-slack.sh
-          ./scripts/post-deploy-slack.sh "$MODE"
+          # Avoid exit 126 if +x is stripped on rsync / filesystem — bash runs without execute bit.
+          bash scripts/post-deploy-slack.sh "$MODE"
           EOS
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
