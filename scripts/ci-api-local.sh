@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mirror .github/workflows/ci.yml jobs ``lint`` + ``test-api`` (Ruff + pytest, no Docker).
+# Mirror .github/workflows/ci.yml jobs ``lint`` + ``test-api`` (Ruff + pytest + OpenAPI export smoke, no Docker).
 # Creates ``.venv`` at repo root on first run; requires network for pip until deps are installed.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -18,3 +18,4 @@ ruff check packages/core services/api/app services/scoring services/ingestion se
   cd services/api
   pytest "$@"
 )
+python3 scripts/export_openapi_json.py --indent 0 | python3 -m json.tool > /dev/null

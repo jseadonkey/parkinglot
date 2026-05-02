@@ -81,7 +81,7 @@ Or run steps manually:
 - **`pytest services/api/tests/`** passes (includes **`test_openapi.py`** route/schema regression plus scoring paths).  
 - **Sample trace:** `./scripts/verify-sample-trace.sh` (ingest + scores + pipeline shape).  
 - **Bash:** `bash -n scripts/execute-phase-a.sh`.  
-- **Local CI parity:** `make api-ci` or `./scripts/ci-api-local.sh` (same Ruff + pytest scope as GitHub Actions).  
+- **Local CI parity:** `make api-ci` or `./scripts/ci-api-local.sh` (same Ruff + pytest + OpenAPI JSON export smoke as GitHub Actions `test-api`).  
 - **With live DB + API** (Droplet or port-forward): `DATABASE_URL=… INTERNAL_API_KEY=… ./scripts/execute-phase-a.sh` — before/after `check_export_readiness.py` should show `parcels_missing_score_*` and demand gaps moving in the right direction (worker time may require re-run or longer `PHASE_A_WAIT_SEC`).
 
 ### References (code / docs)

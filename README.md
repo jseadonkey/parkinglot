@@ -4,7 +4,7 @@ Multi-service system to score pilot parcels for paid parking suitability, enrich
 
 CI runs on pushes and pull requests via [`.github/workflows/ci.yml`](.github/workflows/ci.yml): **Ruff** (Python packages plus [`scripts/`](scripts/)), **pytest** for [`services/api`](services/api), a **`scripts/export_openapi_json.py`** smoke step (valid JSON), Docker **smoke builds** for API + approval UI images, **Compose config** validation, and **`bash -n`** on shell helpers (phase runners and [`scripts/ci-api-local.sh`](scripts/ci-api-local.sh)).
 
-**Same checks on your laptop:** `make api-ci` or [`./scripts/ci-api-local.sh`](scripts/ci-api-local.sh). That mirrors the lint + API-test jobs (creates a `.venv` at the repo root on first run; requires network for `pip` until dependencies are installed). Pass through pytest options, e.g. `./scripts/ci-api-local.sh tests/test_openapi.py -v`.
+**Same checks on your laptop:** `make api-ci` or [`./scripts/ci-api-local.sh`](scripts/ci-api-local.sh). That mirrors **lint** + **`test-api`** (Ruff, pytest, then OpenAPI JSON export smoke — creates a `.venv` at the repo root on first run; requires network for `pip` until dependencies are installed). Pass through pytest options, e.g. `./scripts/ci-api-local.sh tests/test_openapi.py -v`.
 
 **API contracts:** interactive docs at `/docs`, machine-readable schema at `/openapi.json`. [`services/api/tests/test_openapi.py`](services/api/tests/test_openapi.py) asserts routes and response schema refs stay aligned. To snapshot the schema (e.g. for codegen or diff), use **`make openapi-export`** or `python3 scripts/export_openapi_json.py` with the same Python env as **`make api-ci`**.
 

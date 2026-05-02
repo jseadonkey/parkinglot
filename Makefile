@@ -3,7 +3,7 @@
 help:
 	@echo "Targets:"
 	@echo "  make verify-sample      - venv + pytest sample GeoJSON trace (scores, enrichment, memo)"
-	@echo "  make api-ci             - venv + Ruff + pytest (same paths as GitHub Actions CI)"
+	@echo "  make api-ci             - venv + Ruff + pytest + OpenAPI export smoke (matches CI test-api)"
 	@echo "  make openapi-export     - print OpenAPI JSON (needs .venv + deps like api-ci)"
 	@echo "  make export-readiness   - print CSV column gap counts (needs DATABASE_URL)"
 	@echo "  make readiness          - alias for export-readiness (Phase A–C gap summary)"
