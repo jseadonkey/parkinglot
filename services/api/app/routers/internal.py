@@ -4,7 +4,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
@@ -185,8 +185,18 @@ def slack_test_message(body: SlackTestMessageRequest) -> dict[str, object]:
 
 
 @router.post("/ingest/sample")
-def ingest_sample() -> dict[str, object]:
-    """Load bundled GeoJSON for the pilot county (dev convenience)."""
+def ingest_sample(
+    auto_run_pipeline: bool = Query(
+        default=True,
+        description="Enqueue scoring/enrichment pipeline per parcel after ingest (recommended).",
+    ),
+    max_auto_pipeline: int = Query(default=100, ge=1, le=5000),
+) -> dict[str, object]:
+    """Load bundled GeoJSON for the pilot county (dev convenience).
+
+    By default runs the full pipeline so parcels get dual scores and workflow runs.
+    Disable with ``auto_run_pipeline=false`` if you only want raw parcel rows.
+    """
     path = Path("/app/data/sample_parcels.geojson")
     if not path.exists():
         alt = Path(get_settings().pilot_config_path).parent.parent / "data" / "sample_parcels.geojson"
@@ -194,8 +204,18 @@ def ingest_sample() -> dict[str, object]:
             path = alt
         else:
             raise HTTPException(status_code=500, detail="sample_parcels.geojson not found")
-    async_result = ingest_geojson_path.delay(str(path))
-    return {"task_id": async_result.id, "path": str(path)}
+    async_result = ingest_geojson_path.delay(
+        str(path),
+        auto_run_pipeline=auto_run_pipeline,
+        max_auto_pipeline=max_auto_pipeline,
+        delete_after=False,
+    )
+    return {
+        "task_id": async_result.id,
+        "path": str(path),
+        "auto_run_pipeline": auto_run_pipeline,
+        "max_auto_pipeline": max_auto_pipeline,
+    }
 
 
 _MAX_GEOJSON_BYTES = 50 * 1024 * 1024

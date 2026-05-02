@@ -37,6 +37,22 @@ Compose uses **log rotation** (`max-size` / `max-file`) to avoid filling the dis
 
 For a full picture, combine **worker logs**, **`/workflow-runs`**, **`/approvals`**, and **`/audit`**.
 
+## Parcels: ingest, score, and “agents”
+
+Scoring is **deterministic** from `config/pilot.yaml` (entitlement) and `config/pilot_strategic.yaml` (strategic). The worker runs **`run_pipeline`** per parcel; nothing “discovers” lots until **parcel rows exist** in Postgres.
+
+1. **Load parcels (GeoJSON)**  
+   - **Quick check:** from the Droplet, with `INTERNAL_API_KEY` in `deploy/.env`, call **`POST /internal/ingest/sample`**. This loads `data/sample_parcels.geojson` and, by default, **enqueues the full pipeline** (dual scores + workflow run).  
+   - **Production:** `scp` a county export to the repo’s `data/` (mounted read-only at `/app/data/...` in containers) and call **`POST /internal/ingest/geojson-server-path`** with `auto_run_pipeline: true` in the JSON body, or set **`SCHEDULED_GEOJSON_INGEST_*`** in `deploy/.env` and **recreate** `worker` + **beat** so Beat can run `ingest_geojson_path` on a schedule. Compose must pass those variables (see `deploy/docker-compose.production*.yml`).
+
+2. **Score anything that only has parcel rows**  
+   `POST /internal/pipeline/enqueue-unscored?limit=200` enqueues `run_pipeline` for parcels with **no** `parcel_scores` yet (up to 500).
+
+3. **Confirm**  
+   `GET /internal/stats/scoring-summary` (same internal auth) — expect non-zero `total_parcels`, `parcels_with_latest_*_score`, and `qualified_count_*` once pipelines finish. Poll **`GET /internal/tasks/{task_id}`** after async POSTs.
+
+Pilot region filters are in **`config/pilot.yaml`** (`region.county_fips`). Features outside those counties are skipped at ingest.
+
 ## Owner outreach (SOS / vendor)
 
 - **Read stored brief:** `GET /parcels/{parcel_id}/outreach` (404 until a pipeline or recompute has written `owner_outreach_brief`).
