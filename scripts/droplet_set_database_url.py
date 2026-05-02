@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import getpass
+import os
 import shutil
 import sys
 from datetime import datetime, timezone
@@ -36,9 +37,26 @@ def main() -> int:
     user = (input("Database user [doadmin]: ").strip() or "doadmin")
     db = (input("Database name [defaultdb]: ").strip() or "defaultdb")
     port = (input("Port [25060]: ").strip() or "25060")
-    password = getpass.getpass("Database password (hidden): ")
+
+    password = (os.environ.get("DO_DB_PASSWORD") or "").strip()
+    if password:
+        print("(Using password from environment variable DO_DB_PASSWORD. Run: unset DO_DB_PASSWORD  when finished.)\n")
+    else:
+        password = getpass.getpass("Database password (hidden, no characters will show): ")
+        if not password:
+            print(
+                "No password was received. Common fix: in DigitalOcean click **show** next to the password, copy it, "
+                "then in this terminal use the **Edit** menu → **Paste** (or right‑click → Paste) at the password prompt, then Enter.\n",
+                file=sys.stderr,
+            )
+            password = getpass.getpass("Database password (try again, hidden): ")
     if not password:
-        print("Password is required.", file=sys.stderr)
+        print(
+            "Password is still empty. You can run once with the password in the environment (only you on the server), then unset it:\n"
+            "  DO_DB_PASSWORD='paste-from-DO-here' python3 scripts/droplet_set_database_url.py\n"
+            "  unset DO_DB_PASSWORD",
+            file=sys.stderr,
+        )
         return 1
 
     enc = quote(password, safe="")
