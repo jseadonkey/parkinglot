@@ -225,6 +225,38 @@ class FullSlackUpdateResponse(BaseModel):
     agent_discussion_task_id: str
 
 
+class SlackDigestPreviewResponse(BaseModel):
+    """GET /internal/slack/digest-preview — Block Kit payload built from DB without posting."""
+
+    hours: int = Field(ge=1, le=24)
+    slack_digest_configured: bool
+    digest_channel_id_set: bool
+    fallback_preview: str
+    blocks: list[dict[str, Any]]
+
+
+class SlackAgentDiscussionMessagePreview(BaseModel):
+    """One dual-agent Slack message (fallback + blocks)."""
+
+    fallback: str
+    blocks: list[dict[str, Any]]
+
+
+class SlackAgentDiscussionPreviewResponse(BaseModel):
+    """GET /internal/slack/agent-discussion-preview — payloads without posting."""
+
+    message_count: int = Field(ge=0)
+    messages: list[SlackAgentDiscussionMessagePreview]
+
+
+class SlackTestMessagePostResponse(BaseModel):
+    """POST /internal/slack/test-message — Slack chat.postMessage ack (subset)."""
+
+    ok: bool
+    ts: str | None = None
+    channel: str | None = None
+
+
 class MergeGeojsonAttributesRequest(BaseModel):
     """Path to GeoJSON whose properties update existing parcels (same loader as full ingest)."""
 

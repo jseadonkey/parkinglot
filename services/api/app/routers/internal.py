@@ -28,6 +28,10 @@ from app.schemas import (
     IngestWatechCountyRequest,
     MergeGeojsonAttributesRequest,
     ScoringSummaryResponse,
+    SlackAgentDiscussionMessagePreview,
+    SlackAgentDiscussionPreviewResponse,
+    SlackDigestPreviewResponse,
+    SlackTestMessagePostResponse,
     SlackTestMessageRequest,
     WaTechCountyQueuedResponse,
 )
@@ -152,20 +156,20 @@ def scoring_summary(db: Session = Depends(get_db)) -> ScoringSummaryResponse:
     )
 
 
-@router.get("/slack/digest-preview")
-def slack_digest_preview(hours: int = 4, db: Session = Depends(get_db)) -> dict[str, Any]:
+@router.get("/slack/digest-preview", response_model=SlackDigestPreviewResponse)
+def slack_digest_preview(hours: int = 4, db: Session = Depends(get_db)) -> SlackDigestPreviewResponse:
     """Build the next digest body from the DB without posting to Slack (debug Beat / channel config)."""
     h = min(max(hours, 1), 24)
     blocks, fallback = build_slack_digest_blocks(db, hours=h)
     s = get_settings()
     ch = (s.slack_digest_channel_id or "").strip()
-    return {
-        "hours": h,
-        "slack_digest_configured": bool((s.slack_bot_token or "").strip() and ch),
-        "digest_channel_id_set": bool(ch),
-        "fallback_preview": fallback,
-        "blocks": blocks,
-    }
+    return SlackDigestPreviewResponse(
+        hours=h,
+        slack_digest_configured=bool((s.slack_bot_token or "").strip() and ch),
+        digest_channel_id_set=bool(ch),
+        fallback_preview=fallback,
+        blocks=blocks,
+    )
 
 
 @router.post("/slack/digest-now", response_model=CeleryTaskIdResponse)
@@ -182,14 +186,18 @@ def trigger_qualified_parcels_report() -> CeleryTaskIdResponse:
     return CeleryTaskIdResponse(task_id=async_result.id)
 
 
-@router.get("/slack/agent-discussion-preview")
-def slack_agent_discussion_preview(db: Session = Depends(get_db)) -> dict[str, Any]:
+@router.get("/slack/agent-discussion-preview", response_model=SlackAgentDiscussionPreviewResponse)
+def slack_agent_discussion_preview(
+    db: Session = Depends(get_db),
+) -> SlackAgentDiscussionPreviewResponse:
     """Build dual-agent Slack payloads without posting (debug channel + DB)."""
     posts = build_dual_agent_discussion_posts(db, settings=get_settings())
-    return {
-        "message_count": len(posts),
-        "messages": [{"fallback": fb, "blocks": blocks} for blocks, fb in posts],
-    }
+    return SlackAgentDiscussionPreviewResponse(
+        message_count=len(posts),
+        messages=[
+            SlackAgentDiscussionMessagePreview(fallback=fb, blocks=blocks) for blocks, fb in posts
+        ],
+    )
 
 
 @router.post("/slack/agent-discussion-now", response_model=CeleryTaskIdResponse)
@@ -212,15 +220,21 @@ def trigger_full_slack_update() -> FullSlackUpdateResponse:
     )
 
 
-@router.post("/slack/test-message")
-def slack_test_message(body: SlackTestMessageRequest) -> dict[str, object]:
+@router.post("/slack/test-message", response_model=SlackTestMessagePostResponse)
+def slack_test_message(body: SlackTestMessageRequest) -> SlackTestMessagePostResponse:
     """Send a one-off message to Slack.
 
     Uses SLACK_DIGEST_CHANNEL_ID by default; override with body.channel_id (Slack channel ID).
     """
     settings = get_settings()
     resp = post_text_to_slack(settings, text=body.text, channel_id=body.channel_id)
-    return {"ok": bool(resp.get("ok")), "ts": resp.get("ts"), "channel": resp.get("channel")}
+    ts = resp.get("ts")
+    ch = resp.get("channel")
+    return SlackTestMessagePostResponse(
+        ok=bool(resp.get("ok")),
+        ts=str(ts) if ts is not None else None,
+        channel=str(ch) if ch is not None else None,
+    )
 
 
 @router.post("/ingest/sample", response_model=IngestSampleQueuedResponse)
