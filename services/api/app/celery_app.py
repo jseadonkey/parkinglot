@@ -1,12 +1,87 @@
 from __future__ import annotations
 
+import logging
 import os
 
 from celery import Celery
 from celery.schedules import crontab
 
+from app.config import get_settings
+
 broker = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
 backend = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+
+logger = logging.getLogger(__name__)
+
+beat_schedule: dict = {
+    "slack-parking-digest-4h": {
+        "task": "app.tasks.slack_agent_digest",
+        "schedule": crontab(minute=0, hour="*/4"),
+    },
+    "slack-qualified-parcels-daily": {
+        "task": "app.tasks.slack_qualified_parcels_report",
+        "schedule": crontab(minute=0, hour=14),
+    },
+    "slack-dual-agent-discussion-daily": {
+        "task": "app.tasks.slack_dual_agent_discussion",
+        "schedule": crontab(minute=30, hour=15),
+    },
+}
+
+_s = get_settings()
+_ingest_path = (_s.scheduled_geojson_ingest_path or "").strip()
+if _ingest_path:
+    _fips = (_s.scheduled_geojson_ingest_default_county_fips or "").strip()
+    beat_schedule["scheduled-geojson-ingest"] = {
+        "task": "app.tasks.ingest_geojson_path",
+        "schedule": crontab(
+            minute=_s.scheduled_geojson_ingest_crontab_minute,
+            hour=_s.scheduled_geojson_ingest_crontab_hour,
+        ),
+        "kwargs": {
+            "path": _ingest_path,
+            "default_county_fips": _fips or None,
+            "auto_run_pipeline": _s.scheduled_geojson_ingest_auto_run_pipeline,
+            "max_auto_pipeline": _s.scheduled_geojson_ingest_max_auto_pipeline,
+            "delete_after": False,
+        },
+    }
+    logger.info(
+        "Beat: scheduled GeoJSON ingest → %s at %02d:%02d UTC",
+        _ingest_path,
+        _s.scheduled_geojson_ingest_crontab_hour,
+        _s.scheduled_geojson_ingest_crontab_minute,
+    )
+
+if _s.exploration_campaign_enabled:
+    beat_schedule["wa-exploration-campaign-daily"] = {
+        "task": "app.tasks.exploration_campaign_tick",
+        "schedule": crontab(
+            minute=_s.exploration_campaign_crontab_minute,
+            hour=_s.exploration_campaign_crontab_hour,
+        ),
+    }
+    logger.info(
+        "Beat: WA exploration campaign daily at %02d:%02d UTC",
+        _s.exploration_campaign_crontab_hour,
+        _s.exploration_campaign_crontab_minute,
+    )
+
+if _s.scheduled_enqueue_unscored_enabled:
+    beat_schedule["enqueue-unscored-pipelines"] = {
+        "task": "app.tasks.enqueue_unscored_pipelines_scheduled",
+        "schedule": crontab(
+            minute=_s.scheduled_enqueue_unscored_crontab_minute,
+            hour=_s.scheduled_enqueue_unscored_crontab_hour,
+        ),
+        "kwargs": {"limit": _s.scheduled_enqueue_unscored_limit},
+    }
+    logger.info(
+        "Beat: enqueue unscored pipelines — hour=%s minute=%02d limit=%s",
+        _s.scheduled_enqueue_unscored_crontab_hour,
+        _s.scheduled_enqueue_unscored_crontab_minute,
+        _s.scheduled_enqueue_unscored_limit,
+    )
 
 celery = Celery("parking", broker=broker, backend=backend)
 celery.conf.update(
@@ -16,20 +91,7 @@ celery.conf.update(
     timezone="UTC",
     enable_utc=True,
     task_default_queue="parking",
-    beat_schedule={
-        "slack-parking-digest-4h": {
-            "task": "app.tasks.slack_agent_digest",
-            "schedule": crontab(minute=0, hour="*/4"),
-        },
-        "slack-qualified-parcels-daily": {
-            "task": "app.tasks.slack_qualified_parcels_report",
-            "schedule": crontab(minute=0, hour=14),
-        },
-        "slack-dual-agent-discussion-daily": {
-            "task": "app.tasks.slack_dual_agent_discussion",
-            "schedule": crontab(minute=30, hour=15),
-        },
-    },
+    beat_schedule=beat_schedule,
 )
 
 import app.tasks  # noqa: E402,F401 — register Celery tasks

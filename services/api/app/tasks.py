@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from geoalchemy2.elements import WKTElement
 from shapely.geometry import MultiPolygon, Polygon
-from sqlalchemy import delete, select
+from sqlalchemy import delete, exists, select
 from sqlalchemy.orm import Session
 
 from app.audit import write_audit
@@ -16,6 +17,11 @@ from app.config import get_settings
 from app.contract_render import render_ground_lease_draft
 from app.db.models import ApprovalRequest, ContractDraft, DealMemo, OwnerCandidateRow, Parcel, ParcelScore, WorkflowRun
 from app.db.session import SessionLocal
+from app.exploration_campaign import (
+    campaign_day_index,
+    counties_for_exploration_day,
+    load_campaign_config,
+)
 from app.memo_render import build_deal_memo_markdown
 from app.scoring_profiles import ALL_PROFILES, ENTITLEMENT, STRATEGIC
 from app.slack_digest import (
@@ -35,6 +41,28 @@ from parking_scoring.engine import score_parcel
 from parking_workflows.state import WorkflowStatus, WorkflowStep
 
 logger = logging.getLogger(__name__)
+
+
+def enqueue_unscored_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
+    """Enqueue ``run_pipeline`` for parcels that have no ``parcel_scores`` row yet (cap 500).
+
+    Used by ``POST /internal/pipeline/enqueue-unscored`` and periodic Beat.
+    """
+    cap = min(max(limit, 1), 500)
+    db = _session()
+    try:
+        stmt = (
+            select(Parcel.id)
+            .where(~exists(select(1).where(ParcelScore.parcel_id == Parcel.id)))
+            .order_by(Parcel.created_at.desc())
+            .limit(cap)
+        )
+        ids = [str(i) for i in db.scalars(stmt)]
+        for pid in ids:
+            run_pipeline.delay(pid)
+        return {"enqueued": len(ids), "parcel_ids": ids}
+    finally:
+        db.close()
 
 
 def _session() -> Session:
@@ -227,6 +255,131 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
         raise
     finally:
         db.close()
+
+
+@celery.task(name="app.tasks.exploration_campaign_tick")
+def exploration_campaign_tick() -> dict[str, Any]:
+    """Daily WA exploration: ingest GeoJSON for counties assigned to this calendar day (7-day window)."""
+    settings = get_settings()
+    if not settings.exploration_campaign_enabled:
+        return {"skipped": True, "reason": "exploration_campaign_disabled"}
+    start = settings.exploration_campaign_start_date
+    if start is None:
+        logger.warning(
+            "exploration_campaign_tick: set EXPLORATION_CAMPAIGN_START_DATE=YYYY-MM-DD in worker env",
+        )
+        return {"skipped": True, "reason": "missing_start_date"}
+
+    camp = load_campaign_config(settings.exploration_campaign_config_path)
+    duration = int(camp.get("duration_days") or 7)
+    template = str(camp.get("geojson_path_template") or "/app/data/exploration/{county_fips}.geojson")
+    max_pipe = int(camp.get("max_auto_pipeline_per_county") or 120)
+
+    pilot = load_pilot_config(settings.pilot_config_path)
+    counties = sorted(pilot.region.county_fips or [])
+    if not counties:
+        return {"skipped": True, "reason": "no_counties_in_pilot"}
+
+    today = datetime.now(tz=UTC).date()
+    day_ix = campaign_day_index(start, today, duration)
+    if day_ix is None:
+        return {
+            "skipped": True,
+            "reason": "outside_campaign_window",
+            "start": str(start),
+            "duration_days": duration,
+        }
+
+    day_counties = counties_for_exploration_day(counties, day_ix)
+    enqueued = 0
+    missing: list[str] = []
+    for fips in day_counties:
+        geo_path = template.format(county_fips=fips)
+        if not Path(geo_path).is_file():
+            missing.append(fips)
+            continue
+        ingest_geojson_path.delay(
+            geo_path,
+            default_county_fips=fips,
+            auto_run_pipeline=True,
+            max_auto_pipeline=max_pipe,
+            delete_after=False,
+        )
+        enqueued += 1
+
+    logger.info(
+        "exploration_campaign_tick day_index=%s counties_today=%s ingests_enqueued=%s missing_geojson=%s",
+        day_ix,
+        len(day_counties),
+        enqueued,
+        len(missing),
+    )
+    return {
+        "skipped": False,
+        "campaign_day_index": day_ix,
+        "counties_scheduled_today": day_counties,
+        "ingests_enqueued": enqueued,
+        "missing_geojson_counties": missing,
+    }
+
+
+@celery.task(name="app.tasks.fetch_watech_county_and_ingest")
+def fetch_watech_county_and_ingest(
+    county_fips: str,
+    max_features: int | None = 5000,
+    auto_run_pipeline: bool = True,
+    max_auto_pipeline: int = 100,
+) -> dict[str, Any]:
+    """Download WaTech public parcel polygons for one county; write temp GeoJSON; enqueue ``ingest_geojson_path``."""
+    import json
+    import tempfile
+
+    from parking_ingestion.watech_parcels import fetch_county_geojson
+
+    collection = fetch_county_geojson(county_fips, max_features=max_features)
+    nfeat = len(collection.get("features", []))
+    if nfeat == 0:
+        return {
+            "county_fips": county_fips,
+            "parcel_features": 0,
+            "ingest_task_id": None,
+            "warning": "no features returned (check county FIPS or layer availability)",
+        }
+
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        suffix=".geojson",
+        delete=False,
+        encoding="utf-8",
+    ) as tmp:
+        json.dump(collection, tmp)
+        tmp_path = tmp.name
+
+    ar = ingest_geojson_path.delay(
+        tmp_path,
+        default_county_fips=county_fips,
+        auto_run_pipeline=auto_run_pipeline,
+        max_auto_pipeline=max_auto_pipeline,
+        delete_after=True,
+    )
+    return {
+        "county_fips": county_fips,
+        "parcel_features": nfeat,
+        "ingest_task_id": ar.id,
+        "max_features_cap": max_features,
+    }
+
+
+@celery.task(name="app.tasks.enqueue_unscored_pipelines_scheduled")
+def enqueue_unscored_pipelines_scheduled(limit: int = 100) -> dict[str, Any]:
+    """Beat: enqueue ``run_pipeline`` for parcels missing any ``parcel_scores`` row (bounded batch)."""
+    out = enqueue_unscored_pipeline_jobs(limit)
+    if out["enqueued"]:
+        logger.info(
+            "enqueue_unscored_pipelines_scheduled: enqueued %s pipeline(s)",
+            out["enqueued"],
+        )
+    return out
 
 
 @celery.task(name="app.tasks.ingest_geojson_path")

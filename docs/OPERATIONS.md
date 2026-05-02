@@ -37,6 +37,34 @@ Compose uses **log rotation** (`max-size` / `max-file`) to avoid filling the dis
 
 For a full picture, combine **worker logs**, **`/workflow-runs`**, **`/approvals`**, and **`/audit`**.
 
+## Parcels: ingest, score, and “agents”
+
+Scoring is **deterministic** from `config/pilot.yaml` (entitlement) and `config/pilot_strategic.yaml` (strategic). The worker runs **`run_pipeline`** per parcel; nothing “discovers” lots until **parcel rows exist** in Postgres.
+
+1. **Load parcels (GeoJSON)**  
+   - **Quick check:** from the Droplet, with `INTERNAL_API_KEY` in `deploy/.env`, call **`POST /internal/ingest/sample`**. This loads `data/sample_parcels.geojson` and, by default, **enqueues the full pipeline** (dual scores + workflow run).  
+   - **Production:** `scp` a county export to the repo’s `data/` (mounted read-only at `/app/data/...` in containers) and call **`POST /internal/ingest/geojson-server-path`** with `auto_run_pipeline: true` in the JSON body, or set **`SCHEDULED_GEOJSON_INGEST_*`** in `deploy/.env` and **recreate** `worker` + **beat** so Beat can run `ingest_geojson_path` on a schedule. Compose must pass those variables (see `deploy/docker-compose.production*.yml`).
+
+2. **Score anything that only has parcel rows**  
+   `POST /internal/pipeline/enqueue-unscored?limit=200` enqueues `run_pipeline` for parcels with **no** `parcel_scores` yet (up to 500).  
+   **By default**, Celery Beat also runs this on a schedule (every **4 hours** UTC by default, bounded batch — see **`SCHEDULED_ENQUEUE_*`** in `deploy/env.production.example`). Restart **worker + beat** after changing those variables.
+
+3. **Confirm**  
+   `GET /internal/stats/scoring-summary` (same internal auth) — expect non-zero `total_parcels`, `parcels_with_latest_*_score`, and `qualified_count_*` once pipelines finish. Poll **`GET /internal/tasks/{task_id}`** after async POSTs.
+
+Pilot region filters are in **`config/pilot.yaml`** (`region.county_fips`). Features outside those counties are skipped at ingest.
+
+### Washington 7-day exploration campaign (optional)
+
+Use this when you want Celery Beat to **pull county GeoJSON files from disk on a daily rotation** over a fixed **7-day calendar window** (counts toward statewide coverage; data acquisition is still **your** GeoJSON exports).
+
+1. **County parcels:** Place one GeoJSON file per county under repo **`data/exploration/`** on the Droplet (mounted at **`/app/data/exploration/`** in containers), named **`{county_fips}.geojson`** (e.g. `53033.geojson`). Missing files are skipped that day and listed in worker logs.
+2. **`deploy/.env`:** Set **`EXPLORATION_CAMPAIGN_ENABLED=true`**, **`EXPLORATION_CAMPAIGN_START_DATE=YYYY-MM-DD`** (first day of the 7-day window, UTC), optionally **`EXPLORATION_CAMPAIGN_CRONTAB_HOUR`** / **`EXPLORATION_CAMPAIGN_CRONTAB_MINUTE`** (default **06:30 UTC**). Omit **`EXPLORATION_CAMPAIGN_START_DATE`** until you are ready; empty values are treated as unset.
+3. **Restart `worker` and `beat`** after changing env so **`celery_app`** reloads Beat entries.
+4. **Logs:** `docker compose … logs -f beat worker` — look for **`exploration_campaign_tick`** and **`WA exploration campaign`**.
+
+This does **not** download assessor data automatically; it only ingests files you stage. **`config/exploration_campaign_wa.yaml`** controls **`duration_days`** (default **7**), path template, and **`max_auto_pipeline_per_county`**.
+
 ## Owner outreach (SOS / vendor)
 
 - **Read stored brief:** `GET /parcels/{parcel_id}/outreach` (404 until a pipeline or recompute has written `owner_outreach_brief`).

@@ -76,6 +76,25 @@ class WorkflowRunRead(BaseModel):
     updated_at: datetime
 
 
+class IngestWatechCountyRequest(BaseModel):
+    """Fetch WaTech statewide ArcGIS parcels for one county, then enqueue ingest (Celery worker)."""
+
+    county_fips: str = Field(
+        min_length=5,
+        max_length=5,
+        pattern=r"^53\d{3}$",
+        description="Washington 5-digit county FIPS (e.g. 53033 King).",
+    )
+    max_features: int | None = Field(
+        default=5000,
+        ge=1,
+        le=750000,
+        description="Cap returned parcels per job (full counties can be huge).",
+    )
+    auto_run_pipeline: bool = True
+    max_auto_pipeline: int = Field(default=100, ge=1, le=5000)
+
+
 class IngestGeojsonServerPathRequest(BaseModel):
     """Absolute path on the API/worker host to a GeoJSON file (e.g. rsynced to the Droplet)."""
 

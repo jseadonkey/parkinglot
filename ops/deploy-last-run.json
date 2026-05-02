@@ -1,14 +1,14 @@
 {
-  "id": 25244061646,
+  "id": 25244299705,
   "conclusion": "failure",
   "status": "completed",
-  "head_branch": "main",
-  "head_sha": "07ce50705bfea07a0c550578624acb21c171e1c3",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25244061646",
-  "created_at": "2026-05-02T04:47:16Z",
-  "updated_at": "2026-05-02T04:47:28Z",
-  "display_title": "Deploy to Droplet",
-  "event": "workflow_dispatch",
+  "head_branch": "cursor/dual-scoring-agents-slack-channel",
+  "head_sha": "c0ce3f761a7793b7b5e0b1cb384cd1e7af2f7e74",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25244299705",
+  "created_at": "2026-05-02T05:01:07Z",
+  "updated_at": "2026-05-02T05:01:38Z",
+  "display_title": "feat(ci): set DATABASE_URL on Droplet from GitHub secret DEPLOY_DATAB…",
+  "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-02T04:47:35Z"
+  "snapshot_recorded_at": "2026-05-02T05:01:45Z"
 }

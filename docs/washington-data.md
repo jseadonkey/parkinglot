@@ -10,6 +10,21 @@ Use licensed parcel vendors for production; these are **starting points** for Ki
 | Snohomish | 53061 | County GIS / assessor portals (verify current URLs and ToS) |
 | Pierce    | 53053 | County GIS / assessor portals |
 
+### WaTech — Washington State Parcels (free statewide layer)
+
+The **Washington State Parcels Project** publishes a **normalized** statewide parcel polygon layer (participating counties). Public **ArcGIS FeatureServer**:
+
+`https://services.arcgis.com/jsIt88o09Q0r1j8h/arcgis/rest/services/Previous_Parcels/FeatureServer/0`
+
+Overview: [Washington State Parcels on geo.wa.gov](https://geo.wa.gov/datasets/watech::washington-state-parcels-parcels-current/about).
+
+**This repo**
+
+- **CLI:** [`scripts/fetch_wa_opendata_parcels.py`](../scripts/fetch_wa_opendata_parcels.py) — writes county-filtered GeoJSON (`--max-features` caps trial pulls).
+- **Worker:** `POST /internal/ingest/watech-county` — JSON `{"county_fips":"53033","max_features":5000,"auto_run_pipeline":true}` enqueues download + ingest. Poll `GET /internal/tasks/{fetch_task_id}`; result payload includes `ingest_task_id` when done.
+
+Use **`max_features`** for short experiments; full counties require many paginated requests.
+
 ## State business registry (entities)
 
 - [Washington Secretary of State — Corporations](https://ccfs.sos.wa.gov/) for entity verification when enriching owners.

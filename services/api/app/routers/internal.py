@@ -4,16 +4,16 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from sqlalchemy import exists, func, select
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.celery_app import celery
 from app.config import get_settings
-from app.db.models import Parcel, ParcelScore
+from app.db.models import Parcel
 from app.db.session import get_db
 from app.deps_internal import require_internal_key
-from app.schemas import IngestGeojsonServerPathRequest, SlackTestMessageRequest
+from app.schemas import IngestGeojsonServerPathRequest, IngestWatechCountyRequest, SlackTestMessageRequest
 from app.scoring_profiles import ENTITLEMENT, STRATEGIC
 from app.slack_digest import (
     _fetch_latest_scores_per_parcel,
@@ -24,8 +24,9 @@ from app.slack_digest import (
     slack_agent_event_updates_enabled,
 )
 from app.tasks import (
+    enqueue_unscored_pipeline_jobs,
+    fetch_watech_county_and_ingest,
     ingest_geojson_path,
-    run_pipeline,
     slack_agent_digest,
     slack_dual_agent_discussion,
     slack_qualified_parcels_report,
@@ -185,8 +186,18 @@ def slack_test_message(body: SlackTestMessageRequest) -> dict[str, object]:
 
 
 @router.post("/ingest/sample")
-def ingest_sample() -> dict[str, object]:
-    """Load bundled GeoJSON for the pilot county (dev convenience)."""
+def ingest_sample(
+    auto_run_pipeline: bool = Query(
+        default=True,
+        description="Enqueue scoring/enrichment pipeline per parcel after ingest (recommended).",
+    ),
+    max_auto_pipeline: int = Query(default=100, ge=1, le=5000),
+) -> dict[str, object]:
+    """Load bundled GeoJSON for the pilot county (dev convenience).
+
+    By default runs the full pipeline so parcels get dual scores and workflow runs.
+    Disable with ``auto_run_pipeline=false`` if you only want raw parcel rows.
+    """
     path = Path("/app/data/sample_parcels.geojson")
     if not path.exists():
         alt = Path(get_settings().pilot_config_path).parent.parent / "data" / "sample_parcels.geojson"
@@ -194,8 +205,18 @@ def ingest_sample() -> dict[str, object]:
             path = alt
         else:
             raise HTTPException(status_code=500, detail="sample_parcels.geojson not found")
-    async_result = ingest_geojson_path.delay(str(path))
-    return {"task_id": async_result.id, "path": str(path)}
+    async_result = ingest_geojson_path.delay(
+        str(path),
+        auto_run_pipeline=auto_run_pipeline,
+        max_auto_pipeline=max_auto_pipeline,
+        delete_after=False,
+    )
+    return {
+        "task_id": async_result.id,
+        "path": str(path),
+        "auto_run_pipeline": auto_run_pipeline,
+        "max_auto_pipeline": max_auto_pipeline,
+    }
 
 
 _MAX_GEOJSON_BYTES = 50 * 1024 * 1024
@@ -267,20 +288,21 @@ def ingest_geojson_server_path(body: IngestGeojsonServerPathRequest) -> dict[str
     }
 
 
+@router.post("/ingest/watech-county")
+def ingest_watech_county(body: IngestWatechCountyRequest) -> dict[str, object]:
+    """Fetch public WaTech parcel polygons for one county; enqueue download+ingest on the worker."""
+    async_result = fetch_watech_county_and_ingest.delay(
+        county_fips=body.county_fips,
+        max_features=body.max_features,
+        auto_run_pipeline=body.auto_run_pipeline,
+        max_auto_pipeline=body.max_auto_pipeline,
+    )
+    return {"fetch_task_id": async_result.id}
+
+
 @router.post("/pipeline/enqueue-unscored")
 def enqueue_unscored_pipelines(
     limit: int = 100,
-    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Enqueue ``run_pipeline`` for parcels that have no ``parcel_scores`` row yet (cap 500)."""
-    cap = min(max(limit, 1), 500)
-    stmt = (
-        select(Parcel.id)
-        .where(~exists(select(1).where(ParcelScore.parcel_id == Parcel.id)))
-        .order_by(Parcel.created_at.desc())
-        .limit(cap)
-    )
-    ids = [str(i) for i in db.scalars(stmt)]
-    for pid in ids:
-        run_pipeline.delay(pid)
-    return {"enqueued": len(ids), "parcel_ids": ids}
+    return enqueue_unscored_pipeline_jobs(limit)

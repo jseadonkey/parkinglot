@@ -15,6 +15,7 @@ out/
 dist/
 *.egg-info/
 .DS_Store
+*.swp
 terraform.tfstate
 terraform.tfstate.*
 *.tfvars
