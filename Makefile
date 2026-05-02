@@ -1,8 +1,9 @@
-.PHONY: help verify-sample local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
+.PHONY: help verify-sample export-readiness local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
 
 help:
 	@echo "Targets:"
 	@echo "  make verify-sample      - venv + pytest sample GeoJSON trace (scores, enrichment, memo)"
+	@echo "  make export-readiness   - print CSV column gap counts (needs DATABASE_URL)"
 	@echo "  make local              - docker compose (dev: Postgres, Redis, MinIO, api, worker, UI)"
 	@echo "  make slack-env-local    - merge SLACK_* into .env (needs SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID in env)"
 	@echo "  make droplet-sync       - rsync repo to Droplet (needs DROPLET=ip, optional REMOTE_PATH / SSH_USER)"
@@ -21,6 +22,11 @@ help:
 verify-sample:
 	@chmod +x scripts/verify-sample-trace.sh
 	@./scripts/verify-sample-trace.sh
+
+export-readiness:
+	@test -n "$$DATABASE_URL" || (echo "export DATABASE_URL first"; exit 1)
+	@chmod +x scripts/check_export_readiness.py
+	@./scripts/check_export_readiness.py
 
 local:
 	docker compose up --build

@@ -14,6 +14,7 @@ from app.db.models import Parcel
 from app.db.session import get_db
 from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
 from app.deps_internal import require_internal_key
+from app.export_readiness import export_readiness_summary
 from app.schemas import (
     IngestGeojsonServerPathRequest,
     IngestWatechCountyRequest,
@@ -89,6 +90,12 @@ def slack_config_status() -> dict[str, bool]:
         "has_agent_discussion_channel_id": has_agent_ch,
         "slack_agent_event_updates_enabled": slack_agent_event_updates_enabled(s),
     }
+
+
+@router.get("/stats/export-readiness")
+def export_readiness(db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Null/gap counts for CSV columns and score rows — run before stakeholder exports."""
+    return export_readiness_summary(db)
 
 
 @router.get("/stats/scoring-summary")

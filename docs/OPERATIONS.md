@@ -57,7 +57,8 @@ Scoring is **deterministic** from `config/pilot.yaml` (entitlement) and `config/
    **`POST /internal/metrics/refresh-demand-distances?limit=500`** recomputes centroid → nearest generator using **`config/pilot.yaml`** `demand_generators` (optional `county_fips=53033`). Refreshes identification scores.
 
 5. **Confirm**  
-   `GET /internal/stats/scoring-summary` (same internal auth) — expect non-zero `total_parcels`, `parcels_with_latest_*_score`, and `qualified_count_*` once pipelines finish. Poll **`GET /internal/tasks/{task_id}`** after async POSTs.
+   `GET /internal/stats/scoring-summary` (same internal auth) — expect non-zero `total_parcels`, `parcels_with_latest_*_score`, and `qualified_count_*` once pipelines finish.  
+   **`GET /internal/stats/export-readiness`** — null/gap **counts** for footprint, zoning, lot size, demand distance, and each score profile (stakeholder CSV dry-run). Poll **`GET /internal/tasks/{task_id}`** after async POSTs.
 
 Pilot region filters are in **`config/pilot.yaml`** (`region.county_fips`). Features outside those counties are skipped at ingest.
 
@@ -68,6 +69,8 @@ Export latest identification / entitlement / strategic scores per parcel (same p
 ```bash
 cd /opt/workspaces/parkinglot
 export DATABASE_URL='postgresql+psycopg://...'
+python3 scripts/check_export_readiness.py
+# Optional: --json   ;   same authless DB URL as export
 python3 scripts/export_scored_parcels_csv.py -o parcel_scores_export.csv
 # Optional: --limit 500   ;   -o - for stdout   ;   in api container: PYTHONPATH=/app ...
 ```
