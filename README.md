@@ -2,7 +2,7 @@
 
 Multi-service system to score pilot parcels for paid parking suitability, enrich owner context, produce deal memos and contract drafts, with **human approval gates** before any outbound communication or contract execution.
 
-CI runs on pushes and pull requests via [`.github/workflows/ci.yml`](.github/workflows/ci.yml): **Ruff** (Python packages plus [`scripts/`](scripts/)), **pytest** for [`services/api`](services/api), Docker **smoke builds** for API + approval UI images, **Compose config** validation, and **`bash -n`** on shell helpers (phase runners and [`scripts/ci-api-local.sh`](scripts/ci-api-local.sh)).
+CI runs on pushes and pull requests via [`.github/workflows/ci.yml`](.github/workflows/ci.yml): **Ruff** (Python packages plus [`scripts/`](scripts/)), **pytest** for [`services/api`](services/api), a **`scripts/export_openapi_json.py`** smoke step (valid JSON), Docker **smoke builds** for API + approval UI images, **Compose config** validation, and **`bash -n`** on shell helpers (phase runners and [`scripts/ci-api-local.sh`](scripts/ci-api-local.sh)).
 
 **Same checks on your laptop:** `make api-ci` or [`./scripts/ci-api-local.sh`](scripts/ci-api-local.sh). That mirrors the lint + API-test jobs (creates a `.venv` at the repo root on first run; requires network for `pip` until dependencies are installed). Pass through pytest options, e.g. `./scripts/ci-api-local.sh tests/test_openapi.py -v`.
 

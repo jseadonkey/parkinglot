@@ -43,6 +43,9 @@ jobs:
         working-directory: services/api
         run: pytest
 
+      - name: OpenAPI JSON export smoke
+        run: python3 scripts/export_openapi_json.py --indent 0 | python3 -m json.tool > /dev/null
+
   validate:
     runs-on: ubuntu-latest
     steps:
