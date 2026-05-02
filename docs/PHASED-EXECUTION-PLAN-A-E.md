@@ -30,7 +30,7 @@ Stakeholder CSV columns **`score_identification`**, **`score_entitlement`**, **`
 ### Tasks (execute in order)
 
 **One-shot runner (Droplet or laptop with DB + API reachability):**  
-[`scripts/execute-phase-a.sh`](../scripts/execute-phase-a.sh) — prints readiness **before** and **after**, calls **`enqueue-incomplete`** + **`refresh-demand-distances`**, optional CSV export. See script header for env vars (`DATABASE_URL`, `INTERNAL_API_KEY`, `PHASE_A_*`).
+[`scripts/execute-phase-a.sh`](../scripts/execute-phase-a.sh) — prints readiness **before** and **after**, calls **`enqueue-incomplete`** (repeatable rounds to drain \>500 backlog), **`refresh-demand-distances`** (optional **poll** until Celery SUCCESS), optional CSV export + JSON snapshots. See script header for env vars (`DATABASE_URL`, `INTERNAL_API_KEY`, `PHASE_A_ENQUEUE_ROUNDS`, `PHASE_A_POLL_DEMAND_TASK`, `PHASE_A_JSON_DIR`, …).
 
 Or run steps manually:
 
