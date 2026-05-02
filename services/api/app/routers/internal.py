@@ -17,6 +17,7 @@ from app.export_readiness import export_readiness_summary
 from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
 from app.schemas import (
     CeleryTaskIdResponse,
+    CeleryTaskStatusResponse,
     EnqueueIncompleteResponse,
     EnqueueUnscoredResponse,
     ExportReadinessResponse,
@@ -30,6 +31,7 @@ from app.schemas import (
     ScoringSummaryResponse,
     SlackAgentDiscussionMessagePreview,
     SlackAgentDiscussionPreviewResponse,
+    SlackConfigStatusResponse,
     SlackDigestPreviewResponse,
     SlackTestMessagePostResponse,
     SlackTestMessageRequest,
@@ -65,46 +67,46 @@ router = APIRouter(
 )
 
 
-@router.get("/tasks/{task_id}")
-def celery_task_status(task_id: str) -> dict[str, Any]:
+@router.get("/tasks/{task_id}", response_model=CeleryTaskStatusResponse)
+def celery_task_status(task_id: str) -> CeleryTaskStatusResponse:
     """Inspect a Celery task by id (ids from async POST endpoints).
 
     Requires ``X-Internal-Key`` when ``INTERNAL_API_KEY`` is set.
     """
-    result = celery.AsyncResult(task_id)
+    async_result = celery.AsyncResult(task_id)
     payload: dict[str, Any] = {
         "task_id": task_id,
-        "state": result.state,
-        "ready": result.ready(),
+        "state": async_result.state,
+        "ready": async_result.ready(),
     }
-    if result.ready():
-        if result.successful():
-            payload["result"] = result.result
+    if async_result.ready():
+        if async_result.successful():
+            payload["result"] = async_result.result
         else:
-            err = result.result
+            err = async_result.result
             payload["error"] = str(err) if err is not None else None
-            tb = result.traceback
+            tb = async_result.traceback
             if isinstance(tb, str) and len(tb) > 4000:
                 tb = tb[:4000] + "\n... (truncated)"
             payload["traceback"] = tb
-    return payload
+    return CeleryTaskStatusResponse(**payload)
 
 
-@router.get("/slack/status")
-def slack_config_status() -> dict[str, bool]:
+@router.get("/slack/status", response_model=SlackConfigStatusResponse)
+def slack_config_status() -> SlackConfigStatusResponse:
     """Whether Slack digest env is set (no token values returned)."""
     s = get_settings()
     has_token = bool((s.slack_bot_token or "").strip())
     has_channel = bool((s.slack_digest_channel_id or "").strip())
     has_agent_ch = bool((s.slack_agent_discussion_channel_id or "").strip())
-    return {
-        "slack_digest_configured": has_token and has_channel,
-        "has_bot_token": has_token,
-        "has_digest_channel_id": has_channel,
-        "slack_dual_agent_configured": has_token and has_agent_ch,
-        "has_agent_discussion_channel_id": has_agent_ch,
-        "slack_agent_event_updates_enabled": slack_agent_event_updates_enabled(s),
-    }
+    return SlackConfigStatusResponse(
+        slack_digest_configured=has_token and has_channel,
+        has_bot_token=has_token,
+        has_digest_channel_id=has_channel,
+        slack_dual_agent_configured=has_token and has_agent_ch,
+        has_agent_discussion_channel_id=has_agent_ch,
+        slack_agent_event_updates_enabled=slack_agent_event_updates_enabled(s),
+    )
 
 
 @router.get("/stats/export-readiness", response_model=ExportReadinessResponse)

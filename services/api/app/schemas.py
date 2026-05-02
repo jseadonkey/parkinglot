@@ -257,6 +257,28 @@ class SlackTestMessagePostResponse(BaseModel):
     channel: str | None = None
 
 
+class SlackConfigStatusResponse(BaseModel):
+    """GET /internal/slack/status — booleans only (no secrets)."""
+
+    slack_digest_configured: bool
+    has_bot_token: bool
+    has_digest_channel_id: bool
+    slack_dual_agent_configured: bool
+    has_agent_discussion_channel_id: bool
+    slack_agent_event_updates_enabled: bool
+
+
+class CeleryTaskStatusResponse(BaseModel):
+    """GET /internal/tasks/{task_id} — Celery AsyncResult snapshot."""
+
+    task_id: str
+    state: str
+    ready: bool
+    result: Any | None = None
+    error: str | None = None
+    traceback: str | None = None
+
+
 class MergeGeojsonAttributesRequest(BaseModel):
     """Path to GeoJSON whose properties update existing parcels (same loader as full ingest)."""
 
