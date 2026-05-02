@@ -1,14 +1,14 @@
 {
-  "id": 25244649860,
+  "id": 25244958907,
   "conclusion": "success",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "ef4e87789fdbeddc6e74d7cda8f50f44b3b00a6a",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25244649860",
-  "created_at": "2026-05-02T05:20:58Z",
-  "updated_at": "2026-05-02T05:21:31Z",
-  "display_title": "feat(ci): workflow to fix Caddy port 80 clash via SSH (9080/9443 + co…",
+  "head_sha": "3c96b3bb1a7aea984e851208a854e3b678055e87",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25244958907",
+  "created_at": "2026-05-02T05:39:07Z",
+  "updated_at": "2026-05-02T05:39:40Z",
+  "display_title": "fix(scripts): reject placeholder DB passwords like show-password in D…",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-02T05:21:38Z"
+  "snapshot_recorded_at": "2026-05-02T05:39:47Z"
 }
