@@ -1,6 +1,6 @@
 # Operator TODO bundle — batch these to minimize repeat effort
 
-Use this as a **single checklist** when you sit down to finish Droplet work, instead of spreading the same tasks across many sessions. Detailed procedures stay in [OPERATIONS.md](OPERATIONS.md) and [PHASED-EXECUTION-PLAN-A-E.md](PHASED-EXECUTION-PLAN-A-E.md).
+Use this as a **single checklist** when you sit down to finish Droplet work, instead of spreading the same tasks across many sessions. Detailed procedures stay in [OPERATIONS.md](OPERATIONS.md) and [PHASED-EXECUTION-PLAN-A-E.md](PHASED-EXECUTION-PLAN-A-E.md). For a **phase-by-phase status** (what’s in-repo vs what’s on you), see **“Where we are — repo vs operations”** in the phased plan.
 
 ---
 
@@ -75,7 +75,7 @@ Do these when you have GIS/legal/vendor bandwidth — **not** every deploy:
 | Topic | Where |
 |--------|--------|
 | Health, logs, CSV export, internal routes | [OPERATIONS.md](OPERATIONS.md) |
-| Phase A–E meaning & exit criteria | [PHASED-EXECUTION-PLAN-A-E.md](PHASED-EXECUTION-PLAN-A-E.md) |
+| Phase A–E meaning, exit criteria, **repo vs ops status** | [PHASED-EXECUTION-PLAN-A-E.md](PHASED-EXECUTION-PLAN-A-E.md) |
 | Env var template | `deploy/env.production.example` |
 | Phase runners | `scripts/execute-phase-a.sh`, `execute-phase-b.sh`, `execute-phase-c.sh`, **`make readiness`** |
 

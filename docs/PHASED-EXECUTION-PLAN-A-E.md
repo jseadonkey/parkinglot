@@ -14,6 +14,18 @@ This document breaks the **parcel CSV completeness**, **scoring**, **enrichment*
 | **D** | Advanced geometry | **Corner lot** (and stronger demand signals) from GIS / POI investments |
 | **E** | Multi-region scale | Repeatable county/state rollout without one-off hacks |
 
+### Where we are — repo vs operations (Phases A–E)
+
+| Phase | Shipped in this repo (automatable) | Still on your side (batch when ready — see [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md)) |
+|-------|-------------------------------------|---------------------------------------------------------------------------------------------|
+| **A** | `scripts/execute-phase-a.sh`, `check_export_readiness.py`, `GET /internal/stats/export-readiness`, enqueue + identification + demand-distance Celery tasks, OpenAPI response models, `make readiness` / `make phase-a-run` | Run against **live** Postgres/API on the Droplet (or laptop with `DATABASE_URL`); tune **`demand_generators`** in `pilot.yaml`; stakeholder CSV spot-check |
+| **B** | `POST /internal/ingest/merge-geojson-attributes`, `scripts/execute-phase-b.sh`, `scripts/validate_phase_b_overlay.py`, `make validate-phase-b-overlay`, zoning rules YAML path (`ZONING_RULES_PATH`) | **Produce & stage zoning overlay GeoJSON** (spatial join); counsel review of surface-parking rules as jurisdictions change |
+| **C** | `scripts/execute-phase-c.sh`, `make phase-c-run`, `GET /internal/owners/*`, outreach brief + memo paths in pipeline, **`parcels_missing_owner_outreach_brief`** in export-readiness | Run pipelines so briefs fill; optional **vendor / SOS** contracts + env; portfolio prioritization in your process |
+| **D** | Baseline **`distance_to_nearest_demand_m`** (centroid→POI), **`is_corner_lot`** / **`DIST_DEMAND_M`** via ingest or merge overlay; strategic + identification YAML tuning | **GIS inputs** for defensible corner logic or richer demand (roads, adjacency, surfaces) — dedicated batch jobs **not** implemented until inputs exist (see Phase D backlog below) |
+| **E** | Multi-county **`region.county_fips`** in `pilot.yaml`, ingest/WaTech routes, same phase scripts per county | Add each county to pilot + ingest + repeat **A→B→C** checklist; monitor **`export-readiness`** per rollout |
+
+**Bottom line:** Phases **A–C** are **tool-complete** in code; **production proof** is running the scripts on real infra and closing **data** gaps (Phase **B** overlay is the largest recurring external dependency). Phases **D–E** are **partially** automated (D needs GIS investment; E is process + config repeating A–C).
+
 ---
 
 ## Phase A — Scores, demand distance, export readiness
