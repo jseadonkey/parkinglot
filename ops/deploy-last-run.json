@@ -1,14 +1,14 @@
 {
-  "id": 25243860974,
+  "id": 25243873341,
   "conclusion": "failure",
   "status": "completed",
   "head_branch": "cursor/dual-scoring-agents-slack-channel",
-  "head_sha": "90f20d2cc30156715e9eb1cd10b35b723ccb26f7",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25243860974",
-  "created_at": "2026-05-02T04:34:55Z",
-  "updated_at": "2026-05-02T04:35:10Z",
-  "display_title": "docs(deploy): note managed Postgres trusted sources for Droplet",
+  "head_sha": "147abb904ac7bfc923b56e779bb0cc0f18cc3a63",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25243873341",
+  "created_at": "2026-05-02T04:35:39Z",
+  "updated_at": "2026-05-02T04:37:55Z",
+  "display_title": "ci(deploy): default push deploy to managed Postgres without local Pos…",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-02T04:35:17Z"
+  "snapshot_recorded_at": "2026-05-02T04:38:02Z"
 }
