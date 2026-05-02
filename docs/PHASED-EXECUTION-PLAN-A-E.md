@@ -217,6 +217,10 @@ Improve **`is_corner_lot`** beyond roll flags and strengthen **`distance_to_near
 - `services/scoring/parking_scoring/engine.py`  
 - `config/pilot_strategic.yaml`, `config/pilot_identification.yaml`
 
+### Backlog — corner lot + richer demand (implement when GIS data exists)
+
+Stronger **`is_corner_lot`** and demand signals require **inputs agreed outside this repo** (road centerlines, parcel–road topology, optional drive-time / hex demand surfaces). Until those exist, Phase D progress is **tuning existing YAML weights** and **`parcel_metrics`** centroid→POI behavior already shipped. Tracked deliverables later: a **batch or Celery job** that writes corner flags or enriched demand fields (via merge GeoJSON or DB update), then **identification / pipeline** refresh for affected parcels.
+
 ---
 
 ## Phase E — Multi-city / multi-county / multi-state scale
@@ -260,6 +264,10 @@ Repeat Phases A–D for **new counties** and eventually **new states** without f
 - `config/pilot.yaml`, `deploy/env.production.example`  
 - `services/enrichment/parking_enrichment/owner_normalize.py`
 
+### Repeat per county (same automation)
+
+After **`region.county_fips`** and ingest for a new county, run the same operational scripts as the pilot: **`make readiness`** ([`check_export_readiness.py`](../scripts/check_export_readiness.py)), **[`scripts/execute-phase-a.sh`](../scripts/execute-phase-a.sh)**, **[`scripts/execute-phase-b.sh`](../scripts/execute-phase-b.sh)** when a zoning overlay exists, **[`scripts/execute-phase-c.sh`](../scripts/execute-phase-c.sh)** for portfolio smoke — then **`export-readiness`** until gaps are acceptable.
+
 ---
 
 ## Quick reference — HTTP endpoints (internal auth)
@@ -294,4 +302,4 @@ Repeat Phases A–D for **new counties** and eventually **new states** without f
 
 *Last updated to match internal routes and scripts in the same repo revision as this file.*
 
-**Outstanding (note for roadmap):** Phase B **backlog** above — production zoning overlay merge per county remains to be executed once GIS delivers the file.
+**Outstanding (note for roadmap):** Phase B **backlog** — production zoning overlay merge per county once GIS delivers the file. Phase D **backlog** — corner/demand enrichment jobs once road/adjacency or demand-surface inputs exist.

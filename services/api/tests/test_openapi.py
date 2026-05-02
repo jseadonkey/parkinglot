@@ -21,6 +21,7 @@ def test_openapi_lists_workflow_and_internal_task_paths() -> None:
     assert "/internal/slack/test-message" in paths
     assert "/internal/slack/full-update-now" in paths
     assert "/internal/stats/scoring-summary" in paths
+    assert "/internal/stats/export-readiness" in paths
     assert "/internal/metrics/refresh-demand-distances" in paths
     assert "/internal/metrics/refresh-identification-scores" in paths
     assert "/internal/ingest/merge-geojson-attributes" in paths
