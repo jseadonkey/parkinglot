@@ -1,9 +1,14 @@
 {
-  "id": null,
-  "conclusion": null,
-  "head_branch": null,
-  "head_sha": null,
-  "html_url": null,
-  "snapshot_recorded_at": null,
-  "note": "Updated by GitHub Actions after each completed Deploy to Droplet run."
+  "id": 25242203783,
+  "conclusion": "failure",
+  "status": "completed",
+  "head_branch": "cursor/dual-scoring-agents-slack-channel",
+  "head_sha": "ce77a231644ba6a2f63db0027215fd7c0e6ce4ac",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25242203783",
+  "created_at": "2026-05-02T03:03:02Z",
+  "updated_at": "2026-05-02T03:03:15Z",
+  "display_title": "ops: auto-record deploy outcome to ops/deploy-last-run.json; quiet CI…",
+  "event": "push",
+  "run_attempt": 1,
+  "snapshot_recorded_at": "2026-05-02T03:03:27Z"
 }
