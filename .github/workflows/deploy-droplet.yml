@@ -114,16 +114,25 @@ jobs:
           ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Ensure remote directory
+      # Repository variables sometimes paste with a trailing newline — breaks rsync/SSH into "bash: /: Is a directory".
+      - name: Sanitize remote path
         run: |
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
-          ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" "mkdir -p '$REMOTE_PATH'"
+          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          CLEAN="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$CLEAN" ] || CLEAN="/opt/parking-acquisition-agents"
+          echo "DEPLOY_REMOTE_PATH=$CLEAN" >> "$GITHUB_ENV"
+          echo "Using DEPLOY_REMOTE_PATH=$CLEAN"
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
+      - name: Ensure remote directory
+        run: |
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" "mkdir -p '$REMOTE_PATH'"
+
       - name: Rsync application
         run: |
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           rsync -az --delete \
             --exclude .git \
             --exclude node_modules \
@@ -134,14 +143,12 @@ jobs:
             --exclude .env \
             --exclude deploy/.env \
             ./ "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}:$REMOTE_PATH/"
-        env:
-          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
       # bash <<EOF requires closing EOF at column 0; YAML-indented EOF breaks the heredoc.
       - name: Require deploy/.env on Droplet
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           USER_HOST="${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}"
           ssh -oBatchMode=yes "$USER_HOST" \
             bash -s -- "$REMOTE_PATH" "$USER_HOST" <<'EOS'
@@ -158,14 +165,12 @@ jobs:
           echo "Then re-run Deploy to Droplet." >&2
           exit 1
           EOS
-        env:
-          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
       - name: Pull GHCR images
         if: steps.opts.outputs.compose_file == 'docker-compose.production.ghcr.yml' || steps.opts.outputs.compose_file == 'docker-compose.production.ghcr-full.yml'
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           COMPOSE_FILE="deploy/${{ steps.opts.outputs.compose_file }}"
           PG_EXTRA=""
           if [ "${{ steps.opts.outputs.use_local_postgis }}" = "true" ]; then
@@ -173,13 +178,11 @@ jobs:
           fi
           ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             "set -euo pipefail && cd '$REMOTE_PATH' && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env pull"
-        env:
-          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
       - name: Docker compose up
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           COMPOSE_FILE="deploy/${{ steps.opts.outputs.compose_file }}"
           PG_EXTRA=""
           if [ "${{ steps.opts.outputs.use_local_postgis }}" = "true" ]; then
@@ -187,8 +190,6 @@ jobs:
           fi
           ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             "set -euo pipefail && cd '$REMOTE_PATH' && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --build && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env ps"
-        env:
-          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
       # Do not fail the whole deploy if Slack enqueue fails (containers are already updated).
       - name: Enqueue Slack tasks (post-deploy script)
@@ -197,7 +198,7 @@ jobs:
         if: steps.opts.outputs.post_slack_tasks != 'none'
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           MODE="${{ steps.opts.outputs.post_slack_tasks }}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             bash -s -- "$REMOTE_PATH" "$MODE" <<'EOS'
@@ -210,8 +211,6 @@ jobs:
           # Avoid exit 126 if +x is stripped on rsync / filesystem — bash runs without execute bit.
           bash scripts/post-deploy-slack.sh "$MODE"
           EOS
-        env:
-          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
       - name: Post-deploy Slack status
         if: steps.opts.outputs.post_slack_tasks != 'none' && always()
@@ -226,7 +225,7 @@ jobs:
         if: steps.opts.outputs.verify_public_ready == 'true'
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             bash -s -- "$REMOTE_PATH" <<'EOS'
           set -euo pipefail
@@ -244,13 +243,10 @@ jobs:
           curl -fsSk --connect-timeout 15 --max-time 30 "$BASE/ready"
           echo
           EOS
-        env:
-          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
       - name: Notify Slack (internal API)
         if: github.event_name == 'workflow_dispatch' && inputs.slack_notify
         env:
-          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
           SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
         run: |
           set -euo pipefail
@@ -275,7 +271,7 @@ jobs:
           print(json.dumps(body))
           PY
           )
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             bash -s -- "$REMOTE_PATH" "$PAYLOAD_JSON" "$KEY" <<'EOS'
