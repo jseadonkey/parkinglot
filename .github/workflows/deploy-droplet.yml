@@ -12,6 +12,8 @@
 #
 # Optional Slack ping after a successful deploy:
 #   slack_notify (default false) — POST /internal/slack/test-message from the Droplet
+#   post_slack_tasks (default none) — run scripts/post-deploy-slack.sh on the Droplet to enqueue
+#     digest / qualified-parcels / dual-agent discussion Celery jobs (API + worker must be up)
 #   Repository secret SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY — same value as INTERNAL_API_KEY in deploy/.env when the API enforces it
 
 name: Deploy to Droplet
@@ -47,6 +49,16 @@ on:
         description: "Also pass -f deploy/docker-compose.postgis-addon.yml (on-droplet PostGIS). Turn off when using only Managed Postgres."
         type: boolean
         default: true
+      post_slack_tasks:
+        description: "After compose up, enqueue Slack Celery tasks via scripts/post-deploy-slack.sh (needs Slack + channels in deploy/.env)"
+        type: choice
+        default: none
+        options:
+          - none
+          - digest
+          - qualified
+          - discussion
+          - all
 
 concurrency:
   group: deploy-droplet-${{ github.ref }}
@@ -142,6 +154,26 @@ jobs:
           fi
           ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             "set -euo pipefail && cd '$REMOTE_PATH' && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --build && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env ps"
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+
+      - name: Enqueue Slack tasks (post-deploy script)
+        if: inputs.post_slack_tasks != 'none'
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          MODE="${{ inputs.post_slack_tasks }}"
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            bash -s -- "$REMOTE_PATH" "$MODE" <<'EOS'
+          set -euo pipefail
+          REMOTE_PATH="$1"
+          MODE="$2"
+          cd "$REMOTE_PATH"
+          test -f deploy/.env
+          test -f scripts/post-deploy-slack.sh
+          chmod +x scripts/post-deploy-slack.sh
+          ./scripts/post-deploy-slack.sh "$MODE"
+          EOS
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
