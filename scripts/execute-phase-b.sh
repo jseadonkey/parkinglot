@@ -22,6 +22,9 @@
 #   PHASE_B_POLL_INTERVAL_SEC — default 5
 #   PHASE_B_WAIT_SEC      — sleep after merge before final readiness (default 45)
 #   PHASE_B_JSON_DIR      — if set, write before/after readiness JSON snapshots
+#   PHASE_B_VALIDATE      — default 1 — run validate_phase_b_overlay.py before POST (set 0 to skip)
+#   PHASE_B_OVERLAY_VALIDATE_PATH — optional file path for validation only (when PHASE_B_OVERLAY_PATH
+#                          is the in-container path e.g. /app/data/... but the validator runs on the host)
 #
 # Droplet example (overlay at repo data/ → /app/data/... in container; API must see same path):
 #   set -a && source deploy/.env && set +a
@@ -43,6 +46,7 @@ cd "$ROOT"
 : "${PHASE_B_POLL_TASK:=0}"
 : "${PHASE_B_POLL_TIMEOUT_SEC:=900}"
 : "${PHASE_B_POLL_INTERVAL_SEC:=5}"
+: "${PHASE_B_VALIDATE:=1}"
 
 PY="${ROOT}/.venv/bin/python"
 if [[ ! -x "$PY" ]]; then
@@ -115,6 +119,18 @@ OVERLAY="${PHASE_B_OVERLAY_PATH:-}"
 if [[ -z "$OVERLAY" ]]; then
   echo "error: PHASE_B_OVERLAY_PATH is not set (absolute path to overlay GeoJSON)." >&2
   exit 2
+fi
+
+VALIDATE_PATH="${PHASE_B_OVERLAY_VALIDATE_PATH:-$OVERLAY}"
+if [[ "${PHASE_B_VALIDATE}" == "1" ]]; then
+  echo "=== Phase B — validate overlay (dry-run, same loader as merge) ==="
+  if [[ ! -r "$VALIDATE_PATH" ]]; then
+    echo "error: overlay not readable for validation: ${VALIDATE_PATH}" >&2
+    echo "hint: set PHASE_B_OVERLAY_VALIDATE_PATH to the host copy if PHASE_B_OVERLAY_PATH is for the container only." >&2
+    exit 2
+  fi
+  "$PY" "${ROOT}/scripts/validate_phase_b_overlay.py" "$VALIDATE_PATH" || exit $?
+  echo
 fi
 
 KEY_HEADER=()

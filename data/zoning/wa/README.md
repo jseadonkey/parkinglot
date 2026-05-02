@@ -15,3 +15,14 @@
 | `ZONING_ALLOWS_SURFACE_PARKING` | Optional; if present, overrides YAML lookup. |
 
 See `docs/zoning-sources-kent.md` for layer URLs.
+
+## Before merge (Phase B)
+
+Dry-run counts with the same property rules as production merge:
+
+```bash
+python3 scripts/validate_phase_b_overlay.py /path/to/overlay.geojson
+python3 scripts/validate_phase_b_overlay.py --json /path/to/overlay.geojson
+```
+
+`scripts/execute-phase-b.sh` runs this automatically unless **`PHASE_B_VALIDATE=0`**.

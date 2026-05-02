@@ -98,7 +98,8 @@ Populate **`zoning_code`** and **`zoning_allows_surface_parking`** (and optional
    - Optional: **`IS_CORNER`**, **`DIST_DEMAND_M`** if computed in GIS.
 
 2. **Stage file on server**  
-   - Path visible inside **worker** container (e.g. under repo `data/` mounted read-only, or `/tmp/…` copied in).
+   - Path visible inside **worker** container (e.g. repo `data/` → **`/app/data/...`** in containers).  
+   - Quick lint (same loader as merge): **`python3 scripts/validate_phase_b_overlay.py /path/on/host.geojson`** — or rely on **`scripts/execute-phase-b.sh`** (runs validation before POST). If the merge POST uses **`/app/data/...`** but you validate from the host, set **`PHASE_B_OVERLAY_VALIDATE_PATH`** to the host file path.
 
 3. **Merge attributes (no footprint replacement)**  
    - `POST /internal/ingest/merge-geojson-attributes` with JSON body, e.g.:  
@@ -268,7 +269,7 @@ Repeat Phases A–D for **new counties** and eventually **new states** without f
 | Rank portfolios | `GET /internal/owners/portfolios-ranked` |
 | Celery task status | `GET /internal/tasks/{task_id}` |
 
-**Shell helpers:** Phase A — [`scripts/execute-phase-a.sh`](../scripts/execute-phase-a.sh); Phase B overlay — [`scripts/execute-phase-b.sh`](../scripts/execute-phase-b.sh).
+**Shell helpers:** Phase A — [`scripts/execute-phase-a.sh`](../scripts/execute-phase-a.sh); Phase B overlay — [`scripts/execute-phase-b.sh`](../scripts/execute-phase-b.sh); Phase B dry-run — [`scripts/validate_phase_b_overlay.py`](../scripts/validate_phase_b_overlay.py) (`make validate-phase-b-overlay`).
 
 ---
 
