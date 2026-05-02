@@ -1,14 +1,14 @@
 {
-  "id": 25244958907,
+  "id": 25259605482,
   "conclusion": "success",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "3c96b3bb1a7aea984e851208a854e3b678055e87",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25244958907",
-  "created_at": "2026-05-02T05:39:07Z",
-  "updated_at": "2026-05-02T05:39:40Z",
-  "display_title": "fix(scripts): reject placeholder DB passwords like show-password in D…",
-  "event": "push",
+  "head_sha": "5b75c960fd55390f37db4d9f2b665c7ba815f4af",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25259605482",
+  "created_at": "2026-05-02T19:09:23Z",
+  "updated_at": "2026-05-02T19:09:51Z",
+  "display_title": "Deploy to Droplet",
+  "event": "workflow_dispatch",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-02T05:39:47Z"
+  "snapshot_recorded_at": "2026-05-02T19:09:58Z"
 }
