@@ -1,14 +1,14 @@
 {
-  "id": 25264316059,
+  "id": 25264422104,
   "conclusion": "success",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "b67713dab39bd9e3c92f5b4870a3fbdca6c2221b",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25264316059",
-  "created_at": "2026-05-02T23:16:32Z",
-  "updated_at": "2026-05-02T23:17:56Z",
-  "display_title": "Merge pull request #7 from jseadonkey/cursor/gitignore-deploy-env-bac…",
+  "head_sha": "1b0f8ee5e17cdc3d3c43ae8aab3538210c7c40be",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25264422104",
+  "created_at": "2026-05-02T23:22:33Z",
+  "updated_at": "2026-05-02T23:22:53Z",
+  "display_title": "docs(ops): canonical Droplet repo path /opt/parking-acquisition-agents",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-02T23:18:03Z"
+  "snapshot_recorded_at": "2026-05-02T23:23:02Z"
 }
