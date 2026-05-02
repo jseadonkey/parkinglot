@@ -64,6 +64,13 @@ Or run steps manually:
 - `GET /internal/stats/export-readiness` (or CLI) shows **manageable** gaps only on columns deferred to Phase B (zoning) or D (corner).  
 - Exported CSV matches stakeholder column list for **scores**, **demand**, **centroids**.
 
+### Automated checks (Phase A)
+
+- **`pytest services/api/tests/`** passes (includes OpenAPI and scoring paths).  
+- **Sample trace:** `./scripts/verify-sample-trace.sh` (ingest + scores + pipeline shape).  
+- **Bash:** `bash -n scripts/execute-phase-a.sh`.  
+- **With live DB + API** (Droplet or port-forward): `DATABASE_URL=… INTERNAL_API_KEY=… ./scripts/execute-phase-a.sh` — before/after `check_export_readiness.py` should show `parcels_missing_score_*` and demand gaps moving in the right direction (worker time may require re-run or longer `PHASE_A_WAIT_SEC`).
+
 ### References (code / docs)
 
 - `scripts/check_export_readiness.py`, `services/api/app/export_readiness.py`  
@@ -96,6 +103,7 @@ Populate **`zoning_code`** and **`zoning_allows_surface_parking`** (and optional
 3. **Merge attributes (no footprint replacement)**  
    - `POST /internal/ingest/merge-geojson-attributes` with JSON body, e.g.:  
      `{"path":"/abs/path/overlay.geojson","refresh_pipeline":true,"max_pipeline":200}`  
+   - Or Droplet/laptop runner: [**`scripts/execute-phase-b.sh`**](../scripts/execute-phase-b.sh) — prints readiness before/after, POSTs merge with safe JSON encoding (`PHASE_B_OVERLAY_PATH`, optional poll).  
    - This updates existing parcels, merges **`raw_properties`**, refreshes **identification** scores, and enqueues **`run_pipeline`** up to **`max_pipeline`**.
 
 4. **Verify rules coverage**  
@@ -259,6 +267,8 @@ Repeat Phases A–D for **new counties** and eventually **new states** without f
 | Owner peers by key | `GET /internal/owners/peers-by-key` |
 | Rank portfolios | `GET /internal/owners/portfolios-ranked` |
 | Celery task status | `GET /internal/tasks/{task_id}` |
+
+**Shell helpers:** Phase A — [`scripts/execute-phase-a.sh`](../scripts/execute-phase-a.sh); Phase B overlay — [`scripts/execute-phase-b.sh`](../scripts/execute-phase-b.sh).
 
 ---
 

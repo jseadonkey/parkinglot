@@ -87,6 +87,6 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
             "If entitlement or strategic gaps: POST /internal/pipeline/enqueue-incomplete?limit=500",
             "If identification gaps: POST /internal/metrics/refresh-identification-scores?limit=2000 (or re-ingest).",
             "If demand distance gaps: POST /internal/metrics/refresh-demand-distances?limit=2000",
-            "If zoning gaps: spatial join → GeoJSON overlay → POST /internal/ingest/merge-geojson-attributes",
+            "If zoning gaps: spatial join → GeoJSON overlay → POST /internal/ingest/merge-geojson-attributes (or scripts/execute-phase-b.sh).",
         ],
     }
