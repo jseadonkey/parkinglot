@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore, WorkflowRun
 from app.db.session import get_db
-from app.schemas import ParcelRead, ParcelScoreRead, WorkflowRunRead
+from app.schemas import ParcelPipelineTaskResponse, ParcelRead, ParcelScoreRead, WorkflowRunRead
 from app.scoring_profiles import ENTITLEMENT, ScoreProfile
 from app.tasks import run_pipeline
 from parking_core.pilot import load_pilot_config
@@ -96,9 +96,12 @@ def get_latest_score(
     return row
 
 
-@router.post("/{parcel_id}/pipeline/run")
-def run_pipeline_for_parcel(parcel_id: uuid.UUID, db: Session = Depends(get_db)) -> dict[str, str]:
+@router.post("/{parcel_id}/pipeline/run", response_model=ParcelPipelineTaskResponse)
+def run_pipeline_for_parcel(
+    parcel_id: uuid.UUID,
+    db: Session = Depends(get_db),
+) -> ParcelPipelineTaskResponse:
     if db.get(Parcel, parcel_id) is None:
         raise HTTPException(status_code=404, detail="parcel not found")
     async_result = run_pipeline.delay(str(parcel_id))
-    return {"task_id": async_result.id, "parcel_id": str(parcel_id)}
+    return ParcelPipelineTaskResponse(task_id=async_result.id, parcel_id=str(parcel_id))

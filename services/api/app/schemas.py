@@ -129,6 +129,20 @@ class CeleryTaskIdResponse(BaseModel):
     task_id: str
 
 
+class ParcelPipelineTaskResponse(BaseModel):
+    """POST /parcels/{parcel_id}/pipeline/run — Celery scoring/enrichment job."""
+
+    task_id: str
+    parcel_id: str
+
+
+class ServiceStatusResponse(BaseModel):
+    """GET /health or /ready — process status and build version (no secrets)."""
+
+    status: str
+    version: str
+
+
 class WaTechCountyQueuedResponse(BaseModel):
     """WaTech fetch+ingest scheduled on the worker."""
 

@@ -47,3 +47,20 @@ def test_openapi_lists_workflow_and_internal_task_paths() -> None:
     assert "/internal/pipeline/enqueue-unscored" in paths
     assert "/internal/pipeline/enqueue-incomplete" in paths
     assert "/parcels/{parcel_id}/workflow-runs" in paths
+    assert "/parcels/{parcel_id}/pipeline/run" in paths
+    assert "/health" in paths
+    assert "/ready" in paths
+    assert "ParcelPipelineTaskResponse" in schemas
+    assert "ServiceStatusResponse" in schemas
+    health_get = paths["/health"]["get"]
+    assert health_get["responses"]["200"]["content"]["application/json"]["schema"]["$ref"] == (
+        "#/components/schemas/ServiceStatusResponse"
+    )
+    ready_get = paths["/ready"]["get"]
+    assert ready_get["responses"]["200"]["content"]["application/json"]["schema"]["$ref"] == (
+        "#/components/schemas/ServiceStatusResponse"
+    )
+    pipe_post = paths["/parcels/{parcel_id}/pipeline/run"]["post"]
+    assert pipe_post["responses"]["200"]["content"]["application/json"]["schema"]["$ref"] == (
+        "#/components/schemas/ParcelPipelineTaskResponse"
+    )
