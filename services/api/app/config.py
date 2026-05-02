@@ -55,6 +55,53 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("SLACK_AGENT_EVENT_UPDATES", "slack_agent_event_updates"),
     )
 
+    # Optional Celery Beat: ingest GeoJSON from a path on the API container (e.g. rsync county export).
+    scheduled_geojson_ingest_path: str = Field(
+        default="",
+        validation_alias=AliasChoices("SCHEDULED_GEOJSON_INGEST_PATH", "scheduled_geojson_ingest_path"),
+    )
+    scheduled_geojson_ingest_default_county_fips: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "SCHEDULED_GEOJSON_INGEST_DEFAULT_COUNTY_FIPS",
+            "scheduled_geojson_ingest_default_county_fips",
+        ),
+    )
+    scheduled_geojson_ingest_auto_run_pipeline: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "SCHEDULED_GEOJSON_INGEST_AUTO_RUN_PIPELINE",
+            "scheduled_geojson_ingest_auto_run_pipeline",
+        ),
+    )
+    scheduled_geojson_ingest_max_auto_pipeline: int = Field(
+        default=100,
+        ge=1,
+        le=5000,
+        validation_alias=AliasChoices(
+            "SCHEDULED_GEOJSON_INGEST_MAX_AUTO_PIPELINE",
+            "scheduled_geojson_ingest_max_auto_pipeline",
+        ),
+    )
+    scheduled_geojson_ingest_crontab_minute: int = Field(
+        default=0,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "SCHEDULED_GEOJSON_INGEST_CRONTAB_MINUTE",
+            "scheduled_geojson_ingest_crontab_minute",
+        ),
+    )
+    scheduled_geojson_ingest_crontab_hour: int = Field(
+        default=7,
+        ge=0,
+        le=23,
+        validation_alias=AliasChoices(
+            "SCHEDULED_GEOJSON_INGEST_CRONTAB_HOUR",
+            "scheduled_geojson_ingest_crontab_hour",
+        ),
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

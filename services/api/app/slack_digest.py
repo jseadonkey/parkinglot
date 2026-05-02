@@ -29,6 +29,24 @@ def _count_since(db: Session, model: type, column: Any, cutoff: datetime) -> int
     return int(n or 0)
 
 
+def _count_audit_action_since(db: Session, action: str, cutoff: datetime) -> int:
+    n = db.scalar(
+        select(func.count())
+        .select_from(AuditLog)
+        .where(and_(AuditLog.action == action, AuditLog.created_at >= cutoff)),
+    )
+    return int(n or 0)
+
+
+def _parcel_score_counts_since(db: Session, cutoff: datetime) -> dict[str, int]:
+    stmt = (
+        select(ParcelScore.score_profile, func.count())
+        .where(ParcelScore.created_at >= cutoff)
+        .group_by(ParcelScore.score_profile)
+    )
+    return {str(row[0]): int(row[1]) for row in db.execute(stmt).all()}
+
+
 def _pending_approvals(db: Session) -> int:
     n = db.scalar(
         select(func.count()).select_from(ApprovalRequest).where(ApprovalRequest.status == "pending"),
@@ -57,7 +75,12 @@ def _recent_audit_lines(db: Session, cutoff: datetime, limit: int = 8) -> list[s
 def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict[str, Any]], str]:
     """Return Block Kit blocks plus a plain-text fallback for notifications."""
     cutoff = datetime.now(tz=UTC) - timedelta(hours=hours)
-    new_parcels = _count_since(db, Parcel, Parcel.created_at, cutoff)
+    new_parcel_rows = _count_since(db, Parcel, Parcel.created_at, cutoff)
+    ingest_batches = _count_audit_action_since(db, "parcels_ingested", cutoff)
+    score_by_profile = _parcel_score_counts_since(db, cutoff)
+    total_score_rows = sum(score_by_profile.values())
+    total_parcels = db.scalar(select(func.count()).select_from(Parcel))
+    total_parcels = int(total_parcels or 0)
     wf_by_status = _workflow_status_since(db, cutoff)
     pending = _pending_approvals(db)
     audit_lines = _recent_audit_lines(db, cutoff)
@@ -68,15 +91,21 @@ def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict
     )
     failed_n = int(failed_n or 0)
 
-    wf_lines = [f"• `{k}`: {v}" for k, v in sorted(wf_by_status.items())] or [
-        "• _(no workflow updates in this window)_",
-    ]
+    if wf_by_status:
+        wf_lines = [f"• `{k}`: {v}" for k, v in sorted(wf_by_status.items())]
+    else:
+        wf_lines = ["• _(no `workflow_runs.updated_at` in this window)_"]
+
+    score_parts = [f"`{k}`: {v}" for k, v in sorted(score_by_profile.items())]
+    score_summary = ", ".join(score_parts) if score_parts else "none"
+
     audit_block = "\n".join(audit_lines) if audit_lines else "_(no audit events in this window)_"
 
     header = f"Parking acquisition — {hours}h standup ({cutoff:%Y-%m-%d %H:%M} → now UTC)"
     fallback = (
         f"{header}\n"
-        f"Ingest: {new_parcels} new parcels | Pending approvals: {pending} | "
+        f"Ingest: new rows={new_parcel_rows}, ingest batches={ingest_batches} | "
+        f"parcel_scores written={total_score_rows} | Pending approvals: {pending} | "
         f"Workflow updates by status: {wf_by_status!s} | Failures: {failed_n}"
     )
 
@@ -98,8 +127,13 @@ def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict
                 "type": "mrkdwn",
                 "text": (
                     "*Ingest agent*\n"
-                    f"New parcels recorded in the last *{hours}h*: *{new_parcels}*\n"
-                    "_Assumes assessor / GeoJSON ingest paths writing to `parcels`._"
+                    f"• New parcel *rows* (`parcels.created_at` in window): *{new_parcel_rows}*\n"
+                    f"• Ingest *runs* (audit `parcels_ingested`): *{ingest_batches}*\n"
+                    f"• Total parcels in DB: *{total_parcels}*\n"
+                    "_GeoJSON ingest does not run by itself: call `POST /internal/ingest/geojson-upload`, "
+                    "`/internal/ingest/geojson-server-path`, or set `SCHEDULED_GEOJSON_INGEST_PATH` "
+                    "(Beat). Re-ingesting existing APNs updates rows but does **not** change `created_at`, "
+                    "so use ingest batch count above for refresh activity._"
                 ),
             },
         },
@@ -109,8 +143,9 @@ def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict
                 "type": "mrkdwn",
                 "text": (
                     "*Scoring & pipeline agent*\n"
-                    f"Workflow runs touched in the last *{hours}h* (by `updated_at` status):\n"
+                    f"• Workflow runs touched in the last *{hours}h* (by `workflow_runs.updated_at` status):\n"
                     + "\n".join(wf_lines)
+                    + f"\n• New `parcel_scores` rows (pipeline output): *{total_score_rows}* ({score_summary})"
                     + f"\n\n_Failures in window:_ *{failed_n}*"
                 ),
             },
