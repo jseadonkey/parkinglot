@@ -15,9 +15,9 @@ from app.celery_app import celery
 from app.config import get_settings
 from app.contract_render import render_ground_lease_draft
 from app.db.models import ApprovalRequest, ContractDraft, DealMemo, OwnerCandidateRow, Parcel, ParcelScore, WorkflowRun
-from app.scoring_profiles import ALL_PROFILES, ENTITLEMENT, STRATEGIC
 from app.db.session import SessionLocal
 from app.memo_render import build_deal_memo_markdown
+from app.scoring_profiles import ALL_PROFILES, ENTITLEMENT, STRATEGIC
 from app.slack_digest import (
     build_dual_agent_discussion_posts,
     build_qualified_parcels_report_blocks,

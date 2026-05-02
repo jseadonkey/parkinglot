@@ -203,7 +203,10 @@ def build_owner_outreach_brief(
                 rank=rank,
                 channel=OutreachChannel.phone,
                 title="Phone outreach (manual, consent-aware)",
-                instruction=f"Number on file: {phone}. Confirm still tied to owner; follow TCPA / internal counsel policy.",
+                instruction=(
+                    f"Number on file: {phone}. Confirm still tied to owner; "
+                    "follow TCPA / internal counsel policy."
+                ),
                 confidence=0.4,
                 requires_human=True,
             )

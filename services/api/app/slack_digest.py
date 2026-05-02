@@ -149,12 +149,12 @@ def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict
 def _rationale_line(breakdown: dict[str, Any], *, total: float, floor: float, qualified: bool) -> str:
     """Short operator-facing line from deterministic score breakdown JSON."""
     z = float(breakdown.get("zoning_component") or 0)
-    l = float(breakdown.get("lot_size_component") or 0)
+    lot_sz = float(breakdown.get("lot_size_component") or 0)
     c = float(breakdown.get("corner_component") or 0)
     d = float(breakdown.get("demand_proximity_component") or 0)
     bits: list[str] = []
     bits.append("zoning" if z > 0 else "no zoning credit")
-    bits.append("lot size" if l > 0 else "lot below min / missing")
+    bits.append("lot size" if lot_sz > 0 else "lot below min / missing")
     bits.append("corner" if c > 0 else "not corner")
     bits.append("near demand" if d > 0 else "demand distance weak/missing")
     notes = breakdown.get("notes") or []
@@ -289,7 +289,10 @@ def build_qualified_parcels_report_blocks(
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": "_Scores are deterministic from ingest flags + pilot weights in `config/pilot.yaml`. API: `GET /parcels?qualified_only=true`._",
+                    "text": (
+                        "_Scores are deterministic from ingest flags + pilot weights in `config/pilot.yaml`. "
+                        "API: `GET /parcels?qualified_only=true`._"
+                    ),
                 },
             ],
         },
@@ -359,17 +362,29 @@ def build_dual_agent_discussion_posts(
 
     pairs.sort(key=lambda t: float(t[1].total_score), reverse=True)
     atlas_lines: list[str] = []
-    for parcel, ps_e, ps_s in pairs[:max_lines]:
+    for parcel, ps_e, _ps_s in pairs[:max_lines]:
         bd = ps_e.breakdown if isinstance(ps_e.breakdown, dict) else {}
-        line = _rationale_line(bd, total=float(ps_e.total_score), floor=floor_ent, qualified=float(ps_e.total_score) >= floor_ent)
+        qualifies_ent = float(ps_e.total_score) >= floor_ent
+        line = _rationale_line(
+            bd,
+            total=float(ps_e.total_score),
+            floor=floor_ent,
+            qualified=qualifies_ent,
+        )
         atlas_lines.append(f"• `{parcel.apn}` ({parcel.county_fips}) — {line}")
     atlas_body = "\n".join(atlas_lines) if atlas_lines else "_(none)_"
 
     pairs_beacon = sorted(pairs, key=lambda t: float(t[2].total_score), reverse=True)
     beacon_lines: list[str] = []
-    for parcel, ps_e, ps_s in pairs_beacon[:max_lines]:
+    for parcel, _ps_e, ps_s in pairs_beacon[:max_lines]:
         bd = ps_s.breakdown if isinstance(ps_s.breakdown, dict) else {}
-        line = _rationale_line(bd, total=float(ps_s.total_score), floor=floor_str, qualified=float(ps_s.total_score) >= floor_str)
+        qualifies_str = float(ps_s.total_score) >= floor_str
+        line = _rationale_line(
+            bd,
+            total=float(ps_s.total_score),
+            floor=floor_str,
+            qualified=qualifies_str,
+        )
         beacon_lines.append(f"• `{parcel.apn}` ({parcel.county_fips}) — {line}")
     beacon_body = "\n".join(beacon_lines) if beacon_lines else "_(none)_"
 
@@ -384,13 +399,19 @@ def build_dual_agent_discussion_posts(
         if e_ok and s_ok:
             consensus.append(f"• `{parcel.apn}` — Atlas *{de:.0f}* · Beacon *{ds:.0f}*")
         elif e_ok and not s_ok:
-            atlas_only.append(f"• `{parcel.apn}` — Atlas *{de:.0f}* vs Beacon *{ds:.0f}* _(zoning-weighted vs demand-weighted)_")
+            atlas_only.append(
+                f"• `{parcel.apn}` — Atlas *{de:.0f}* vs Beacon *{ds:.0f}* "
+                "_(zoning-weighted vs demand-weighted)_"
+            )
         elif s_ok and not e_ok:
             beacon_only.append(f"• `{parcel.apn}` — Beacon *{ds:.0f}* vs Atlas *{de:.0f}* _(location wins here)_")
+    consensus_blk = "\n".join(consensus) if consensus else "_(none)_"
+    atlas_ok_blk = "\n".join(atlas_only[:max_lines]) if atlas_only else "_(none)_"
+    beacon_ok_blk = "\n".join(beacon_only[:max_lines]) if beacon_only else "_(none)_"
     joint_parts = [
-        "*Strong consensus* (both ≥ their floors)\n" + ("\n".join(consensus) if consensus else "_(none)_"),
-        "\n\n*Atlas-led* (entitlement clears, Beacon below floor)\n" + ("\n".join(atlas_only[:max_lines]) if atlas_only else "_(none)_"),
-        "\n\n*Beacon-led* (demand/strategic clears, Atlas below floor)\n" + ("\n".join(beacon_only[:max_lines]) if beacon_only else "_(none)_"),
+        "*Strong consensus* (both ≥ their floors)\n" + consensus_blk,
+        "\n\n*Atlas-led* (entitlement clears, Beacon below floor)\n" + atlas_ok_blk,
+        "\n\n*Beacon-led* (demand/strategic clears, Atlas below floor)\n" + beacon_ok_blk,
     ]
     joint_body = _trim_mrkdwn("".join(joint_parts), 2900)
 
@@ -401,7 +422,14 @@ def build_dual_agent_discussion_posts(
         },
         {
             "type": "context",
-            "elements": [{"type": "mrkdwn", "text": f"_{AGENT_ENTITLEMENT_TAGLINE}_ · floor *{floor_ent:.0f}* · _{ts}_"}],
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": (
+                        f"_{AGENT_ENTITLEMENT_TAGLINE}_ · floor *{floor_ent:.0f}* · _{ts}_"
+                    ),
+                },
+            ],
         },
         {"type": "divider"},
         {
@@ -454,7 +482,10 @@ def build_dual_agent_discussion_posts(
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": f"_{len(pairs)} parcel(s) with both scores_ · Atlas floor *{floor_ent:.0f}* · Beacon floor *{floor_str:.0f}* · _{ts}_",
+                    "text": (
+                        f"_{len(pairs)} parcel(s) with both scores_ · "
+                        f"Atlas floor *{floor_ent:.0f}* · Beacon floor *{floor_str:.0f}* · _{ts}_"
+                    ),
                 },
             ],
         },
@@ -468,7 +499,10 @@ def build_dual_agent_discussion_posts(
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": "_Deterministic scores only — not an LLM debate. Tune weights in `config/pilot.yaml` and `config/pilot_strategic.yaml`._",
+                    "text": (
+                        "_Deterministic scores only — not an LLM debate. "
+                        "Tune weights in `config/pilot.yaml` and `config/pilot_strategic.yaml`._"
+                    ),
                 },
             ],
         },
