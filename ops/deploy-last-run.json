@@ -1,14 +1,14 @@
 {
-  "id": 25242633336,
+  "id": 25242719603,
   "conclusion": "failure",
   "status": "completed",
   "head_branch": "cursor/dual-scoring-agents-slack-channel",
-  "head_sha": "16d234264b20f72cde9094d51e5dc9c70064114e",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25242633336",
-  "created_at": "2026-05-02T03:25:31Z",
-  "updated_at": "2026-05-02T03:25:50Z",
-  "display_title": "fix(ops): wire scheduled GeoJSON env into compose; sample ingest runs…",
+  "head_sha": "d38245eddba0a68fd8591ab1f814ba5474d0da21",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25242719603",
+  "created_at": "2026-05-02T03:29:51Z",
+  "updated_at": "2026-05-02T03:30:05Z",
+  "display_title": "feat(celery): schedule periodic enqueue of unscored parcel pipelines",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-02T03:25:59Z"
+  "snapshot_recorded_at": "2026-05-02T03:30:11Z"
 }
