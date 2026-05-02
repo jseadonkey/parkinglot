@@ -26,11 +26,21 @@
 #   PHASE_B_OVERLAY_VALIDATE_PATH — optional file path for validation only (when PHASE_B_OVERLAY_PATH
 #                          is the in-container path e.g. /app/data/... but the validator runs on the host)
 #
-# Droplet example (overlay at repo data/ → /app/data/... in container; API must see same path):
+# Droplet — overlay file must live under repo data/ so worker sees /app/data/... (same bind mount).
+#
+# A) Run inside api container (127.0.0.1:8000 works here). Use container paths for everything:
+#   docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env exec -T api bash -lc \
+#     'export DATABASE_URL INTERNAL_API_KEY PHASE_B_API_BASE=http://127.0.0.1:8000 \
+#       PHASE_B_OVERLAY_PATH=/app/data/zoning/kent_overlay.geojson
+#       /app/scripts/execute-phase-b.sh'
+#
+# B) Run on Droplet host with resolving HTTPS API (PUBLIC_API_URL / DNS working):
 #   set -a && source deploy/.env && set +a
-#   export DATABASE_URL INTERNAL_API_KEY
-#   PHASE_B_OVERLAY_PATH=/opt/workspaces/parkinglot/data/zoning/kent_overlay.geojson \
-#   PHASE_B_API_BASE="https://YOUR_PUBLIC_API" ./scripts/execute-phase-b.sh
+#   export DATABASE_URL INTERNAL_API_KEY PHASE_B_API_BASE="${PUBLIC_API_URL}"
+#   PHASE_B_OVERLAY_PATH=/app/data/zoning/kent_overlay.geojson \
+#   PHASE_B_OVERLAY_VALIDATE_PATH=/opt/workspaces/parkinglot/data/zoning/kent_overlay.geojson \
+#   ./scripts/execute-phase-b.sh
+# (POST body uses worker path /app/data/...; validator reads host copy via VALIDATE_PATH.)
 #
 set -euo pipefail
 
