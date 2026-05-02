@@ -1,0 +1,1679 @@
+From 38e99cdd4c07f095030c78be30ce68fa7aaa7c90 Mon Sep 17 00:00:00 2001
+From: jseadonkey <your-email@example.com>
+Date: Fri, 1 May 2026 06:31:01 +0000
+Subject: [PATCH] Add dual scoring profiles and separate Slack agent channel
+
+Made-with: Cursor
+---
+ .env.example                                  |   5 +
+ Makefile                                      |   7 +-
+ config/pilot_strategic.yaml                   |  50 +++
+ deploy/ci.env                                 |   1 +
+ .../docker-compose.production.ghcr-full.yml   |   8 +
+ deploy/docker-compose.production.ghcr.yml     |   8 +
+ deploy/docker-compose.production.yml          |   8 +
+ deploy/env.production.example                 |   9 +
+ docker-compose.yml                            |  12 +
+ docs/PROJECT-FACTS.md                         |   8 +-
+ docs/SLACK.md                                 |  36 +-
+ scripts/apply_slack_token.py                  |   3 +-
+ scripts/verify-sample-trace.sh                |  15 +
+ .../20260501_0002_parcel_score_profile.py     |  35 ++
+ services/api/app/celery_app.py                |   8 +
+ services/api/app/config.py                    |  17 +
+ services/api/app/db/models.py                 |   2 +
+ services/api/app/memo_render.py               |  46 ++-
+ services/api/app/routers/internal.py          |  59 ++-
+ services/api/app/routers/parcels.py           |   9 +-
+ services/api/app/schemas.py                   |   1 +
+ services/api/app/scoring_profiles.py          |  19 +
+ services/api/app/slack_digest.py              | 360 +++++++++++++++++-
+ services/api/app/tasks.py                     | 145 ++++++-
+ services/api/pytest.ini                       |   2 +
+ services/api/tests/test_openapi.py            |   4 +
+ .../api/tests/test_sample_parking_trace.py    | 139 +++++++
+ services/api/tests/test_slack_agent_events.py |  66 ++++
+ 28 files changed, 1050 insertions(+), 32 deletions(-)
+ create mode 100644 config/pilot_strategic.yaml
+ create mode 100755 scripts/verify-sample-trace.sh
+ create mode 100644 services/api/alembic/versions/20260501_0002_parcel_score_profile.py
+ create mode 100644 services/api/app/scoring_profiles.py
+ create mode 100644 services/api/tests/test_sample_parking_trace.py
+ create mode 100644 services/api/tests/test_slack_agent_events.py
+
+diff --git a/.env.example b/.env.example
+index 10045fa..92212ee 100644
+--- a/.env.example
++++ b/.env.example
+@@ -3,6 +3,7 @@ REDIS_URL=redis://redis:6379/0
+ CELERY_BROKER_URL=redis://redis:6379/0
+ CELERY_RESULT_BACKEND=redis://redis:6379/0
+ PILOT_CONFIG_PATH=/app/config/pilot.yaml
++PILOT_STRATEGIC_CONFIG_PATH=/app/config/pilot_strategic.yaml
+ STORAGE_ENDPOINT=http://minio:9000
+ STORAGE_ACCESS_KEY=minio
+ STORAGE_SECRET_KEY=minio12345
+@@ -18,3 +19,7 @@ APP_VERSION=local
+ # Optional Slack standup (worker posts digest; beat schedules every 4h UTC — see docs/SLACK.md):
+ # SLACK_BOT_TOKEN=xoxb-...
+ # SLACK_DIGEST_CHANNEL_ID=C...
++# Optional: dual scoring agents (Atlas + Beacon) post 3 messages here — invite the bot to this channel:
++# SLACK_AGENT_DISCUSSION_CHANNEL_ID=C...
++# Per-task agent lines from worker (ingest + pipeline) — set to 1 to enable (can be chatty):
++# SLACK_AGENT_EVENT_UPDATES=1
+diff --git a/Makefile b/Makefile
+index 456cded..1c7e511 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,7 +1,8 @@
+-.PHONY: help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
++.PHONY: help verify-sample local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
+ 
+ help:
+ 	@echo "Targets:"
++	@echo "  make verify-sample      - venv + pytest sample GeoJSON trace (scores, enrichment, memo)"
+ 	@echo "  make local              - docker compose (dev: Postgres, Redis, MinIO, api, worker, UI)"
+ 	@echo "  make slack-env-local    - merge SLACK_* into .env (needs SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID in env)"
+ 	@echo "  make droplet-sync       - rsync repo to Droplet (needs DROPLET=ip, optional REMOTE_PATH / SSH_USER)"
+@@ -17,6 +18,10 @@ help:
+ 	@echo "  make tf-init       - terraform init -upgrade (infra/terraform)"
+ 	@echo "  make tf-plan       - terraform plan (export TF_VAR_do_token and SPACES_* first)"
+ 
++verify-sample:
++	@chmod +x scripts/verify-sample-trace.sh
++	@./scripts/verify-sample-trace.sh
++
+ local:
+ 	docker compose up --build
+ 
+diff --git a/config/pilot_strategic.yaml b/config/pilot_strategic.yaml
+new file mode 100644
+index 0000000..bdb4b83
+--- /dev/null
++++ b/config/pilot_strategic.yaml
+@@ -0,0 +1,50 @@
++# Alternate scoring profile — "strategic / demand" agent (Agent Beacon).
++# Same region and deal rails as pilot.yaml; different scoring philosophy:
++# emphasize proximity to demand and corner visibility; zoning is still important but weighted lower.
++# CRS and ingest geometry unchanged.
++
++crs: EPSG:4326
++
++region:
++  name: "Puget Sound — Washington"
++  state_fips: "53"
++  county_fips:
++    - "53033"
++    - "53061"
++    - "53053"
++  primary_metro_cbsa: "42660"
++
++deal:
++  primary_structure: ground_lease
++  allowed_structures:
++    - ground_lease
++    - purchase_option
++  templates_require_legal_review: true
++
++compliance:
++  allowed_outreach_channels: []
++  require_human_approval_for:
++    - outbound_message
++    - contract_send
++    - contract_execute
++  tcpa_can_spam_review_required: true
++
++scoring:
++  # Slightly smaller minimum — urban pads can still work with entitlement/legal path elsewhere.
++  min_lot_sqft: 4000
++  qualified_min_score: 52
++  weights:
++    zoning_permitted_surface_parking: 25
++    lot_size: 20
++    corner_lot: 15
++    near_demand_generator_m: 40
++  demand_generator_buffer_m: 500
++  demand_generators:
++    - name: "Seattle downtown (illustrative)"
++      lat: 47.6062
++      lon: -122.3321
++
++data_sources:
++  parcel_vendor: "TBD — see docs/washington-data.md"
++  zoning_vendor: "TBD — see docs/washington-data.md"
++  poi_source: "osm_or_commercial_tbd"
+diff --git a/deploy/ci.env b/deploy/ci.env
+index 211f856..76eaae5 100644
+--- a/deploy/ci.env
++++ b/deploy/ci.env
+@@ -19,4 +19,5 @@ API_IMAGE=ghcr.io/example/parking-acquisition-api:latest
+ APPROVAL_UI_IMAGE=ghcr.io/example/parking-acquisition-approval-ui:latest
+ SLACK_BOT_TOKEN=
+ SLACK_DIGEST_CHANNEL_ID=
++SLACK_AGENT_EVENT_UPDATES=
+ POSTGRES_PASSWORD=ci-not-used
+diff --git a/deploy/docker-compose.production.ghcr-full.yml b/deploy/docker-compose.production.ghcr-full.yml
+index 53bb970..c4f8b8a 100644
+--- a/deploy/docker-compose.production.ghcr-full.yml
++++ b/deploy/docker-compose.production.ghcr-full.yml
+@@ -17,6 +17,7 @@ x-worker-beat-env: &worker-beat-env
+   CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+   CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+   PILOT_CONFIG_PATH: /app/config/pilot.yaml
++  PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+   STORAGE_ENDPOINT: ${STORAGE_ENDPOINT}
+   STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+   STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
+@@ -24,6 +25,8 @@ x-worker-beat-env: &worker-beat-env
+   STORAGE_REGION: ${STORAGE_REGION}
+   SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+   SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
++  SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
++  SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
+ 
+ services:
+   redis:
+@@ -48,6 +51,7 @@ services:
+       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+       PILOT_CONFIG_PATH: /app/config/pilot.yaml
++      PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+       STORAGE_ENDPOINT: ${STORAGE_ENDPOINT}
+       STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+       STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
+@@ -56,6 +60,10 @@ services:
+       API_PUBLIC_URL: ${PUBLIC_API_URL}
+       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-}
+       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
++      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
++      SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
++      SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
++      SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
+     volumes:
+       - ../config:/app/config:ro
+       - ../data:/app/data:ro
+diff --git a/deploy/docker-compose.production.ghcr.yml b/deploy/docker-compose.production.ghcr.yml
+index 0b41f89..3c42fe2 100644
+--- a/deploy/docker-compose.production.ghcr.yml
++++ b/deploy/docker-compose.production.ghcr.yml
+@@ -23,6 +23,7 @@ x-worker-beat-env: &worker-beat-env
+   CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+   CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+   PILOT_CONFIG_PATH: /app/config/pilot.yaml
++  PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+   STORAGE_ENDPOINT: ${STORAGE_ENDPOINT}
+   STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+   STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
+@@ -30,6 +31,8 @@ x-worker-beat-env: &worker-beat-env
+   STORAGE_REGION: ${STORAGE_REGION}
+   SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+   SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
++  SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
++  SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
+ 
+ services:
+   redis:
+@@ -54,6 +57,7 @@ services:
+       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+       PILOT_CONFIG_PATH: /app/config/pilot.yaml
++      PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+       STORAGE_ENDPOINT: ${STORAGE_ENDPOINT}
+       STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+       STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
+@@ -62,6 +66,10 @@ services:
+       API_PUBLIC_URL: ${PUBLIC_API_URL}
+       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-}
+       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
++      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
++      SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
++      SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
++      SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
+     volumes:
+       - ../config:/app/config:ro
+       - ../data:/app/data:ro
+diff --git a/deploy/docker-compose.production.yml b/deploy/docker-compose.production.yml
+index 12eb408..4be8189 100644
+--- a/deploy/docker-compose.production.yml
++++ b/deploy/docker-compose.production.yml
+@@ -19,6 +19,7 @@ x-worker-beat-env: &worker-beat-env
+   CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+   CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+   PILOT_CONFIG_PATH: /app/config/pilot.yaml
++  PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+   STORAGE_ENDPOINT: ${STORAGE_ENDPOINT}
+   STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+   STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
+@@ -26,6 +27,8 @@ x-worker-beat-env: &worker-beat-env
+   STORAGE_REGION: ${STORAGE_REGION}
+   SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+   SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
++  SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
++  SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
+ 
+ services:
+   redis:
+@@ -55,6 +58,7 @@ services:
+       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+       PILOT_CONFIG_PATH: /app/config/pilot.yaml
++      PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+       STORAGE_ENDPOINT: ${STORAGE_ENDPOINT}
+       STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+       STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
+@@ -63,6 +67,10 @@ services:
+       API_PUBLIC_URL: ${PUBLIC_API_URL}
+       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-}
+       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
++      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
++      SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
++      SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
++      SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
+     volumes:
+       - ../config:/app/config:ro
+       - ../data:/app/data:ro
+diff --git a/deploy/env.production.example b/deploy/env.production.example
+index e52abc0..44deea2 100644
+--- a/deploy/env.production.example
++++ b/deploy/env.production.example
+@@ -44,6 +44,15 @@ INTERNAL_API_KEY=
+ # Channel ID: right-click channel → View channel details → copy ID (starts with C).
+ # SLACK_BOT_TOKEN=xoxb-your-bot-token
+ # SLACK_DIGEST_CHANNEL_ID=C01234567890
++# Optional: dedicated channel for the two scoring agents (Atlas + Beacon) to post their daily comparison:
++# SLACK_AGENT_DISCUSSION_CHANNEL_ID=C01234567890
++# Optional: worker posts a Slack line after each ingest batch / pipeline run (can be noisy on bulk ingest):
++# SLACK_AGENT_EVENT_UPDATES=1
++
++# --- Pilot config (deterministic scoring inputs + weights) ---
++# PILOT_CONFIG_PATH defaults to /app/config/pilot.yaml in compose.
++# Optional alternate scoring profile config (Beacon) for dual-agent comparisons:
++# PILOT_STRATEGIC_CONFIG_PATH=/app/config/pilot_strategic.yaml
+ 
+ # --- Postgres (Managed DO or optional container on this Droplet) ---
+ # Managed (DigitalOcean): sslmode=require, host from DO control panel / Terraform.
+diff --git a/docker-compose.yml b/docker-compose.yml
+index 792911a..dc9f3b9 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -54,6 +54,7 @@ services:
+       CELERY_BROKER_URL: redis://redis:6379/0
+       CELERY_RESULT_BACKEND: redis://redis:6379/0
+       PILOT_CONFIG_PATH: /app/config/pilot.yaml
++      PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+       STORAGE_ENDPOINT: http://minio:9000
+       STORAGE_ACCESS_KEY: minio
+       STORAGE_SECRET_KEY: minio12345
+@@ -62,6 +63,8 @@ services:
+       # Same tokens as worker so /internal/slack/status and test-message match what Beat→worker digests use.
+       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+       SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
++      SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
++      SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
+     ports:
+       - "127.0.0.1:18000:8000"
+     volumes:
+@@ -100,6 +103,7 @@ services:
+       CELERY_BROKER_URL: redis://redis:6379/0
+       CELERY_RESULT_BACKEND: redis://redis:6379/0
+       PILOT_CONFIG_PATH: /app/config/pilot.yaml
++      PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+       STORAGE_ENDPOINT: http://minio:9000
+       STORAGE_ACCESS_KEY: minio
+       STORAGE_SECRET_KEY: minio12345
+@@ -107,6 +111,8 @@ services:
+       STORAGE_REGION: us-east-1
+       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+       SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
++      SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
++      SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
+     volumes:
+       - ./config:/app/config:ro
+       - ./data:/app/data:ro
+@@ -131,6 +137,7 @@ services:
+       CELERY_BROKER_URL: redis://redis:6379/0
+       CELERY_RESULT_BACKEND: redis://redis:6379/0
+       PILOT_CONFIG_PATH: /app/config/pilot.yaml
++      PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+       STORAGE_ENDPOINT: http://minio:9000
+       STORAGE_ACCESS_KEY: minio
+       STORAGE_SECRET_KEY: minio12345
+@@ -138,6 +145,8 @@ services:
+       STORAGE_REGION: us-east-1
+       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+       SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
++      SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
++      SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
+     volumes:
+       - ./config:/app/config:ro
+       - ./data:/app/data:ro
+@@ -164,6 +173,7 @@ services:
+       CELERY_BROKER_URL: redis://redis:6379/0
+       CELERY_RESULT_BACKEND: redis://redis:6379/0
+       PILOT_CONFIG_PATH: /app/config/pilot.yaml
++      PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+       STORAGE_ENDPOINT: http://minio:9000
+       STORAGE_ACCESS_KEY: minio
+       STORAGE_SECRET_KEY: minio12345
+@@ -171,6 +181,8 @@ services:
+       STORAGE_REGION: us-east-1
+       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+       SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
++      SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
++      SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
+       SLACK_APP_TOKEN: ${SLACK_APP_TOKEN:-}
+       SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
+     volumes:
+diff --git a/docs/PROJECT-FACTS.md b/docs/PROJECT-FACTS.md
+index 5699fac..d205e5c 100644
+--- a/docs/PROJECT-FACTS.md
++++ b/docs/PROJECT-FACTS.md
+@@ -19,15 +19,17 @@ Single place for **names, IDs, and paths** this codebase assumes. Update this fi
+ | **Worker / Beat health** | Compose sets **`healthcheck.disable: true`** on **worker** and **beat** (they do not serve `:8000`; image-level HTTP checks are wrong for Celery). |
+ | **API (localhost on droplet)** | `http://127.0.0.1:18000` |
+ | **Deploy / code sync** | Prefer **`git pull`** (or Actions deploy) so **`services/api/app`** stays consistent. Copying single files (e.g. only `internal.py`) can break imports against `models.py` / `schemas.py`. |
+-| **Internal Slack monitoring** | `GET /internal/slack/status`, `GET /internal/slack/last-digest`, `GET /internal/slack/digest-preview`, `POST /internal/slack/digest-now`, `POST /internal/slack/test-message` (some routes require `X-Internal-Key` when `INTERNAL_API_KEY` is set — see `docs/SLACK.md`). |
++| **Internal Slack monitoring** | `GET /internal/slack/status`, `GET /internal/slack/digest-preview`, `POST /internal/slack/digest-now`, `POST /internal/slack/test-message` (some routes require `X-Internal-Key` when `INTERNAL_API_KEY` is set — see `docs/SLACK.md`). |
+ 
+ ## Slack (digest + internal routes)
+ 
+ | Item | Value |
+ |------|--------|
+ | **Digest channel (human name)** | `#gf-parkinglot-agents-chat` |
+-| **Digest channel ID** | `C08OVPSAH44` (also default in `scripts/apply_slack_token.py`) |
+-| **Env vars** | `SLACK_BOT_TOKEN` (`xoxb-…`), `SLACK_DIGEST_CHANNEL_ID` |
++| **Digest channel ID** | **`C0B0VPSAH44`** for `#gf-parkinglot-agents-chat` in **Purveyors of Leisure** (copy from **Channel details** in Slack — IDs differ per workspace). Default in `scripts/apply_slack_token.py`. |
++| **Env vars** | `SLACK_BOT_TOKEN` (`xoxb-…`), `SLACK_DIGEST_CHANNEL_ID`, optional `SLACK_AGENT_EVENT_UPDATES=1` (worker posts per ingest/pipeline lines — see `docs/SLACK.md`) |
++| **Slack & data** | Pipeline inputs and digests are **not sensitive** — OK to post to Slack; still keep **`SLACK_BOT_TOKEN`** secret ([`SLACK.md`](SLACK.md#non-sensitive-pilot-data)). |
++| **Production API** | `deploy/docker-compose.production*.yml` pass the same `SLACK_*` values to **`api`** as **worker** / **beat** so `/internal/slack/*` matches digest config. |
+ | **Apply token on server** | `cd /opt/workspaces/parkinglot && python3 scripts/apply_slack_token.py 'xoxb-…'` |
+ 
+ ### Bot name (not in git — fill once)
+diff --git a/docs/SLACK.md b/docs/SLACK.md
+index 19645c2..3f29461 100644
+--- a/docs/SLACK.md
++++ b/docs/SLACK.md
+@@ -1,16 +1,33 @@
+ # Slack integration
+ 
+-The stack can post a **recurring “agent standup”** to a Slack channel: one Block Kit message every **4 hours (UTC)** summarizing what the pipeline has been doing (new parcels, workflow status changes, pending human approvals, recent audit lines). This is **outbound notification**, not a full chat employee — see [Limits](#limits-and-future-work) below.
++The stack can post a **recurring “agent standup”** to a Slack channel: one Block Kit message every **4 hours (UTC)** summarizing what the pipeline has been doing (new parcels, workflow status changes, pending human approvals, recent audit lines). **Once per day (14:00 UTC)** it also posts a **qualified-parcels report**: latest score per parcel vs `qualified_min_score` from the pilot config, with a short **why** line (zoning, lot size, corner, demand) for qualified rows and a sample of not-qualified rows.
++
++Separately, you can configure a **dedicated “agent discussion” channel** where the two deterministic scoring agents post three messages: **Atlas** (entitlement lens), **Beacon** (demand/visibility lens), then a **joint comparison** (consensus + disagreements). This is **outbound notification**, not a full chat employee — see [Limits](#limits-and-future-work) below.
++
++## Non-sensitive pilot data
++
++The data agents work on here (parcel attributes, scores, workflow status, sample/bundled GeoJSON) is **not sensitive**. Posting digests or optional agent lines to Slack is fine from a data-classification standpoint—use Slack for visibility. You should still **protect the bot token** (`SLACK_BOT_TOKEN`); it is a credential, not the parcel payload.
+ 
+ ## What runs where
+ 
+ | Component | Role |
+ |-----------|------|
+-| **Celery Beat** (`beat` service in compose) | Sends `slack_agent_digest` to the broker on a cron (`minute=0`, `hour=*/4` UTC). |
+-| **Celery worker** | Executes `slack_agent_digest`: reads Postgres, calls Slack `chat.postMessage`. |
+-| **FastAPI** | `POST /internal/slack/digest-now` enqueues the same task (optional manual test; requires `X-Internal-Key` when `INTERNAL_API_KEY` is set). |
++| **Celery Beat** (`beat` service in compose) | Sends `slack_agent_digest` every **4h** (`hour=*/4` UTC), `slack_qualified_parcels_report` once daily (**14:00 UTC**), and `slack_dual_agent_discussion` once daily (**15:30 UTC**). |
++| **Celery worker** | Executes those tasks: reads Postgres, calls Slack `chat.postMessage` to **`SLACK_DIGEST_CHANNEL_ID`** (digest/verified channel) and optionally **`SLACK_AGENT_DISCUSSION_CHANNEL_ID`** (agents-only channel). |
++| **FastAPI** | `POST /internal/slack/digest-now`, `POST /internal/slack/qualified-parcels-now`, and `POST /internal/slack/agent-discussion-now` enqueue the matching tasks (manual test; requires `X-Internal-Key` when `INTERNAL_API_KEY` is set). |
++
++If Slack env is unset, tasks **no-op** (return `skipped` in the task result) so stacks without Slack keep working. The dual-agent discussion needs **`SLACK_BOT_TOKEN`** and **`SLACK_AGENT_DISCUSSION_CHANNEL_ID`**.
++
++### Per-task “agent” updates (optional)
++
++Set **`SLACK_AGENT_EVENT_UPDATES=1`** (or `true` / `yes` / `on`) in the same env as the **Celery worker** (and API if you want `GET /internal/slack/status` to report the flag). When Slack is fully configured, the worker posts short messages for:
++
++- **Ingest agent** — after each `ingest_geojson_path` run (counts + optional pipeline enqueue summary).
++- **Scoring & pipeline agent** — on each `run_pipeline` success or failure (includes a **Human-gate coordinator** line on success: pending approvals).
++
++Leave unset in production if you only want the **4-hour digest** and manual/API test messages — bulk ingest can generate many Slack lines.
+ 
+-If **`SLACK_BOT_TOKEN`** or **`SLACK_DIGEST_CHANNEL_ID`** is unset, the task **no-ops** (returns `skipped` in the task result) so stacks without Slack keep working.
++**Production compose:** the **`api`** service receives the same **`SLACK_*`** variables as **worker** / **beat** so `GET /internal/slack/status` and **`POST /internal/slack/test-message`** match the worker’s Slack configuration.
+ 
+ ## Slack app setup
+ 
+@@ -68,6 +85,12 @@ With **`X-Internal-Key`** set as for other `/internal/*` routes:
+ - **Manual fire:**  
+   `curl -sS -X POST "https://$API_HOST/internal/slack/digest-now" -H "X-Internal-Key: $INTERNAL_API_KEY"`  
+   Then check **`GET /internal/tasks/{task_id}`** for Celery state.
++- **Qualified-parcels report (same channel):**  
++  `curl -sS -X POST "https://$API_HOST/internal/slack/qualified-parcels-now" -H "X-Internal-Key: $INTERNAL_API_KEY"`  
++  Same polling as above. Beat runs this daily; adjust time in `app/celery_app.py` (`slack-qualified-parcels-daily`).
++- **Dual-agent discussion (agents-only channel):**  
++  `curl -sS -X POST "https://$API_HOST/internal/slack/agent-discussion-now" -H "X-Internal-Key: $INTERNAL_API_KEY"`  
++  Beat runs this daily; adjust time in `app/celery_app.py` (`slack-dual-agent-discussion-daily`). You can preview the payload (no posting) via `GET /internal/slack/agent-discussion-preview`.
+ - **Schedule:** Defined in `app/celery_app.py` (`beat_schedule`). To change cadence, edit the `crontab` and redeploy Beat.
+ 
+ ### Post-deploy Slack ping from GitHub Actions
+@@ -97,7 +120,8 @@ Workflow file: [`.github/workflows/slack-digest-now-via-droplet.yml`](../.github
+ | Symptom | What to check |
+ |--------|----------------|
+ | Digest never appears | **`GET /internal/slack/status`** — both flags should be true. Worker logs for `slack_agent_digest`. **Beat** container running (`docker compose ps beat`). |
+-| `not_in_channel` / `channel_not_found` | Bot not invited: **`/invite @YourApp`** in that channel. **`SLACK_DIGEST_CHANNEL_ID`** must match the channel (public `C…`, private often `G…`). |
++| `not_in_channel` | Bot not invited: **`/invite @YourApp`** in that channel. |
++| `channel_not_found` (token OK) | **Wrong channel for this workspace** — copy the ID from Slack (**About / channel details**), or set **`SLACK_DIGEST_CHANNEL_ID=gf-parkinglot-agents-chat`**. |
+ | `invalid_auth` / `token_revoked` | Regenerate token in Slack app **OAuth** page; update **`SLACK_BOT_TOKEN`** and restart **worker** + **beat**. |
+ | `missing_scope` | Re-add **`chat:write`** (and reinstall app to workspace). |
+ | Task returns `skipped` | One of **`SLACK_BOT_TOKEN`** / **`SLACK_DIGEST_CHANNEL_ID`** is empty in the **worker** environment. |
+diff --git a/scripts/apply_slack_token.py b/scripts/apply_slack_token.py
+index dbc6ec8..213628d 100755
+--- a/scripts/apply_slack_token.py
++++ b/scripts/apply_slack_token.py
+@@ -11,7 +11,8 @@ from pathlib import Path
+ 
+ ROOT = Path(__file__).resolve().parent.parent
+ ENV_PATH = ROOT / ".env"
+-DEFAULT_CHANNEL = "C08OVPSAH44"
++# Purveyors of Leisure — #gf-parkinglot-agents-chat (copy from Slack channel details if yours differs).
++DEFAULT_CHANNEL = "C0B0VPSAH44"
+ 
+ 
+ def _drop_slack_assignment(line: str) -> bool:
+diff --git a/scripts/verify-sample-trace.sh b/scripts/verify-sample-trace.sh
+new file mode 100755
+index 0000000..e6d58b7
+--- /dev/null
++++ b/scripts/verify-sample-trace.sh
+@@ -0,0 +1,15 @@
++#!/usr/bin/env bash
++# Install workspace packages into .venv (first run) and run the sample parking trace tests.
++# Same packages as CI (.github/workflows/ci.yml "Install workspace packages").
++set -euo pipefail
++ROOT="$(cd "$(dirname "$0")/.." && pwd)"
++cd "$ROOT"
++VENV="${ROOT}/.venv"
++PY="${VENV}/bin/python"
++if [[ ! -x "$PY" ]]; then
++  python3 -m venv "${VENV}"
++  PY="${VENV}/bin/python"
++  "${PY}" -m pip install --upgrade pip
++  "${PY}" -m pip install ./packages/core ./services/scoring ./services/ingestion ./services/enrichment ./services/workflows "./services/api[dev]"
++fi
++exec "${PY}" -m pytest "${ROOT}/services/api/tests/test_sample_parking_trace.py" -v --tb=short "$@"
+diff --git a/services/api/alembic/versions/20260501_0002_parcel_score_profile.py b/services/api/alembic/versions/20260501_0002_parcel_score_profile.py
+new file mode 100644
+index 0000000..1782488
+--- /dev/null
++++ b/services/api/alembic/versions/20260501_0002_parcel_score_profile.py
+@@ -0,0 +1,35 @@
++"""Add score_profile to parcel_scores for dual scoring agents.
++
++Revision ID: 20260501_0002
++Revises: 20260429_0001
++Create Date: 2026-05-01
++
++"""
++
++from __future__ import annotations
++
++import sqlalchemy as sa
++from alembic import op
++
++revision = "20260501_0002"
++down_revision = "0001"
++branch_labels = None
++depends_on = None
++
++
++def upgrade() -> None:
++    op.add_column(
++        "parcel_scores",
++        sa.Column("score_profile", sa.String(length=32), nullable=False, server_default="entitlement"),
++    )
++    op.create_index(
++        "ix_parcel_scores_parcel_id_profile",
++        "parcel_scores",
++        ["parcel_id", "score_profile"],
++    )
++    op.alter_column("parcel_scores", "score_profile", server_default=None)
++
++
++def downgrade() -> None:
++    op.drop_index("ix_parcel_scores_parcel_id_profile", table_name="parcel_scores")
++    op.drop_column("parcel_scores", "score_profile")
+diff --git a/services/api/app/celery_app.py b/services/api/app/celery_app.py
+index fac088d..091a00f 100644
+--- a/services/api/app/celery_app.py
++++ b/services/api/app/celery_app.py
+@@ -21,6 +21,14 @@ celery.conf.update(
+             "task": "app.tasks.slack_agent_digest",
+             "schedule": crontab(minute=0, hour="*/4"),
+         },
++        "slack-qualified-parcels-daily": {
++            "task": "app.tasks.slack_qualified_parcels_report",
++            "schedule": crontab(minute=0, hour=14),
++        },
++        "slack-dual-agent-discussion-daily": {
++            "task": "app.tasks.slack_dual_agent_discussion",
++            "schedule": crontab(minute=30, hour=15),
++        },
+     },
+ )
+ 
+diff --git a/services/api/app/config.py b/services/api/app/config.py
+index c0b1b89..6fc6a8d 100644
+--- a/services/api/app/config.py
++++ b/services/api/app/config.py
+@@ -24,6 +24,10 @@ class Settings(BaseSettings):
+     celery_broker_url: str = "redis://localhost:6379/0"
+     celery_result_backend: str = "redis://localhost:6379/0"
+     pilot_config_path: str = "./config/pilot.yaml"
++    pilot_strategic_config_path: str = Field(
++        default="./config/pilot_strategic.yaml",
++        validation_alias=AliasChoices("PILOT_STRATEGIC_CONFIG_PATH", "pilot_strategic_config_path"),
++    )
+     storage_endpoint: str = "http://localhost:9000"
+     storage_access_key: str = "minio"
+     storage_secret_key: str = "minio12345"
+@@ -37,6 +41,19 @@ class Settings(BaseSettings):
+         default="",
+         validation_alias=AliasChoices("SLACK_DIGEST_CHANNEL_ID", "slack_digest_channel_id"),
+     )
++    # Dedicated channel for dual-agent score comparison messages (optional).
++    slack_agent_discussion_channel_id: str = Field(
++        default="",
++        validation_alias=AliasChoices(
++            "SLACK_AGENT_DISCUSSION_CHANNEL_ID",
++            "slack_agent_discussion_channel_id",
++        ),
++    )
++    # When set to 1/true/yes/on: worker posts short Slack lines for ingest + pipeline tasks (in addition to digest).
++    slack_agent_event_updates: str = Field(
++        default="",
++        validation_alias=AliasChoices("SLACK_AGENT_EVENT_UPDATES", "slack_agent_event_updates"),
++    )
+ 
+ 
+ @lru_cache
+diff --git a/services/api/app/db/models.py b/services/api/app/db/models.py
+index 91c5997..8f2f5d7 100644
+--- a/services/api/app/db/models.py
++++ b/services/api/app/db/models.py
+@@ -39,6 +39,8 @@ class ParcelScore(Base):
+ 
+     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+     parcel_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("parcels.id", ondelete="CASCADE"))
++    # entitlement = zoning-forward (pilot.yaml); strategic = demand/visibility-forward (pilot_strategic.yaml)
++    score_profile: Mapped[str] = mapped_column(String(32), nullable=False, default="entitlement")
+     total_score: Mapped[float] = mapped_column(Float, nullable=False)
+     breakdown: Mapped[dict] = mapped_column(JSONB, nullable=False)
+     pilot_snapshot: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+diff --git a/services/api/app/memo_render.py b/services/api/app/memo_render.py
+index 6d3fd80..a0ec53c 100644
+--- a/services/api/app/memo_render.py
++++ b/services/api/app/memo_render.py
+@@ -1,6 +1,6 @@
+ from __future__ import annotations
+ 
+-from parking_core.models import ScoreResult
++from parking_core.models import OwnerOutreachBrief, ScoreResult
+ 
+ 
+ def build_deal_memo_markdown(
+@@ -11,6 +11,7 @@ def build_deal_memo_markdown(
+     lot_sqft: float | None,
+     score: ScoreResult,
+     owner_lines: list[str],
++    outreach_brief: OwnerOutreachBrief | None = None,
+ ) -> tuple[str, str, list[str]]:
+     title = f"Deal memo — {apn} ({county_fips})"
+     open_questions = [
+@@ -41,6 +42,49 @@ def build_deal_memo_markdown(
+             "## Owner candidates (enrichment)",
+             "\n".join(f"- {line}" for line in owner_lines) or "- (none)",
+             "",
++        ]
++    )
++    if outreach_brief is not None:
++        ob = outreach_brief
++        step_lines = []
++        for s in ob.steps:
++            step_lines.append(
++                f"{s.rank}. **{s.title}** (`{s.channel.value}`) — conf {s.confidence:.2f}, "
++                f"human={'yes' if s.requires_human else 'no'}\n   - {s.instruction}"
++            )
++        gap_lines = "\n".join(f"- {g}" for g in ob.data_gaps) or "- (none)"
++        comp_lines = "\n".join(f"- {c}" for c in ob.compliance_notes) or "- (none)"
++        contact_bits = [
++            f"- **Recorded owner**: {ob.recorded_owner_one_liner}",
++        ]
++        if ob.mailing_address_guess:
++            contact_bits.append(f"- **Mailing (guess)**: {ob.mailing_address_guess}")
++        if ob.situs_address_guess:
++            contact_bits.append(f"- **Situs (guess)**: {ob.situs_address_guess}")
++        if ob.phone_guess:
++            contact_bits.append(f"- **Phone (guess)**: {ob.phone_guess}")
++        if ob.email_guess:
++            contact_bits.append(f"- **Email (guess)**: {ob.email_guess}")
++        extra = "\n".join(
++            [
++                "",
++                "## Owner outreach brief (deterministic rules)",
++                "\n".join(contact_bits),
++                "",
++                "### Prioritized steps",
++                "\n".join(step_lines) if step_lines else "- (none)",
++                "",
++                "### Data gaps",
++                gap_lines,
++                "",
++                "### Compliance",
++                comp_lines,
++                "",
++            ]
++        )
++        md = md + extra
++    md += "\n".join(
++        [
+             "## Non-binding next steps",
+             "- Human review of this memo and attached draft contract.",
+             "- Counsel review before any outreach or execution.",
+diff --git a/services/api/app/routers/internal.py b/services/api/app/routers/internal.py
+index aa91d99..5529e10 100644
+--- a/services/api/app/routers/internal.py
++++ b/services/api/app/routers/internal.py
+@@ -14,8 +14,19 @@ from app.db.models import Parcel, ParcelScore
+ from app.db.session import get_db
+ from app.deps_internal import require_internal_key
+ from app.schemas import IngestGeojsonServerPathRequest, SlackTestMessageRequest
+-from app.slack_digest import post_text_to_slack
+-from app.tasks import ingest_geojson_path, run_pipeline, slack_agent_digest
++from app.slack_digest import (
++    build_dual_agent_discussion_posts,
++    build_slack_digest_blocks,
++    post_text_to_slack,
++    slack_agent_event_updates_enabled,
++)
++from app.tasks import (
++    ingest_geojson_path,
++    run_pipeline,
++    slack_agent_digest,
++    slack_dual_agent_discussion,
++    slack_qualified_parcels_report,
++)
+ 
+ router = APIRouter(
+     prefix="/internal",
+@@ -55,10 +66,30 @@ def slack_config_status() -> dict[str, bool]:
+     s = get_settings()
+     has_token = bool((s.slack_bot_token or "").strip())
+     has_channel = bool((s.slack_digest_channel_id or "").strip())
++    has_agent_ch = bool((s.slack_agent_discussion_channel_id or "").strip())
+     return {
+         "slack_digest_configured": has_token and has_channel,
+         "has_bot_token": has_token,
+         "has_digest_channel_id": has_channel,
++        "slack_dual_agent_configured": has_token and has_agent_ch,
++        "has_agent_discussion_channel_id": has_agent_ch,
++        "slack_agent_event_updates_enabled": slack_agent_event_updates_enabled(s),
++    }
++
++
++@router.get("/slack/digest-preview")
++def slack_digest_preview(hours: int = 4, db: Session = Depends(get_db)) -> dict[str, Any]:
++    """Build the next digest body from the DB without posting to Slack (debug Beat / channel config)."""
++    h = min(max(hours, 1), 24)
++    blocks, fallback = build_slack_digest_blocks(db, hours=h)
++    s = get_settings()
++    ch = (s.slack_digest_channel_id or "").strip()
++    return {
++        "hours": h,
++        "slack_digest_configured": bool((s.slack_bot_token or "").strip() and ch),
++        "digest_channel_id_set": bool(ch),
++        "fallback_preview": fallback,
++        "blocks": blocks,
+     }
+ 
+ 
+@@ -69,6 +100,30 @@ def trigger_slack_digest() -> dict[str, str]:
+     return {"task_id": async_result.id}
+ 
+ 
++@router.post("/slack/qualified-parcels-now")
++def trigger_qualified_parcels_report() -> dict[str, str]:
++    """Enqueue qualified-parcels Slack report (same task Beat runs daily)."""
++    async_result = slack_qualified_parcels_report.delay()
++    return {"task_id": async_result.id}
++
++
++@router.get("/slack/agent-discussion-preview")
++def slack_agent_discussion_preview(db: Session = Depends(get_db)) -> dict[str, Any]:
++    """Build dual-agent Slack payloads without posting (debug channel + DB)."""
++    posts = build_dual_agent_discussion_posts(db, settings=get_settings())
++    return {
++        "message_count": len(posts),
++        "messages": [{"fallback": fb, "blocks": blocks} for blocks, fb in posts],
++    }
++
++
++@router.post("/slack/agent-discussion-now")
++def trigger_agent_discussion() -> dict[str, str]:
++    """Enqueue dual-agent discussion (same task Beat posts to agent channel)."""
++    async_result = slack_dual_agent_discussion.delay()
++    return {"task_id": async_result.id}
++
++
+ @router.post("/slack/test-message")
+ def slack_test_message(body: SlackTestMessageRequest) -> dict[str, object]:
+     """Send a one-off message to Slack.
+diff --git a/services/api/app/routers/parcels.py b/services/api/app/routers/parcels.py
+index 3ebe038..10bc354 100644
+--- a/services/api/app/routers/parcels.py
++++ b/services/api/app/routers/parcels.py
+@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
+ from app.db.models import Parcel, ParcelScore, WorkflowRun
+ from app.db.session import get_db
+ from app.schemas import ParcelRead, ParcelScoreRead, WorkflowRunRead
++from app.scoring_profiles import ENTITLEMENT, ScoreProfile
+ from app.tasks import run_pipeline
+ from parking_core.pilot import load_pilot_config
+ 
+@@ -34,6 +35,7 @@ def list_parcels(
+         latest_total = (
+             select(ParcelScore.total_score)
+             .where(ParcelScore.parcel_id == Parcel.id)
++            .where(ParcelScore.score_profile == ENTITLEMENT)
+             .order_by(desc(ParcelScore.created_at))
+             .limit(1)
+             .scalar_subquery()
+@@ -76,10 +78,15 @@ def list_workflow_runs_for_parcel(
+ 
+ 
+ @router.get("/{parcel_id}/score", response_model=ParcelScoreRead)
+-def get_latest_score(parcel_id: uuid.UUID, db: Session = Depends(get_db)) -> ParcelScore:
++def get_latest_score(
++    parcel_id: uuid.UUID,
++    profile: ScoreProfile = ENTITLEMENT,
++    db: Session = Depends(get_db),
++) -> ParcelScore:
+     stmt = (
+         select(ParcelScore)
+         .where(ParcelScore.parcel_id == parcel_id)
++        .where(ParcelScore.score_profile == profile)
+         .order_by(ParcelScore.created_at.desc())
+         .limit(1)
+     )
+diff --git a/services/api/app/schemas.py b/services/api/app/schemas.py
+index 0a80322..de3e797 100644
+--- a/services/api/app/schemas.py
++++ b/services/api/app/schemas.py
+@@ -28,6 +28,7 @@ class ParcelScoreRead(BaseModel):
+ 
+     id: uuid.UUID
+     parcel_id: uuid.UUID
++    score_profile: str
+     total_score: float
+     breakdown: dict[str, Any]
+     pilot_snapshot: dict[str, Any] | None
+diff --git a/services/api/app/scoring_profiles.py b/services/api/app/scoring_profiles.py
+new file mode 100644
+index 0000000..b1b0163
+--- /dev/null
++++ b/services/api/app/scoring_profiles.py
+@@ -0,0 +1,19 @@
++"""Named score profiles for dual deterministic scorers (see config/pilot*.yaml)."""
++
++from __future__ import annotations
++
++from typing import Final, Literal
++
++ENTITLEMENT: Final = "entitlement"
++STRATEGIC: Final = "strategic"
++
++ScoreProfile = Literal["entitlement", "strategic"]
++
++# Slack-facing labels
++AGENT_ENTITLEMENT_NAME: Final = "Agent Atlas"
++AGENT_ENTITLEMENT_TAGLINE: Final = "Entitlement & zoning (pilot.yaml)"
++
++AGENT_STRATEGIC_NAME: Final = "Agent Beacon"
++AGENT_STRATEGIC_TAGLINE: Final = "Strategic — demand & visibility (pilot_strategic.yaml)"
++
++ALL_PROFILES: tuple[str, ...] = (ENTITLEMENT, STRATEGIC)
+diff --git a/services/api/app/slack_digest.py b/services/api/app/slack_digest.py
+index 744bf9c..3978a55 100644
+--- a/services/api/app/slack_digest.py
++++ b/services/api/app/slack_digest.py
+@@ -10,7 +10,16 @@ from sqlalchemy import and_, func, select
+ from sqlalchemy.orm import Session
+ 
+ from app.config import Settings
+-from app.db.models import ApprovalRequest, AuditLog, Parcel, WorkflowRun
++from app.db.models import ApprovalRequest, AuditLog, Parcel, ParcelScore, WorkflowRun
++from app.scoring_profiles import (
++    AGENT_ENTITLEMENT_NAME,
++    AGENT_ENTITLEMENT_TAGLINE,
++    AGENT_STRATEGIC_NAME,
++    AGENT_STRATEGIC_TAGLINE,
++    ENTITLEMENT,
++    STRATEGIC,
++)
++from parking_core.pilot import load_pilot_config
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -137,20 +146,363 @@ def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict
+     return blocks, fallback
+ 
+ 
++def _rationale_line(breakdown: dict[str, Any], *, total: float, floor: float, qualified: bool) -> str:
++    """Short operator-facing line from deterministic score breakdown JSON."""
++    z = float(breakdown.get("zoning_component") or 0)
++    l = float(breakdown.get("lot_size_component") or 0)
++    c = float(breakdown.get("corner_component") or 0)
++    d = float(breakdown.get("demand_proximity_component") or 0)
++    bits: list[str] = []
++    bits.append("zoning" if z > 0 else "no zoning credit")
++    bits.append("lot size" if l > 0 else "lot below min / missing")
++    bits.append("corner" if c > 0 else "not corner")
++    bits.append("near demand" if d > 0 else "demand distance weak/missing")
++    notes = breakdown.get("notes") or []
++    note_tail = ""
++    if notes:
++        note_tail = " _" + " ".join(str(n) for n in notes[:4]) + "_"
++    q = "meets floor" if qualified else "below floor"
++    return f"*{total:.0f}/100* ({q}, floor *{floor:.0f}*) — {', '.join(bits)}.{note_tail}"
++
++
++def _fetch_latest_scores_per_parcel(db: Session, *, profile: str = ENTITLEMENT) -> list[tuple[Parcel, ParcelScore]]:
++    """One latest ParcelScore row per parcel for a score profile (by created_at)."""
++    agg = (
++        select(ParcelScore.parcel_id, func.max(ParcelScore.created_at).label("mx"))
++        .where(ParcelScore.score_profile == profile)
++        .group_by(ParcelScore.parcel_id)
++        .subquery()
++    )
++    stmt = (
++        select(Parcel, ParcelScore)
++        .join(ParcelScore, Parcel.id == ParcelScore.parcel_id)
++        .join(
++            agg,
++            and_(
++                ParcelScore.parcel_id == agg.c.parcel_id,
++                ParcelScore.created_at == agg.c.mx,
++                ParcelScore.score_profile == profile,
++            ),
++        )
++    )
++    return list(db.execute(stmt).all())
++
++
++def _paired_latest_scores(db: Session) -> list[tuple[Parcel, ParcelScore, ParcelScore]]:
++    """Parcels that have a latest entitlement score and a latest strategic score."""
++    ent_rows = _fetch_latest_scores_per_parcel(db, profile=ENTITLEMENT)
++    str_rows = _fetch_latest_scores_per_parcel(db, profile=STRATEGIC)
++    by_ent = {p.id: (p, ps) for p, ps in ent_rows}
++    by_str = {p.id: (p, ps) for p, ps in str_rows}
++    common = by_ent.keys() & by_str.keys()
++    out: list[tuple[Parcel, ParcelScore, ParcelScore]] = []
++    for pid in common:
++        p1, e = by_ent[pid]
++        _, s = by_str[pid]
++        out.append((p1, e, s))
++    return out
++
++
++def _trim_mrkdwn(s: str, cap: int = 2800) -> str:
++    if len(s) <= cap:
++        return s
++    return s[: cap - 3] + "…"
++
++
++def build_qualified_parcels_report_blocks(
++    db: Session,
++    *,
++    settings: Settings,
++    max_qualified: int = 20,
++    max_unqualified: int = 12,
++) -> tuple[list[dict[str, Any]], str]:
++    """Block Kit report: parcels with latest scores vs pilot qualified_min_score, with rationale."""
++    pilot = load_pilot_config(settings.pilot_config_path)
++    floor = float(pilot.scoring.qualified_min_score)
++    region = pilot.region.name
++
++    rows = _fetch_latest_scores_per_parcel(db, profile=ENTITLEMENT)
++    qualified: list[tuple[Parcel, ParcelScore]] = []
++    unqualified: list[tuple[Parcel, ParcelScore]] = []
++    for parcel, ps in rows:
++        if float(ps.total_score) >= floor:
++            qualified.append((parcel, ps))
++        else:
++            unqualified.append((parcel, ps))
++    qualified.sort(key=lambda x: float(x[1].total_score), reverse=True)
++    unqualified.sort(key=lambda x: float(x[1].total_score), reverse=True)
++    qualified = qualified[:max_qualified]
++    unqualified = unqualified[:max_unqualified]
++
++    ts = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
++    fallback = (
++        f"Qualified parcels report ({region}) — floor {floor:.0f} — "
++        f"{len(qualified)} shown qualified, {len(unqualified)} shown not — {ts}"
++    )
++
++    def lines_for(pairs: list[tuple[Parcel, ParcelScore]], *, ok: bool) -> str:
++        out: list[str] = []
++        for parcel, ps in pairs:
++            bd = ps.breakdown if isinstance(ps.breakdown, dict) else {}
++            line = _rationale_line(bd, total=float(ps.total_score), floor=floor, qualified=ok)
++            out.append(f"• `{parcel.apn}` ({parcel.county_fips}) — {line}")
++        return "\n".join(out) if out else "_(none in this list)_"
++
++    q_body = lines_for(qualified, ok=True)
++    u_body = lines_for(unqualified, ok=False)
++
++    blocks: list[dict[str, Any]] = [
++        {
++            "type": "header",
++            "text": {"type": "plain_text", "text": "Qualified parcels — scoring agent", "emoji": True},
++        },
++        {
++            "type": "context",
++            "elements": [
++                {
++                    "type": "mrkdwn",
++                    "text": (
++                        f"_{region}_ · pilot floor *{floor:.0f}* (`qualified_min_score`) · "
++                        f"{len(rows)} parcel(s) with a score · _{ts}_"
++                    ),
++                },
++            ],
++        },
++        {"type": "divider"},
++        {
++            "type": "section",
++            "text": {
++                "type": "mrkdwn",
++                "text": "*Qualified* (latest score ≥ floor)\n" + _trim_mrkdwn(q_body),
++            },
++        },
++        {"type": "divider"},
++        {
++            "type": "section",
++            "text": {
++                "type": "mrkdwn",
++                "text": "*Not qualified* (sample, below floor — why)\n" + _trim_mrkdwn(u_body),
++            },
++        },
++        {
++            "type": "context",
++            "elements": [
++                {
++                    "type": "mrkdwn",
++                    "text": "_Scores are deterministic from ingest flags + pilot weights in `config/pilot.yaml`. API: `GET /parcels?qualified_only=true`._",
++                },
++            ],
++        },
++    ]
++    return blocks, fallback
++
++
+ def post_digest_to_slack(settings: Settings, blocks: list[dict[str, Any]], fallback: str) -> dict[str, Any]:
+-    token = (settings.slack_bot_token or "").strip()
+     channel = (settings.slack_digest_channel_id or "").strip()
++    return post_blocks_to_slack_channel(settings, channel_id=channel, blocks=blocks, fallback=fallback)
++
++
++def post_blocks_to_slack_channel(
++    settings: Settings,
++    *,
++    channel_id: str,
++    blocks: list[dict[str, Any]],
++    fallback: str,
++) -> dict[str, Any]:
++    token = (settings.slack_bot_token or "").strip()
++    channel = (channel_id or "").strip()
+     if not token or not channel:
+         raise ValueError("slack not configured")
+     client = WebClient(token=token)
+     try:
+         resp = client.chat_postMessage(channel=channel, blocks=blocks, text=fallback)
+-        return {"ok": resp.get("ok"), "ts": resp.get("ts")}
++        return {"ok": resp.get("ok"), "ts": resp.get("ts"), "channel": resp.get("channel")}
+     except SlackApiError as e:
+-        logger.exception("Slack API error posting digest")
++        logger.exception("Slack API error posting blocks")
+         raise RuntimeError(e.response.get("error", str(e))) from e
+ 
+ 
++def build_dual_agent_discussion_posts(
++    db: Session,
++    *,
++    settings: Settings,
++    max_lines: int = 14,
++) -> list[tuple[list[dict[str, Any]], str]]:
++    """Sequential Slack messages: Atlas, Beacon, then joint comparison (same channel, not a thread)."""
++    pilot_ent = load_pilot_config(settings.pilot_config_path)
++    pilot_str = load_pilot_config(settings.pilot_strategic_config_path)
++    floor_ent = float(pilot_ent.scoring.qualified_min_score)
++    floor_str = float(pilot_str.scoring.qualified_min_score)
++    ts = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
++
++    pairs = _paired_latest_scores(db)
++    if not pairs:
++        fb = f"Dual-agent channel — no parcels with both scores yet · {ts}"
++        blocks: list[dict[str, Any]] = [
++            {
++                "type": "header",
++                "text": {"type": "plain_text", "text": "Scoring agents — waiting for data", "emoji": True},
++            },
++            {
++                "type": "section",
++                "text": {
++                    "type": "mrkdwn",
++                    "text": (
++                        "_Atlas_ (entitlement / `pilot.yaml`) and _Beacon_ (strategic / `pilot_strategic.yaml`) "
++                        "both need a fresh score per parcel. Re-run **`POST /parcels/{id}/pipeline/run`** or ingest "
++                        "with auto-pipeline so each parcel gets *two* `parcel_scores` rows."
++                    ),
++                },
++            },
++        ]
++        return [(blocks, fb)]
++
++    pairs.sort(key=lambda t: float(t[1].total_score), reverse=True)
++    atlas_lines: list[str] = []
++    for parcel, ps_e, ps_s in pairs[:max_lines]:
++        bd = ps_e.breakdown if isinstance(ps_e.breakdown, dict) else {}
++        line = _rationale_line(bd, total=float(ps_e.total_score), floor=floor_ent, qualified=float(ps_e.total_score) >= floor_ent)
++        atlas_lines.append(f"• `{parcel.apn}` ({parcel.county_fips}) — {line}")
++    atlas_body = "\n".join(atlas_lines) if atlas_lines else "_(none)_"
++
++    pairs_beacon = sorted(pairs, key=lambda t: float(t[2].total_score), reverse=True)
++    beacon_lines: list[str] = []
++    for parcel, ps_e, ps_s in pairs_beacon[:max_lines]:
++        bd = ps_s.breakdown if isinstance(ps_s.breakdown, dict) else {}
++        line = _rationale_line(bd, total=float(ps_s.total_score), floor=floor_str, qualified=float(ps_s.total_score) >= floor_str)
++        beacon_lines.append(f"• `{parcel.apn}` ({parcel.county_fips}) — {line}")
++    beacon_body = "\n".join(beacon_lines) if beacon_lines else "_(none)_"
++
++    consensus: list[str] = []
++    atlas_only: list[str] = []
++    beacon_only: list[str] = []
++    for parcel, ps_e, ps_s in pairs:
++        e_ok = float(ps_e.total_score) >= floor_ent
++        s_ok = float(ps_s.total_score) >= floor_str
++        de = float(ps_e.total_score)
++        ds = float(ps_s.total_score)
++        if e_ok and s_ok:
++            consensus.append(f"• `{parcel.apn}` — Atlas *{de:.0f}* · Beacon *{ds:.0f}*")
++        elif e_ok and not s_ok:
++            atlas_only.append(f"• `{parcel.apn}` — Atlas *{de:.0f}* vs Beacon *{ds:.0f}* _(zoning-weighted vs demand-weighted)_")
++        elif s_ok and not e_ok:
++            beacon_only.append(f"• `{parcel.apn}` — Beacon *{ds:.0f}* vs Atlas *{de:.0f}* _(location wins here)_")
++    joint_parts = [
++        "*Strong consensus* (both ≥ their floors)\n" + ("\n".join(consensus) if consensus else "_(none)_"),
++        "\n\n*Atlas-led* (entitlement clears, Beacon below floor)\n" + ("\n".join(atlas_only[:max_lines]) if atlas_only else "_(none)_"),
++        "\n\n*Beacon-led* (demand/strategic clears, Atlas below floor)\n" + ("\n".join(beacon_only[:max_lines]) if beacon_only else "_(none)_"),
++    ]
++    joint_body = _trim_mrkdwn("".join(joint_parts), 2900)
++
++    post1: list[dict[str, Any]] = [
++        {
++            "type": "header",
++            "text": {"type": "plain_text", "text": f"{AGENT_ENTITLEMENT_NAME} — picks", "emoji": True},
++        },
++        {
++            "type": "context",
++            "elements": [{"type": "mrkdwn", "text": f"_{AGENT_ENTITLEMENT_TAGLINE}_ · floor *{floor_ent:.0f}* · _{ts}_"}],
++        },
++        {"type": "divider"},
++        {
++            "type": "section",
++            "text": {
++                "type": "mrkdwn",
++                "text": (
++                    f"*My ranking* (highest Atlas score first among parcels both agents scored). "
++                    f"_Talking to {AGENT_STRATEGIC_NAME}: I overweight zoning + clear lot rules; "
++                    f"your lens should surface pads I might underrate if demand is strong._*\n"
++                    + _trim_mrkdwn(atlas_body)
++                ),
++            },
++        },
++    ]
++    fb1 = f"{AGENT_ENTITLEMENT_NAME} — top parcels · {ts}"
++
++    post2: list[dict[str, Any]] = [
++        {
++            "type": "header",
++            "text": {"type": "plain_text", "text": f"{AGENT_STRATEGIC_NAME} — picks", "emoji": True},
++        },
++        {
++            "type": "context",
++            "elements": [{"type": "mrkdwn", "text": f"_{AGENT_STRATEGIC_TAGLINE}_ · floor *{floor_str:.0f}* · _{ts}_"}],
++        },
++        {"type": "divider"},
++        {
++            "type": "section",
++            "text": {
++                "type": "mrkdwn",
++                "text": (
++                    f"*My ranking* (highest Beacon score first). "
++                    f"_Replying to {AGENT_ENTITLEMENT_NAME}: I pull demand + corner visibility harder; "
++                    f"some of your top zoning plays look weak on revenue site quality to me._*\n"
++                    + _trim_mrkdwn(beacon_body)
++                ),
++            },
++        },
++    ]
++    fb2 = f"{AGENT_STRATEGIC_NAME} — top parcels · {ts}"
++
++    post3: list[dict[str, Any]] = [
++        {
++            "type": "header",
++            "text": {"type": "plain_text", "text": "Joint comparison — who agrees", "emoji": True},
++        },
++        {
++            "type": "context",
++            "elements": [
++                {
++                    "type": "mrkdwn",
++                    "text": f"_{len(pairs)} parcel(s) with both scores_ · Atlas floor *{floor_ent:.0f}* · Beacon floor *{floor_str:.0f}* · _{ts}_",
++                },
++            ],
++        },
++        {"type": "divider"},
++        {
++            "type": "section",
++            "text": {"type": "mrkdwn", "text": joint_body},
++        },
++        {
++            "type": "context",
++            "elements": [
++                {
++                    "type": "mrkdwn",
++                    "text": "_Deterministic scores only — not an LLM debate. Tune weights in `config/pilot.yaml` and `config/pilot_strategic.yaml`._",
++                },
++            ],
++        },
++    ]
++    fb3 = f"Dual-agent joint comparison — {len(pairs)} parcels · {ts}"
++    return [(post1, fb1), (post2, fb2), (post3, fb3)]
++
++
++_AGENT_EVENT_TRUTHY = frozenset({"1", "true", "yes", "on"})
++
++
++def slack_agent_event_updates_enabled(settings: Settings) -> bool:
++    """Whether Celery tasks should post per-job Slack lines (see SLACK_AGENT_EVENT_UPDATES)."""
++    raw = (settings.slack_agent_event_updates or "").strip().lower()
++    return raw in _AGENT_EVENT_TRUTHY
++
++
++def post_agent_event_to_slack(settings: Settings, *, agent: str, detail: str) -> None:
++    """Best-effort one-line agent update; no-ops if Slack or agent events are off. Never raises."""
++    if not slack_agent_event_updates_enabled(settings):
++        return
++    token = (settings.slack_bot_token or "").strip()
++    channel = (settings.slack_digest_channel_id or "").strip()
++    if not token or not channel:
++        return
++    text = f"*{agent}*\n{detail}"
++    if len(text) > 3500:
++        text = text[:3490] + "…"
++    try:
++        post_text_to_slack(settings, text=text)
++    except Exception:
++        logger.exception("Slack agent event post failed (non-fatal): %s", agent)
++
++
+ def post_text_to_slack(settings: Settings, *, text: str, channel_id: str | None = None) -> dict[str, Any]:
+     token = (settings.slack_bot_token or "").strip()
+     channel = (channel_id or settings.slack_digest_channel_id or "").strip()
+diff --git a/services/api/app/tasks.py b/services/api/app/tasks.py
+index 79a04ae..a7c42bc 100644
+--- a/services/api/app/tasks.py
++++ b/services/api/app/tasks.py
+@@ -15,9 +15,17 @@ from app.celery_app import celery
+ from app.config import get_settings
+ from app.contract_render import render_ground_lease_draft
+ from app.db.models import ApprovalRequest, ContractDraft, DealMemo, OwnerCandidateRow, Parcel, ParcelScore, WorkflowRun
++from app.scoring_profiles import ALL_PROFILES, ENTITLEMENT, STRATEGIC
+ from app.db.session import SessionLocal
+ from app.memo_render import build_deal_memo_markdown
+-from app.slack_digest import build_slack_digest_blocks, post_digest_to_slack
++from app.slack_digest import (
++    build_dual_agent_discussion_posts,
++    build_qualified_parcels_report_blocks,
++    build_slack_digest_blocks,
++    post_agent_event_to_slack,
++    post_blocks_to_slack_channel,
++    post_digest_to_slack,
++)
+ from app.storage import put_text_object
+ from parking_core.models import OwnerCandidate, ParcelFeature
+ from parking_core.pilot import load_pilot_config
+@@ -59,7 +67,9 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
+             db.add(run)
+             db.commit()
+             raise ValueError("parcel not found")
+-        pilot = load_pilot_config(get_settings().pilot_config_path)
++        settings = get_settings()
++        pilot_ent = load_pilot_config(settings.pilot_config_path)
++        pilot_str = load_pilot_config(settings.pilot_strategic_config_path)
+ 
+         feature = ParcelFeature(
+             apn=parcel.apn,
+@@ -70,17 +80,35 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
+             is_corner_lot=parcel.is_corner_lot,
+             distance_to_nearest_demand_m=parcel.distance_to_nearest_demand_m,
+         )
+-        score = score_parcel(feature, pilot)
++        score = score_parcel(feature, pilot_ent)
++        score_strategic = score_parcel(feature, pilot_str)
+ 
+-        db.execute(delete(ParcelScore).where(ParcelScore.parcel_id == parcel.id))
+-        ps = ParcelScore(
+-            id=uuid.uuid4(),
+-            parcel_id=parcel.id,
+-            total_score=score.total_score,
+-            breakdown=score.breakdown.model_dump(),
+-            pilot_snapshot=score.pilot_snapshot,
++        db.execute(
++            delete(ParcelScore).where(
++                ParcelScore.parcel_id == parcel.id,
++                ParcelScore.score_profile.in_(ALL_PROFILES),
++            )
++        )
++        db.add(
++            ParcelScore(
++                id=uuid.uuid4(),
++                parcel_id=parcel.id,
++                score_profile=ENTITLEMENT,
++                total_score=score.total_score,
++                breakdown=score.breakdown.model_dump(),
++                pilot_snapshot=score.pilot_snapshot,
++            )
++        )
++        db.add(
++            ParcelScore(
++                id=uuid.uuid4(),
++                parcel_id=parcel.id,
++                score_profile=STRATEGIC,
++                total_score=score_strategic.total_score,
++                breakdown=score_strategic.breakdown.model_dump(),
++                pilot_snapshot=score_strategic.pilot_snapshot,
++            )
+         )
+-        db.add(ps)
+ 
+         run.current_step = WorkflowStep.enrich.value
+         db.add(run)
+@@ -175,12 +203,27 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
+             entity_id=str(run.id),
+             meta={"parcel_id": parcel_id, "step": run.current_step},
+         )
++        post_agent_event_to_slack(
++            get_settings(),
++            agent="Scoring & pipeline agent",
++            detail=(
++                f"Parcel `{parcel.apn}` — score *{score.total_score:.1f}*; "
++                f"*Human-gate coordinator*: 2 pending approvals (deal memo + contract); "
++                f"workflow `{run.status}`."
++            ),
++        )
+         return {"workflow_run_id": str(run.id), "status": run.status}
+     except Exception as exc:  # noqa: BLE001
+         run.status = WorkflowStatus.failed.value
+         run.error = str(exc)
+         db.add(run)
+         db.commit()
++        err_preview = str(exc)[:800]
++        post_agent_event_to_slack(
++            get_settings(),
++            agent="Scoring & pipeline agent",
++            detail=f"Pipeline failed for parcel `{parcel_id}`: `{err_preview}`",
++        )
+         raise
+     finally:
+         db.close()
+@@ -258,7 +301,12 @@ def ingest_geojson_path(
+                 pid = str(p.id)
+                 inserted += 1
+             else:
+-                db.execute(delete(ParcelScore).where(ParcelScore.parcel_id == existing.id))
++                db.execute(
++                    delete(ParcelScore).where(
++                        ParcelScore.parcel_id == existing.id,
++                        ParcelScore.score_profile.in_(ALL_PROFILES),
++                    )
++                )
+                 existing.lot_sqft = lot_sqft
+                 existing.zoning_code = zoning_code
+                 existing.zoning_allows_surface_parking = bool(attrs.get("zoning_allows_surface_parking"))
+@@ -296,6 +344,13 @@ def ingest_geojson_path(
+                     max_auto_pipeline,
+                     len(ids),
+                 )
++        label = Path(path).name
++        ingest_detail = (
++            f"File `{label}` — inserted *{inserted}*, updated *{updated}*, skipped *{skipped}*."
++        )
++        if auto_run_pipeline and ids:
++            ingest_detail += f" Pipelines enqueued: *{min(len(ids), max_auto_pipeline)}*."
++        post_agent_event_to_slack(get_settings(), agent="Ingest agent", detail=ingest_detail)
+         return {
+             "parcel_ids": ids,
+             "inserted": inserted,
+@@ -312,11 +367,75 @@ def ingest_geojson_path(
+                 logger.warning("ingest_geojson_path: could not delete temp file %s", path)
+ 
+ 
++@celery.task(name="app.tasks.slack_qualified_parcels_report")
++def slack_qualified_parcels_report() -> dict[str, Any]:
++    """Post Block Kit summary of qualified vs not-qualified parcels (latest scores + rationale)."""
++    settings = get_settings()
++    token = (settings.slack_bot_token or "").strip()
++    channel = (settings.slack_digest_channel_id or "").strip()
++    if not token or not channel:
++        logger.warning(
++            "slack_qualified_parcels_report SKIPPED: missing SLACK_BOT_TOKEN or SLACK_DIGEST_CHANNEL_ID",
++        )
++        return {"skipped": True, "reason": "slack not configured"}
++    db = _session()
++    try:
++        blocks, fallback = build_qualified_parcels_report_blocks(db, settings=settings)
++        posted = post_digest_to_slack(settings, blocks, fallback)
++        return {"skipped": False, **posted}
++    except Exception:
++        logger.exception("slack_qualified_parcels_report failed")
++        raise
++    finally:
++        db.close()
++
++
++@celery.task(name="app.tasks.slack_dual_agent_discussion")
++def slack_dual_agent_discussion() -> dict[str, Any]:
++    """Post 3 sequential messages to SLACK_AGENT_DISCUSSION_CHANNEL_ID (Atlas, Beacon, joint)."""
++    settings = get_settings()
++    token = (settings.slack_bot_token or "").strip()
++    channel = (settings.slack_agent_discussion_channel_id or "").strip()
++    if not token or not channel:
++        logger.warning(
++            "slack_dual_agent_discussion SKIPPED: missing SLACK_BOT_TOKEN or SLACK_AGENT_DISCUSSION_CHANNEL_ID",
++        )
++        return {"skipped": True, "reason": "slack agent channel not configured"}
++    db = _session()
++    try:
++        posts = build_dual_agent_discussion_posts(db, settings=settings)
++        out: list[dict[str, Any]] = []
++        for blocks, fallback in posts:
++            out.append(
++                post_blocks_to_slack_channel(
++                    settings,
++                    channel_id=channel,
++                    blocks=blocks,
++                    fallback=fallback,
++                )
++            )
++        return {"skipped": False, "message_count": len(out), "posts": out}
++    except Exception:
++        logger.exception("slack_dual_agent_discussion failed")
++        raise
++    finally:
++        db.close()
++
++
+ @celery.task(name="app.tasks.slack_agent_digest")
+ def slack_agent_digest() -> dict[str, Any]:
+     """Scheduled standup: post a Block Kit digest to Slack (worker executes; Beat only schedules)."""
+     settings = get_settings()
+-    if not (settings.slack_bot_token or "").strip() or not (settings.slack_digest_channel_id or "").strip():
++    token = (settings.slack_bot_token or "").strip()
++    channel = (settings.slack_digest_channel_id or "").strip()
++    if not token or not channel:
++        logger.warning(
++            "slack_agent_digest SKIPPED: worker missing SLACK_BOT_TOKEN and/or SLACK_DIGEST_CHANNEL_ID "
++            "(digest no-ops until both are set; restart worker + beat after updating deploy/.env). "
++            "has_token=%s has_channel=%s",
++            bool(token),
++            bool(channel),
++        )
+         return {"skipped": True, "reason": "slack not configured (set SLACK_BOT_TOKEN and SLACK_DIGEST_CHANNEL_ID)"}
+     db = _session()
+     try:
+diff --git a/services/api/pytest.ini b/services/api/pytest.ini
+index bd78c8b..e8081a8 100644
+--- a/services/api/pytest.ini
++++ b/services/api/pytest.ini
+@@ -2,3 +2,5 @@
+ testpaths = tests
+ python_files = test_*.py
+ addopts = -q --import-mode=importlib
++# Prefer this package’s source `app/` over any older install in site-packages.
++pythonpath = .
+diff --git a/services/api/tests/test_openapi.py b/services/api/tests/test_openapi.py
+index b1b9214..b76a5e8 100644
+--- a/services/api/tests/test_openapi.py
++++ b/services/api/tests/test_openapi.py
+@@ -13,7 +13,11 @@ def test_openapi_lists_workflow_and_internal_task_paths() -> None:
+     assert "/workflow-runs/{run_id}" in paths
+     assert "/internal/tasks/{task_id}" in paths
+     assert "/internal/slack/digest-now" in paths
++    assert "/internal/slack/qualified-parcels-now" in paths
++    assert "/internal/slack/agent-discussion-preview" in paths
++    assert "/internal/slack/agent-discussion-now" in paths
+     assert "/internal/slack/status" in paths
++    assert "/internal/slack/digest-preview" in paths
+     assert "/internal/slack/test-message" in paths
+     assert "/internal/ingest/geojson-upload" in paths
+     assert "/internal/ingest/geojson-server-path" in paths
+diff --git a/services/api/tests/test_sample_parking_trace.py b/services/api/tests/test_sample_parking_trace.py
+new file mode 100644
+index 0000000..d78baa2
+--- /dev/null
++++ b/services/api/tests/test_sample_parking_trace.py
+@@ -0,0 +1,139 @@
++"""End-to-end trace for bundled Washington sample GeoJSON (scores, enrichment, memo).
++
++Keeps manual walkthrough steps in sync with CI: `make verify-sample` or pytest this file.
++"""
++
++from __future__ import annotations
++
++import json
++from pathlib import Path
++
++import pytest
++
++from parking_core.models import ParcelFeature
++from parking_core.pilot import load_pilot_config
++from parking_enrichment.owner_outreach_agent import build_owner_outreach_brief
++from parking_enrichment.pipeline import enrich_from_parcel_row
++from parking_ingestion.geojson_loader import iter_parcels_from_geojson_dict, load_geojson_path
++from parking_scoring.engine import score_parcel
++
++REPO_ROOT = Path(__file__).resolve().parents[3]
++SAMPLE_GEOJSON = REPO_ROOT / "data" / "sample_parcels.geojson"
++PILOT_YAML = REPO_ROOT / "config" / "pilot.yaml"
++
++
++@pytest.fixture
++def pilot():
++    assert PILOT_YAML.is_file(), f"missing {PILOT_YAML}"
++    return load_pilot_config(PILOT_YAML)
++
++
++@pytest.fixture
++def sample_data() -> dict:
++    assert SAMPLE_GEOJSON.is_file(), f"missing {SAMPLE_GEOJSON}"
++    return json.loads(SAMPLE_GEOJSON.read_text())
++
++
++def test_sample_geojson_scores_and_qualification(pilot) -> None:
++    """Loader → ParcelFeature → score_parcel matches expected totals for sample fixtures."""
++    data = load_geojson_path(SAMPLE_GEOJSON)
++    by_apn: dict[str, float] = {}
++    qualified: dict[str, bool] = {}
++    floor = float(pilot.scoring.qualified_min_score)
++
++    for attrs, _geom in iter_parcels_from_geojson_dict(data):
++        apn = attrs["apn"]
++        feat = ParcelFeature(
++            apn=attrs["apn"],
++            county_fips=str(attrs["county_fips"] or ""),
++            lot_sqft=attrs.get("lot_sqft"),
++            zoning_code=str(attrs["zoning_code"]) if attrs.get("zoning_code") else None,
++            zoning_allows_surface_parking=bool(attrs.get("zoning_allows_surface_parking")),
++            is_corner_lot=bool(attrs.get("is_corner_lot")),
++            distance_to_nearest_demand_m=float(attrs["distance_to_nearest_demand_m"])
++            if attrs.get("distance_to_nearest_demand_m") is not None
++            else None,
++        )
++        result = score_parcel(feat, pilot)
++        by_apn[apn] = result.total_score
++        qualified[apn] = result.total_score >= floor
++
++    assert by_apn["WA-KING-SAMPLE-001"] == 100.0
++    assert qualified["WA-KING-SAMPLE-001"] is True
++    assert by_apn["WA-KING-SAMPLE-002"] == 0.0
++    assert qualified["WA-KING-SAMPLE-002"] is False
++
++
++def test_sample_enrichment_and_outreach_brief(sample_data: dict) -> None:
++    """Assessor-style OWNER_NAME drives entity vs individual and WA SOS path."""
++    feats = sample_data["features"]
++    assert len(feats) >= 2
++
++    # Entity LLC in King County → SOS + vendor steps
++    p1 = feats[0]["properties"]
++    owners1 = enrich_from_parcel_row(p1)
++    assert owners1[0].display_name == "Puget Sound Example Holdings LLC"
++    assert owners1[0].kind.value == "entity"
++    brief1 = build_owner_outreach_brief(
++        county_fips=p1["COUNTY_FIPS"],
++        apn=p1["APN"],
++        raw_properties=p1,
++        owners=owners1,
++    )
++    channels = [s.channel.value for s in brief1.steps]
++    assert "secretary_of_state" in channels
++    assert "vendor_research" in channels
++    assert any("mailing address" in g.lower() for g in brief1.data_gaps)
++
++    # Individual → no SOS entity path; still vendor fallback
++    p2 = feats[1]["properties"]
++    owners2 = enrich_from_parcel_row(p2)
++    assert owners2[0].kind.value == "individual"
++    brief2 = build_owner_outreach_brief(
++        county_fips=p2["COUNTY_FIPS"],
++        apn=p2["APN"],
++        raw_properties=p2,
++        owners=owners2,
++    )
++    assert [s.channel.value for s in brief2.steps] == ["vendor_research"]
++
++
++def test_deal_memo_includes_outreach_brief_section(pilot) -> None:
++    """Pipeline passes outreach_brief into memo render; body must list steps."""
++    from app.memo_render import build_deal_memo_markdown
++
++    props = {
++        "APN": "WA-KING-SAMPLE-001",
++        "COUNTY_FIPS": "53033",
++        "OWNER_NAME": "Puget Sound Example Holdings LLC",
++    }
++    owners = enrich_from_parcel_row(props)
++    brief = build_owner_outreach_brief(
++        county_fips="53033",
++        apn="WA-KING-SAMPLE-001",
++        raw_properties=props,
++        owners=owners,
++    )
++    feat = ParcelFeature(
++        apn="WA-KING-SAMPLE-001",
++        county_fips="53033",
++        lot_sqft=14000.0,
++        zoning_code="Downtown Commercial (example)",
++        zoning_allows_surface_parking=True,
++        is_corner_lot=True,
++        distance_to_nearest_demand_m=180.0,
++    )
++    score = score_parcel(feat, pilot)
++    owner_lines = [f"{o.display_name} ({o.kind}, conf={o.confidence:.2f}, {o.source})" for o in owners]
++    title, body, _oq = build_deal_memo_markdown(
++        apn="WA-KING-SAMPLE-001",
++        county_fips="53033",
++        zoning_code="Downtown Commercial (example)",
++        lot_sqft=14000.0,
++        score=score,
++        owner_lines=owner_lines,
++        outreach_brief=brief,
++    )
++    assert "Deal memo" in title
++    assert "Owner outreach brief (deterministic rules)" in body
++    assert "Washington Secretary of State" in body
+diff --git a/services/api/tests/test_slack_agent_events.py b/services/api/tests/test_slack_agent_events.py
+new file mode 100644
+index 0000000..2aa285a
+--- /dev/null
++++ b/services/api/tests/test_slack_agent_events.py
+@@ -0,0 +1,66 @@
++"""Slack per-task agent lines (SLACK_AGENT_EVENT_UPDATES)."""
++
++from __future__ import annotations
++
++from unittest.mock import patch
++
++import pytest
++
++from app.config import Settings
++from app.slack_digest import post_agent_event_to_slack, slack_agent_event_updates_enabled
++
++
++@pytest.mark.parametrize(
++    ("raw", "expected"),
++    [
++        ("", False),
++        ("0", False),
++        ("1", True),
++        ("true", True),
++        ("YES", True),
++        ("on", True),
++    ],
++)
++def test_slack_agent_event_updates_enabled_parsing(raw: str, expected: bool) -> None:
++    s = Settings(slack_agent_event_updates=raw)
++    assert slack_agent_event_updates_enabled(s) is expected
++
++
++def test_post_agent_event_skips_when_disabled() -> None:
++    with patch("app.slack_digest.post_text_to_slack") as m:
++        post_agent_event_to_slack(
++            Settings(
++                slack_agent_event_updates="",
++                slack_bot_token="xoxb-fake",
++                slack_digest_channel_id="C123",
++            ),
++            agent="Ingest agent",
++            detail="test",
++        )
++        m.assert_not_called()
++
++
++def test_post_agent_event_skips_without_slack_config() -> None:
++    with patch("app.slack_digest.post_text_to_slack") as m:
++        post_agent_event_to_slack(
++            Settings(slack_agent_event_updates="1", slack_bot_token="", slack_digest_channel_id=""),
++            agent="Ingest agent",
++            detail="test",
++        )
++        m.assert_not_called()
++
++
++def test_post_agent_event_calls_post_text_when_enabled() -> None:
++    with patch("app.slack_digest.post_text_to_slack") as m:
++        post_agent_event_to_slack(
++            Settings(
++                slack_agent_event_updates="1",
++                slack_bot_token="xoxb-fake",
++                slack_digest_channel_id="C123",
++            ),
++            agent="Ingest agent",
++            detail="done",
++        )
++        m.assert_called_once()
++        args, kwargs = m.call_args
++        assert "Ingest agent" in kwargs.get("text", "")
+-- 
+2.43.0
+
