@@ -29,6 +29,11 @@ Stakeholder CSV columns **`score_identification`**, **`score_entitlement`**, **`
 
 ### Tasks (execute in order)
 
+**One-shot runner (Droplet or laptop with DB + API reachability):**  
+[`scripts/execute-phase-a.sh`](../scripts/execute-phase-a.sh) — prints readiness **before** and **after**, calls **`enqueue-incomplete`** + **`refresh-demand-distances`**, optional CSV export. See script header for env vars (`DATABASE_URL`, `INTERNAL_API_KEY`, `PHASE_A_*`).
+
+Or run steps manually:
+
 1. **Measure gaps**  
    - CLI: `python3 scripts/check_export_readiness.py` (requires `DATABASE_URL`).  
    - Or API: `GET /internal/stats/export-readiness` (same auth as other `/internal/*`).  
@@ -51,6 +56,7 @@ Stakeholder CSV columns **`score_identification`**, **`score_entitlement`**, **`
 5. **Export + publish**  
    - `python3 scripts/export_scored_parcels_csv.py -o …`  
    - Optional public URL: `--publish-spaces` with `STORAGE_*` env vars (see OPERATIONS).  
+   - Or set **`PHASE_A_EXPORT_PATH`** (and optionally **`PHASE_A_PUBLISH_SPACES=1`**) when using **`execute-phase-a.sh`**.  
    **Done when:** Spot-check CSV: scores + centroids + demand for a sample county.
 
 ### Exit criteria (Phase A)
