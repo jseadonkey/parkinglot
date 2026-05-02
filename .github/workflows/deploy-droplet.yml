@@ -231,7 +231,7 @@ jobs:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
       - name: Notify Slack (internal API)
-        if: inputs.slack_notify
+        if: github.event_name == 'workflow_dispatch' && inputs.slack_notify
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
           SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}

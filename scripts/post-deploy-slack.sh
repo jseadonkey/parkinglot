@@ -15,6 +15,7 @@
 #
 # Reads from deploy/.env:
 #   PUBLIC_API_URL (or API_HOST fallback), INTERNAL_API_KEY (optional X-Internal-Key)
+#   LOCAL_API_FALLBACK — optional; default http://127.0.0.1:18000 if public hostname does not resolve on Droplet
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -44,6 +45,10 @@ if [[ -z "${BASE}" ]]; then
 fi
 
 KEY="$(_env_val INTERNAL_API_KEY)"
+# If PUBLIC_API_URL uses a hostname that does not resolve on the Droplet itself, curl exits 6.
+# Set LOCAL_API_FALLBACK in deploy/.env (e.g. http://127.0.0.1:18000 per docs/PROJECT-FACTS.md).
+LOCAL_FB="$(_env_val LOCAL_API_FALLBACK)"
+LOCAL_FB="${LOCAL_FB:-http://127.0.0.1:18000}"
 MODE="${1:-none}"
 
 if [[ "$MODE" != "none" ]]; then
@@ -51,10 +56,8 @@ if [[ "$MODE" != "none" ]]; then
   sleep 3
 fi
 
-curl_post() {
-  local path="$1"
-  local url="${BASE%/}${path}"
-  echo "POST $url"
+_do_post() {
+  local url="$1"
   if [[ -n "${KEY}" ]]; then
     curl -fsSk --connect-timeout 15 --max-time 120 -X POST "$url" \
       -H "Content-Type: application/json" \
@@ -65,7 +68,25 @@ curl_post() {
       -H "Content-Type: application/json" \
       -d '{}'
   fi
+}
+
+curl_post() {
+  local path="$1"
+  local url="${BASE%/}${path}"
+  echo "POST $url"
+  set +e
+  _do_post "$url"
+  local ec=$?
+  set -e
+  if [[ "$ec" -eq 6 && -n "${LOCAL_FB}" ]]; then
+    echo "curl could not resolve host (exit 6); retrying via LOCAL_API_FALLBACK=${LOCAL_FB}" >&2
+    url="${LOCAL_FB%/}${path}"
+    echo "POST $url"
+    _do_post "$url"
+    ec=$?
+  fi
   echo
+  return "$ec"
 }
 
 case "$MODE" in
