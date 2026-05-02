@@ -22,6 +22,20 @@ Single place for **names, IDs, and paths** this codebase assumes. Update this fi
 | **Deploy / code sync** | Prefer **`git pull`** (or Actions deploy) so **`services/api/app`** stays consistent. Copying single files (e.g. only `internal.py`) can break imports against `models.py` / `schemas.py`. |
 | **Internal Slack monitoring** | `GET /internal/slack/status`, `GET /internal/slack/digest-preview`, `POST /internal/slack/digest-now`, `POST /internal/slack/test-message` (some routes require `X-Internal-Key` when `INTERNAL_API_KEY` is set — see `docs/SLACK.md`). |
 
+## DNS / public URLs (DigitalOcean — **vspecialist.com**)
+
+Register **A records** (or equivalent) so traffic reaches the Droplet **`209.38.142.108`**. Align **`deploy/.env`** with the same names.
+
+| Item | Suggested value | Notes |
+|------|-----------------|--------|
+| **Zone** | **vspecialist.com** | Managed under **DigitalOcean → Networking → Domains** (or DNS delegated to DO nameservers). |
+| **`UI_HOST`** | **`parking.vspecialist.com`** | Approval UI — users open **`https://parking.vspecialist.com`** (add **`:9443`** if Caddy uses alternate HTTPS). |
+| **`API_HOST`** | **`api.vspecialist.com`** | API + Caddy TLS for **`https://api.vspecialist.com`**. |
+| **`PUBLIC_API_URL`** | **`https://api.vspecialist.com`** | Same host as API; include port if not 443 (e.g. **`:9443`**). |
+| **`CORS_ALLOW_ORIGINS`** | **`https://parking.vspecialist.com`** | Must equal the **exact** origin users type in the browser (scheme + host + port). |
+
+You may substitute other subdomains (e.g. **`app.`** / **`agents.`**) as long as **DNS**, **`deploy/.env`**, and **CORS** stay consistent.
+
 ## Slack (digest + internal routes)
 
 | Item | Value |
