@@ -26,6 +26,8 @@ on:
     branches:
       - main
       - cursor/dual-scoring-agents-slack-channel
+    paths-ignore:
+      - "ops/deploy-last-run.json"
   workflow_dispatch:
     inputs:
       compose_file:
