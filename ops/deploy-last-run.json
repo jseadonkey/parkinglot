@@ -1,14 +1,14 @@
 {
-  "id": 25267739083,
-  "conclusion": "failure",
+  "id": 25269275556,
+  "conclusion": "success",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "bf779fa17f220360d2889a4126c3989e5266211c",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25267739083",
-  "created_at": "2026-05-03T02:27:53Z",
-  "updated_at": "2026-05-03T02:28:07Z",
-  "display_title": "fix(auth): read AUTH_* from node:process at runtime in standalone builds",
+  "head_sha": "bfb9362544fc06ac69ffd38d4d2c4a05c1c7954d",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25269275556",
+  "created_at": "2026-05-03T03:56:23Z",
+  "updated_at": "2026-05-03T03:56:51Z",
+  "display_title": "Add compiled sample parcel CSV for review (from sample_parcels.geojson)",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-03T02:28:14Z"
+  "snapshot_recorded_at": "2026-05-03T03:56:58Z"
 }
