@@ -1,14 +1,14 @@
 {
-  "id": 25266497206,
-  "conclusion": "cancelled",
+  "id": 25266515200,
+  "conclusion": "success",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "75d453f38a8e35f5eb5dcc3a5bf1679c812f4736",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25266497206",
-  "created_at": "2026-05-03T01:17:23Z",
-  "updated_at": "2026-05-03T01:18:34Z",
-  "display_title": "feat(beat): optional scheduled identification + demand refresh batches",
+  "head_sha": "50df182de755d3fb6f4fe7c4e457a9e3bef9fb30",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25266515200",
+  "created_at": "2026-05-03T01:18:18Z",
+  "updated_at": "2026-05-03T01:19:18Z",
+  "display_title": "docs: add A–E setup checklist and make a-e-setup helper",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-03T01:18:40Z"
+  "snapshot_recorded_at": "2026-05-03T01:19:24Z"
 }
