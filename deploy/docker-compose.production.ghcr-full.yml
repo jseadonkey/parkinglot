@@ -163,13 +163,10 @@ services:
   approval-ui:
     image: ${APPROVAL_UI_IMAGE:?Set APPROVAL_UI_IMAGE to ghcr.io/<owner>/parking-acquisition-approval-ui:<tag>}
     restart: always
+    env_file:
+      - .env
     environment:
       NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
-      AUTH_SECRET: ${AUTH_SECRET:-}
-      AUTH_ADMIN_EMAIL: ${AUTH_ADMIN_EMAIL:-}
-      AUTH_ADMIN_PASSWORD: ${AUTH_ADMIN_PASSWORD:-}
-      AUTH_VIEWER_USERNAME: ${AUTH_VIEWER_USERNAME:-}
-      AUTH_VIEWER_PASSWORD: ${AUTH_VIEWER_PASSWORD:-}
     expose:
       - "3000"
     depends_on:
@@ -183,15 +180,12 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
     restart: always
+    env_file:
+      - .env
     environment:
       NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
       API_SERVER_URL: http://api:8000
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
-      AUTH_SECRET: ${AUTH_SECRET:-}
-      AUTH_ADMIN_EMAIL: ${AUTH_ADMIN_EMAIL:-}
-      AUTH_ADMIN_PASSWORD: ${AUTH_ADMIN_PASSWORD:-}
-      AUTH_VIEWER_USERNAME: ${AUTH_VIEWER_USERNAME:-}
-      AUTH_VIEWER_PASSWORD: ${AUTH_VIEWER_PASSWORD:-}
     expose:
       - "3000"
     depends_on:

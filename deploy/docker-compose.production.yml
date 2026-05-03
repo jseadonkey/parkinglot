@@ -2,7 +2,8 @@
 # Uses Managed Postgres + Spaces (not container Postgres/MinIO). Redis runs on the Droplet.
 #
 # On the server: copy repo to e.g. /opt/parking-acquisition-agents, create deploy/.env from
-# env.production.example, then:
+# env.production.example (must live next to this file). UI containers load deploy/.env via env_file.
+# Then:
 #   docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env up -d --build
 
 x-logging: &default-logging
@@ -195,13 +196,11 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
     restart: always
+    # Load AUTH_* from deploy/.env inside the container (avoids empty ${AUTH_SECRET:-} substitution).
+    env_file:
+      - .env
     environment:
       NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
-      AUTH_SECRET: ${AUTH_SECRET:-}
-      AUTH_ADMIN_EMAIL: ${AUTH_ADMIN_EMAIL:-}
-      AUTH_ADMIN_PASSWORD: ${AUTH_ADMIN_PASSWORD:-}
-      AUTH_VIEWER_USERNAME: ${AUTH_VIEWER_USERNAME:-}
-      AUTH_VIEWER_PASSWORD: ${AUTH_VIEWER_PASSWORD:-}
     expose:
       - "3000"
     depends_on:
@@ -215,15 +214,12 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
     restart: always
+    env_file:
+      - .env
     environment:
       NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
       API_SERVER_URL: http://api:8000
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
-      AUTH_SECRET: ${AUTH_SECRET:-}
-      AUTH_ADMIN_EMAIL: ${AUTH_ADMIN_EMAIL:-}
-      AUTH_ADMIN_PASSWORD: ${AUTH_ADMIN_PASSWORD:-}
-      AUTH_VIEWER_USERNAME: ${AUTH_VIEWER_USERNAME:-}
-      AUTH_VIEWER_PASSWORD: ${AUTH_VIEWER_PASSWORD:-}
     expose:
       - "3000"
     depends_on:

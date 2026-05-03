@@ -108,6 +108,14 @@ jobs:
       - name: Validate compose files
         run: |
           set -euo pipefail
+          # deploy/.env is gitignored; approval-ui / operator-console use env_file: .env (deploy/.env).
+          printf '%s\n' \
+            'AUTH_SECRET=ci-compose-validation-placeholder' \
+            'AUTH_ADMIN_EMAIL=' \
+            'AUTH_ADMIN_PASSWORD=' \
+            'AUTH_VIEWER_USERNAME=' \
+            'AUTH_VIEWER_PASSWORD=' \
+            > deploy/.env
           for f in \
             deploy/docker-compose.production.yml \
             deploy/docker-compose.production.ghcr.yml \
