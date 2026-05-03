@@ -2,6 +2,14 @@
 
 Use this to confirm **each phase is configured**, not necessarily “all data gaps closed.” Data gaps are tracked separately via **`GET /internal/stats/export-readiness`** / **`scripts/check_export_readiness.py`**.
 
+**Machine check (Droplet / laptop with `deploy/.env`):**
+
+```bash
+make ae-setup-check
+# optional live HTTPS check (skips TLS verify — matches internal Caddy):
+python3 scripts/check_ae_setup.py --probe
+```
+
 **Related:** [PHASED-EXECUTION-PLAN-A-E.md](PHASED-EXECUTION-PLAN-A-E.md), [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md), `deploy/env.production.example`.
 
 ---
