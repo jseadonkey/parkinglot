@@ -1,14 +1,14 @@
 {
-  "id": 25264845096,
+  "id": 25265176977,
   "conclusion": "success",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "123c008477c07b4f0984db5183b21e35605c4a77",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25264845096",
-  "created_at": "2026-05-02T23:43:58Z",
-  "updated_at": "2026-05-02T23:44:19Z",
-  "display_title": "docs: record vspecialist.com DNS and suggested UI/API hostnames",
+  "head_sha": "dd40d7a5c40acd4e582d932b6f586efdf697a5df",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25265176977",
+  "created_at": "2026-05-03T00:02:42Z",
+  "updated_at": "2026-05-03T00:03:04Z",
+  "display_title": "docs(ops): handoff next steps; warn when HTTPS publish port missing f…",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-02T23:44:25Z"
+  "snapshot_recorded_at": "2026-05-03T00:03:11Z"
 }
