@@ -2,10 +2,14 @@ import { NextResponse } from "next/server";
 import { constantTimeEqual } from "../../../../lib/auth/password";
 import { signUiSession } from "../../../../lib/auth/jwt";
 import { AUTH_COOKIE_NAME } from "../../../../lib/auth/constants";
+import { readAuthEnvForLogin } from "../../../../lib/auth/runtime-env";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const secret = process.env.AUTH_SECRET?.trim();
-  if (!secret) {
+  const e = readAuthEnvForLogin();
+  if (!e.authSecret) {
     return NextResponse.json({ detail: "AUTH_SECRET not configured" }, { status: 503 });
   }
 
@@ -22,18 +26,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ detail: "identifier and password required" }, { status: 400 });
   }
 
-  const adminEmail = process.env.AUTH_ADMIN_EMAIL?.trim().toLowerCase() ?? "";
-  const adminPass = process.env.AUTH_ADMIN_PASSWORD ?? "";
-  const viewerUser = process.env.AUTH_VIEWER_USERNAME?.trim().toLowerCase() ?? "";
-  const viewerPass = process.env.AUTH_VIEWER_PASSWORD ?? "";
-
   const idLower = identifier.toLowerCase();
 
   let role: "admin" | "viewer" | null = null;
 
-  if (adminEmail && idLower === adminEmail && constantTimeEqual(password, adminPass)) {
+  if (e.adminEmail && idLower === e.adminEmail && constantTimeEqual(password, e.adminPass)) {
     role = "admin";
-  } else if (viewerUser && idLower === viewerUser && constantTimeEqual(password, viewerPass)) {
+  } else if (e.viewerUser && idLower === e.viewerUser && constantTimeEqual(password, e.viewerPass)) {
     role = "viewer";
   }
 
@@ -41,12 +40,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ detail: "invalid credentials" }, { status: 401 });
   }
 
-  const sub =
-    role === "admin" ? process.env.AUTH_ADMIN_EMAIL!.trim() : process.env.AUTH_VIEWER_USERNAME!.trim();
+  const sub = role === "admin" ? e.adminEmailDisplay : e.viewerUserDisplay;
 
-  const token = await signUiSession({ role, sub }, secret);
+  const token = await signUiSession({ role, sub }, e.authSecret);
   const res = NextResponse.json({ ok: true });
-  const secure = process.env.NODE_ENV === "production";
+  const secure = e.nodeEnv === "production";
   res.cookies.set(AUTH_COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
