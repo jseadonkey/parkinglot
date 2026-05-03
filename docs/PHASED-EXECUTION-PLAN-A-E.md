@@ -1,6 +1,6 @@
 # Phased execution plan (A–E)
 
-This document breaks the **parcel CSV completeness**, **scoring**, **enrichment**, and **multi-county** work into five phases with **concrete tasks**, **commands/tools**, and **exit criteria**. It assumes the repo layout and internal APIs described in [OPERATIONS.md](OPERATIONS.md). For a **single batched operator checklist** (minimize repeat Droplet sessions), see [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md).
+This document breaks the **parcel CSV completeness**, **scoring**, **enrichment**, and **multi-county** work into five phases with **concrete tasks**, **commands/tools**, and **exit criteria**. It assumes the repo layout and internal APIs described in [OPERATIONS.md](OPERATIONS.md). For a **single batched operator checklist** (minimize repeat Droplet sessions), see [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md). For a **compact “is A–E configured?”** verification list (env + compose + per-phase prerequisites), see **[A-E-SETUP-CHECKLIST.md](A-E-SETUP-CHECKLIST.md)**.
 
 ---
 

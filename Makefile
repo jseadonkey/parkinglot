@@ -1,4 +1,4 @@
-.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay deploy-env-check operator-todos local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
+.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay deploy-env-check operator-todos a-e-setup local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
 
 help:
 	@echo "Targets:"
@@ -27,12 +27,16 @@ help:
 	@echo "  make tf-plan       - terraform plan (export TF_VAR_do_token and SPACES_* first)"
 	@echo "  make deploy-env-check   - warn on placeholder deploy/.env (run on Droplet or laptop)"
 	@echo "  make operator-todos - print path to bundled Droplet/GIS checklist (docs)"
+	@echo "  make a-e-setup    - print path to A–E setup checklist (docs)"
 
 deploy-env-check:
 	@python3 scripts/check_deploy_env_warnings.py
 
 operator-todos:
 	@echo "Bundled operator checklist (DNS, deploy, phases, backlog): docs/OPERATOR-TODO-BUNDLE.md"
+
+a-e-setup:
+	@echo "A–E configuration checklist (env, Beat, GIS, portfolio): docs/A-E-SETUP-CHECKLIST.md"
 
 verify-sample:
 	@chmod +x scripts/verify-sample-trace.sh

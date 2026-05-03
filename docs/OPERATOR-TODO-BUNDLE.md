@@ -1,6 +1,6 @@
 # Operator TODO bundle — batch these to minimize repeat effort
 
-Use this as a **single checklist** when you sit down to finish Droplet work, instead of spreading the same tasks across many sessions. Detailed procedures stay in [OPERATIONS.md](OPERATIONS.md) and [PHASED-EXECUTION-PLAN-A-E.md](PHASED-EXECUTION-PLAN-A-E.md). For a **short post-break handoff** (DNS, `deploy/.env`, HTTPS smoke checks), see **[OPERATOR-NEXT-STEPS.md](OPERATOR-NEXT-STEPS.md)**. For a **phase-by-phase status** (what’s in-repo vs what’s on you), see **“Where we are — repo vs operations”** in the phased plan.
+Use this as a **single checklist** when you sit down to finish Droplet work, instead of spreading the same tasks across many sessions. Detailed procedures stay in [OPERATIONS.md](OPERATIONS.md) and [PHASED-EXECUTION-PLAN-A-E.md](PHASED-EXECUTION-PLAN-A-E.md). For **A–E setup verification** (env, Beat, Phase B file path, portfolio smoke), see **[A-E-SETUP-CHECKLIST.md](A-E-SETUP-CHECKLIST.md)**. For a **short post-break handoff** (DNS, `deploy/.env`, HTTPS smoke checks), see **[OPERATOR-NEXT-STEPS.md](OPERATOR-NEXT-STEPS.md)**. For a **phase-by-phase status** (what’s in-repo vs what’s on you), see **“Where we are — repo vs operations”** in the phased plan.
 
 ---
 
