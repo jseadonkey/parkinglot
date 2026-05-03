@@ -1,14 +1,14 @@
 {
-  "id": 25267630050,
+  "id": 25267739083,
   "conclusion": "failure",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "3f86ae23ac01f1f3c719f98b8857696f919ee8a4",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25267630050",
-  "created_at": "2026-05-03T02:21:15Z",
-  "updated_at": "2026-05-03T02:21:29Z",
-  "display_title": "fix(deploy): inject AUTH_* into UI containers via env_file",
+  "head_sha": "bf779fa17f220360d2889a4126c3989e5266211c",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25267739083",
+  "created_at": "2026-05-03T02:27:53Z",
+  "updated_at": "2026-05-03T02:28:07Z",
+  "display_title": "fix(auth): read AUTH_* from node:process at runtime in standalone builds",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-03T02:21:36Z"
+  "snapshot_recorded_at": "2026-05-03T02:28:14Z"
 }
