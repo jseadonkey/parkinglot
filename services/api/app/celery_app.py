@@ -83,6 +83,48 @@ if _s.scheduled_enqueue_unscored_enabled:
         _s.scheduled_enqueue_unscored_limit,
     )
 
+if _s.scheduled_refresh_identification_enabled:
+    _id_cf = (_s.scheduled_refresh_identification_county_fips or "").strip()
+    beat_schedule["refresh-identification-scores-scheduled"] = {
+        "task": "app.tasks.refresh_identification_scores_batch",
+        "schedule": crontab(
+            minute=_s.scheduled_refresh_identification_crontab_minute,
+            hour=_s.scheduled_refresh_identification_crontab_hour,
+        ),
+        "kwargs": {
+            "limit": _s.scheduled_refresh_identification_limit,
+            "county_fips": _id_cf or None,
+        },
+    }
+    logger.info(
+        "Beat: refresh identification scores — hour=%s minute=%02d limit=%s county=%s",
+        _s.scheduled_refresh_identification_crontab_hour,
+        _s.scheduled_refresh_identification_crontab_minute,
+        _s.scheduled_refresh_identification_limit,
+        _id_cf or "*",
+    )
+
+if _s.scheduled_refresh_demand_enabled:
+    _dem_cf = (_s.scheduled_refresh_demand_county_fips or "").strip()
+    beat_schedule["refresh-demand-distances-scheduled"] = {
+        "task": "app.tasks.refresh_demand_distances_batch",
+        "schedule": crontab(
+            minute=_s.scheduled_refresh_demand_crontab_minute,
+            hour=_s.scheduled_refresh_demand_crontab_hour,
+        ),
+        "kwargs": {
+            "limit": _s.scheduled_refresh_demand_limit,
+            "county_fips": _dem_cf or None,
+        },
+    }
+    logger.info(
+        "Beat: refresh demand distances — hour=%s minute=%02d limit=%s county=%s",
+        _s.scheduled_refresh_demand_crontab_hour,
+        _s.scheduled_refresh_demand_crontab_minute,
+        _s.scheduled_refresh_demand_limit,
+        _dem_cf or "*",
+    )
+
 celery = Celery("parking", broker=broker, backend=backend)
 celery.conf.update(
     task_serializer="json",

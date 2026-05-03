@@ -154,6 +154,88 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Optional Celery Beat: Cartographer identification score backfill (same as Phase A refresh-identification).
+    scheduled_refresh_identification_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "SCHEDULED_REFRESH_IDENTIFICATION_ENABLED",
+            "scheduled_refresh_identification_enabled",
+        ),
+    )
+    scheduled_refresh_identification_limit: int = Field(
+        default=2000,
+        ge=1,
+        le=5000,
+        validation_alias=AliasChoices(
+            "SCHEDULED_REFRESH_IDENTIFICATION_LIMIT",
+            "scheduled_refresh_identification_limit",
+        ),
+    )
+    scheduled_refresh_identification_crontab_minute: int = Field(
+        default=10,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "SCHEDULED_REFRESH_IDENTIFICATION_CRONTAB_MINUTE",
+            "scheduled_refresh_identification_crontab_minute",
+        ),
+    )
+    scheduled_refresh_identification_crontab_hour: str = Field(
+        default="*/6",
+        validation_alias=AliasChoices(
+            "SCHEDULED_REFRESH_IDENTIFICATION_CRONTAB_HOUR",
+            "scheduled_refresh_identification_crontab_hour",
+        ),
+    )
+    scheduled_refresh_identification_county_fips: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "SCHEDULED_REFRESH_IDENTIFICATION_COUNTY_FIPS",
+            "scheduled_refresh_identification_county_fips",
+        ),
+    )
+
+    # Optional Celery Beat: Beacon demand-distance + identification touch (same as Phase A refresh-demand).
+    scheduled_refresh_demand_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "SCHEDULED_REFRESH_DEMAND_ENABLED",
+            "scheduled_refresh_demand_enabled",
+        ),
+    )
+    scheduled_refresh_demand_limit: int = Field(
+        default=2000,
+        ge=1,
+        le=5000,
+        validation_alias=AliasChoices(
+            "SCHEDULED_REFRESH_DEMAND_LIMIT",
+            "scheduled_refresh_demand_limit",
+        ),
+    )
+    scheduled_refresh_demand_crontab_minute: int = Field(
+        default=40,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "SCHEDULED_REFRESH_DEMAND_CRONTAB_MINUTE",
+            "scheduled_refresh_demand_crontab_minute",
+        ),
+    )
+    scheduled_refresh_demand_crontab_hour: str = Field(
+        default="*/6",
+        validation_alias=AliasChoices(
+            "SCHEDULED_REFRESH_DEMAND_CRONTAB_HOUR",
+            "scheduled_refresh_demand_crontab_hour",
+        ),
+    )
+    scheduled_refresh_demand_county_fips: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "SCHEDULED_REFRESH_DEMAND_COUNTY_FIPS",
+            "scheduled_refresh_demand_county_fips",
+        ),
+    )
+
     # Washington statewide exploration: daily ingest rotation over pilot.region.county_fips (see docs).
     exploration_campaign_enabled: bool = Field(
         default=False,

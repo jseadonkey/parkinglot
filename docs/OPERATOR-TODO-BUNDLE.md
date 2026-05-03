@@ -25,6 +25,10 @@ Use this as a **single checklist** when you sit down to finish Droplet work, ins
 
 ## Session 2 — One batched “phases” run (after parcels exist in Postgres)
 
+**Automation (no manual scripts):** Celery Beat already **enqueues incomplete pipelines** on a schedule (`SCHEDULED_ENQUEUE_*` in `deploy/.env` — default every few hours). Optional Beat entries also run **identification** and **demand-distance** batch refreshes (`SCHEDULED_REFRESH_IDENTIFICATION_*`, `SCHEDULED_REFRESH_DEMAND_*` in `deploy/env.production.example`). Restart **worker + beat** after changing those variables.
+
+**Phase B** still needs **your** zoning overlay GeoJSON staged on disk — merge can be scripted (cron) once the file path is stable. **`execute-phase-c.sh`** is a **smoke test**, not something that must run on a schedule.
+
 Do **not** re-export secrets repeatedly — one shell block:
 
 ```bash
