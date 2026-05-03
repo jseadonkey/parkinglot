@@ -8,6 +8,7 @@ The **operator console** is a Next.js app at **`/operator`** on the same hostnam
 - **Approvals** — same queue/actions as the standalone approval UI.
 - **Audit** — recent audit rows.
 - **Portfolios** — JSON from **`GET /internal/owners/portfolios-ranked`** (proxied).
+- **Outreach pipeline** — qualified parcels (entitlement ≥ pilot floor) with workflow stage, brief, pending approvals — **`GET /internal/pipeline/outreach-board`** (proxied).
 
 ## URL
 

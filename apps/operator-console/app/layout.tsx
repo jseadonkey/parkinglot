@@ -24,6 +24,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <Link href="/audit">Audit</Link>
           <span className="sep">|</span>
           <Link href="/owners">Portfolios</Link>
+          <span className="sep">|</span>
+          <Link href="/outreach">Outreach pipeline</Link>
         </nav>
         {children}
       </body>

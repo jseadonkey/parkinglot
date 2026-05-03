@@ -180,6 +180,32 @@ class ExportReadinessResponse(BaseModel):
     recommended_next_steps: list[str]
 
 
+class OutreachPipelineRow(BaseModel):
+    """One qualified parcel with latest workflow + outreach pipeline status."""
+
+    parcel_id: str
+    apn: str
+    county_fips: str
+    entitlement_score: float | None
+    identification_score: float | None
+    workflow_run_id: str | None
+    workflow_status: str | None
+    workflow_step: str | None
+    workflow_error: str | None
+    workflow_updated_at: datetime | None
+    has_outreach_brief: bool
+    pending_approval_count: int
+    pipeline_stage: str
+
+
+class OutreachPipelineBoardResponse(BaseModel):
+    """GET /internal/pipeline/outreach-board — qualified lots worth tracking for owner outreach."""
+
+    qualified_min_entitlement_score: float
+    row_count: int
+    rows: list[OutreachPipelineRow]
+
+
 class QualifiedMinScores(BaseModel):
     """Pilot qualification floors per score profile (from pilot YAML)."""
 

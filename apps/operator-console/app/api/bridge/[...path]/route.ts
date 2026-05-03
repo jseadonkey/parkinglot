@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 function allowedInternalPath(path: string): boolean {
   if (path.startsWith("internal/stats/")) return true;
   if (path.startsWith("internal/owners/")) return true;
+  if (path.startsWith("internal/pipeline/")) return true;
   return false;
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { bridgeUrl } from "../lib/paths";
 
@@ -72,6 +73,12 @@ export default function OverviewPage() {
       <div className="panel">
         {readiness ? <pre className="json">{JSON.stringify(readiness, null, 2)}</pre> : !err ? <p className="muted">Loading…</p> : null}
       </div>
+
+      <h2>Outreach candidates</h2>
+      <p className="muted">
+        See <Link href="/outreach">Outreach pipeline</Link> for all parcels that meet the entitlement score floor, with deal
+        workflow status and brief/approval columns.
+      </p>
 
       <h2>Agent ↔ owner “conversations”</h2>
       <div className="panel">

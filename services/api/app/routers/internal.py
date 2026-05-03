@@ -14,6 +14,7 @@ from app.db.models import Parcel
 from app.db.session import get_db
 from app.deps_internal import require_internal_key
 from app.export_readiness import export_readiness_summary
+from app.outreach_board import query_outreach_pipeline_board
 from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
 from app.schemas import (
     CeleryTaskIdResponse,
@@ -28,6 +29,8 @@ from app.schemas import (
     IngestSampleQueuedResponse,
     IngestWatechCountyRequest,
     MergeGeojsonAttributesRequest,
+    OutreachPipelineBoardResponse,
+    OutreachPipelineRow,
     OwnerPortfolioRankRow,
     OwnersPeersByKeyResponse,
     OwnersPortfoliosRankedResponse,
@@ -159,6 +162,41 @@ def scoring_summary(db: Session = Depends(get_db)) -> ScoringSummaryResponse:
             "identification": floor_i,
         },
         pilot_region=pilot_e.region.name,
+    )
+
+
+@router.get("/pipeline/outreach-board", response_model=OutreachPipelineBoardResponse)
+def outreach_pipeline_board(
+    limit: int = Query(default=500, ge=1, le=2000),
+    db: Session = Depends(get_db),
+) -> OutreachPipelineBoardResponse:
+    """Qualified parcels (latest entitlement ≥ pilot floor) with workflow + outreach brief snapshot."""
+    settings = get_settings()
+    pilot = load_pilot_config(settings.pilot_config_path)
+    floor = float(pilot.scoring.qualified_min_score)
+    raw = query_outreach_pipeline_board(db, qualified_min_entitlement=floor, limit=limit)
+    rows = [
+        OutreachPipelineRow(
+            parcel_id=str(r.parcel_id),
+            apn=r.apn,
+            county_fips=r.county_fips,
+            entitlement_score=r.entitlement_score,
+            identification_score=r.identification_score,
+            workflow_run_id=str(r.workflow_run_id) if r.workflow_run_id else None,
+            workflow_status=r.workflow_status,
+            workflow_step=r.workflow_step,
+            workflow_error=r.workflow_error,
+            workflow_updated_at=r.workflow_updated_at,
+            has_outreach_brief=r.has_outreach_brief,
+            pending_approval_count=r.pending_approval_count,
+            pipeline_stage=r.pipeline_stage,
+        )
+        for r in raw
+    ]
+    return OutreachPipelineBoardResponse(
+        qualified_min_entitlement_score=floor,
+        row_count=len(rows),
+        rows=rows,
     )
 
 
