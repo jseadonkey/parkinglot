@@ -4,6 +4,17 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { bridgeUrl } from "../lib/paths";
 
+type ScoringSummary = {
+  total_parcels: number;
+  parcels_with_latest_entitlement_score: number;
+  parcels_with_latest_strategic_score: number;
+  parcels_with_latest_identification_score: number;
+};
+
+function isScoringSummary(s: unknown): s is ScoringSummary {
+  return typeof s === "object" && s !== null && "total_parcels" in s;
+}
+
 export default function OverviewPage() {
   const [readiness, setReadiness] = useState<unknown>(null);
   const [summary, setSummary] = useState<unknown>(null);
@@ -46,27 +57,28 @@ export default function OverviewPage() {
       {err ? <div className="error">{err}</div> : null}
 
       <div className="cols" style={{ marginTop: "1rem" }}>
-        {summary && typeof summary === "object" && summary !== null && "total_parcels" in summary ? (
+        {isScoringSummary(summary) ? (
           <>
             <div className="stat">
               <div className="muted">Parcels in DB</div>
-              <div className="n">{String((summary as { total_parcels: number }).total_parcels)}</div>
+              <div className="n">{String(summary.total_parcels)}</div>
             </div>
             <div className="stat">
               <div className="muted">With entitlement score</div>
-              <div className="n">{String((summary as { parcels_with_latest_entitlement_score: number }).parcels_with_latest_entitlement_score)}</div>
+              <div className="n">{String(summary.parcels_with_latest_entitlement_score)}</div>
             </div>
             <div className="stat">
               <div className="muted">With strategic score</div>
-              <div className="n">{String((summary as { parcels_with_latest_strategic_score: number }).parcels_with_latest_strategic_score)}</div>
+              <div className="n">{String(summary.parcels_with_latest_strategic_score)}</div>
             </div>
             <div className="stat">
               <div className="muted">With identification score</div>
-              <div className="n">{String((summary as { parcels_with_latest_identification_score: number }).parcels_with_latest_identification_score)}</div>
+              <div className="n">{String(summary.parcels_with_latest_identification_score)}</div>
             </div>
           </>
         ) : (
-          !err && <p className="muted">Loading scoring summary…</p>}
+          !err && <p className="muted">Loading scoring summary…</p>
+        )}
       </div>
 
       <h2>Export readiness (JSON)</h2>
