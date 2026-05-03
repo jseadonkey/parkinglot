@@ -7,7 +7,13 @@
 
 {$UI_HOST} {
 	encode gzip
-	reverse_proxy approval-ui:3000
+	@operator path /operator*
+	handle @operator {
+		reverse_proxy operator-console:3000
+	}
+	handle {
+		reverse_proxy approval-ui:3000
+	}
 }
 
 {$API_HOST} {

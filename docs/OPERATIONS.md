@@ -2,6 +2,8 @@
 
 **Batch checklist (DNS, deploy, phases A–C, GIS/vendor backlog in one place):** [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md).
 
+**Web UI to browse parcels, workflow/deal status, approvals, readiness:** [OPERATOR-CONSOLE.md](OPERATOR-CONSOLE.md) (`https://<UI_HOST>/operator`).
+
 ## Health and uptime
 
 - **Liveness**: `GET /health` — process up (no dependency checks).

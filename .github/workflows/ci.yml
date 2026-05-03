@@ -95,6 +95,16 @@ jobs:
           build-args: |
             NEXT_PUBLIC_API_URL=https://api.ci.test
 
+      - name: Build operator console image (smoke)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/operator-console/Dockerfile
+          push: false
+          tags: parking-acquisition-operator-console:ci
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://api.ci.test
+
       - name: Validate compose files
         run: |
           set -euo pipefail

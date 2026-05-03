@@ -203,6 +203,24 @@ services:
       - api
     logging: *default-logging
 
+  operator-console:
+    build:
+      context: ..
+      dockerfile: apps/operator-console/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
+      API_SERVER_URL: http://api:8000
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
+    expose:
+      - "3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    logging: *default-logging
+
   caddy:
     image: caddy:2.8-alpine
     restart: always
@@ -220,6 +238,7 @@ services:
     depends_on:
       - api
       - approval-ui
+      - operator-console
     logging: *default-logging
 
 volumes:

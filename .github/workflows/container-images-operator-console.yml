@@ -1,0 +1,68 @@
+# Build and push operator-console to GHCR (NEXT_PUBLIC_API_URL baked at build time).
+
+name: Container image — operator console
+
+on:
+  workflow_dispatch:
+    inputs:
+      public_api_url:
+        description: "Production API URL (NEXT_PUBLIC_API_URL), e.g. https://api.example.com:9443"
+        required: true
+        type: string
+      extra_tag:
+        description: "Optional extra image tag (e.g. v0.3.0)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: GHCR image owner (lowercase)
+        id: ghcr
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute image tags
+        id: tags
+        env:
+          EXTRA: ${{ inputs.extra_tag }}
+        run: |
+          OWNER='${{ steps.ghcr.outputs.owner }}'
+          TAGS="ghcr.io/${OWNER}/parking-acquisition-operator-console:latest"$'\n'"ghcr.io/${OWNER}/parking-acquisition-operator-console:${{ github.sha }}"
+          if [ -n "$EXTRA" ]; then
+            TAGS="${TAGS}"$'\n'"ghcr.io/${OWNER}/parking-acquisition-operator-console:${EXTRA}"
+          fi
+          {
+            echo 'tags<<EOF'
+            echo "$TAGS"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push operator console
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/operator-console/Dockerfile
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ inputs.public_api_url }}
+          tags: ${{ steps.tags.outputs.tags }}

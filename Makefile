@@ -1,4 +1,4 @@
-.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay deploy-env-check ae-setup-check operator-todos a-e-setup local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
+.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
 
 help:
 	@echo "Targets:"
@@ -29,6 +29,7 @@ help:
 	@echo "  make ae-setup-check     - verify deploy/.env keys for phased ops (+ optional /ready probe)"
 	@echo "  make operator-todos - print path to bundled Droplet/GIS checklist (docs)"
 	@echo "  make a-e-setup    - print path to A–E setup checklist (docs)"
+	@echo "  make operator-console-help - operator browser UI (/operator on UI_HOST)"
 
 deploy-env-check:
 	@python3 scripts/check_deploy_env_warnings.py
@@ -38,6 +39,9 @@ operator-todos:
 
 a-e-setup:
 	@echo "A–E configuration checklist (env, Beat, GIS, portfolio): docs/A-E-SETUP-CHECKLIST.md"
+
+operator-console-help:
+	@echo "Operator web UI (parcels, deals, approvals): docs/OPERATOR-CONSOLE.md"
 
 ae-setup-check:
 	@python3 scripts/check_ae_setup.py
