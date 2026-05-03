@@ -1,14 +1,14 @@
 {
-  "id": 25266772118,
+  "id": 25266813484,
   "conclusion": "failure",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "d0aaa92b1cebdfcbb4eb088db37e419bc2a5fedc",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25266772118",
-  "created_at": "2026-05-03T01:33:10Z",
-  "updated_at": "2026-05-03T01:33:37Z",
-  "display_title": "docs(operator-console): describe target deal lifecycle vs current pip…",
+  "head_sha": "98e2cfa5f92cd50e495f8056a5b38840c99a021d",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25266813484",
+  "created_at": "2026-05-03T01:35:31Z",
+  "updated_at": "2026-05-03T01:35:57Z",
+  "display_title": "fix(caddy): match /operator and /operator/* for operator console",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-03T01:33:44Z"
+  "snapshot_recorded_at": "2026-05-03T01:36:03Z"
 }
