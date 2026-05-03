@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { canMutate, useAuth } from "../../lib/useAuth";
 
 type Approval = {
   id: string;
@@ -15,6 +16,8 @@ type Approval = {
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export default function ApprovalsPage() {
+  const auth = useAuth();
+  const allowActions = canMutate(auth);
   const [filter, setFilter] = useState<"pending" | "all">("pending");
   const [items, setItems] = useState<Approval[]>([]);
   const [actor, setActor] = useState("operator@example.com");
@@ -64,10 +67,16 @@ export default function ApprovalsPage() {
             <option value="all">All recent</option>
           </select>
         </label>
-        <label className="muted">
-          Actor{" "}
-          <input value={actor} onChange={(e) => setActor(e.target.value)} placeholder="email" />
-        </label>
+        {allowActions ? (
+          <label className="muted">
+            Actor{" "}
+            <input value={actor} onChange={(e) => setActor(e.target.value)} placeholder="email" />
+          </label>
+        ) : auth.loading ? (
+          <span className="muted">Checking permissions…</span>
+        ) : (
+          <span className="muted">View-only — approval actions hidden.</span>
+        )}
         <button type="button" className="primary" onClick={() => void load()}>
           Refresh
         </button>
@@ -91,14 +100,18 @@ export default function ApprovalsPage() {
                 </pre>
               </div>
               {a.status === "pending" ? (
-                <div style={{ display: "flex", gap: "0.35rem" }}>
-                  <button type="button" className="primary" onClick={() => void decide(a.id, "approve")}>
-                    Approve
-                  </button>
-                  <button type="button" onClick={() => void decide(a.id, "reject")}>
-                    Reject
-                  </button>
-                </div>
+                allowActions ? (
+                  <div style={{ display: "flex", gap: "0.35rem" }}>
+                    <button type="button" className="primary" onClick={() => void decide(a.id, "approve")}>
+                      Approve
+                    </button>
+                    <button type="button" onClick={() => void decide(a.id, "reject")}>
+                      Reject
+                    </button>
+                  </div>
+                ) : (
+                  <span className="muted">—</span>
+                )
               ) : (
                 <span className="muted">{a.approved_by ?? "—"}</span>
               )}

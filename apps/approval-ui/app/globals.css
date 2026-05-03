@@ -78,6 +78,11 @@ button.danger {
   color: #ffb4b4;
 }
 
+button.outline {
+  background: transparent;
+  border-color: #3d4f63;
+}
+
 input {
   background: #121922;
   border: 1px solid #2a3544;

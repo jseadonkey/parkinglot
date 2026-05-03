@@ -42,8 +42,9 @@ Use the **same hostname as the approval UI** (`UI_HOST` in `deploy/.env`). Do **
 
 ## Security notes
 
+- **Browser login:** set **`AUTH_SECRET`** and the `AUTH_*` credential variables in `deploy/.env` (see `deploy/env.production.example`). The **approval UI** and **operator console** share the same cookie and env; **admin** can approve/reject, **viewer** is read-only for those actions. Omit **`AUTH_SECRET`** only for local/CI (UIs stay open).
 - **`INTERNAL_API_KEY`** is only used in the **operator-console** container (Route Handler → API `http://api:8000`). Do not set it as `NEXT_PUBLIC_*`.
-- Read APIs (`GET /parcels`, `/workflow-runs`, `/approvals`, `/audit`) are currently **unauthenticated** on the API — treat network access accordingly (VPN, firewall, Cloudflare Access, or future auth). The console itself has **no login** at Caddy or Next today.
+- Read APIs (`GET /parcels`, `/workflow-runs`, `/approvals`, `/audit`) are still **unauthenticated** on the API — the UI login does not protect direct API access; use network controls for that.
 - **TLS “not secure”** — If you use **`Caddyfile.internal-tls`** (alternate ports / self-signed), browsers show a certificate warning; that is normal until you terminate trusted TLS at **443** with Let’s Encrypt (`deploy/Caddyfile`) or a reverse proxy with a real certificate.
 - **Owner “conversations”:** the console surfaces **`owner_outreach_brief`** JSON and audit/system events. Multi-agent **Slack** threads are not imported here yet — see Slack channels for live agent chatter.
 
@@ -54,6 +55,7 @@ Service **`operator-console`** in `deploy/docker-compose.production.yml`:
 - **`NEXT_PUBLIC_API_URL`** — browser → public API (same as approval UI).
 - **`API_SERVER_URL=http://api:8000`** — server-side proxy to the API container.
 - **`INTERNAL_API_KEY`** — from `deploy/.env`.
+- **`AUTH_SECRET`**, **`AUTH_ADMIN_*`**, **`AUTH_VIEWER_*`** — optional UI login (same values as **approval-ui**).
 
 Rebuild after changes:
 

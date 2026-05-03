@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { canMutate, useAuth } from "../lib/useAuth";
 
 type Approval = {
   id: string;
@@ -15,6 +16,8 @@ type Approval = {
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function Home() {
+  const auth = useAuth();
+  const allowActions = canMutate(auth);
   const [items, setItems] = useState<Approval[]>([]);
   const [actor, setActor] = useState("reviewer@example.com");
   const [error, setError] = useState<string | null>(null);
@@ -55,14 +58,24 @@ export default function Home() {
         Outbound sends and execution are disabled in the API; this UI only records human decisions on drafts and memos.
       </p>
 
-      <div className="panel" style={{ marginTop: "1.5rem" }}>
-        <label className="muted" htmlFor="actor">
-          Approver identity
-        </label>
-        <div style={{ marginTop: "0.35rem" }}>
-          <input id="actor" value={actor} onChange={(e) => setActor(e.target.value)} placeholder="name@company.com" />
+      {allowActions ? (
+        <div className="panel" style={{ marginTop: "1.5rem" }}>
+          <label className="muted" htmlFor="actor">
+            Approver identity
+          </label>
+          <div style={{ marginTop: "0.35rem" }}>
+            <input id="actor" value={actor} onChange={(e) => setActor(e.target.value)} placeholder="name@company.com" />
+          </div>
         </div>
-      </div>
+      ) : auth.loading ? (
+        <p className="muted" style={{ marginTop: "1rem" }}>
+          Checking permissions…
+        </p>
+      ) : (
+        <p className="muted" style={{ marginTop: "1rem" }}>
+          View-only access — approval actions are hidden.
+        </p>
+      )}
 
       {error ? <div className="error">{error}</div> : null}
 
@@ -83,14 +96,18 @@ export default function Home() {
                   {JSON.stringify(a.payload)}
                 </div>
               </div>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button className="primary" type="button" onClick={() => void decide(a.id, "approve")}>
-                  Approve
-                </button>
-                <button className="danger" type="button" onClick={() => void decide(a.id, "reject")}>
-                  Reject
-                </button>
-              </div>
+              {allowActions ? (
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button className="primary" type="button" onClick={() => void decide(a.id, "approve")}>
+                    Approve
+                  </button>
+                  <button className="danger" type="button" onClick={() => void decide(a.id, "reject")}>
+                    Reject
+                  </button>
+                </div>
+              ) : (
+                <span className="muted">—</span>
+              )}
             </div>
           ))
         )}
