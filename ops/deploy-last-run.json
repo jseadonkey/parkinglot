@@ -1,14 +1,14 @@
 {
-  "id": 25267310947,
+  "id": 25267363794,
   "conclusion": "success",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "76b350d81444f9a2818ada9405d4abce675481b7",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25267310947",
-  "created_at": "2026-05-03T02:04:24Z",
-  "updated_at": "2026-05-03T02:06:26Z",
-  "display_title": "fix(caddy): match /operator/ paths; fix operator login redirect; add …",
+  "head_sha": "5baf4f1720aa705acbc200dec77edd858fcea6ac",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25267363794",
+  "created_at": "2026-05-03T02:07:13Z",
+  "updated_at": "2026-05-03T02:09:12Z",
+  "display_title": "fix(approval-ui): redirect /operator to operator login when misrouted",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-03T02:06:33Z"
+  "snapshot_recorded_at": "2026-05-03T02:09:21Z"
 }
