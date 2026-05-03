@@ -126,6 +126,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    healthcheck:
+      disable: true
     logging: *default-logging
 
   beat:
@@ -140,6 +142,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    healthcheck:
+      disable: true
     logging: *default-logging
 
   approval-ui:

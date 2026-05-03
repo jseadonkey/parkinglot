@@ -141,6 +141,9 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    # Dockerfile.backend HEALTHCHECK curls :8000/health (API only). Celery has no HTTP server.
+    healthcheck:
+      disable: true
     logging: *default-logging
 
   beat:
@@ -159,6 +162,9 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    # Same as worker: inherited image HEALTHCHECK targets uvicorn, not Celery beat.
+    healthcheck:
+      disable: true
     logging: *default-logging
 
   approval-ui:
