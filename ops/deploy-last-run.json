@@ -1,14 +1,14 @@
 {
-  "id": 25266928808,
+  "id": 25267039314,
   "conclusion": "success",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "73200aba98705a5b685c65f791b50e3a6a0633bf",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25266928808",
-  "created_at": "2026-05-03T01:41:57Z",
-  "updated_at": "2026-05-03T01:43:51Z",
-  "display_title": "fix(operator-console): repair overview page JSX and summary typing fo…",
+  "head_sha": "ef490a549139d3eafda03ae19cca1a8bc7fb7f6a",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25267039314",
+  "created_at": "2026-05-03T01:48:09Z",
+  "updated_at": "2026-05-03T01:48:41Z",
+  "display_title": "fix(caddy): route /operator with path_regexp; document 404 vs API host",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-03T01:43:59Z"
+  "snapshot_recorded_at": "2026-05-03T01:48:49Z"
 }
