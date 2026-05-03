@@ -1,14 +1,14 @@
 {
-  "id": 25269275556,
+  "id": 25269308639,
   "conclusion": "success",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "bfb9362544fc06ac69ffd38d4d2c4a05c1c7954d",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25269275556",
-  "created_at": "2026-05-03T03:56:23Z",
-  "updated_at": "2026-05-03T03:56:51Z",
-  "display_title": "Add compiled sample parcel CSV for review (from sample_parcels.geojson)",
+  "head_sha": "17935f1e7efc3dfe33222a4e70a92d48935496c7",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25269308639",
+  "created_at": "2026-05-03T03:58:20Z",
+  "updated_at": "2026-05-03T03:58:48Z",
+  "display_title": "Add docker-compose.caddy-hostports.yml for explicit 80/443 publish",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-03T03:56:58Z"
+  "snapshot_recorded_at": "2026-05-03T03:58:54Z"
 }
