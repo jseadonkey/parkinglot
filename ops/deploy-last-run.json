@@ -1,14 +1,14 @@
 {
-  "id": 25265176977,
+  "id": 25266114315,
   "conclusion": "success",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "dd40d7a5c40acd4e582d932b6f586efdf697a5df",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25265176977",
-  "created_at": "2026-05-03T00:02:42Z",
-  "updated_at": "2026-05-03T00:03:04Z",
-  "display_title": "docs(ops): handoff next steps; warn when HTTPS publish port missing f…",
+  "head_sha": "cfbfd371809af7a1fd1ebae18f49045b8747c926",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25266114315",
+  "created_at": "2026-05-03T00:56:44Z",
+  "updated_at": "2026-05-03T00:57:05Z",
+  "display_title": "fix(deploy): disable bogus HEALTHCHECK on Celery worker and beat",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-03T00:03:11Z"
+  "snapshot_recorded_at": "2026-05-03T00:57:11Z"
 }
