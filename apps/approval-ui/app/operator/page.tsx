@@ -5,5 +5,5 @@ import { redirect } from "next/navigation";
  * Healthy deploys proxy `/operator` to operator-console and never hit this route.
  */
 export default function OperatorEntryRedirect() {
-  redirect("/operator/login");
+  redirect("/login?next=/operator");
 }

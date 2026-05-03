@@ -1,11 +1,10 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "../lib/useAuth";
 import { publicBasePath } from "../lib/auth/publicBasePath";
 
 export function AuthToolbar() {
-  const router = useRouter();
   const pathname = usePathname();
   const auth = useAuth();
   const bp = publicBasePath();
@@ -14,8 +13,7 @@ export function AuthToolbar() {
 
   async function logout() {
     await fetch(`${bp}/api/auth/logout`, { method: "POST", credentials: "same-origin" });
-    router.replace(`${bp}/login`);
-    router.refresh();
+    window.location.href = `${window.location.origin}/login`;
   }
 
   if (auth.loading || !auth.authEnabled) return null;

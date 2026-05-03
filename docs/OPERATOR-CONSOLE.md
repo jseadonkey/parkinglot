@@ -28,6 +28,8 @@ If you use alternate HTTPS ports (e.g. **9443**):
 https://<UI_HOST>:9443/operator
 ```
 
+**Sign-in** for both the approval queue and the operator console uses the same page: **`https://<UI_HOST>[:port]/login`**. If you open `/operator` while logged out, you are redirected there and return to `/operator` after a successful sign-in. (Legacy path `/operator/login` forwards to `/login` as well.)
+
 Use the **same hostname as the approval UI** (`UI_HOST` in `deploy/.env`). Do **not** open the operator console on **`API_HOST`** (the API site only proxies `/` to the FastAPI service — paths like `/operator` there are not the Next app and typically **404**).
 
 ### If you see 404 on `/operator`

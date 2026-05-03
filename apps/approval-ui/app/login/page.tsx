@@ -41,7 +41,9 @@ function LoginForm() {
   return (
     <main style={{ maxWidth: 420 }}>
       <h1>Sign in</h1>
-      <p className="muted">Use your admin email or view-only username.</p>
+      <p className="muted">
+        Shared login for the approval queue and operator console — use your admin email or view-only username.
+      </p>
       <form className="panel" onSubmit={(e) => void onSubmit(e)} style={{ marginTop: "1rem" }}>
         <label className="muted" htmlFor="id">
           Email or username
