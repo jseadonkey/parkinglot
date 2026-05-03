@@ -1,14 +1,14 @@
 {
-  "id": 25266704264,
+  "id": 25266761772,
   "conclusion": "failure",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "995df0d8e8b1ff700a283c68ecdffacc5c04e391",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25266704264",
-  "created_at": "2026-05-03T01:29:25Z",
-  "updated_at": "2026-05-03T01:30:19Z",
-  "display_title": "feat(ui): operator console at /operator — parcels, deals, approvals, …",
+  "head_sha": "c130bec4cda6fa8c5318b1033980c3232878c5e1",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/25266761772",
+  "created_at": "2026-05-03T01:32:35Z",
+  "updated_at": "2026-05-03T01:33:00Z",
+  "display_title": "feat(api+ui): outreach pipeline board for qualified parcels",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-05-03T01:30:32Z"
+  "snapshot_recorded_at": "2026-05-03T01:33:14Z"
 }
