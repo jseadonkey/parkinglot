@@ -9,8 +9,7 @@
 {$UI_HOST} {
 	tls internal
 	encode gzip
-	# Match /operator and everything under it ("/operator*" alone can miss the bare /operator path).
-	@operator path /operator /operator/*
+	@operator path_regexp ^/operator(/.*)?$
 	handle @operator {
 		reverse_proxy operator-console:3000
 	}

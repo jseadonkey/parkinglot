@@ -7,7 +7,8 @@
 
 {$UI_HOST} {
 	encode gzip
-	@operator path /operator /operator/*
+	# Single matcher: /operator, /operator/, and all subpaths (avoids edge cases with path /operator /operator/*)
+	@operator path_regexp ^/operator(/.*)?$
 	handle @operator {
 		reverse_proxy operator-console:3000
 	}

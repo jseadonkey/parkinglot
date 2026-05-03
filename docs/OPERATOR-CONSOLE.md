@@ -28,10 +28,23 @@ If you use alternate HTTPS ports (e.g. **9443**):
 https://<UI_HOST>:9443/operator
 ```
 
+Use the **same hostname as the approval UI** (`UI_HOST` in `deploy/.env`). Do **not** open the operator console on **`API_HOST`** (the API site only proxies `/` to the FastAPI service — paths like `/operator` there are not the Next app and typically **404**).
+
+### If you see 404 on `/operator`
+
+1. **Hostname** — URL must be `https://<UI_HOST>[:port]/operator`, not `https://<API_HOST>/operator`.
+2. **Deploy** — rsync does not overwrite `deploy/.env`, but it **does** update `deploy/Caddyfile`. Run **Deploy to Droplet** (or pull on the server) so Caddy gets the version that routes `/operator` → `operator-console`, then reload Caddy:
+   `docker compose ... up -d --build operator-console caddy`
+3. **Container** — confirm the service is up: `docker compose ... ps` should show `operator-console` running; check logs if it exits during `npm run build`.
+4. **Smoke test on the Droplet** — from the server:
+   `docker compose ... exec caddy wget -qO- --timeout=3 http://operator-console:3000/operator | head -c 80`
+   You should see HTML (not empty). If that works but the browser 404s, the problem is DNS/TLS/host mismatch, not the app.
+
 ## Security notes
 
 - **`INTERNAL_API_KEY`** is only used in the **operator-console** container (Route Handler → API `http://api:8000`). Do not set it as `NEXT_PUBLIC_*`.
-- Read APIs (`GET /parcels`, `/workflow-runs`, `/approvals`, `/audit`) are currently **unauthenticated** on the API — treat network access accordingly (VPN, firewall, future auth layer).
+- Read APIs (`GET /parcels`, `/workflow-runs`, `/approvals`, `/audit`) are currently **unauthenticated** on the API — treat network access accordingly (VPN, firewall, Cloudflare Access, or future auth). The console itself has **no login** at Caddy or Next today.
+- **TLS “not secure”** — If you use **`Caddyfile.internal-tls`** (alternate ports / self-signed), browsers show a certificate warning; that is normal until you terminate trusted TLS at **443** with Let’s Encrypt (`deploy/Caddyfile`) or a reverse proxy with a real certificate.
 - **Owner “conversations”:** the console surfaces **`owner_outreach_brief`** JSON and audit/system events. Multi-agent **Slack** threads are not imported here yet — see Slack channels for live agent chatter.
 
 ## Compose
