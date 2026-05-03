@@ -7,8 +7,8 @@
 
 {$UI_HOST} {
 	encode gzip
-	# Explicit segments: path_regexp broke routing on some deployments (traffic fell through to approval-ui → 404).
-	@operator path /operator /operator/*
+	# OR segments: `/operator/*` alone does not match bare `/operator` or `/operator/` (Caddy path docs).
+	@operator path /operator /operator/ /operator/*
 	handle @operator {
 		reverse_proxy operator-console:3000
 	}

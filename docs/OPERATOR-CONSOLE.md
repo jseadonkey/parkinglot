@@ -39,7 +39,9 @@ Use the **same hostname as the approval UI** (`UI_HOST` in `deploy/.env`). Do **
 4. **Smoke test on the Droplet** — from the server:
    `docker compose ... exec caddy wget -qO- --timeout=3 http://operator-console:3000/operator | head -c 80`
    You should see HTML (not empty). If that works but the browser 404s, the problem is DNS/TLS/host mismatch, not the app.
-5. **404 titled “Parking — approvals”** — Caddy is sending `/operator` to **approval-ui** (wrong upstream). Refresh **`deploy/Caddyfile`** on the server so `@operator` routes to **`operator-console`**, then `docker compose ... up -d caddy` (or restart the Caddy container).
+5. **404 titled “Parking — approvals”** — Caddy is sending `/operator` to **approval-ui** (wrong upstream). Pull **`deploy/Caddyfile`** (and **`Caddyfile.internal-tls`** if you use alternate HTTPS ports) onto the Droplet, then recreate Caddy so it reloads the mount:  
+   `docker compose ... up -d --force-recreate caddy`  
+   From repo root on the server, run **`deploy/verify-operator-route-on-droplet.sh`** — it prints the live Caddyfile and wget’s **`operator-console:3000/operator`**. If the script shows `reverse_proxy operator-console` but the browser still 404s, check **`UI_HOST`** in **`deploy/.env`** matches the hostname you type in the browser (no `www.` mismatch).
 
 ## Security notes
 
