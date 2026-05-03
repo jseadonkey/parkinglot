@@ -1,0 +1,3 @@
+APN,COUNTY_FIPS,LOT_SQFT,ZONING,ZONING_ALLOWS_SURFACE_PARKING,IS_CORNER,DIST_DEMAND_M,OWNER_NAME,centroid_lon,centroid_lat,source_file
+WA-KING-SAMPLE-001,53033,14000,Downtown Commercial (example),True,True,180,Puget Sound Example Holdings LLC,-122.3345,47.6085,data/sample_parcels.geojson
+WA-KING-SAMPLE-002,53033,4800,Lowrise (example),False,False,1200,Jane Washington Citizen,-122.3015,47.6185,data/sample_parcels.geojson
