@@ -61,6 +61,19 @@ def main() -> int:
     if acme and ("example.com" in acme or acme.strip() == "you@yourdomain.com"):
         warnings.append("ACME_EMAIL may still be the template — set a real email for Let's Encrypt.")
 
+    https_publish = (env.get("CADDY_PUBLISH_HTTPS") or "").strip()
+    pub = env.get("PUBLIC_API_URL", "")
+    if (
+        https_publish
+        and https_publish not in {"443", "80"}
+        and pub.startswith("https://")
+        and f":{https_publish}" not in pub
+    ):
+        warnings.append(
+            f"CADDY_PUBLISH_HTTPS={https_publish} but PUBLIC_API_URL has no :{https_publish} "
+            "(use https://API_HOST:{port}/… when Caddy publishes HTTPS on that port).",
+        )
+
     if warnings:
         print("Warnings (fix before relying on public HTTPS):\n")
         for w in warnings:
