@@ -10,6 +10,10 @@ The **operator console** is a Next.js app at **`/operator`** on the same hostnam
 - **Portfolios** — JSON from **`GET /internal/owners/portfolios-ranked`** (proxied).
 - **Outreach pipeline** — qualified parcels (entitlement ≥ pilot floor) with workflow stage, brief, pending approvals — **`GET /internal/pipeline/outreach-board`** (proxied).
 
+### Target deal lifecycle (business)
+
+End-to-end you may track parcels through: **owner contact → negotiation → contract with owner → contract with a development partner → built / parking operational**. The app today focuses on **identifying qualified lots**, **running the scoring/enrichment pipeline**, **human approvals** (memo/contract drafts), and **structured outreach data** — not full CRM or construction milestones. Mapping richer phases (e.g. “under LOI”, “GC engaged”, “grand opening”) into the UI usually means adding an explicit **deal phase** field (or integrating a CRM) later; the outreach pipeline table is the current **pre-contact / pipeline-readiness** view.
+
 ## URL
 
 After deploy and Caddy reload:
