@@ -34,6 +34,8 @@
 #       PHASE_B_OVERLAY_PATH=/app/data/zoning/kent_overlay.geojson
 #       /app/scripts/execute-phase-b.sh'
 #
+# HTTPS + internal TLS: curls use curl -k for https:// unless PHASE_B_STRICT_TLS=1.
+#
 # B) Run on Droplet host with resolving HTTPS API (PUBLIC_API_URL / DNS working):
 #   set -a && source deploy/.env && set +a
 #   export DATABASE_URL INTERNAL_API_KEY PHASE_B_API_BASE="${PUBLIC_API_URL}"
@@ -46,6 +48,14 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+
+DEPLOY_ENV="${ROOT}/deploy/.env"
+if [[ -f "$DEPLOY_ENV" ]] && { [[ -z "${DATABASE_URL:-}" ]] || [[ -z "${INTERNAL_API_KEY:-}" ]]; }; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$DEPLOY_ENV"
+  set +a
+fi
 
 : "${PHASE_B_API_BASE:=http://127.0.0.1:8000}"
 : "${PHASE_B_REFRESH_PIPELINE:=1}" # 1/true = enqueue pipelines after merge
@@ -75,7 +85,7 @@ poll_until_done() {
   local elapsed=0
   while [[ "$elapsed" -lt "$PHASE_B_POLL_TIMEOUT_SEC" ]]; do
     local POLL STATE
-    POLL="$(curl -sS "${KEY_HEADER[@]}" "${BASE}/internal/tasks/${tid}" -H "Accept: application/json" || echo "{}")"
+    POLL="$(curl -sS "${CURL_TLS[@]}" "${KEY_HEADER[@]}" "${BASE}/internal/tasks/${tid}" -H "Accept: application/json" || echo "{}")"
     STATE="$(json_state "$POLL")"
     if [[ "$STATE" == "SUCCESS" ]]; then
       echo "\"${label}\" SUCCESS (${elapsed}s)."
@@ -152,6 +162,11 @@ fi
 
 BASE="${PHASE_B_API_BASE%/}"
 
+CURL_TLS=()
+if [[ "${BASE}" =~ ^https:// ]] && [[ "${PHASE_B_STRICT_TLS:-}" != "1" ]]; then
+  CURL_TLS+=(-k)
+fi
+
 REFRESH_JSON="true"
 if [[ "${PHASE_B_REFRESH_PIPELINE}" == "0" ]] || [[ "${PHASE_B_REFRESH_PIPELINE,,}" == "false" ]]; then
   REFRESH_JSON="false"
@@ -181,7 +196,7 @@ PY
 
 echo "=== POST ${BASE}/internal/ingest/merge-geojson-attributes ==="
 echo "Body: ${POST_BODY}"
-MERGE_RESP="$(curl -sS "${KEY_HEADER[@]}" -X POST \
+MERGE_RESP="$(curl -sS "${CURL_TLS[@]}" "${KEY_HEADER[@]}" -X POST \
   "${BASE}/internal/ingest/merge-geojson-attributes" \
   -H "Content-Type: application/json" -H "Accept: application/json" \
   -d "$POST_BODY" || true)"

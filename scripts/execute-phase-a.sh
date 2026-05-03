@@ -31,6 +31,9 @@
 #   export DATABASE_URL INTERNAL_API_KEY
 #   PHASE_A_API_BASE="https://YOUR_PUBLIC_API" PHASE_A_ENQUEUE_ROUNDS=3 ./scripts/execute-phase-a.sh
 #
+# HTTPS + Caddy internal TLS (self-signed): curls skip CA verify by default for https://.
+#   To enforce TLS verification (e.g. public Let's Encrypt): PHASE_A_STRICT_TLS=1 ./scripts/execute-phase-a.sh
+#
 # Or from API container:
 #   docker compose -f deploy/docker-compose.production.yml exec -T api \
 #     bash -lc 'export DATABASE_URL INTERNAL_API_KEY PHASE_A_API_BASE=http://127.0.0.1:8000 && /app/scripts/execute-phase-a.sh'
@@ -39,6 +42,14 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+
+DEPLOY_ENV="${ROOT}/deploy/.env"
+if [[ -f "$DEPLOY_ENV" ]] && { [[ -z "${DATABASE_URL:-}" ]] || [[ -z "${INTERNAL_API_KEY:-}" ]]; }; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$DEPLOY_ENV"
+  set +a
+fi
 
 : "${PHASE_A_ENQUEUE_LIMIT:=500}"
 : "${PHASE_A_ENQUEUE_ROUNDS:=1}"
@@ -71,7 +82,7 @@ poll_until_done() {
   local elapsed=0
   while [[ "$elapsed" -lt "$PHASE_A_POLL_TIMEOUT_SEC" ]]; do
     local POLL STATE
-    POLL="$(curl -sS "${KEY_HEADER[@]}" "${BASE}/internal/tasks/${tid}" -H "Accept: application/json" || echo "{}")"
+    POLL="$(curl -sS "${CURL_TLS[@]}" "${KEY_HEADER[@]}" "${BASE}/internal/tasks/${tid}" -H "Accept: application/json" || echo "{}")"
     STATE="$(json_state "$POLL")"
     if [[ "$STATE" == "SUCCESS" ]]; then
       echo "\"${label}\" SUCCESS (${elapsed}s)."
@@ -130,9 +141,14 @@ fi
 
 BASE="${PHASE_A_API_BASE%/}"
 
+CURL_TLS=()
+if [[ "${BASE}" =~ ^https:// ]] && [[ "${PHASE_A_STRICT_TLS:-}" != "1" ]]; then
+  CURL_TLS+=(-k)
+fi
+
 for ((round = 1; round <= PHASE_A_ENQUEUE_ROUNDS; round++)); do
   echo "=== POST ${BASE}/internal/pipeline/enqueue-incomplete (round ${round}/${PHASE_A_ENQUEUE_ROUNDS}, limit=${PHASE_A_ENQUEUE_LIMIT}) ==="
-  ENC_RESP="$(curl -sS "${KEY_HEADER[@]}" -X POST \
+  ENC_RESP="$(curl -sS "${CURL_TLS[@]}" "${KEY_HEADER[@]}" -X POST \
     "${BASE}/internal/pipeline/enqueue-incomplete?limit=${PHASE_A_ENQUEUE_LIMIT}" \
     -H "Accept: application/json" || true)"
   echo "$ENC_RESP"
@@ -152,7 +168,7 @@ if [[ "${PHASE_A_REFRESH_IDENTIFICATION}" == "1" ]]; then
     ID_URL+="&county_fips=${PHASE_A_COUNTY_FIPS}"
   fi
   echo "=== POST ${ID_URL} ==="
-  ID_RESP="$(curl -sS "${KEY_HEADER[@]}" -X POST "$ID_URL" -H "Accept: application/json" || true)"
+  ID_RESP="$(curl -sS "${CURL_TLS[@]}" "${KEY_HEADER[@]}" -X POST "$ID_URL" -H "Accept: application/json" || true)"
   echo "$ID_RESP"
   IDENT_TASK_ID="$(echo "$ID_RESP" | "${PY}" -c "import sys,json; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null || true)"
   if [[ -n "$IDENT_TASK_ID" ]]; then
@@ -176,7 +192,7 @@ if [[ -n "${PHASE_A_COUNTY_FIPS:-}" ]]; then
 fi
 
 echo "=== POST ${DEM_URL} ==="
-DEM_RESP="$(curl -sS "${KEY_HEADER[@]}" -X POST "$DEM_URL" -H "Accept: application/json" || true)"
+DEM_RESP="$(curl -sS "${CURL_TLS[@]}" "${KEY_HEADER[@]}" -X POST "$DEM_URL" -H "Accept: application/json" || true)"
 echo "$DEM_RESP"
 DEM_TASK_ID="$(echo "$DEM_RESP" | "${PY}" -c "import sys,json; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null || true)"
 
