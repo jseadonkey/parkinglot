@@ -8,7 +8,7 @@ CI runs via [`.github/workflows/ci.yml`](.github/workflows/ci.yml): **pull reque
 
 **API contracts:** interactive docs at `/docs`, machine-readable schema at `/openapi.json`. [`services/api/tests/test_openapi.py`](services/api/tests/test_openapi.py) asserts routes and response schema refs stay aligned. To snapshot the schema (e.g. for codegen or diff), use **`make openapi-export`** or `python3 scripts/export_openapi_json.py` with the same Python env as **`make api-ci`**.
 
-**Rollout vs repo:** what is automated in code versus what operators still run on live infra or GIS is summarized in [docs/PHASED-EXECUTION-PLAN-A-E.md](docs/PHASED-EXECUTION-PLAN-A-E.md) (“Where we are — repo vs operations”) and the batched checklist [docs/OPERATOR-TODO-BUNDLE.md](docs/OPERATOR-TODO-BUNDLE.md).
+**Rollout vs repo:** [docs/PROCESS-COVERAGE.md](docs/PROCESS-COVERAGE.md) maps **scripted processes** vs **true externals** (counsel, vendors, county ToS). Phase status and checklists: [docs/PHASED-EXECUTION-PLAN-A-E.md](docs/PHASED-EXECUTION-PLAN-A-E.md), [docs/OPERATOR-TODO-BUNDLE.md](docs/OPERATOR-TODO-BUNDLE.md).
 
 **Pilot region:** Washington State — Puget Sound counties (King, Snohomish, Pierce) in [`config/pilot.yaml`](config/pilot.yaml). Public GIS entry points: [`docs/washington-data.md`](docs/washington-data.md).
 
@@ -49,9 +49,9 @@ Closest DO region to Washington is **`sfo3`** (no Seattle datacenter); use the s
 
 Production runbook: [docs/OPERATIONS.md](docs/OPERATIONS.md) (health vs ready, logs, deploy scripts, uptime checks).
 
-**Phased rollout (stakeholder CSV → zoning overlay → outreach → multi-county):** status table in [docs/PHASED-EXECUTION-PLAN-A-E.md](docs/PHASED-EXECUTION-PLAN-A-E.md) (“Where we are — repo vs operations”). Batch your Droplet/GIS/vendor todos in [docs/OPERATOR-TODO-BUNDLE.md](docs/OPERATOR-TODO-BUNDLE.md).
+**Phased rollout:** [docs/PHASED-EXECUTION-PLAN-A-E.md](docs/PHASED-EXECUTION-PLAN-A-E.md). **Operator checklist:** [docs/OPERATOR-TODO-BUNDLE.md](docs/OPERATOR-TODO-BUNDLE.md).
 
-**Shortcuts:** `make help` (see [Makefile](Makefile)); `make api-ci` runs Ruff + pytest like CI; `make openapi-export` prints the OpenAPI schema; `make operator-todos` prints the bundle path.
+**Shortcuts:** `make help`; `make process-coverage` → [docs/PROCESS-COVERAGE.md](docs/PROCESS-COVERAGE.md); **`make export-parcel-scores`**; **`make preflight-zoning`** / **`make phase-b-pipeline`** (Phase B); **`make slack-droplet-check`** / **`make slack-digest-wait`** (Slack ops); `make api-ci`; `make openapi-export`; `make operator-todos`.
 
 **CI deploy:** GitHub Actions → Droplet over SSH — [docs/GITHUB-DEPLOY.md](docs/GITHUB-DEPLOY.md).
 

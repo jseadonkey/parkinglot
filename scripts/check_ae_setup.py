@@ -103,6 +103,26 @@ def main() -> int:
         print("       WARN: pipelines may fail at contract draft without object storage.")
 
     print()
+    print("=== Slack (20 min UTC digest + daily reports) ===")
+    st = (env.get("SLACK_BOT_TOKEN") or "").strip()
+    sc = (env.get("SLACK_DIGEST_CHANNEL_ID") or "").strip()
+    sad = (env.get("SLACK_AGENT_DISCUSSION_CHANNEL_ID") or "").strip()
+    slack_ok = bool(st) and bool(sc)
+    print(f"  {_ok(slack_ok)} SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID (required for digests)")
+    if not slack_ok:
+        print(
+            "       WARN: worker will SKIPPED every scheduled digest until both are set; "
+            "see docs/SLACK.md — then: docker compose -f deploy/docker-compose.production.yml "
+            "--env-file deploy/.env up -d worker beat",
+        )
+    if st and not st.startswith("xoxb-"):
+        print("       WARN: SLACK_BOT_TOKEN usually starts with xoxb- (check for copy/paste error).")
+    print(
+        f"  {'OK ' if (bool(st) and bool(sad)) else 'OFF '} "
+        f"SLACK_AGENT_DISCUSSION_CHANNEL_ID (optional dual-agent channel)",
+    )
+
+    print()
     print("=== Phase A — scheduling & pilot ===")
     enq = env.get("SCHEDULED_ENQUEUE_UNSCORED_ENABLED", "true").lower() in ("1", "true", "yes", "on")
     print(f"  {'OK ' if enq else 'OFF '} SCHEDULED_ENQUEUE_UNSCORED_ENABLED={env.get('SCHEDULED_ENQUEUE_UNSCORED_ENABLED', 'true')}")

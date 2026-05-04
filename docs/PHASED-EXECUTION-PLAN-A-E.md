@@ -16,15 +16,15 @@ This document breaks the **parcel CSV completeness**, **scoring**, **enrichment*
 
 ### Where we are — repo vs operations (Phases A–E)
 
-| Phase | Shipped in this repo (automatable) | Still on your side (batch when ready — see [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md)) |
-|-------|-------------------------------------|---------------------------------------------------------------------------------------------|
-| **A** | `scripts/execute-phase-a.sh`, `check_export_readiness.py`, `GET /internal/stats/export-readiness`, enqueue + identification + demand-distance Celery tasks, OpenAPI response models, `make readiness` / `make phase-a-run` | Run against **live** Postgres/API on the Droplet (or laptop with `DATABASE_URL`); tune **`demand_generators`** in `pilot.yaml`; stakeholder CSV spot-check |
-| **B** | `POST /internal/ingest/merge-geojson-attributes`, `scripts/execute-phase-b.sh`, `scripts/validate_phase_b_overlay.py`, `make validate-phase-b-overlay`, zoning rules YAML path (`ZONING_RULES_PATH`) | **Produce & stage zoning overlay GeoJSON** (spatial join); counsel review of surface-parking rules as jurisdictions change |
-| **C** | `scripts/execute-phase-c.sh`, `make phase-c-run`, `GET /internal/owners/*`, outreach brief + memo paths in pipeline, **`parcels_missing_owner_outreach_brief`** in export-readiness | Run pipelines so briefs fill; optional **vendor / SOS** contracts + env; portfolio prioritization in your process |
-| **D** | Baseline **`distance_to_nearest_demand_m`** (centroid→POI), **`is_corner_lot`** / **`DIST_DEMAND_M`** via ingest or merge overlay; strategic + identification YAML tuning | **GIS inputs** for defensible corner logic or richer demand (roads, adjacency, surfaces) — dedicated batch jobs **not** implemented until inputs exist (see Phase D backlog below) |
-| **E** | Multi-county **`region.county_fips`** in `pilot.yaml`, ingest/WaTech routes, same phase scripts per county | Add each county to pilot + ingest + repeat **A→B→C** checklist; monitor **`export-readiness`** per rollout |
+| Phase | Shipped in this repo (automatable) | Configuration / true externals ([PROCESS-COVERAGE.md](PROCESS-COVERAGE.md)) |
+|-------|-------------------------------------|----------------------------------------------------------------------------|
+| **A** | `scripts/execute-phase-a.sh`, `check_export_readiness.py`, `GET /internal/stats/export-readiness`, enqueue + identification + demand-distance Celery tasks, OpenAPI response models, `make readiness` / `make phase-a-run` | Run on **live** Postgres/API; tune **`demand_generators`** in `pilot.yaml`; stakeholder CSV spot-check |
+| **B** | `POST /internal/ingest/merge-geojson-attributes`, `scripts/build_king_kent_zoning_overlay.py`, `scripts/run_phase_b_pipeline.sh`, `scripts/execute-phase-b.sh`, `scripts/validate_phase_b_overlay.py`, `make validate-phase-b-overlay` / `make build-king-kent-zoning-overlay`, zoning rules YAML path (`ZONING_RULES_PATH`) | Set **`KENT_ZONING` / `KING_ZONING`** Feature Layer URLs (agencies republish); **counsel** curates surface-parking YAML |
+| **C** | `scripts/execute-phase-c.sh`, `make phase-c-run`, `GET /internal/owners/*`, outreach brief + memo paths in pipeline, **`parcels_missing_owner_outreach_brief`** in export-readiness | **Vendor contracts** + env for optional lookups; WA SOS human verification where required |
+| **D** | Baseline **`distance_to_nearest_demand_m`** (centroid→POI), **`is_corner_lot`** / **`DIST_DEMAND_M`** via ingest or merge overlay; strategic + identification YAML tuning | **Road/adjacency/demand-surface inputs** agreed with GIS — batch derivation deferred until inputs exist (Phase D backlog) |
+| **E** | Multi-county **`region.county_fips`** in `pilot.yaml`, ingest/WaTech routes, same phase scripts per county | Per-county overlay URLs and pilot rows (repeat **A→B→C**); monitor **`export-readiness`** |
 
-**Bottom line:** Phases **A–C** are **tool-complete** in code; **production proof** is running the scripts on real infra and closing **data** gaps (Phase **B** overlay is the largest recurring external dependency). Phases **D–E** are **partially** automated (D needs GIS investment; E is process + config repeating A–C).
+**Bottom line:** Phases **A–C** are **tool-complete** in code; **production proof** is running the scripts on real infra. **Phase B** polygons are produced by **`build_king_kent_zoning_overlay.py`** once REST URLs are set — not a separate desktop GIS step. Phases **D–E** stay **partially** automated until optional geometry inputs land.
 
 ---
 
@@ -138,9 +138,9 @@ Populate **`zoning_code`** and **`zoning_allows_surface_parking`** (and optional
 - `POST /internal/ingest/merge-geojson-attributes` — `services/api/app/tasks.py` (`merge_parcel_attributes_geojson`)  
 - `docs/zoning-sources-kent.md`, `data/zoning/wa/README.md`
 
-### Backlog — merge a **real** zoning overlay (tracked deliverable)
+### Backlog — production zoning overlay per county (tracked deliverable)
 
-The codebase includes merge endpoints, **`scripts/execute-phase-b.sh`**, and **`scripts/validate_phase_b_overlay.py`**. What is **not** done until ops/GIS completes it is the **authoritative overlay GeoJSON per pilot county**: spatial join parcel polygons to jurisdiction zoning GIS (outside this repo), properties aligned with **`geojson_loader`** aliases and **`kent_king_surface_parking_rules.yaml`**, staged on the Droplet under **`data/`** (worker path **`/app/data/...`**), then merge + verify **`parcels_missing_zoning_code`** drops and counsel spot-checks **`zoning_allows_surface_parking`**. Treat **“implement Phase B for production parcels”** as **shipping that file + running merge**, not only enabling the automation.
+The repo ships **`scripts/build_king_kent_zoning_overlay.py`** (King/Kent), **`scripts/run_phase_b_pipeline.sh`** (build → validate → merge), merge endpoints, **`execute-phase-b.sh`**, and **`validate_phase_b_overlay.py`**. **Remaining work per rollout:** discover current **Feature Layer REST URLs** for each jurisdiction (open-data pages move), set **`KENT_ZONING` / `KING_ZONING`**, run the pipeline, then verify **`parcels_missing_zoning_code`** drops and **counsel** spot-checks **`zoning_allows_surface_parking`** against **`kent_king_surface_parking_rules.yaml`**. Other counties follow the same pattern: produce overlay GeoJSON with **`geojson_loader`** property aliases, stage under **`data/`** → **`/app/data/...`**, merge.
 
 ---
 

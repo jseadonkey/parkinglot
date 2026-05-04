@@ -11,11 +11,12 @@ The repo is meant to sit in a single directory on the Droplet, with `docker comp
 
 You can use another path (e.g. `/home/deploy/app`); set **`REMOTE_PATH`** for [`scripts/sync-to-droplet.sh`](../scripts/sync-to-droplet.sh) and [`scripts/remote-rebuild.sh`](../scripts/remote-rebuild.sh), or GitHub variable **`DROPLET_REMOTE_PATH`** for [`.github/workflows/deploy-droplet.yml`](../.github/workflows/deploy-droplet.yml). If unset, those tools default to **`/opt/parking-acquisition-agents`** ([docs/DROPLET_REPO_PATH.md](../docs/DROPLET_REPO_PATH.md)).
 
-On the server, secrets live in **`deploy/.env`** next to the compose files (that file is never committed).
+On the server, Compose reads **`deploy/.env`** next to the compose files (that file is never committed).
 
+- **Recommended workflow:** keep committed defaults in [`env.production.example`](env.production.example), put passwords and tokens in **one** gitignored file **`deploy/secrets.env`**, then run **`make render-deploy-env`** to generate `deploy/.env`. See [`README-SECRETS.md`](README-SECRETS.md).
 - **Compose file**: [`docker-compose.production.yml`](docker-compose.production.yml) — API, **Celery worker**, **Celery Beat** (schedules Slack digest among other periodic tasks), Redis, approval UI, Caddy (TLS). Uses **Managed Postgres** and **Spaces** (no container database or MinIO).
-- **Slack (optional):** [docs/SLACK.md](../docs/SLACK.md) — set `SLACK_BOT_TOKEN` and `SLACK_DIGEST_CHANNEL_ID` in `deploy/.env`.
-- **Env template**: [`env.production.example`](env.production.example) → copy to `deploy/.env` on the server (gitignored).
+- **Slack (optional):** [docs/SLACK.md](../docs/SLACK.md) — set `SLACK_BOT_TOKEN` and `SLACK_DIGEST_CHANNEL_ID` (in `secrets.env` or merged `deploy/.env`).
+- **Env template only:** you can still copy [`env.production.example`](env.production.example) → `deploy/.env` by hand; the merge workflow avoids editing that large file repeatedly.
 - **Managed Postgres firewall:** In **Databases → your cluster → Settings** (or **Trusted sources**), allow your **Droplet** as a trusted resource, or add the Droplet’s **public IPv4**. Otherwise connections from the app on the Droplet often fail with timeouts / “connection refused” even when `DATABASE_URL` is correct.
 - **Easier than editing `nano`:** On the Droplet, from the repo root (**`/opt/parking-acquisition-agents`** — see [docs/DROPLET_REPO_PATH.md](../docs/DROPLET_REPO_PATH.md)), run **`python3 scripts/droplet_set_database_url.py`** — it prompts for host and password (hidden) and updates **`deploy/.env`** with **`DATABASE_URL`** (backs up `.env` first). Needs the script on disk (from **`git pull`** or after a deploy **rsync**).
 - **Easiest (one paste):** **`python3 scripts/droplet_paste_database_uri.py`** — in the DO panel use **Copy** on the full **`postgresql://…`** connection URI (one line), paste when the script asks, Enter. Converts to **`postgresql+psycopg://`** automatically.

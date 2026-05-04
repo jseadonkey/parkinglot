@@ -3,6 +3,8 @@
 .env.github
 .env.github.*
 deploy/.env
+# Local-only overrides merged into deploy/.env by scripts/render_deploy_env.py
+deploy/secrets.env
 # Droplet-side backups from db_url merge scripts — may contain DATABASE_URL; never commit
 deploy/.env*.bak*
 deploy/.env.env.bak.*

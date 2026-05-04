@@ -27,8 +27,9 @@ def main() -> int:
     env_path = repo / "deploy" / ".env"
     if not env_path.is_file():
         print(
-            f"Missing {env_path} — create it first: cd {repo / 'deploy'} "
-            "&& cp env.production.example .env",
+            f"Missing {env_path} — create it first, e.g.: cp deploy/secrets.env.example deploy/secrets.env "
+            f"(fill secrets), then python3 scripts/render_deploy_env.py — or cp {repo / 'deploy' / 'env.production.example'} "
+            f"{env_path}",
             file=sys.stderr,
         )
         return 1

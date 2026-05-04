@@ -1,6 +1,6 @@
 # Operator TODO bundle — batch these to minimize repeat effort
 
-Use this as a **single checklist** when you sit down to finish Droplet work, instead of spreading the same tasks across many sessions. Detailed procedures stay in [OPERATIONS.md](OPERATIONS.md) and [PHASED-EXECUTION-PLAN-A-E.md](PHASED-EXECUTION-PLAN-A-E.md). For **A–E setup verification** (env, Beat, Phase B file path, portfolio smoke), see **[A-E-SETUP-CHECKLIST.md](A-E-SETUP-CHECKLIST.md)**. For a **short post-break handoff** (DNS, `deploy/.env`, HTTPS smoke checks), see **[OPERATOR-NEXT-STEPS.md](OPERATOR-NEXT-STEPS.md)**. For a **phase-by-phase status** (what’s in-repo vs what’s on you), see **“Where we are — repo vs operations”** in the phased plan.
+Use this as a **single checklist** when you sit down to finish Droplet work, instead of spreading the same tasks across many sessions. Detailed procedures stay in [OPERATIONS.md](OPERATIONS.md) and [PHASED-EXECUTION-PLAN-A-E.md](PHASED-EXECUTION-PLAN-A-E.md). **What is automated vs legally/vendor-external** is mapped in **[PROCESS-COVERAGE.md](PROCESS-COVERAGE.md)**. For **A–E setup verification** (env, Beat, Phase B file path, portfolio smoke), see **[A-E-SETUP-CHECKLIST.md](A-E-SETUP-CHECKLIST.md)**. For a **short post-break handoff** (DNS, `deploy/.env`, HTTPS smoke checks), see **[OPERATOR-NEXT-STEPS.md](OPERATOR-NEXT-STEPS.md)**.
 
 ---
 
@@ -27,7 +27,7 @@ Use this as a **single checklist** when you sit down to finish Droplet work, ins
 
 **Automation (no manual scripts):** Celery Beat already **enqueues incomplete pipelines** on a schedule (`SCHEDULED_ENQUEUE_*` in `deploy/.env` — default every few hours). Optional Beat entries also run **identification** and **demand-distance** batch refreshes (`SCHEDULED_REFRESH_IDENTIFICATION_*`, `SCHEDULED_REFRESH_DEMAND_*` in `deploy/env.production.example`). Restart **worker + beat** after changing those variables.
 
-**Phase B** still needs **your** zoning overlay GeoJSON staged on disk — merge can be scripted (cron) once the file path is stable. **`execute-phase-c.sh`** is a **smoke test**, not something that must run on a schedule.
+**Phase B — zoning:** build the overlay with **`scripts/build_king_kent_zoning_overlay.py`** (see **`docs/zoning-sources-kent.md`**) or run the full **`scripts/run_phase_b_pipeline.sh`** (build → validate → **`execute-phase-b.sh`**). Stage output under **`data/`** so workers see **`/app/data/...`**. **`execute-phase-c.sh`** is a **smoke test**, not something that must run on a schedule.
 
 Do **not** re-export secrets repeatedly — one shell block:
 
@@ -48,28 +48,28 @@ Then, in order:
 
 - [ ] **`make readiness`** (alias for `make export-readiness`) — baseline gap counts (includes **`parcels_missing_owner_outreach_brief`**).
 - [ ] **`./scripts/execute-phase-a.sh`** — enqueue + identification + demand (tune `PHASE_A_*`, optional `PHASE_A_JSON_DIR` for before/after JSON).
-- [ ] **Phase B** (only when zoning overlay GeoJSON exists): stage file under repo **`data/`** so workers see **`/app/data/...`**, then **`./scripts/execute-phase-b.sh`** (`PHASE_B_OVERLAY_PATH`, optional `PHASE_B_OVERLAY_VALIDATE_PATH`).
+- [ ] **Phase B** — set **`KENT_ZONING`** / **`KING_ZONING`** (Feature Layer URLs or paths), then **`./scripts/run_phase_b_pipeline.sh`**, or build manually with **`build_king_kent_zoning_overlay.py`** + **`execute-phase-b.sh`** — see **[PROCESS-COVERAGE.md](PROCESS-COVERAGE.md)**.
 - [ ] **`./scripts/execute-phase-c.sh`** — portfolio smoke; optional **`PHASE_C_OWNER_KEY`** for peers-by-key.
 - [ ] **`make readiness`** again — confirm gaps moved in the right direction.
 
-Optional same session: **`scripts/export_scored_parcels_csv.py`**, **`--publish-spaces`** — see OPERATIONS.
+Optional same session: **`make export-parcel-scores`** (Docker **`exec`** → **`parcel_scores_export.csv`**), or **`scripts/export_scored_parcels_csv.py`** / **`--publish-spaces`** — see OPERATIONS.
 
 ---
 
-## Things only you / vendors / counsel supply (bundle decisions here)
+## True externals (counsel, vendors, infra — not automatable in code)
 
-Do these when you have GIS/legal/vendor bandwidth — **not** every deploy:
+Do these when bandwidth allows — **not** every deploy (details: **[PROCESS-COVERAGE.md](PROCESS-COVERAGE.md)**):
 
-- [ ] **County zoning overlay** (spatial join → GeoJSON) — Phase B backlog; merge via **`execute-phase-b.sh`**.
-- [ ] **Zoning rules YAML** (`data/zoning/wa/…` or `ZONING_RULES_PATH`) aligned with counsel as jurisdictions change.
-- [ ] **Phase D inputs** (road centerlines, adjacency, richer demand surfaces) — when product/GIS agrees.
+- [ ] **Zoning rules YAML** (`data/zoning/wa/…` or `ZONING_RULES_PATH`) — ordinance-backed updates with **counsel** as jurisdictions change (repo holds placeholders).
+- [ ] **Phase D inputs** (road centerlines, adjacency, richer demand surfaces) — **product/GIS agreement**; merge **`IS_CORNER`** / **`DIST_DEMAND_M`** via the same overlay pattern when data exists.
 - [ ] **Owner vendor / SOS**: contracted vendor URLs + keys; rate-limit awareness for **`OUTREACH_*`** and pipeline SOS flags.
+- [ ] **DNS / TLS / cloud account** — bind domains and secrets to your org (documented in **[GO-LIVE-WASHINGTON-DO.md](GO-LIVE-WASHINGTON-DO.md)**).
 
 ---
 
 ## Optional same-session extras
 
-- [ ] Slack: bot in channel, **`SLACK_BOT_TOKEN`**, **`SLACK_DIGEST_CHANNEL_ID`**, smoke **`POST /internal/slack/test-message`** if desired.
+- [ ] Slack: bot in channel, **`SLACK_BOT_TOKEN`**, **`SLACK_DIGEST_CHANNEL_ID`**, **`make slack-droplet-check`** on the Droplet; optional **`make slack-digest-wait`** after fixing env; smoke **`POST /internal/slack/test-message`** — see [SLACK.md](SLACK.md).
 - [ ] DigitalOcean Uptime: **`/ready`** URL — OPERATIONS.
 
 ---
@@ -81,8 +81,9 @@ Do these when you have GIS/legal/vendor bandwidth — **not** every deploy:
 | Health, logs, CSV export, internal routes | [OPERATIONS.md](OPERATIONS.md) |
 | Phase A–E meaning, exit criteria, **repo vs ops status** | [PHASED-EXECUTION-PLAN-A-E.md](PHASED-EXECUTION-PLAN-A-E.md) |
 | Env var template | `deploy/env.production.example` |
-| Phase runners | `scripts/execute-phase-a.sh`, `execute-phase-b.sh`, `execute-phase-c.sh`, **`make readiness`** |
+| Phase runners | `scripts/execute-phase-a.sh`, **`run_phase_b_pipeline.sh`** / `execute-phase-b.sh`, `execute-phase-c.sh`, **`make readiness`** |
+| Automation vs external responsibilities | **[PROCESS-COVERAGE.md](PROCESS-COVERAGE.md)** |
 
 ---
 
-*Everything above is “your side”; the assistant can keep shipping code and docs in-repo without needing live Droplet access.*
+*Session checklist above is **repeatable ops** on live infra. **GIS joins and phased bursts** are **scripted in-repo**; **legal conclusions, vendor contracts, and county ToS** stay with your org — see **PROCESS-COVERAGE**.*

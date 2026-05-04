@@ -10,7 +10,7 @@ make ae-setup-check
 python3 scripts/check_ae_setup.py --probe
 ```
 
-**Related:** [PHASED-EXECUTION-PLAN-A-E.md](PHASED-EXECUTION-PLAN-A-E.md), [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md), `deploy/env.production.example`.
+**Related:** [PHASED-EXECUTION-PLAN-A-E.md](PHASED-EXECUTION-PLAN-A-E.md), [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md), **[PROCESS-COVERAGE.md](PROCESS-COVERAGE.md)** (automation vs externals), `deploy/env.production.example`.
 
 ---
 

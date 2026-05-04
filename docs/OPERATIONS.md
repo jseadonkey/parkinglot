@@ -1,6 +1,6 @@
 # Operations (production)
 
-**Batch checklist (DNS, deploy, phases A–C, GIS/vendor backlog in one place):** [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md).
+**Batch checklist (DNS, deploy, phases A–C, GIS/vendor backlog in one place):** [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md). **Automated vs counsel/vendor/infra:** [PROCESS-COVERAGE.md](PROCESS-COVERAGE.md).
 
 **Web UI to browse parcels, workflow/deal status, approvals, readiness:** [OPERATOR-CONSOLE.md](OPERATOR-CONSOLE.md) (`https://<UI_HOST>/operator`).
 
@@ -29,7 +29,7 @@ docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env lo
 docker compose -f deploy/docker-compose.production.yml -f deploy/docker-compose.postgis-addon.yml --env-file deploy/.env logs -f --tail=200 api worker beat postgres caddy
 ```
 
-Slack digests (optional): [docs/SLACK.md](SLACK.md). Trigger a digest immediately with `POST /internal/slack/digest-now` (same auth as other `/internal/*` routes).
+Slack digests (optional): [docs/SLACK.md](SLACK.md). Trigger a digest immediately with `POST /internal/slack/digest-now` (same auth as other `/internal/*` routes). On the Droplet: **`make slack-droplet-check`** or **`./scripts/slack_digest_now_wait.sh`** (wait for Celery to finish).
 
 Compose uses **log rotation** (`max-size` / `max-file`) to avoid filling the disk.
 
@@ -76,6 +76,8 @@ Pilot region filters are in **`config/pilot.yaml`** (`region.county_fips`). Feat
 
 Export latest identification / entitlement / strategic scores per parcel (same profile strings as `app.scoring_profiles`) to a shareable CSV. Requires **`DATABASE_URL`** (same as the API) and the backend Python deps (`pip install -e services/api` from a venv at repo root, or run inside the **`api`** container where `/app` is the API package root). The script adds `services/api` to `sys.path` when run from the repo root, so extra **`PYTHONPATH`** is optional.
 
+**On the Droplet with Docker (writes `parcel_scores_export.csv` on the host — not container `/tmp`):** [`scripts/export_parcel_scores_host.sh`](../scripts/export_parcel_scores_host.sh) or **`make export-parcel-scores`**. Optional: **`EXPORT_LIMIT=5000`**.
+
 ```bash
 cd /opt/parking-acquisition-agents
 export DATABASE_URL='postgresql+psycopg://...'
@@ -83,6 +85,10 @@ python3 scripts/check_export_readiness.py
 # Optional: --json   ;   same authless DB URL as export
 python3 scripts/export_scored_parcels_csv.py -o parcel_scores_export.csv
 # Optional: --limit 500   ;   -o - for stdout   ;   in api container: PYTHONPATH=/app ...
+
+# Droplet / compose (host CSV):
+# ./scripts/export_parcel_scores_host.sh
+# EXPORT_LIMIT=5000 make export-parcel-scores
 ```
 
 - **Public HTTPS link (DigitalOcean Spaces)** — same **`STORAGE_*`** variables as the API (`STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`, `STORAGE_BUCKET`, `STORAGE_REGION`). After export, upload with **`--publish-spaces`** (alias **`--upload-public`**). The script prints the **HTTPS URL on stdout** (one line); **`public-read` exposes parcel data** — use only for non-sensitive pilots. Example:

@@ -1,0 +1,25 @@
+---
+description: Copy-paste ops instructions; agent executes in workspace when possible
+alwaysApply: true
+---
+
+# Operator instructions and delegation
+
+## Prefer execution in this workspace
+
+When the task can be completed **in this repo environment** (read/write files, run terminal commands, tests, builds, greps), **do it** instead of only listing steps for the user.
+
+## Copy-paste blocks for anything they must run elsewhere
+
+When steps **cannot** be done here (SSH to Droplet, DigitalOcean/Slack/browser UIs, typing secrets):
+
+1. Use **numbered steps** and **full, runnable commands** — complete paths, no `...` omissions in commands meant for paste.
+2. One **fenced code block** per paste (or clearly separated blocks) so the user can copy in order.
+3. State **where** to run each block (e.g. “on the Droplet, repo root: `/opt/parking-acquisition-agents`”).
+
+## Do not
+
+- Rely on “run the usual command” or partial commands when a full command is what they need to paste.
+- Dump long prose checklists without equivalent copy-paste commands when commands exist.
+
+The user is not technical; minimize manual interpretation.

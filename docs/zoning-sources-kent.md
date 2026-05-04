@@ -38,7 +38,32 @@ The county layer applies to **unincorporated** King County, **not** to land insi
 
 ---
 
-## Workflow → this repository
+## Automated overlay (no desktop GIS)
+
+Use **`scripts/build_king_kent_zoning_overlay.py`** to pull zoning polygons from Esri Feature Layer URLs (or from local GeoJSON you saved from the portals), load parcel footprints from **`DATABASE_URL`**, split Kent vs King unincorporated using **`data/boundaries/wa/kent_city_census_places.geojson`**, and write merge-ready GeoJSON.
+
+1. From each open-data page, copy the **ArcGIS Feature Layer** REST URL ending in **`…/FeatureServer/0`** (not the HTML map page).
+2. Confirm zone attribute names: **`python3 scripts/inspect_zoning_layer.py '<layer URL>'`** lists property keys from the first feature (defaults: **`ZONE_ABBR`** for Kent, **`CURRZONE`** for King — override with `--kent-zone-field` / `--king-zone-field`).
+3. Run (example):
+
+```bash
+export DATABASE_URL=postgresql+psycopg://…
+export KENT_ZONING='https://…/FeatureServer/0'
+export KING_ZONING='https://…/FeatureServer/0'
+
+python3 scripts/build_king_kent_zoning_overlay.py \
+  -o data/zoning/wa/king_kent_zoning_overlay.geojson
+
+python3 scripts/validate_phase_b_overlay.py data/zoning/wa/king_kent_zoning_overlay.geojson
+```
+
+4. Merge on the Droplet with **`PHASE_B_OVERLAY_PATH=/app/data/zoning/wa/king_kent_zoning_overlay.geojson`** and **`scripts/execute-phase-b.sh`** (see Phase B in `docs/PHASED-EXECUTION-PLAN-A-E.md`).
+
+Layer URLs change when jurisdictions republish services — treat **`KENT_ZONING`** / **`KING_ZONING`** as configuration you refresh when joins fail or fields move.
+
+---
+
+## Workflow → this repository (manual GIS path)
 
 1. **Download** Kent zoning districts + King County `zoning_area` (unincorporated).  
 2. **Spatial join** each parcel polygon (or centroid) to the correct layer by geography:  

@@ -1,0 +1,9 @@
+# Example cron entries (ubuntu user on Droplet). Paths: adjust repo root if needed.
+# Install: crontab -e   (paste one block)
+#
+# Weekly readiness JSON snapshot (requires DATABASE_URL in environment — use a small wrapper
+# that sources deploy/.env or use systemd timer with EnvironmentFile=).
+# 0 6 * * 1 cd /opt/workspaces/parkinglot && set -a && . deploy/.env && set +a && DATABASE_URL="$DATABASE_URL" python3 scripts/check_export_readiness.py --json >> /var/log/parking-readiness.log 2>&1
+#
+# Nightly parcel CSV to repo (large files — tune EXPORT_LIMIT or disable if Spaces publish preferred):
+# 15 7 * * * cd /opt/workspaces/parkinglot && ./scripts/export_parcel_scores_host.sh >> /var/log/parking-export.log 2>&1

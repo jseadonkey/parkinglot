@@ -1,5 +1,30 @@
 # Slack integration
 
+## Fix first: digest scheduled but nothing posts
+
+If **worker** logs show `slack_agent_digest SKIPPED` and **`deploy/.env`** has no **`SLACK_BOT_TOKEN`** / **`SLACK_DIGEST_CHANNEL_ID`**, digests **never leave the server** — Beat still fires every **20 minutes UTC**, tasks succeed immediately with `skipped: True`.
+
+1. Add **`SLACK_BOT_TOKEN`** (`xoxb-…`) and **`SLACK_DIGEST_CHANNEL_ID`** (`C…`) to **`deploy/.env`** on the Droplet (Slack app → **OAuth** → **chat:write** → install → token; channel → copy channel ID → **`/invite @YourBot`**).
+2. Recreate worker + beat so containers load env:  
+   `docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env up -d worker beat`
+3. Confirm: **`python3 scripts/check_ae_setup.py`** shows Slack **OK**, or run **`./scripts/slack_droplet_check.sh`**.
+
+---
+
+## Team reference (fill in for your org)
+
+Use this table so everyone knows **which** Slack workspace and channels this deployment uses. **Do not** put secrets here — only names and optional notes. The bot token and **`C…`** channel IDs stay in **`deploy/secrets.env`** → merged **`deploy/.env`** (never committed).
+
+| | |
+|--|--|
+| **Slack workspace name** | *(e.g. Acme Corp)* |
+| **Digest channel** (20m + daily qualified report) | **Name:** *(e.g. `#parking-agent-feed`)* — env: **`SLACK_DIGEST_CHANNEL_ID`** |
+| **Agent discussion channel** (optional dual-agent posts) | **Name:** *(e.g. `#parking-agents-discuss`)* — env: **`SLACK_AGENT_DISCUSSION_CHANNEL_ID`** |
+
+Slack shows the **channel ID** under **View channel details**; the **#channel-name** is what people recognize in the sidebar.
+
+---
+
 The stack can post a **recurring “agent standup”** to a Slack channel: one Block Kit message every **20 minutes (UTC)** summarizing what the pipeline has been doing (new parcels, workflow status changes, pending human approvals, recent audit lines). **Once per day (14:00 UTC)** it also posts a **qualified-parcels report**: latest score per parcel vs `qualified_min_score` from the pilot config, with a short **why** line (zoning, lot size, corner, demand) for qualified rows and a sample of not-qualified rows.
 
 Separately, you can configure a **dedicated “agent discussion” channel** where the two deterministic scoring agents post three messages: **Atlas** (entitlement lens), **Beacon** (demand/visibility lens), then a **joint comparison** (consensus + disagreements). This is **outbound notification**, not a full chat employee — see [Limits](#limits-and-future-work) below.
@@ -84,7 +109,7 @@ With **`X-Internal-Key`** set as for other `/internal/*` routes:
   Notes: Slack requires a **channel ID** (not a name). If you want to override the default digest channel, pass `"channel_id":"C…"` (or `G…` for private).
 - **Manual fire:**  
   `curl -sS -X POST "https://$API_HOST/internal/slack/digest-now" -H "X-Internal-Key: $INTERNAL_API_KEY"`  
-  Then check **`GET /internal/tasks/{task_id}`** for Celery state.
+  Then check **`GET /internal/tasks/{task_id}`** for Celery state — or run **`./scripts/slack_digest_now_wait.sh`** (sources **`deploy/.env`**, POSTs digest, polls to **SUCCESS**/**FAILURE**). To poll any task id: **`./scripts/poll_internal_celery_task.sh <task_id>`**.
 - **Qualified-parcels report (same channel):**  
   `curl -sS -X POST "https://$API_HOST/internal/slack/qualified-parcels-now" -H "X-Internal-Key: $INTERNAL_API_KEY"`  
   Same polling as above. Beat runs this daily; adjust time in `app/celery_app.py` (`slack-qualified-parcels-daily`).
@@ -117,14 +142,19 @@ Workflow file: [`.github/workflows/slack-digest-now-via-droplet.yml`](../.github
 
 ## Troubleshooting
 
+**On the Droplet (repo root):** run **`./scripts/slack_droplet_check.sh`** — checks **beat/worker** are up, **worker** has **`SLACK_*`** set (without printing tokens), **`GET /internal/slack/status`**, and greps recent **worker**/**beat** logs for Slack lines. Minimal cloud images may not have **`make`**; the script does not require it. Equivalent: **`make slack-droplet-check`** after **`sudo apt install -y make`**.
+
 | Symptom | What to check |
 |--------|----------------|
-| Digest never appears | **`GET /internal/slack/status`** — both flags should be true. Worker logs for `slack_agent_digest`. **Beat** container running (`docker compose ps beat`). |
+| Digest never appears | **`GET /internal/slack/status`** — **`slack_digest_configured`** should be **true** (API reads same **`deploy/.env`** as compose). **`docker compose ps`** — **worker** and **beat** must be running (Beat enqueues; worker posts). After editing **`deploy/.env`**, recreate **`worker`** + **`beat`**: `docker compose … up -d worker beat`. |
+| Wrong time / “nothing at lunch” | Schedule is **UTC**: digest **every `:00,:20,:40` UTC**, not local time. See **`services/api/app/celery_app.py`** (`minute=*/20`). |
+| Digest never appears (status true) | Confirm **worker** env: `docker compose … exec worker sh -c 'echo -n SLACK_BOT_TOKEN=; test -n "${SLACK_BOT_TOKEN:-}" && echo set || echo MISSING'`. If **MISSING**, compose did not inject vars — fix **`deploy/.env`** + **`up -d worker beat`**. |
 | `not_in_channel` | Bot not invited: **`/invite @YourApp`** in that channel. |
-| `channel_not_found` (token OK) | **Wrong channel for this workspace** — copy the ID from Slack (**About / channel details**), or set **`SLACK_DIGEST_CHANNEL_ID=gf-parkinglot-agents-chat`**. |
+| `channel_not_found` (token OK) | **Wrong channel for this workspace** — copy the channel ID from Slack (**About / channel details**). Value looks like **`C01234567890`** (public) or **`G…`** (private). |
 | `invalid_auth` / `token_revoked` | Regenerate token in Slack app **OAuth** page; update **`SLACK_BOT_TOKEN`** and restart **worker** + **beat**. |
 | `missing_scope` | Re-add **`chat:write`** (and reinstall app to workspace). |
-| Task returns `skipped` | One of **`SLACK_BOT_TOKEN`** / **`SLACK_DIGEST_CHANNEL_ID`** is empty in the **worker** environment. |
+| Task returns `skipped` | Celery task exited early: **`SLACK_BOT_TOKEN`** or **`SLACK_DIGEST_CHANNEL_ID`** empty in **worker** env. Check worker logs for **`slack_agent_digest SKIPPED`**. |
+| Redis / Celery broken | If **`POST /internal/slack/digest-now`** returns **`task_id`** but **`GET /internal/tasks/{id}`** stays **PENDING** forever, **worker** is not consuming Redis (`docker compose logs worker`). |
 
 ## Limits and future work
 
