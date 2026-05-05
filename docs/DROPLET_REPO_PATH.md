@@ -6,6 +6,7 @@ Use **one path** on the Droplet for every command, script default, and doc examp
 
 That is the **default** in:
 
+- [OPERATOR-PRIVATE-NOTES.example.md](OPERATOR-PRIVATE-NOTES.example.md) — copy to **`docs/OPERATOR-PRIVATE-NOTES.md`** (gitignored) to record your Droplet IP and SSH key **path** (not secrets).
 - [deploy/README.md](../deploy/README.md) (production compose)
 - GitHub Actions (`DROPLET_REMOTE_PATH` defaults here when unset)
 - `REMOTE_PATH` in [`scripts/remote-rebuild.sh`](../scripts/remote-rebuild.sh), [`scripts/set-slack-env-on-droplet.sh`](../scripts/set-slack-env-on-droplet.sh), and related helpers

@@ -1,0 +1,28 @@
+---
+description: Use OPERATOR-PRIVATE-NOTES template for SSH key path, Droplet IP, repo paths
+alwaysApply: true
+---
+
+# Operator reference data (SSH, Droplet, repo paths)
+
+## Always consult
+
+When instructions involve **SSH**, **`scp`**, **Droplet**, **repo paths on the server**, or **`REMOTE_PATH` / `DROPLET_REMOTE_PATH`**:
+
+1. Read **`docs/OPERATOR-PRIVATE-NOTES.example.md`** (committed template — field list + command patterns).
+2. If **`docs/OPERATOR-PRIVATE-NOTES.md`** exists in the workspace, read it and **use those values** in copy-paste commands (IP, key path, `root` vs `deploy`, which of `/opt/parking-acquisition-agents` vs `/opt/workspaces/parkinglot`).
+
+Do **not** invent placeholder hostnames like `your_droplet_ip` or paths like `/path/to/your_private_key.pem` when the gitignored file already has the real values.
+
+## Keep the template current
+
+When the conversation or repo work reveals **new stable non-secret facts** (e.g. a second clone path, script default, or a field we should track):
+
+- **Add** a row or section to **`docs/OPERATOR-PRIVATE-NOTES.example.md`** (empty or example-only — never real secrets).
+- Tell the user to **merge the same fact** into their **`docs/OPERATOR-PRIVATE-NOTES.md`** (gitignored) if they use it.
+
+Secrets (**tokens, passwords, full `DATABASE_URL` with password**) stay in **`deploy/secrets.env`** only — not in these notes.
+
+## Cross-links
+
+- **`docs/DROPLET_REPO_PATH.md`** — canonical Droplet repo path (`parking-acquisition-agents` vs `workspaces/parkinglot`).

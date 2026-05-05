@@ -1,17 +1,31 @@
 ---
-description: Copy-paste ops instructions; agent executes in workspace when possible
+description: Copy-paste ops; non-technical user; prefer automation over manual steps
 alwaysApply: true
 ---
 
 # Operator instructions and delegation
 
+## Audience
+
+Treat the user as **not technical**. Prefer outcomes without expecting them to interpret errors, pick tools, or improvise. When something must be done **outside** this workspace, default to **short, numbered, full copy-paste** commands—never “figure it out from the docs.”
+
 ## Prefer execution in this workspace
 
 When the task can be completed **in this repo environment** (read/write files, run terminal commands, tests, builds, greps), **do it** instead of only listing steps for the user.
 
+## Before asking the user to do something, try a workaround
+
+If it looks like only the user could click a UI or run a command on their laptop:
+
+1. **Search for an automated alternative:** repo scripts, `gh` CLI, Terraform/API, GitHub Actions (`workflow_dispatch`), DigitalOcean/Slack MCP or APIs if configured, SSH patterns already in `scripts/`, CI secrets already documented.
+2. **Implement or run** the workaround here when credentials/network allow (e.g. prepare a script or workflow they can run once with one paste).
+3. **Only then** ask for minimal human steps—usually **one** paste or **one** login—when automation is impossible (e.g. passkey-only auth, captcha, legal consent).
+
+Do not stop at the first “user must open the dashboard” answer if an API, script, or existing workflow can do the same thing.
+
 ## Copy-paste blocks for anything they must run elsewhere
 
-When steps **cannot** be done here (SSH to Droplet, DigitalOcean/Slack/browser UIs, typing secrets):
+When steps **cannot** be done here after trying workarounds:
 
 1. Use **numbered steps** and **full, runnable commands** — complete paths, no `...` omissions in commands meant for paste.
 2. One **fenced code block** per paste (or clearly separated blocks) so the user can copy in order.
@@ -22,4 +36,4 @@ When steps **cannot** be done here (SSH to Droplet, DigitalOcean/Slack/browser U
 - Rely on “run the usual command” or partial commands when a full command is what they need to paste.
 - Dump long prose checklists without equivalent copy-paste commands when commands exist.
 
-The user is not technical; minimize manual interpretation.
+Minimize manual interpretation.

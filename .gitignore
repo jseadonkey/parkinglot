@@ -28,3 +28,6 @@ terraform.tfstate.*
 *.tfvars
 !terraform.tfvars.example
 .terraform/
+
+# Filled-in operator notes (paths, IP, key location — not as sensitive as tokens; still private)
+docs/OPERATOR-PRIVATE-NOTES.md
