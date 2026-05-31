@@ -17,6 +17,9 @@ class ParcelFeature(BaseModel):
     zoning_allows_surface_parking: bool = False
     is_corner_lot: bool = False
     distance_to_nearest_demand_m: float | None = None
+    distance_to_nearest_comp_parking_m: float | None = None
+    nearest_comp_rate_usd_per_day: float | None = None
+    nearest_comp_name: str | None = None
 
 
 class ScoreBreakdown(BaseModel):
@@ -69,6 +72,12 @@ class OutreachStep(BaseModel):
     requires_human: bool = False
 
 
+class RegistryPrincipal(BaseModel):
+    name: str | None = None
+    role: str | None = None
+    address: str | None = None
+
+
 class RegistryLookupSummary(BaseModel):
     """Result of an automated registry HTTP lookup (e.g. WA SOS name search)."""
 
@@ -81,6 +90,7 @@ class RegistryLookupSummary(BaseModel):
         "error",
         "skipped_not_wa",
         "skipped_not_entity",
+        "skipped_disabled",
         "manual_url_only",
     ]
     http_status: int | None = None
@@ -91,7 +101,9 @@ class RegistryLookupSummary(BaseModel):
     detail_url: str | None = None
     error_detail: str | None = None
     registered_agent_line: str | None = None
+    registered_agent_address: str | None = None
     principal_address_line: str | None = None
+    principals: list[RegistryPrincipal] = Field(default_factory=list)
     detail_http_status: int | None = None
     detail_fetch_error: str | None = None
     notes: str | None = Field(default=None, description="Human-readable context (not from registry payload).")
@@ -107,7 +119,7 @@ class VendorLookupSummary(BaseModel):
     """Normalized response from an optional outbound vendor webhook."""
 
     provider: str = "webhook"
-    outcome: Literal["hit", "skipped_no_url", "skipped_disabled", "error"]
+    outcome: Literal["hit", "skipped_no_url", "skipped_disabled", "skipped_tier", "error"]
     http_status: int | None = None
     notes: str | None = None
     contacts: list[VendorContactHint] = Field(default_factory=list)
@@ -120,9 +132,16 @@ class OwnerOutreachBrief(BaseModel):
     Deterministic v1 rules; swap in vendor / LLM enrichment later without changing the shape.
     """
 
-    schema_version: str = "2"
+    schema_version: str = "3"
     county_fips: str
     apn: str
+    owner_research_tier: Literal["basic", "standard", "deep"] = Field(
+        default="standard",
+        description=(
+            "basic = assessor roll only; standard = SOS + portfolio when dual-qualified; "
+            "deep = standard + vendor webhook when enabled."
+        ),
+    )
     recorded_owner_one_liner: str
     mailing_address_guess: str | None = None
     situs_address_guess: str | None = None

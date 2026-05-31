@@ -17,12 +17,13 @@ def _pct(part: int, total: int) -> float:
     return round(100.0 * float(part) / float(total), 2)
 
 
-def export_readiness_summary(db: Session) -> dict[str, Any]:
+def export_readiness_summary(db: Session, *, in_scope_only: bool = True) -> dict[str, Any]:
     """Return parcel coverage stats for scores, CSV columns, and owner outreach brief."""
-    total = int(db.scalar(select(func.count()).select_from(Parcel)) or 0)
+    scope = Parcel.pilot_in_scope.is_(True) if in_scope_only else True
+    total = int(db.scalar(select(func.count()).select_from(Parcel).where(scope)) or 0)
 
     def count_where(condition: Any) -> int:
-        return int(db.scalar(select(func.count()).select_from(Parcel).where(condition)) or 0)
+        return int(db.scalar(select(func.count()).select_from(Parcel).where(scope, condition)) or 0)
 
     no_footprint = count_where(Parcel.footprint.is_(None))
     no_zoning = count_where(Parcel.zoning_code.is_(None))
@@ -88,6 +89,7 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
 
     return {
         "parcel_row_total": total,
+        "pilot_scope": "in_scope_only" if in_scope_only else "all_rows",
         "parcels_missing_footprint": {"count": no_footprint, "pct": _pct(no_footprint, total)},
         "parcels_missing_zoning_code": {"count": no_zoning, "pct": _pct(no_zoning, total)},
         "parcels_missing_lot_sqft": {"count": no_lot_sqft, "pct": _pct(no_lot_sqft, total)},

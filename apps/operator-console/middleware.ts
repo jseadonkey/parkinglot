@@ -29,6 +29,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Headless troubleshooting: scripts/operator_console_snapshot.py --probe-ui
+  if (pathname.startsWith("/api/bridge")) {
+    const key = req.headers.get("x-internal-key")?.trim();
+    const expected = process.env.INTERNAL_API_KEY?.trim();
+    if (key && expected && key === expected) {
+      return NextResponse.next();
+    }
+  }
+
   const token = req.cookies.get(AUTH_COOKIE_NAME)?.value;
   if (!token) {
     return redirectToGeneralLogin(req, pathname);

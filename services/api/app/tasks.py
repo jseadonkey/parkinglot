@@ -23,7 +23,13 @@ from app.exploration_campaign import (
     load_campaign_config,
 )
 from app.memo_render import build_deal_memo_markdown
+from app.owner_enrich_tiers import (
+    parcel_meets_owner_lookup_tier,
+    resolve_owner_research_tier,
+)
 from app.owner_portfolio import count_qualified_peer_parcels
+from app.pilot_scope_filter import classify_parcel_scope, parcel_in_scope_clause
+from app.parking_comp_gate import parcel_meets_parking_comp_gate
 from app.scoring_profiles import (
     ENTITLEMENT,
     IDENTIFICATION,
@@ -39,12 +45,14 @@ from app.slack_digest import (
     post_digest_to_slack,
 )
 from app.storage import put_text_object
-from parking_core.models import OwnerCandidate, ParcelFeature
+from parking_core.models import OwnerCandidate, ParcelFeature, RegistryLookupSummary, VendorLookupSummary
 from parking_core.pilot import load_pilot_config
+from parking_core.pilot_scope import classify_from_in_scope_config
 from parking_enrichment.owner_normalize import scoped_owner_key
 from parking_enrichment.owner_outreach_agent import build_owner_outreach_brief
+from parking_enrichment.owner_classification import OwnerKind, classify_owner_display_name
 from parking_enrichment.pipeline import enrich_from_parcel_row
-from parking_enrichment.registry_lookup import lookup_secretary_of_state_stub
+from parking_enrichment.registry_lookup import lookup_secretary_of_state, lookup_secretary_of_state_stub
 from parking_enrichment.vendor_lookup_client import fetch_vendor_owner_enrichment
 from parking_scoring.engine import score_parcel
 from parking_workflows.state import WorkflowStatus, WorkflowStep
@@ -66,12 +74,13 @@ def enqueue_unscored_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
         stmt = (
             select(Parcel.id)
             .where(
+                parcel_in_scope_clause(),
                 ~exists(
                     select(1).where(
                         ParcelScore.parcel_id == Parcel.id,
                         ParcelScore.score_profile == ENTITLEMENT,
                     )
-                )
+                ),
             )
             .order_by(Parcel.created_at.desc())
             .limit(cap)
@@ -103,7 +112,10 @@ def enqueue_incomplete_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
         )
         stmt = (
             select(Parcel.id)
-            .where(or_(not_(has_ent), not_(has_str)))
+            .where(
+                parcel_in_scope_clause(),
+                or_(not_(has_ent), not_(has_str)),
+            )
             .order_by(Parcel.created_at.desc())
             .limit(cap)
         )
@@ -119,11 +131,10 @@ def _session() -> Session:
     return SessionLocal()
 
 
-def _upsert_identification_score(db: Session, parcel: Parcel) -> None:
-    """Persist ingest-time prescreen score (``identification`` profile)."""
-    settings = get_settings()
-    pilot_id = load_pilot_config(settings.pilot_identification_config_path)
-    feature = ParcelFeature(
+def _parcel_feature(parcel: Parcel) -> ParcelFeature:
+    comp = parcel.nearest_parking_comp if isinstance(parcel.nearest_parking_comp, dict) else {}
+    rate = comp.get("rate_usd_per_day")
+    return ParcelFeature(
         apn=parcel.apn,
         county_fips=parcel.county_fips,
         lot_sqft=parcel.lot_sqft,
@@ -131,7 +142,55 @@ def _upsert_identification_score(db: Session, parcel: Parcel) -> None:
         zoning_allows_surface_parking=parcel.zoning_allows_surface_parking,
         is_corner_lot=parcel.is_corner_lot,
         distance_to_nearest_demand_m=parcel.distance_to_nearest_demand_m,
+        distance_to_nearest_comp_parking_m=parcel.distance_to_nearest_comp_parking_m,
+        nearest_comp_rate_usd_per_day=float(rate) if rate is not None else None,
+        nearest_comp_name=str(comp["name"]) if comp.get("name") else None,
     )
+
+
+def _apply_parking_comp_metrics(parcel: Parcel, lat: float, lon: float, pilot, repo_root) -> None:
+    from parking_ingestion.parking_comps import parking_comp_metrics_from_pilot
+
+    dist, snap = parking_comp_metrics_from_pilot(
+        lat,
+        lon,
+        pilot,
+        repo_root=repo_root,
+        pilot_config_path=get_settings().pilot_config_path,
+    )
+    parcel.distance_to_nearest_comp_parking_m = dist
+    parcel.nearest_parking_comp = snap
+
+
+def _maybe_apply_parking_comp_metrics(
+    db: Session,
+    parcel: Parcel,
+    entitlement_score: float,
+    pilot_ent,
+    repo_root,
+) -> bool:
+    """Apply comp fields when entitlement + zoning + building gates pass."""
+    if not parcel_meets_parking_comp_gate(parcel, entitlement_score, pilot_ent):
+        return False
+    if parcel.footprint is None:
+        return False
+    from geoalchemy2.shape import to_shape
+
+    geom = to_shape(parcel.footprint)
+    if geom.is_empty:
+        return False
+    c = geom.centroid
+    _apply_parking_comp_metrics(parcel, float(c.y), float(c.x), pilot_ent, repo_root)
+    db.add(parcel)
+    db.flush()
+    return True
+
+
+def _upsert_identification_score(db: Session, parcel: Parcel) -> None:
+    """Persist ingest-time prescreen score (``identification`` profile)."""
+    settings = get_settings()
+    pilot_id = load_pilot_config(settings.pilot_identification_config_path)
+    feature = _parcel_feature(parcel)
     result = score_parcel(feature, pilot_id)
     snap = dict(result.pilot_snapshot or {})
     snap["agent_role"] = "identification_prescreen"
@@ -180,20 +239,30 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
             db.add(run)
             db.commit()
             raise ValueError("parcel not found")
+        if not parcel.pilot_in_scope:
+            run.status = WorkflowStatus.completed.value
+            run.current_step = WorkflowStep.score.value
+            run.error = None
+            db.add(run)
+            db.commit()
+            return {
+                "parcel_id": parcel_id,
+                "skipped": True,
+                "reason": "out_of_pilot_scope",
+            }
         settings = get_settings()
         pilot_ent = load_pilot_config(settings.pilot_config_path)
         pilot_str = load_pilot_config(settings.pilot_strategic_config_path)
+        from app.pilot_scope_filter import pilot_repo_root
 
-        feature = ParcelFeature(
-            apn=parcel.apn,
-            county_fips=parcel.county_fips,
-            lot_sqft=parcel.lot_sqft,
-            zoning_code=parcel.zoning_code,
-            zoning_allows_surface_parking=parcel.zoning_allows_surface_parking,
-            is_corner_lot=parcel.is_corner_lot,
-            distance_to_nearest_demand_m=parcel.distance_to_nearest_demand_m,
-        )
+        repo_root = pilot_repo_root(settings)
+
+        feature = _parcel_feature(parcel)
         score = score_parcel(feature, pilot_ent)
+
+        if _maybe_apply_parking_comp_metrics(db, parcel, float(score.total_score), pilot_ent, repo_root):
+            feature = _parcel_feature(parcel)
+
         score_strategic = score_parcel(feature, pilot_str)
 
         db.execute(
@@ -227,6 +296,15 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
         db.add(run)
         db.commit()
 
+        floor_e = float(pilot_ent.scoring.qualified_min_score)
+        floor_s = float(pilot_str.scoring.qualified_min_score)
+        dual_qualified = parcel_meets_owner_lookup_tier(
+            float(score.total_score),
+            float(score_strategic.total_score),
+            min_entitlement=floor_e,
+            min_strategic=floor_s,
+        )
+
         db.execute(delete(OwnerCandidateRow).where(OwnerCandidateRow.parcel_id == parcel.id))
         enriched: list[OwnerCandidate] = list(enrich_from_parcel_row(parcel.raw_properties or {}))
         norm_key: str | None = None
@@ -246,35 +324,59 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
                 )
             )
 
-        floor = float(load_pilot_config(settings.pilot_config_path).scoring.qualified_min_score)
         peer_count, peer_examples = (0, [])
-        if norm_key:
+        if dual_qualified and norm_key:
             peer_count, peer_examples = count_qualified_peer_parcels(
                 db,
                 parcel_id=parcel.id,
                 normalized_owner_key=norm_key,
-                entitlement_floor=floor,
+                entitlement_floor=floor_e,
             )
 
         registry = None
-        if enriched:
-            registry = lookup_secretary_of_state_stub(
-                county_fips=parcel.county_fips,
-                owner_kind=enriched[0].kind,
-                query_name=enriched[0].display_name,
-            )
+        if dual_qualified and enriched:
+            if settings.wa_sos_lookup_enabled and settings.wa_sos_inline_in_pipeline:
+                registry = lookup_secretary_of_state(
+                    enabled=True,
+                    county_fips=parcel.county_fips,
+                    owner_kind=enriched[0].kind,
+                    query_name=enriched[0].display_name,
+                    min_delay_s=float(settings.wa_sos_min_delay_seconds),
+                    redis_url=settings.redis_url,
+                )
+            else:
+                registry = lookup_secretary_of_state_stub(
+                    county_fips=parcel.county_fips,
+                    owner_kind=enriched[0].kind,
+                    query_name=enriched[0].display_name,
+                )
 
-        vendor = fetch_vendor_owner_enrichment(
-            enabled=settings.owner_vendor_lookup_enabled,
-            url=(settings.owner_vendor_lookup_url or "").strip() or None,
-            api_key=(settings.owner_vendor_lookup_api_key or "").strip() or None,
-            parcel_id=str(parcel.id),
-            county_fips=parcel.county_fips,
-            apn=parcel.apn,
-            owners=[
-                {"display_name": o.display_name, "kind": o.kind.value, "confidence": o.confidence}
-                for o in enriched
-            ],
+        vendor_attempted = False
+        if dual_qualified and settings.owner_vendor_lookup_enabled and (settings.owner_vendor_lookup_url or "").strip():
+            vendor = fetch_vendor_owner_enrichment(
+                enabled=True,
+                url=(settings.owner_vendor_lookup_url or "").strip() or None,
+                api_key=(settings.owner_vendor_lookup_api_key or "").strip() or None,
+                parcel_id=str(parcel.id),
+                county_fips=parcel.county_fips,
+                apn=parcel.apn,
+                owners=[
+                    {"display_name": o.display_name, "kind": o.kind.value, "confidence": o.confidence}
+                    for o in enriched
+                ],
+            )
+            vendor_attempted = True
+        else:
+            skip_notes = (
+                "Parcel below dual score floor for vendor lookup."
+                if not dual_qualified
+                else "Vendor webhook disabled or URL not configured."
+            )
+            vendor = VendorLookupSummary(provider="webhook", outcome="skipped_tier", notes=skip_notes)
+
+        owner_tier = resolve_owner_research_tier(
+            dual_qualified=dual_qualified,
+            vendor_attempted=vendor_attempted,
         )
 
         outreach_brief = build_owner_outreach_brief(
@@ -282,15 +384,62 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
             apn=parcel.apn,
             raw_properties=parcel.raw_properties or {},
             owners=enriched,
-            normalized_owner_key=norm_key,
+            owner_research_tier=owner_tier,
+            normalized_owner_key=norm_key if dual_qualified else None,
             registry_lookup=registry,
             vendor_lookup=vendor,
-            same_owner_qualified_other_count=peer_count,
-            same_owner_peer_examples=peer_examples,
+            same_owner_qualified_other_count=peer_count if dual_qualified else None,
+            same_owner_peer_examples=peer_examples if dual_qualified else None,
         )
         parcel.owner_outreach_brief = outreach_brief.model_dump(mode="json")
         db.add(parcel)
         db.commit()
+
+        if (
+            settings.wa_sos_lookup_enabled
+            and not settings.wa_sos_inline_in_pipeline
+            and dual_qualified
+            and enriched
+            and enriched[0].kind == OwnerKind.entity
+            and _needs_wa_sos_enrichment(parcel.owner_outreach_brief)
+        ):
+            enrich_wa_sos_parcel.apply_async(args=[str(parcel.id)], queue="sos")
+
+        qualified = dual_qualified
+
+        if not qualified:
+            run.status = WorkflowStatus.completed.value
+            run.current_step = WorkflowStep.enrich.value
+            db.add(run)
+            db.commit()
+            write_audit(
+                db,
+                actor="system",
+                action="pipeline_completed_not_qualified",
+                entity_type="workflow_run",
+                entity_id=str(run.id),
+                meta={
+                    "parcel_id": parcel_id,
+                    "entitlement_score": float(score.total_score),
+                    "strategic_score": float(score_strategic.total_score),
+                    "qualified_min_entitlement": floor_e,
+                    "qualified_min_strategic": floor_s,
+                    "owner_research_tier": owner_tier,
+                },
+            )
+            post_agent_event_to_slack(
+                get_settings(),
+                agent="Agent Atlas & Beacon (pipeline)",
+                detail=(
+                    f"`{parcel.apn}` — Atlas *{score.total_score:.1f}* · Beacon *{score_strategic.total_score:.1f}* "
+                    f"(floors {floor_e}/{floor_s}) — *screened out*. Basic owner brief only; no memo/contract."
+                ),
+            )
+            return {
+                "workflow_run_id": str(run.id),
+                "status": run.status,
+                "qualified": False,
+            }
 
         owners = db.query(OwnerCandidateRow).filter(OwnerCandidateRow.parcel_id == parcel.id).all()
         owner_lines = [f"{o.display_name} ({o.kind}, conf={o.confidence:.2f}, {o.source})" for o in owners]
@@ -359,14 +508,13 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
         )
         post_agent_event_to_slack(
             get_settings(),
-            agent="Scoring & pipeline agent",
+            agent="Agent Atlas & Beacon (pipeline)",
             detail=(
-                f"Parcel `{parcel.apn}` — score *{score.total_score:.1f}*; "
-                f"*Human-gate coordinator*: 2 pending approvals (deal memo + contract); "
-                f"workflow `{run.status}`."
+                f"`{parcel.apn}` — Atlas *{score.total_score:.1f}* · Beacon *{score_strategic.total_score:.1f}* "
+                f"— *dual-qualified*. Memo + contract approvals queued ({owner_tier} owner research)."
             ),
         )
-        return {"workflow_run_id": str(run.id), "status": run.status}
+        return {"workflow_run_id": str(run.id), "status": run.status, "qualified": True}
     except Exception as exc:  # noqa: BLE001
         run.status = WorkflowStatus.failed.value
         run.error = str(exc)
@@ -375,8 +523,8 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
         err_preview = str(exc)[:800]
         post_agent_event_to_slack(
             get_settings(),
-            agent="Scoring & pipeline agent",
-            detail=f"Pipeline failed for parcel `{parcel_id}`: `{err_preview}`",
+            agent="Agent Atlas & Beacon (pipeline)",
+            detail=f"Pipeline failed for `{parcel_id}`: `{err_preview}`",
         )
         raise
     finally:
@@ -527,7 +675,8 @@ def ingest_geojson_path(
     updated = 0
     skipped = 0
     try:
-        pilot = load_pilot_config(get_settings().pilot_config_path)
+        settings = get_settings()
+        pilot = load_pilot_config(settings.pilot_config_path)
         zrp = (get_settings().zoning_rules_path or "").strip()
         zoning_rules_arg = Path(zrp) if zrp else None
         for attrs, geom in iter_parcels_from_geojson_dict(data, rules_path=zoning_rules_arg):
@@ -559,7 +708,26 @@ def ingest_geojson_path(
                 if dmin is not None:
                     distance_m = dmin
 
+            # Parking comps are gated — computed in run_pipeline when entitlement passes.
+            comp_dist: float | None = None
+            comp_snap: dict | None = None
+            if attrs.get("distance_to_nearest_comp_parking_m") is not None:
+                comp_dist = float(attrs["distance_to_nearest_comp_parking_m"])
+                raw_comp = attrs.get("nearest_parking_comp")
+                comp_snap = raw_comp if isinstance(raw_comp, dict) else None
+
             footprint = WKTElement(multi.wkt, srid=4326)
+            c = multi.centroid
+            if pilot.region.in_scope is not None:
+                settings = get_settings()
+                in_scope = classify_from_in_scope_config(
+                    float(c.x),
+                    float(c.y),
+                    pilot.region.in_scope,
+                    pilot_config_path=settings.pilot_config_path,
+                )
+            else:
+                in_scope = True
             existing = db.scalars(
                 select(Parcel).where(Parcel.county_fips == county, Parcel.apn == apn).limit(1)
             ).first()
@@ -574,6 +742,9 @@ def ingest_geojson_path(
                     zoning_allows_surface_parking=bool(attrs.get("zoning_allows_surface_parking")),
                     is_corner_lot=bool(attrs.get("is_corner_lot")),
                     distance_to_nearest_demand_m=distance_m,
+                    distance_to_nearest_comp_parking_m=comp_dist,
+                    nearest_parking_comp=comp_snap,
+                    pilot_in_scope=in_scope,
                     raw_properties=attrs.get("raw_properties") or {},
                     footprint=footprint,
                 )
@@ -594,6 +765,9 @@ def ingest_geojson_path(
                 existing.zoning_allows_surface_parking = bool(attrs.get("zoning_allows_surface_parking"))
                 existing.is_corner_lot = bool(attrs.get("is_corner_lot"))
                 existing.distance_to_nearest_demand_m = distance_m
+                existing.distance_to_nearest_comp_parking_m = comp_dist
+                existing.nearest_parking_comp = comp_snap
+                existing.pilot_in_scope = in_scope
                 existing.raw_properties = attrs.get("raw_properties") or {}
                 existing.footprint = footprint
                 db.add(existing)
@@ -602,7 +776,17 @@ def ingest_geojson_path(
                 pid = str(existing.id)
                 updated += 1
             ids.append(pid)
+            batch_n = inserted + updated
+            if batch_n % 500 == 0:
+                db.commit()
+                logger.info(
+                    "ingest_geojson_path: committed batch — inserted=%s updated=%s skipped=%s",
+                    inserted,
+                    updated,
+                    skipped,
+                )
         db.commit()
+        audit_ids = ids if len(ids) <= 500 else ids[:500]
         write_audit(
             db,
             actor="system",
@@ -610,7 +794,9 @@ def ingest_geojson_path(
             entity_type="parcel",
             entity_id=None,
             meta={
-                "parcel_ids": ids,
+                "parcel_ids": audit_ids,
+                "parcel_ids_truncated": len(ids) > 500,
+                "parcel_count": len(ids),
                 "source_path": path,
                 "inserted": inserted,
                 "updated": updated,
@@ -620,7 +806,9 @@ def ingest_geojson_path(
         )
         if auto_run_pipeline and ids:
             for pid in ids[: max(0, max_auto_pipeline)]:
-                run_pipeline.delay(pid)
+                row = db.get(Parcel, uuid.UUID(pid))
+                if row is not None and row.pilot_in_scope:
+                    run_pipeline.delay(pid)
             if len(ids) > max_auto_pipeline:
                 logger.warning(
                     "ingest_geojson_path: auto_run_pipeline capped at %s of %s parcels",
@@ -628,12 +816,19 @@ def ingest_geojson_path(
                     len(ids),
                 )
         label = Path(path).name
-        ingest_detail = (
-            f"File `{label}` — inserted *{inserted}*, updated *{updated}*, skipped *{skipped}*."
+        post_agent_event_to_slack(
+            get_settings(),
+            agent="Agent Cartographer (ingest)",
+            detail=(
+                f"Chunk `{label}` — inserted *{inserted}*, updated *{updated}*, skipped *{skipped}*. "
+                f"Prescreen scores written; Atlas/Beacon run via pipeline queue."
+                + (
+                    f" Auto-pipeline enqueued: *{min(len(ids), max_auto_pipeline)}*."
+                    if auto_run_pipeline and ids
+                    else " Pipeline not auto-enqueued from this batch."
+                )
+            ),
         )
-        if auto_run_pipeline and ids:
-            ingest_detail += f" Pipelines enqueued: *{min(len(ids), max_auto_pipeline)}*."
-        post_agent_event_to_slack(get_settings(), agent="Ingest agent", detail=ingest_detail)
         return {
             "parcel_ids": ids,
             "inserted": inserted,
@@ -695,6 +890,10 @@ def merge_parcel_attributes_geojson(
             row.is_corner_lot = bool(attrs.get("is_corner_lot"))
             if attrs.get("distance_to_nearest_demand_m") is not None:
                 row.distance_to_nearest_demand_m = float(attrs["distance_to_nearest_demand_m"])
+            if attrs.get("distance_to_nearest_comp_parking_m") is not None:
+                row.distance_to_nearest_comp_parking_m = float(attrs["distance_to_nearest_comp_parking_m"])
+            if isinstance(attrs.get("nearest_parking_comp"), dict):
+                row.nearest_parking_comp = attrs["nearest_parking_comp"]
             if attrs.get("lot_sqft") is not None:
                 row.lot_sqft = float(attrs["lot_sqft"])
             overlay = attrs.get("raw_properties") or {}
@@ -702,6 +901,7 @@ def merge_parcel_attributes_geojson(
                 merged = dict(row.raw_properties or {})
                 merged.update({k: v for k, v in overlay.items() if v is not None})
                 row.raw_properties = merged
+            row.pilot_in_scope = classify_parcel_scope(row, pilot)
             db.add(row)
             db.flush()
             _upsert_identification_score(db, row)
@@ -725,8 +925,10 @@ def merge_parcel_attributes_geojson(
         enq = 0
         if refresh_pipeline and pipeline_ids and cap > 0:
             for pid in pipeline_ids[:cap]:
-                run_pipeline.delay(pid)
-                enq += 1
+                row = db.get(Parcel, uuid.UUID(pid))
+                if row is not None and row.pilot_in_scope:
+                    run_pipeline.delay(pid)
+                    enq += 1
         post_agent_event_to_slack(
             get_settings(),
             agent="Cartographer (attribute merge)",
@@ -770,7 +972,7 @@ def refresh_demand_distances_batch(
     db = _session()
     n = 0
     try:
-        stmt = select(Parcel).where(Parcel.footprint.isnot(None))
+        stmt = select(Parcel).where(Parcel.footprint.isnot(None), parcel_in_scope_clause())
         cf = (county_fips or "").strip()
         if cf:
             stmt = stmt.where(Parcel.county_fips == cf)
@@ -797,6 +999,116 @@ def refresh_demand_distances_batch(
         db.close()
 
 
+@celery.task(name="app.tasks.refresh_parking_comps_batch")
+def refresh_parking_comps_batch(
+    limit: int = 500,
+    county_fips: str | None = None,
+) -> dict[str, Any]:
+    """Recompute parking comps for in-scope parcels that pass entitlement + building gates."""
+    from geoalchemy2.shape import to_shape
+
+    from app.outreach_board import _latest_score_subq
+    from app.pilot_scope_filter import pilot_repo_root
+    from app.scoring_profiles import ENTITLEMENT
+
+    settings = get_settings()
+    pilot_ent = load_pilot_config(settings.pilot_config_path)
+    repo_root = pilot_repo_root(settings)
+    floor_e = float(pilot_ent.scoring.qualified_min_score)
+
+    lim = min(max(limit, 1), 5000)
+    db = _session()
+    n = 0
+    skipped_gate = 0
+    try:
+        ent_sub = _latest_score_subq(Parcel.id, ENTITLEMENT)
+        stmt = select(Parcel).where(
+            Parcel.footprint.isnot(None),
+            parcel_in_scope_clause(),
+            ent_sub >= floor_e,
+            Parcel.zoning_allows_surface_parking.is_(True),
+        )
+        cf = (county_fips or "").strip()
+        if cf:
+            stmt = stmt.where(Parcel.county_fips == cf)
+        stmt = stmt.order_by(Parcel.created_at.desc()).limit(lim)
+        for parcel in db.scalars(stmt):
+            if not parcel_meets_parking_comp_gate(parcel, floor_e, pilot_ent):
+                skipped_gate += 1
+                continue
+            geom = to_shape(parcel.footprint)
+            if geom.is_empty:
+                continue
+            c = geom.centroid
+            _apply_parking_comp_metrics(parcel, float(c.y), float(c.x), pilot_ent, repo_root)
+            db.add(parcel)
+            db.flush()
+            _upsert_identification_score(db, parcel)
+            n += 1
+        db.commit()
+        post_agent_event_to_slack(
+            settings,
+            agent="Beacon (parking comp refresh)",
+            detail=(
+                f"Refreshed parking comp metrics for *{n}* entitlement-qualified parcel(s)"
+                + (f" in `{cf}`" if cf else "")
+                + (f"; skipped *{skipped_gate}* at building/zoning gate." if skipped_gate else ".")
+            ),
+        )
+        return {
+            "updated": n,
+            "skipped_gate": skipped_gate,
+            "entitlement_floor": floor_e,
+            "county_fips": cf or None,
+            "limit": lim,
+        }
+    finally:
+        db.close()
+
+
+@celery.task(name="app.tasks.rescore_identification_zoning_stale_batch")
+def rescore_identification_zoning_stale_batch(
+    limit: int = 5000,
+    county_fips: str | None = None,
+) -> dict[str, Any]:
+    """Recompute Cartographer scores when ``zoning_allows_surface_parking`` changed after ingest."""
+    lim = min(max(limit, 1), 10000)
+    db = _session()
+    n = 0
+    try:
+        stale = exists(
+            select(1).where(
+                ParcelScore.parcel_id == Parcel.id,
+                ParcelScore.score_profile == IDENTIFICATION,
+                ParcelScore.breakdown["zoning_component"].as_float() == 0,
+            )
+        )
+        stmt = select(Parcel).where(
+            Parcel.zoning_allows_surface_parking.is_(True),
+            stale,
+            parcel_in_scope_clause(),
+        )
+        cf = (county_fips or "").strip()
+        if cf:
+            stmt = stmt.where(Parcel.county_fips == cf)
+        stmt = stmt.order_by(Parcel.updated_at.desc()).limit(lim)
+        for parcel in db.scalars(stmt):
+            _upsert_identification_score(db, parcel)
+            n += 1
+            if n % 200 == 0:
+                db.commit()
+        db.commit()
+        if n:
+            post_agent_event_to_slack(
+                get_settings(),
+                agent="Cartographer (zoning rescore)",
+                detail=f"Re-scored identification for *{n}* parcel(s) after zoning flag update.",
+            )
+        return {"updated": n, "county_fips": cf or None, "limit": lim}
+    finally:
+        db.close()
+
+
 @celery.task(name="app.tasks.refresh_identification_scores_batch")
 def refresh_identification_scores_batch(
     limit: int = 2000,
@@ -813,7 +1125,7 @@ def refresh_identification_scores_batch(
                 ParcelScore.score_profile == IDENTIFICATION,
             )
         )
-        stmt = select(Parcel).where(miss_ident)
+        stmt = select(Parcel).where(miss_ident, parcel_in_scope_clause())
         cf = (county_fips or "").strip()
         if cf:
             stmt = stmt.where(Parcel.county_fips == cf)
@@ -906,11 +1218,168 @@ def slack_agent_digest() -> dict[str, Any]:
         return {"skipped": True, "reason": "slack not configured (set SLACK_BOT_TOKEN and SLACK_DIGEST_CHANNEL_ID)"}
     db = _session()
     try:
-        blocks, fallback = build_slack_digest_blocks(db, hours=4)
+        blocks, fallback = build_slack_digest_blocks(db, window_minutes=20)
         posted = post_digest_to_slack(settings, blocks, fallback)
         return {"skipped": False, **posted}
     except Exception:
         logger.exception("slack_agent_digest failed")
         raise
+    finally:
+        db.close()
+
+
+def _entity_query_name(parcel: Parcel, owners: list[OwnerCandidateRow]) -> str | None:
+    raw = parcel.raw_properties if isinstance(parcel.raw_properties, dict) else {}
+    block = raw.get("owner_record") if isinstance(raw.get("owner_record"), dict) else {}
+    name = (block.get("taxpayer_name") or "").strip() if block else ""
+    if not name and owners:
+        name = (owners[0].display_name or "").strip()
+    if not name or name.lower() == "unknown owner":
+        return None
+    if classify_owner_display_name(name) != OwnerKind.entity:
+        return None
+    return name
+
+
+def _needs_wa_sos_enrichment(brief: dict[str, Any] | None) -> bool:
+    if not isinstance(brief, dict):
+        return True
+    registry = brief.get("registry_lookup")
+    if not isinstance(registry, dict):
+        return True
+    if registry.get("outcome") == "hit" and registry.get("registered_agent_line"):
+        return False
+    return True
+
+
+def _apply_wa_sos_registry_to_parcel(db: Session, parcel: Parcel) -> RegistryLookupSummary | None:
+    owners = list(
+        db.scalars(
+            select(OwnerCandidateRow)
+            .where(OwnerCandidateRow.parcel_id == parcel.id)
+            .order_by(OwnerCandidateRow.confidence.desc())
+        ).all()
+    )
+    query = _entity_query_name(parcel, owners)
+    if not query:
+        return None
+    settings = get_settings()
+    registry = lookup_secretary_of_state(
+        enabled=True,
+        county_fips=parcel.county_fips,
+        owner_kind=OwnerKind.entity,
+        query_name=query,
+        min_delay_s=float(settings.wa_sos_min_delay_seconds),
+        redis_url=settings.redis_url,
+    )
+    if registry is None:
+        return None
+    brief = dict(parcel.owner_outreach_brief or {})
+    brief["registry_lookup"] = registry.model_dump(mode="json")
+    brief["updated_at"] = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    parcel.owner_outreach_brief = brief
+    db.add(parcel)
+    db.commit()
+    return registry
+
+
+@celery.task(name="app.tasks.enrich_wa_sos_parcel", queue="sos")
+def enrich_wa_sos_parcel(parcel_id: str) -> dict[str, Any]:
+    """One entity parcel — runs on dedicated ``sos`` queue (slow Playwright lookup)."""
+    settings = get_settings()
+    if not settings.wa_sos_lookup_enabled:
+        return {"skipped": True, "reason": "WA_SOS_LOOKUP_ENABLED is false", "parcel_id": parcel_id}
+
+    db = _session()
+    try:
+        parcel = db.get(Parcel, uuid.UUID(parcel_id))
+        if parcel is None:
+            return {"skipped": True, "reason": "parcel not found", "parcel_id": parcel_id}
+        brief = parcel.owner_outreach_brief if isinstance(parcel.owner_outreach_brief, dict) else None
+        if not _needs_wa_sos_enrichment(brief):
+            return {"skipped": True, "reason": "already enriched", "parcel_id": parcel_id}
+        registry = _apply_wa_sos_registry_to_parcel(db, parcel)
+        if registry is None:
+            return {"skipped": True, "reason": "not an entity parcel", "parcel_id": parcel_id}
+        if registry.outcome == "hit":
+            post_agent_event_to_slack(
+                settings,
+                agent="Owner enrichment (WA SOS)",
+                detail=f"CCFS agent/principal pulled for parcel `{parcel.apn}` ({registry.registered_agent_line or registry.top_match_name}).",
+            )
+        return {
+            "parcel_id": parcel_id,
+            "apn": parcel.apn,
+            "outcome": registry.outcome,
+            "registered_agent": registry.registered_agent_line,
+        }
+    finally:
+        db.close()
+
+
+@celery.task(name="app.tasks.enrich_wa_sos_entities_batch", queue="sos")
+def enrich_wa_sos_entities_batch(
+    limit: int = 5,
+    county_fips: str | None = None,
+) -> dict[str, Any]:
+    """Slow batch: pull registered agent / principals from WA CCFS for entity owners."""
+    settings = get_settings()
+    if not settings.wa_sos_lookup_enabled:
+        return {"skipped": True, "reason": "WA_SOS_LOOKUP_ENABLED is false"}
+
+    lim = min(max(limit, 1), 20)
+    db = _session()
+    updated = 0
+    errors = 0
+    cf = (county_fips or "").strip()
+    try:
+        stmt = (
+            select(Parcel)
+            .where(Parcel.county_fips.like("53%"), parcel_in_scope_clause())
+            .where(Parcel.raw_properties["owner_record"]["taxpayer_name"].as_string().isnot(None))
+            .order_by(Parcel.created_at.desc())
+            .limit(500)
+        )
+        if cf:
+            stmt = stmt.where(Parcel.county_fips == cf)
+        candidates: list[Parcel] = []
+        for parcel in db.scalars(stmt):
+            brief = parcel.owner_outreach_brief if isinstance(parcel.owner_outreach_brief, dict) else None
+            if not _needs_wa_sos_enrichment(brief):
+                continue
+            owners = list(
+                db.scalars(
+                    select(OwnerCandidateRow)
+                    .where(OwnerCandidateRow.parcel_id == parcel.id)
+                    .order_by(OwnerCandidateRow.confidence.desc())
+                ).all()
+            )
+            if _entity_query_name(parcel, owners):
+                candidates.append(parcel)
+            if len(candidates) >= lim:
+                break
+
+        for parcel in candidates:
+            registry = _apply_wa_sos_registry_to_parcel(db, parcel)
+            if registry is None:
+                continue
+            if registry.outcome == "hit":
+                updated += 1
+            elif registry.outcome == "error":
+                errors += 1
+
+        if updated:
+            post_agent_event_to_slack(
+                settings,
+                agent="Owner enrichment (WA SOS)",
+                detail=f"Automated CCFS lookup completed for *{updated}* entity parcel(s).",
+            )
+        return {
+            "processed": len(candidates),
+            "hits": updated,
+            "errors": errors,
+            "limit": lim,
+            "county_fips": cf or None,
+        }
     finally:
         db.close()

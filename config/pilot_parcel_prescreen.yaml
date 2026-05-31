@@ -1,0 +1,48 @@
+# Pre-ingest funnel: shrink WaTech King County pulls before DB ingest + pipeline.
+# See scripts/fetch_pilot_parcel_candidates.py and docs/PILOT-PARCEL-INGEST.md
+
+version: 1
+
+geography:
+  # Uses region.in_scope from config/pilot.yaml (Kent city + unincorporated King).
+  enabled: true
+
+land_use:
+  enabled: true
+  # Washington DOR codes (WaTech LANDUSE_CD) — exclude obvious non-candidates.
+  # https://dor.wa.gov/sites/default/files/2022-02/PropertyTaxDivision_Excel_ExtractCodes.pdf
+  exclude_codes:
+    - 11 # single-family residential
+    - 12 # 2–4 units
+    - 13 # multi-family (5+)
+    - 14 # residential condominiums
+    - 15 # mobile home parks
+    - 17 # institutional lodging
+    - 18 # other residential
+    - 19 # vacation / cabin
+
+lot_size:
+  enabled: true
+  # Match pilot.yaml scoring.min_lot_sqft unless overridden here.
+  min_sqft: 5000
+  # WaTech Shape__Area is square feet (WA State Plane South, EPSG:2927 source geometry).
+  area_field: Shape__Area
+
+zoning:
+  enabled: true
+  # drop_explicit_false — only skip zones with allows_surface_parking: false in rules YAML
+  # strict — use default_when_unknown from rules (conservative until counsel curates)
+  # off — geography + land use + size only
+  mode: drop_explicit_false
+  kent_zone_field: Short_Name
+  king_zone_field: CURRZONE
+
+building_value:
+  enabled: true
+  # Drop parcels where assessed building value exceeds this share of (land + building).
+  # Screening signal only — not a site visit or coverage analysis.
+  max_building_share: 0.70
+
+ingest:
+  auto_run_pipeline: true
+  max_auto_pipeline: 500

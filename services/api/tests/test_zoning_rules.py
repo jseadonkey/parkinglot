@@ -5,8 +5,10 @@ from pathlib import Path
 from parking_ingestion.geojson_loader import iter_parcels_from_geojson_dict
 from parking_ingestion.zoning_rules import (
     load_zoning_rules,
+    lookup_zone_entry,
     normalize_zone_code,
     resolve_surface_parking,
+    zone_lookup_candidates,
 )
 
 
@@ -29,11 +31,22 @@ def test_resolve_zone_lookup() -> None:
                 "zones": {
                     "C-1": {"allows_surface_parking": True, "note": "t"},
                 }
-            }
+            },
+            "king_unincorporated": {
+                "zones": {
+                    "CB": {"allows_surface_parking": True, "note": "community business"},
+                }
+            },
         },
     }
     assert resolve_surface_parking("c-1", "kent_city", None, rules) is True
     assert resolve_surface_parking("UNKNOWN", "kent_city", None, rules) is False
+    assert resolve_surface_parking("CB-SO", "king_unincorporated", None, rules) is True
+
+
+def test_zone_suffix_fallback_candidates() -> None:
+    assert zone_lookup_candidates("R-6-P-SO") == ["R-6-P-SO", "R-6-P", "R-6"]
+    assert zone_lookup_candidates("GC-MU") == ["GC-MU"]
 
 
 def test_load_zoning_rules_missing_returns_safe_default(tmp_path: Path) -> None:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from parking_core.models import (
     OutreachChannel,
@@ -150,6 +150,7 @@ def build_owner_outreach_brief(
     apn: str,
     raw_properties: dict[str, Any] | None,
     owners: list[OwnerCandidate],
+    owner_research_tier: Literal["basic", "standard", "deep"] = "standard",
     normalized_owner_key: str | None = None,
     registry_lookup: RegistryLookupSummary | None = None,
     vendor_lookup: VendorLookupSummary | None = None,
@@ -178,8 +179,14 @@ def build_owner_outreach_brief(
 
     steps: list[OutreachStep] = []
     rank = 1
+    tier_is_basic = owner_research_tier == "basic"
 
-    if primary and primary.kind == OwnerKind.entity and _is_washington_county(county_fips):
+    if (
+        not tier_is_basic
+        and primary
+        and primary.kind == OwnerKind.entity
+        and _is_washington_county(county_fips)
+    ):
         steps.append(
             OutreachStep(
                 rank=rank,
@@ -194,7 +201,7 @@ def build_owner_outreach_brief(
             )
         )
         rank += 1
-    elif primary and primary.kind == OwnerKind.entity:
+    elif not tier_is_basic and primary and primary.kind == OwnerKind.entity:
         steps.append(
             OutreachStep(
                 rank=rank,
@@ -265,16 +272,17 @@ def build_owner_outreach_brief(
         )
         rank += 1
 
-    steps.append(
-        OutreachStep(
-            rank=rank,
-            channel=OutreachChannel.vendor_research,
-            title="Licensed skip-trace / data vendor (production)",
-            instruction="When roll fields are incomplete, use an approved vendor chain-of-custody workflow.",
-            confidence=0.5,
-            requires_human=True,
+    if not tier_is_basic:
+        steps.append(
+            OutreachStep(
+                rank=rank,
+                channel=OutreachChannel.vendor_research,
+                title="Licensed skip-trace / data vendor (production)",
+                instruction="When roll fields are incomplete, use an approved vendor chain-of-custody workflow.",
+                confidence=0.5,
+                requires_human=True,
+            )
         )
-    )
 
     compliance = [
         "Counsel must approve templates and channels before any outbound contact.",
@@ -282,8 +290,22 @@ def build_owner_outreach_brief(
         "Automated owner enrichment must follow vendor contracts and permitted-use policies.",
     ]
 
-    research = build_manual_research_checklist(county_fips=county_fips, primary=primary)
-    if same_owner_qualified_other_count and same_owner_qualified_other_count > 0:
+    if tier_is_basic:
+        research = [
+            f"County recorder / auditor ({county_fips}): confirm grantee matches recorded owner.",
+            "Assessor vs tax bill mailing: verify current billing contact if different from legal owner.",
+            "Deep owner lookup (SOS, portfolio peers, vendor) runs only when entitlement and strategic scores meet pilot floors.",
+        ]
+        gaps.append(
+            "Owner research tier: basic — roll parse only until parcel qualifies on both entitlement and strategic scores."
+        )
+    else:
+        research = build_manual_research_checklist(county_fips=county_fips, primary=primary)
+    if (
+        not tier_is_basic
+        and same_owner_qualified_other_count
+        and same_owner_qualified_other_count > 0
+    ):
         gaps.append(
             f"Portfolio signal: {same_owner_qualified_other_count} other qualified parcel(s) share "
             "normalized_owner_key — validate before assuming common control."
@@ -292,6 +314,7 @@ def build_owner_outreach_brief(
     return OwnerOutreachBrief(
         county_fips=county_fips,
         apn=apn,
+        owner_research_tier=owner_research_tier,
         recorded_owner_one_liner=one_liner,
         mailing_address_guess=mail,
         situs_address_guess=situs,

@@ -63,6 +63,12 @@ x-worker-beat-env: &worker-beat-env
   OWNER_VENDOR_LOOKUP_ENABLED: ${OWNER_VENDOR_LOOKUP_ENABLED:-false}
   OWNER_VENDOR_LOOKUP_URL: ${OWNER_VENDOR_LOOKUP_URL:-}
   OWNER_VENDOR_LOOKUP_API_KEY: ${OWNER_VENDOR_LOOKUP_API_KEY:-}
+  WA_SOS_LOOKUP_ENABLED: ${WA_SOS_LOOKUP_ENABLED:-false}
+  WA_SOS_MIN_DELAY_SECONDS: ${WA_SOS_MIN_DELAY_SECONDS:-60}
+  WA_SOS_INLINE_IN_PIPELINE: ${WA_SOS_INLINE_IN_PIPELINE:-false}
+  WA_SOS_BEAT_ENABLED: ${WA_SOS_BEAT_ENABLED:-false}
+  WA_SOS_BEAT_LIMIT: ${WA_SOS_BEAT_LIMIT:-3}
+  WA_SOS_BEAT_CRONTAB_MINUTE: ${WA_SOS_BEAT_CRONTAB_MINUTE:-15}
 
 services:
   redis:
@@ -135,6 +141,8 @@ services:
       OWNER_VENDOR_LOOKUP_ENABLED: ${OWNER_VENDOR_LOOKUP_ENABLED:-false}
       OWNER_VENDOR_LOOKUP_URL: ${OWNER_VENDOR_LOOKUP_URL:-}
       OWNER_VENDOR_LOOKUP_API_KEY: ${OWNER_VENDOR_LOOKUP_API_KEY:-}
+      WA_SOS_LOOKUP_ENABLED: ${WA_SOS_LOOKUP_ENABLED:-false}
+      WA_SOS_MIN_DELAY_SECONDS: ${WA_SOS_MIN_DELAY_SECONDS:-60}
     volumes:
       - ../config:/app/config:ro
       - ../data:/app/data:ro
@@ -154,7 +162,7 @@ services:
       args:
         APP_VERSION: ${APP_VERSION:-dev}
     restart: always
-    command: ["celery", "-A", "app.celery_app", "worker", "-l", "INFO", "--concurrency=2"]
+    command: ["sh", "-c", "exec celery -A app.celery_app worker -l INFO --concurrency=$${CELERY_WORKER_CONCURRENCY:-2}"]
     environment:
       <<: *worker-beat-env
     volumes:
@@ -185,6 +193,28 @@ services:
       redis:
         condition: service_healthy
     # Same as worker: inherited image HEALTHCHECK targets uvicorn, not Celery beat.
+    healthcheck:
+      disable: true
+    logging: *default-logging
+
+  # Slow Playwright WA SOS lookups — isolated queue so scoring/ingest never blocks.
+  sos-worker:
+    build:
+      context: ..
+      dockerfile: Dockerfile.backend
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+    restart: always
+    command: ["sh", "-c", "exec celery -A app.celery_app worker -l INFO -Q sos --concurrency=1"]
+    environment:
+      <<: *worker-beat-env
+      WA_SOS_LOOKUP_ENABLED: ${WA_SOS_LOOKUP_ENABLED:-false}
+    volumes:
+      - ../config:/app/config:ro
+      - ../data:/app/data:ro
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       disable: true
     logging: *default-logging

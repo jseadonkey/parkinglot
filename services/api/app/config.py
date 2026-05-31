@@ -300,6 +300,55 @@ class Settings(BaseSettings):
         ),
     )
 
+    wa_sos_lookup_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "WA_SOS_LOOKUP_ENABLED",
+            "wa_sos_lookup_enabled",
+        ),
+    )
+    wa_sos_min_delay_seconds: float = Field(
+        default=60.0,
+        ge=15.0,
+        le=600.0,
+        validation_alias=AliasChoices(
+            "WA_SOS_MIN_DELAY_SECONDS",
+            "wa_sos_min_delay_seconds",
+        ),
+    )
+    wa_sos_inline_in_pipeline: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "WA_SOS_INLINE_IN_PIPELINE",
+            "wa_sos_inline_in_pipeline",
+        ),
+    )
+    wa_sos_beat_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "WA_SOS_BEAT_ENABLED",
+            "wa_sos_beat_enabled",
+        ),
+    )
+    wa_sos_beat_limit: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        validation_alias=AliasChoices(
+            "WA_SOS_BEAT_LIMIT",
+            "wa_sos_beat_limit",
+        ),
+    )
+    wa_sos_beat_crontab_minute: int = Field(
+        default=15,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "WA_SOS_BEAT_CRONTAB_MINUTE",
+            "wa_sos_beat_crontab_minute",
+        ),
+    )
+
     @field_validator("exploration_campaign_start_date", mode="before")
     @classmethod
     def exploration_start_date_empty_ok(cls, v: Any) -> Any:

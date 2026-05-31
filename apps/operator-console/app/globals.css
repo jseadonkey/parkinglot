@@ -80,6 +80,10 @@ nav.nav {
   z-index: 10;
 }
 
+a {
+  color: var(--accent);
+}
+
 nav.nav a {
   color: var(--accent);
   text-decoration: none;
@@ -157,6 +161,161 @@ pre.json {
   font-size: 0.88rem;
 }
 
+.status-banner {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #152030;
+}
+
+.status-banner strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.95rem;
+}
+
+.status-banner p {
+  margin: 0 0 0.45rem;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.status-banner--ingesting {
+  border-color: #3d7ee6;
+  background: #121f33;
+}
+
+.status-banner--warning {
+  border-color: #c9a227;
+  background: #1f1a12;
+}
+
+.status-banner--scoring {
+  border-color: #4a8f6a;
+  background: #121f18;
+}
+
+.status-banner--scope {
+  border-color: #5a6a7a;
+  background: #141a22;
+}
+
+.scope-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.15rem;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.scope-list li {
+  margin: 0.35rem 0;
+}
+
+.stat-note {
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: min(100%, 320px);
+}
+
+.detail-value {
+  text-align: right;
+  max-width: min(100%, 520px);
+}
+
+.field-hint {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.35;
+  text-align: right;
+}
+
+.help-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #1a2430;
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.help-tip-popup {
+  display: none;
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.45rem);
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(280px, 85vw);
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #0f151c;
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  z-index: 20;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.help-tip:hover .help-tip-popup,
+.help-tip:focus-visible .help-tip-popup {
+  display: block;
+}
+
+.score-grid {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.score-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  background: #111820;
+}
+
+.score-card .score-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.score-breakdown {
+  margin: 0.45rem 0 0;
+  padding-left: 1rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.score-breakdown li {
+  margin: 0.15rem 0;
+}
+
 button {
   border: 1px solid var(--border);
   background: #1c2633;
@@ -205,3 +364,206 @@ select {
   font-weight: 600;
   font-size: 0.85rem;
 }
+
+.funnel-section {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.funnel-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.funnel-item {
+  display: flex;
+  gap: 0.85rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+.funnel-item:last-child {
+  border-bottom: none;
+}
+
+.funnel-step-num {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: #1c2633;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.funnel-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.funnel-body p {
+  margin: 0.2rem 0 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.funnel-runs {
+  font-size: 0.78rem;
+}
+
+.funnel-footnote {
+  margin-top: 1rem;
+}
+
+.stage-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0 0.5rem;
+}
+
+.stage-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid var(--border);
+  background: #111820;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.stage-chip--active {
+  border-color: var(--accent);
+  background: #1a2840;
+}
+
+.deal-stage--review {
+  background: #4a3a12;
+  border-color: #8a7020;
+}
+
+.deal-stage--ready {
+  background: #12341f;
+  border-color: #2a7a45;
+}
+
+.deal-stage--active {
+  background: #1a2840;
+  border-color: #3d7ee6;
+}
+
+.deal-stage--failed {
+  background: #3a1515;
+  border-color: #8a3030;
+}
+
+.deal-stage--muted {
+  background: #1c2633;
+  border-color: var(--border);
+}
+
+.scoring-methodology {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.scoring-methodology-grid {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.scoring-methodology-grid--compact {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.scoring-methodology-grid--full {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 900px) {
+  .scoring-methodology-grid--full {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.scoring-profile-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem;
+  background: #111820;
+}
+
+.scoring-profile-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.scoring-profile-meta {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+}
+
+.scoring-profile-dl {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.scoring-profile-dl > div {
+  margin-bottom: 0.45rem;
+}
+
+.scoring-profile-dl dt {
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 0.1rem;
+}
+
+.scoring-profile-dl dd {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.scoring-profile-incomplete {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px dashed var(--border);
+}
+
+.scoring-profile-incomplete dd {
+  color: #c9a227;
+}
+
+.scoring-methodology-footnote {
+  margin-top: 0.85rem;
+  font-size: 0.82rem;
+}
+
+.score-incomplete-note {
+  margin: 0.5rem 0 0;
+  padding: 0.45rem 0.55rem;
+  border-radius: 6px;
+  background: #2a2410;
+  border: 1px solid #5a4a18;
+  font-size: 0.78rem;
+  color: #e8d48a;
+}
+

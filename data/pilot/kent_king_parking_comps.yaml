@@ -1,0 +1,168 @@
+# Curated paid-parking comps — Kent + south King County pilot.
+# Rates are typical public day/hour estimates for screening ONLY — verify before underwriting.
+# kind: surface | garage | hotel | municipal | park_ride | event
+
+version: 1
+
+comps:
+  - id: kent-station-garage
+    name: Kent Station Transit Garage
+    lat: 47.3854
+    lon: -122.2399
+    kind: park_ride
+    rate_usd_per_day: 12.0
+    rate_usd_per_hour: 2.0
+    notes: King County Metro / Sound Transit adjacent structured parking
+
+  - id: kent-downtown-municipal
+    name: Kent Downtown Public Parking (Central Ave area)
+    lat: 47.3810
+    lon: -122.2346
+    kind: municipal
+    rate_usd_per_day: 8.0
+    rate_usd_per_hour: 1.5
+    notes: Municipal lots / on-street paid zones near Kent core
+
+  - id: showare-center-event
+    name: accesso Showare Center event parking
+    lat: 47.3547
+    lon: -122.2464
+    kind: event
+    rate_usd_per_day: 15.0
+    rate_usd_per_hour: 5.0
+    notes: Event-rate surface/structured overflow on show nights
+
+  - id: southcenter-garage
+    name: Westfield Southcenter parking garages
+    lat: 47.4590
+    lon: -122.2570
+    kind: garage
+    rate_usd_per_day: 10.0
+    rate_usd_per_hour: 2.0
+    notes: Mall-adjacent structured parking / paid overflow zones
+
+  - id: southcenter-paid-retail
+    name: Southcenter Blvd paid retail surface (illustrative)
+    lat: 47.4485
+    lon: -122.2520
+    kind: surface
+    rate_usd_per_day: 10.0
+    rate_usd_per_hour: 2.0
+    notes: Adjacent strip / pad paid parking near Southcenter corridor
+
+  - id: seatac-economy-lot
+    name: Sea-Tac airport economy parking (reference ceiling)
+    lat: 47.4430
+    lon: -122.2940
+    kind: garage
+    rate_usd_per_day: 24.0
+    rate_usd_per_hour: 4.0
+    notes: Regional price ceiling signal — not a direct surface comp
+
+  - id: auburn-station-pr
+    name: Auburn Station Park & Ride
+    lat: 47.3085
+    lon: -122.2310
+    kind: park_ride
+    rate_usd_per_day: 10.0
+    rate_usd_per_hour: 2.0
+    notes: Sound Transit / Metro structured park-and-ride
+
+  - id: auburn-downtown-municipal
+    name: Auburn downtown paid parking
+    lat: 47.3075
+    lon: -122.2275
+    kind: municipal
+    rate_usd_per_day: 7.0
+    rate_usd_per_hour: 1.25
+    notes: Municipal paid lots near Auburn Ave
+
+  - id: federal-way-transit
+    name: Federal Way Downtown Station parking
+    lat: 47.3155
+    lon: -122.3270
+    kind: park_ride
+    rate_usd_per_day: 11.0
+    rate_usd_per_hour: 2.0
+    notes: South King transit hub structured parking
+
+  - id: des-moines-marina
+    name: Des Moines Marina paid parking
+    lat: 47.4035
+    lon: -122.3340
+    kind: municipal
+    rate_usd_per_day: 9.0
+    rate_usd_per_hour: 2.0
+    notes: Waterfront / restaurant district paid lots
+
+  - id: kent-hotel-holiday-inn
+    name: Kent hotel parking (Holiday Inn Express area)
+    lat: 47.3680
+    lon: -122.2520
+    kind: hotel
+    rate_usd_per_day: 18.0
+    rate_usd_per_hour: 3.0
+    notes: Hotel guest/overflow daily rate estimate
+
+  - id: renton-landing-garage
+    name: The Landing Renton retail garages
+    lat: 47.4650
+    lon: -122.2170
+    kind: garage
+    rate_usd_per_day: 12.0
+    rate_usd_per_hour: 2.5
+    notes: Paid structured near restaurants / retail (outside pilot scope but market signal)
+
+  - id: valley-medical-center
+    name: Valley Medical Center campus parking
+    lat: 47.3695
+    lon: -122.1780
+    kind: garage
+    rate_usd_per_day: 14.0
+    rate_usd_per_hour: 3.0
+    notes: Medical campus paid / validated parking
+
+  - id: green-river-college
+    name: Green River College student parking
+    lat: 47.3120
+    lon: -122.2140
+    kind: surface
+    rate_usd_per_day: 6.0
+    rate_usd_per_hour: 1.0
+    notes: Campus permit / daily visitor rate estimate
+
+  - id: kent-warehouse-district
+    name: Kent industrial corridor paid truck/auto lot (illustrative)
+    lat: 47.3920
+    lon: -122.2100
+    kind: surface
+    rate_usd_per_day: 9.0
+    rate_usd_per_hour: 1.75
+    notes: Surface lot near SR-167 / warehouse district
+
+  - id: starbucks-canyon-park
+    name: Canyon Park / Bothell-Everett Hwy retail pad (illustrative)
+    lat: 47.3340
+    lon: -122.1890
+    kind: surface
+    rate_usd_per_day: 8.0
+    rate_usd_per_hour: 1.5
+    notes: East hill retail overflow signal
+
+  - id: tukwila-light-rail
+    name: Tukwila International Blvd Link station parking
+    lat: 47.4640
+    lon: -122.2880
+    kind: park_ride
+    rate_usd_per_day: 13.0
+    rate_usd_per_hour: 2.5
+    notes: Link light rail structured park-and-ride
+
+  - id: covington-retail-pad
+    name: Covington retail strip paid surface (illustrative)
+    lat: 47.3580
+    lon: -122.1220
+    kind: surface
+    rate_usd_per_day: 7.0
+    rate_usd_per_hour: 1.25
+    notes: East Kent / Covington restaurant retail adjacency

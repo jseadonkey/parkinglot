@@ -1,28 +1,59 @@
 from __future__ import annotations
 
 import uuid
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import desc, select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import desc, nulls_last, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore, WorkflowRun
 from app.db.session import get_db
-from app.schemas import ParcelPipelineTaskResponse, ParcelRead, ParcelScoreRead, WorkflowRunRead
-from app.scoring_profiles import ENTITLEMENT, ScoreProfile
+from app.parcel_detail import build_parcel_detail
+from app.pilot_scope_filter import parcel_in_scope_clause
+from app.schemas import (
+    ParcelDetailRead,
+    ParcelListRead,
+    ParcelPipelineTaskResponse,
+    ParcelRead,
+    ParcelScoreRead,
+    WorkflowRunRead,
+)
+from app.outreach_board import _latest_score_subq
+from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC, ScoreProfile
 from app.tasks import run_pipeline
 from parking_core.pilot import load_pilot_config
 
 router = APIRouter(prefix="/parcels", tags=["parcels"])
 
 
-@router.get("", response_model=list[ParcelRead])
+def _parcel_list_read(
+    parcel: Parcel,
+    *,
+    id_score: float | None,
+    ent_score: float | None,
+    str_score: float | None,
+) -> ParcelListRead:
+    base = ParcelRead.model_validate(parcel)
+    return ParcelListRead(
+        **base.model_dump(),
+        latest_identification_score=float(id_score) if id_score is not None else None,
+        latest_entitlement_score=float(ent_score) if ent_score is not None else None,
+        latest_strategic_score=float(str_score) if str_score is not None else None,
+    )
+
+
+@router.get("", response_model=list[ParcelListRead])
 def list_parcels(
     limit: int = 50,
     min_score: float | None = None,
     qualified_only: bool = False,
+    sort: Literal["created_at", "score"] = Query(
+        default="created_at",
+        description="Order results by ingest time or latest entitlement score (highest first).",
+    ),
     db: Session = Depends(get_db),
-) -> list[Parcel]:
+) -> list[ParcelListRead]:
     """List parcels. Use ``qualified_only=true`` (latest score ≥ pilot ``qualified_min_score``) or ``min_score=``."""
     lim = min(limit, 200)
     floor = min_score
@@ -31,24 +62,46 @@ def list_parcels(
 
         pilot = load_pilot_config(get_settings().pilot_config_path)
         floor = float(pilot.scoring.qualified_min_score)
+
+    id_sub = _latest_score_subq(Parcel.id, IDENTIFICATION)
+    ent_sub = _latest_score_subq(Parcel.id, ENTITLEMENT)
+    str_sub = _latest_score_subq(Parcel.id, STRATEGIC)
+    order_by = (
+        [nulls_last(ent_sub.desc()), Parcel.created_at.desc()]
+        if sort == "score"
+        else [Parcel.created_at.desc()]
+    )
+
     if floor is not None:
-        latest_total = (
-            select(ParcelScore.total_score)
-            .where(ParcelScore.parcel_id == Parcel.id)
-            .where(ParcelScore.score_profile == ENTITLEMENT)
-            .order_by(desc(ParcelScore.created_at))
-            .limit(1)
-            .scalar_subquery()
-        )
         stmt = (
-            select(Parcel)
-            .where(latest_total >= floor)
-            .order_by(Parcel.created_at.desc())
+            select(
+                Parcel,
+                id_sub.label("id_score"),
+                ent_sub.label("ent_score"),
+                str_sub.label("str_score"),
+            )
+            .where(parcel_in_scope_clause(), ent_sub >= floor)
+            .order_by(*order_by)
             .limit(lim)
         )
     else:
-        stmt = select(Parcel).order_by(Parcel.created_at.desc()).limit(lim)
-    return list(db.scalars(stmt))
+        stmt = (
+            select(
+                Parcel,
+                id_sub.label("id_score"),
+                ent_sub.label("ent_score"),
+                str_sub.label("str_score"),
+            )
+            .where(parcel_in_scope_clause())
+            .order_by(*order_by)
+            .limit(lim)
+        )
+
+    rows = db.execute(stmt).all()
+    return [
+        _parcel_list_read(p, id_score=i, ent_score=e, str_score=s)
+        for p, i, e, s in rows
+    ]
 
 
 @router.get("/{parcel_id}", response_model=ParcelRead)
@@ -57,6 +110,15 @@ def get_parcel(parcel_id: uuid.UUID, db: Session = Depends(get_db)) -> Parcel:
     if row is None:
         raise HTTPException(status_code=404, detail="parcel not found")
     return row
+
+
+@router.get("/{parcel_id}/detail", response_model=ParcelDetailRead)
+def get_parcel_detail(parcel_id: uuid.UUID, db: Session = Depends(get_db)) -> ParcelDetailRead:
+    """All known data for one parcel — scores, owners, memos, approvals, enrichment."""
+    raw = build_parcel_detail(db, parcel_id)
+    if raw is None:
+        raise HTTPException(status_code=404, detail="parcel not found")
+    return ParcelDetailRead.model_validate(raw)
 
 
 @router.get("/{parcel_id}/workflow-runs", response_model=list[WorkflowRunRead])

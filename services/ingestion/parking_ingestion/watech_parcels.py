@@ -94,3 +94,68 @@ def fetch_county_geojson(
         time.sleep(sleep_sec)
 
     return {"type": "FeatureCollection", "features": features}
+
+
+def iterate_county_features(
+    county_fips_5: str,
+    *,
+    page_size: int = 2000,
+    max_features: int | None = None,
+    sleep_sec: float = 0.15,
+    layer_url: str = WATECH_STATEWIDE_PARCELS_LAYER,
+):
+    """Yield GeoJSON features for one WA county page by page (memory-friendly)."""
+    import json
+    import time
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    fips_nr = county_fips_to_watech_fips_nr(county_fips_5)
+    where = f"FIPS_NR='{fips_nr}'"
+    offset = 0
+    total_cap = max_features if max_features is not None else 10**12
+    yielded = 0
+
+    while yielded < total_cap:
+        batch_limit = min(page_size, total_cap - yielded)
+        params: dict[str, str | int] = {
+            "where": where,
+            "outFields": "*",
+            "returnGeometry": "true",
+            "outSR": "4326",
+            "f": "geojson",
+            "resultOffset": offset,
+            "resultRecordCount": batch_limit,
+        }
+        qs = urllib.parse.urlencode(params)
+        url = f"{layer_url.rstrip('/')}/query?{qs}"
+        logger.info("WaTech fetch offset=%s limit=%s county=%s", offset, batch_limit, county_fips_5)
+
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "parking-acquisition-agents/1.0"})
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                raw = resp.read().decode("utf-8")
+        except urllib.error.HTTPError as e:
+            logger.exception("WaTech HTTP error for county %s", county_fips_5)
+            raise RuntimeError(f"WaTech query failed: {e}") from e
+
+        data = json.loads(raw)
+        batch = data.get("features") or []
+        if not batch:
+            break
+
+        for feat in batch:
+            props = feat.setdefault("properties", {})
+            if not str(props.get("COUNTY_FIPS", "")).strip():
+                fnr = str(props.get("FIPS_NR", fips_nr)).strip()
+                props["COUNTY_FIPS"] = watech_fips_nr_to_county_fips(fnr)
+            yield feat
+            yielded += 1
+            if yielded >= total_cap:
+                return
+
+        if len(batch) < batch_limit:
+            break
+        offset += len(batch)
+        time.sleep(sleep_sec)

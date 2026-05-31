@@ -2,6 +2,8 @@
 
 `kent_king_surface_parking_rules.yaml` maps **zone codes** (per jurisdiction) to **`allows_surface_parking`** for scoring—not legal conclusions; curate with GIS + counsel.
 
+**Operations context:** flags mean a **primary-use standalone unmanned surface parking** path may exist (see `docs/OPERATIONS-MODEL.md`). Accessory parking-only sites are out of scope even when off-street parking is permitted for another use.
+
 ## Environment override
 
 - **`ZONING_RULES_PATH`** — absolute or relative path to a YAML file. When unset, the API/worker uses (in order): explicit **`zoning_rules_path`** from app settings, then **`/app/data/zoning/wa/kent_king_surface_parking_rules.yaml`** inside Docker (compose mounts repo `data/` → `/app/data`), then **`data/zoning/wa/kent_king_surface_parking_rules.yaml`** relative to the process working directory.

@@ -1,0 +1,15 @@
+# Host-side pilot/scraping logs (scripts append via tee/nohup). Installed by scripts/install-logrotate.sh.
+# REPO_ROOT is substituted at install time (default /opt/parking-acquisition-agents — see docs/DROPLET_REPO_PATH.md).
+
+@@REPO_ROOT@@/logs/*.log {
+    daily
+    size 100M
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    dateext
+    dateformat -%Y%m%d
+}

@@ -1,23 +1,288 @@
 # Surface parking suitability by zone code (Kent city + King unincorporated).
-# NOT LEGAL ADVICE — placeholders until GIS/counsel curate per ordinance.
+# NOT LEGAL ADVICE — operational scoring flags from published land-use tables.
+#
+# Scoring context (see docs/OPERATIONS-MODEL.md):
+#   We master-lease land for STANDALONE UNMANNED SURFACE PARKING as the primary use.
+#   Accessory-only parking for another building is out of scope even when "P" for off-street parking.
+#   Partially developed lots (e.g. half built / half empty) may qualify on the empty portion — counsel review.
+#
+# allows_surface_parking: true
+#   Primary-use commercial / commuter / automotive parking has a permit path
+#   (P = permitted, M = minor conditional, C = conditional) in the cited ordinance table.
+# allows_surface_parking: false
+#   Residential, agriculture, forestry, mineral, or district where parking-as-primary-use
+#   is not listed / is prohibited (accessory parking only).
+#
 # Unknown codes use default_when_unknown (conservative false).
+# Overlay suffixes (-P, -SO, -DPA, -P-SO) fall back to the base code when not listed explicitly.
 
-version: 1
+version: 2
 default_when_unknown: false
 
 jurisdictions:
   kent_city:
-    source_url: "https://gis-cityofkent.opendata.arcgis.com/datasets/kent-zoning-districts"
+    source_url: "https://www.codepublishing.com/WA/Kent/html/Kent15/Kent1504.html#15.04.060"
+    ordinance_ref: "KCC 15.04.060 — Commercial parking lots or structures (M = minor conditional in commercial/industrial districts)"
     zones:
-      # Example placeholder — replace with ordinance-backed entries:
-      # "C-1":
-      #   allows_surface_parking: false
-      #   note: "Verify commercial parking allowances in Kent zoning code."
+      # --- Neighborhood residential (housing primary; no commercial parking primary use) ---
+      NR-2:
+        allows_surface_parking: false
+        note: "Neighborhood residential — KCC 15.04.020; commercial parking not a listed primary use."
+      NR-3:
+        allows_surface_parking: false
+        note: "Neighborhood residential."
+      NR-4A:
+        allows_surface_parking: false
+        note: "Neighborhood residential."
+      NR-4B:
+        allows_surface_parking: false
+        note: "Neighborhood residential."
+      NR-L:
+        allows_surface_parking: false
+        note: "Neighborhood residential low."
+      NR-S:
+        allows_surface_parking: false
+        note: "Neighborhood residential special."
+      MHP:
+        allows_surface_parking: false
+        note: "Mobile home park combining district — residential."
+      # --- Agriculture ---
+      AG:
+        allows_surface_parking: false
+        note: "Agricultural district."
+      A-10:
+        allows_surface_parking: false
+        note: "Agricultural / rural residential character."
+      # --- Commercial / downtown (M minor conditional; downtown has surface caps KCC 15.05.070) ---
+      GC:
+        allows_surface_parking: true
+        note: "General commercial — commercial parking M (minor conditional use permit)."
+      GC-MU:
+        allows_surface_parking: true
+        note: "General commercial mixed-use overlay — same transportation table as GC."
+      CC:
+        allows_surface_parking: true
+        note: "Community commercial — commercial parking M."
+      CC-MU:
+        allows_surface_parking: true
+        note: "Community commercial mixed-use — commercial parking M."
+      NCC:
+        allows_surface_parking: true
+        note: "Neighborhood community commercial — commercial parking M."
+      DC:
+        allows_surface_parking: true
+        note: "Downtown commercial core — commercial parking M; pedestrian-oriented, structured parking preferred."
+      DCE:
+        allows_surface_parking: true
+        note: "Downtown commercial enterprise — commercial parking M; surface parking capped per KCC 15.05.070."
+      DCE-T:
+        allows_surface_parking: true
+        note: "DCE transitional overlay — commercial parking M with design/height limits."
+      # --- Industrial ---
+      I1:
+        allows_surface_parking: true
+        note: "Light industrial — commercial parking M."
+      I2:
+        allows_surface_parking: true
+        note: "Medium industrial — commercial parking M."
+      I3:
+        allows_surface_parking: true
+        note: "Heavy industrial — commercial parking M."
+      CM:
+        allows_surface_parking: false
+        note: "Commercial manufacturing — Sound Transit/KCC land-use tables list commercial parking as not permitted (CM-2 family)."
+      # --- Midway / transit subarea ---
+      MCR:
+        allows_surface_parking: true
+        note: "Midway commercial residential — commercial parking conditional use (not by-right)."
+      MTC-1:
+        allows_surface_parking: true
+        note: "Midway transit community-1 — commercial parking M; TOD/pedestrian standards apply."
+      MTC-2:
+        allows_surface_parking: true
+        note: "Midway transit community-2 — commercial parking M; TOD/pedestrian standards apply."
 
   king_unincorporated:
-    source_url: "https://gis-kingcounty.opendata.arcgis.com/datasets/kingcounty::zoning-for-unincorporated-king-county"
+    source_url: "https://aqua.kingcounty.gov/council/clerk/code/24-30_Title_21A.pdf"
+    ordinance_ref: "KCC 21A.08.060 — Commuter parking (P/C) and SIC 752 Automotive parking (P) in NB/CB/RB/O/I"
     zones:
-      # Example placeholder — King County uses CURRZONE-style codes on zoning_area:
-      # "R-4":
-      #   allows_surface_parking: false
-      #   note: "Verify KC Title 21 / zoning map for outright parking uses."
+      # --- Residential / rural residential (no automotive parking primary; commuter parking C with limits only) ---
+      R-1:
+        allows_surface_parking: false
+        note: "Urban residential — parking as primary use not listed; commuter parking conditional only (≤30 spaces)."
+      R-4:
+        allows_surface_parking: false
+        note: "Urban residential."
+      R-6:
+        allows_surface_parking: false
+        note: "Urban residential."
+      R-8:
+        allows_surface_parking: false
+        note: "Urban residential / multifamily band."
+      R-12:
+        allows_surface_parking: false
+        note: "Urban residential / multifamily band."
+      R-18:
+        allows_surface_parking: false
+        note: "Urban residential / multifamily band."
+      R-24:
+        allows_surface_parking: false
+        note: "Urban residential / multifamily band."
+      R-48:
+        allows_surface_parking: false
+        note: "Urban residential / multifamily band."
+      R-1-P:
+        allows_surface_parking: false
+        note: "R-1 performance overlay — inherits residential use table."
+      R-1-SO:
+        allows_surface_parking: false
+        note: "R-1 special overlay."
+      R-4-P:
+        allows_surface_parking: false
+        note: "R-4 performance overlay."
+      R-4-SO:
+        allows_surface_parking: false
+        note: "R-4 special overlay."
+      R-4-P-SO:
+        allows_surface_parking: false
+        note: "R-4 performance + special overlay."
+      R-6-P:
+        allows_surface_parking: false
+        note: "R-6 performance overlay."
+      R-6-SO:
+        allows_surface_parking: false
+        note: "R-6 special overlay."
+      R-6-P-SO:
+        allows_surface_parking: false
+        note: "R-6 performance + special overlay."
+      R-8-P:
+        allows_surface_parking: false
+        note: "R-8 performance overlay."
+      R-8-DPA:
+        allows_surface_parking: false
+        note: "R-8 development pattern area — residential base."
+      R-12-P:
+        allows_surface_parking: false
+        note: "R-12 performance overlay."
+      R-18-P:
+        allows_surface_parking: false
+        note: "R-18 performance overlay."
+      R-24-P:
+        allows_surface_parking: false
+        note: "R-24 performance overlay."
+      R-48-P:
+        allows_surface_parking: false
+        note: "R-48 performance overlay."
+      RA-2.5:
+        allows_surface_parking: false
+        note: "Rural area residential — commuter parking conditional only."
+      RA-5:
+        allows_surface_parking: false
+        note: "Rural area residential."
+      RA-10:
+        allows_surface_parking: false
+        note: "Rural area residential."
+      RA-2.5-P:
+        allows_surface_parking: false
+        note: "RA-2.5 performance overlay."
+      RA-2.5-SO:
+        allows_surface_parking: false
+        note: "RA-2.5 sensitive overlay."
+      RA-2.5-P-SO:
+        allows_surface_parking: false
+        note: "RA-2.5 performance + sensitive overlay."
+      RA-5-P:
+        allows_surface_parking: false
+        note: "RA-5 performance overlay."
+      RA-5-SO:
+        allows_surface_parking: false
+        note: "RA-5 sensitive overlay."
+      RA-10-P:
+        allows_surface_parking: false
+        note: "RA-10 performance overlay."
+      RA-10-SO:
+        allows_surface_parking: false
+        note: "RA-10 sensitive overlay."
+      RA-10-P-SO:
+        allows_surface_parking: false
+        note: "RA-10 performance + sensitive overlay."
+      UR:
+        allows_surface_parking: false
+        note: "Urban reserve — commuter parking conditional only, not full commercial parking primary use."
+      UR-P:
+        allows_surface_parking: false
+        note: "Urban reserve performance overlay."
+      UR-SO:
+        allows_surface_parking: false
+        note: "Urban reserve special overlay."
+      # --- Resource / agriculture / forestry / mineral ---
+      A-10:
+        allows_surface_parking: false
+        note: "Agriculture resource zone."
+      A-10-P:
+        allows_surface_parking: false
+        note: "A-10 performance overlay."
+      A-10-SO:
+        allows_surface_parking: false
+        note: "A-10 sensitive overlay."
+      A-35:
+        allows_surface_parking: false
+        note: "Agriculture resource zone."
+      F:
+        allows_surface_parking: false
+        note: "Forestry resource zone."
+      M:
+        allows_surface_parking: false
+        note: "Mineral resource zone."
+      M-P:
+        allows_surface_parking: false
+        note: "Mineral performance overlay."
+      M-SO:
+        allows_surface_parking: false
+        note: "Mineral sensitive overlay."
+      # --- Commercial / industrial (commuter parking P; automotive parking P in CB/RB/O/I; NB commuter P) ---
+      NB:
+        allows_surface_parking: true
+        note: "Neighborhood business — commuter parking permitted; verify automotive parking for pay-lot scale."
+      NB-P:
+        allows_surface_parking: true
+        note: "Neighborhood business performance overlay."
+      NB-SO:
+        allows_surface_parking: true
+        note: "Neighborhood business special overlay."
+      CB:
+        allows_surface_parking: true
+        note: "Community business — commuter + automotive parking permitted (KCC 21A.08.060)."
+      CB-P:
+        allows_surface_parking: true
+        note: "Community business performance overlay."
+      CB-SO:
+        allows_surface_parking: true
+        note: "Community business special overlay."
+      CB-DPA:
+        allows_surface_parking: true
+        note: "Community business development pattern area."
+      RB:
+        allows_surface_parking: true
+        note: "Regional business — commuter + automotive parking permitted."
+      O:
+        allows_surface_parking: true
+        note: "Office — commuter + automotive parking permitted."
+      O-P:
+        allows_surface_parking: true
+        note: "Office performance overlay."
+      O-P-SO:
+        allows_surface_parking: true
+        note: "Office performance + special overlay."
+      I:
+        allows_surface_parking: true
+        note: "Industrial — commuter + automotive parking permitted."
+      I-P:
+        allows_surface_parking: true
+        note: "Industrial performance overlay."
+      I-SO:
+        allows_surface_parking: true
+        note: "Industrial special overlay."
+      MIT:
+        allows_surface_parking: true
+        note: "Master planned industrial/transit — treated as industrial commercial band; verify site plan."

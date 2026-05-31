@@ -17,6 +17,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+PY="${ROOT}/.venv/bin/python"
+[[ -x "$PY" ]] || PY="python3"
+
 DEPLOY_ENV="${ROOT}/deploy/.env"
 if [[ -f "$DEPLOY_ENV" ]] && { [[ -z "${DATABASE_URL:-}" ]] || [[ -z "${INTERNAL_API_KEY:-}" ]]; }; then
   set -a
@@ -40,10 +43,11 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
 fi
 
 echo "=== build overlay -> ${OVERLAY_OUT} ==="
-python3 "${ROOT}/scripts/build_king_kent_zoning_overlay.py" -o "${OVERLAY_OUT}"
+"$PY" "${ROOT}/scripts/build_king_kent_zoning_overlay.py" -o "${OVERLAY_OUT}" \
+  ${KENT_ZONE_FIELD:+--kent-zone-field "$KENT_ZONE_FIELD"}
 
 echo "=== validate overlay ==="
-python3 "${ROOT}/scripts/validate_phase_b_overlay.py" "${OVERLAY_OUT}"
+"$PY" "${ROOT}/scripts/validate_phase_b_overlay.py" "${OVERLAY_OUT}"
 
 CONTAINER_OUT="${PHASE_B_OVERLAY_PATH}"
 HOST_VALIDATE="${OVERLAY_OUT}"

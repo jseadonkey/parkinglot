@@ -71,6 +71,17 @@ cp /opt/parking-acquisition-agents/deploy/.env /opt/workspaces/parkinglot/deploy
 
 ---
 
+## Useful commands (repo root on Droplet)
+
+| Task | Command |
+|------|---------|
+| Apply secrets → Docker | `python3 scripts/render_deploy_env.py && docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env up -d` |
+| Health check (env keys) | `python3 scripts/check_ae_setup.py --probe` |
+| Install logrotate for `logs/*.log` (pilot scripts) | `cd REPO_ROOT && sudo ./scripts/install-logrotate.sh` — see [OPERATIONS.md](OPERATIONS.md#logs-droplet) |
+| Operator console snapshot (agent sees same data as UI) | `python3 scripts/operator_console_snapshot.py --probe-ui` |
+
+---
+
 ## For maintainers and AI (committed template)
 
 - This file is the **single committed checklist** of which **non-secret** operator facts we track (Droplet IP, SSH key **file path**, repo directory on the server, optional GitHub remote).

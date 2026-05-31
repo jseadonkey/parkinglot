@@ -7,6 +7,13 @@ Stable references for **spatial filters** (e.g. “only score parcels inside Ken
 | Path | Area | Source |
 |------|------|--------|
 | `wa/kent_city_census_places.geojson` | Kent city, King County, WA | US Census **TIGERweb** Incorporated Places (cartographic), layer **25**, query `BASENAME='Kent' AND STATE='53'` → **GEOID 5335415** |
+| `wa/king_county_incorporated_excluding_kent.geojson` | Other King County cities (37 places; excludes Kent) | TIGERweb layer **25**, WA places with centroid in King County, minus Kent — used to define **unincorporated** pilot scope |
+
+## Pilot scope rule
+
+**In scope:** parcel centroid inside **Kent city** OR inside **King County** but **not** inside any other incorporated city in the file above.
+
+Refresh both files when Census boundaries change. Re-run `scripts/apply_pilot_scope.py` after updates.
 
 ## Refreshing the Kent polygon
 

@@ -22,6 +22,9 @@ class Parcel(Base):
     zoning_allows_surface_parking: Mapped[bool] = mapped_column(default=False)
     is_corner_lot: Mapped[bool] = mapped_column(default=False)
     distance_to_nearest_demand_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    distance_to_nearest_comp_parking_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    nearest_parking_comp: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    pilot_in_scope: Mapped[bool] = mapped_column(default=True, nullable=False)
     raw_properties: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     owner_outreach_brief: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     footprint: Mapped[object | None] = mapped_column(

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { ScoringMethodologyPanel } from "../../components/ScoringMethodologyPanel";
 
 type ParcelRow = {
   id: string;
@@ -9,10 +10,18 @@ type ParcelRow = {
   county_fips: string;
   zoning_code: string | null;
   lot_sqft: number | null;
+  latest_identification_score: number | null;
+  latest_entitlement_score: number | null;
+  latest_strategic_score: number | null;
   created_at: string;
 };
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
+function formatScore(v: number | null | undefined): string {
+  if (v == null || Number.isNaN(v)) return "—";
+  return v.toFixed(1);
+}
 
 export default function ParcelsPage() {
   const [limit, setLimit] = useState(50);
@@ -22,7 +31,7 @@ export default function ParcelsPage() {
   const load = useCallback(async () => {
     setErr(null);
     try {
-      const res = await fetch(`${apiBase}/parcels?limit=${limit}`, { cache: "no-store" });
+      const res = await fetch(`${apiBase}/parcels?limit=${limit}&sort=score`, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as ParcelRow[];
       setRows(data);
@@ -38,7 +47,12 @@ export default function ParcelsPage() {
   return (
     <main>
       <h1>Parcels</h1>
-      <p className="muted">Latest parcel rows from the API (newest first).</p>
+      <p className="muted">
+        In-scope parcels sorted by <strong>Atlas entitlement</strong> score (highest first). All three agent scores
+        are shown per row.
+      </p>
+
+      <ScoringMethodologyPanel variant="compact" />
 
       <div className="panel" style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
         <label className="muted">
@@ -62,6 +76,21 @@ export default function ParcelsPage() {
         <table className="data">
           <thead>
             <tr>
+              <th>
+                Identification prescreen
+                <br />
+                <span className="muted">Cartographer</span>
+              </th>
+              <th>
+                Entitlement score
+                <br />
+                <span className="muted">Atlas</span>
+              </th>
+              <th>
+                Strategic score
+                <br />
+                <span className="muted">Beacon</span>
+              </th>
               <th>APN</th>
               <th>County FIPS</th>
               <th>Zoning</th>
@@ -73,6 +102,9 @@ export default function ParcelsPage() {
           <tbody>
             {rows.map((p) => (
               <tr key={p.id}>
+                <td>{formatScore(p.latest_identification_score)}</td>
+                <td>{formatScore(p.latest_entitlement_score)}</td>
+                <td>{formatScore(p.latest_strategic_score)}</td>
                 <td>{p.apn}</td>
                 <td>{p.county_fips}</td>
                 <td>{p.zoning_code ?? "—"}</td>

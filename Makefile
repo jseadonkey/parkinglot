@@ -1,4 +1,4 @@
-.PHONY: help verify-sample api-ci openapi-export export-readiness readiness export-parcel-scores phase-a-run phase-b-run phase-b-pipeline phase-c-run validate-phase-b-overlay build-king-kent-zoning-overlay preflight-zoning slack-droplet-check slack-digest-wait poll-task process-coverage deploy-env-check render-deploy-env render-deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
+.PHONY: help verify-sample api-ci openapi-export export-readiness readiness export-parcel-scores phase-a-run phase-b-run phase-b-pipeline phase-c-run validate-phase-b-overlay build-king-kent-zoning-overlay preflight-zoning slack-droplet-check slack-digest-wait poll-task process-coverage deploy-env-check render-deploy-env render-deploy-env-check ae-setup-check operator-console-snapshot operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
 
 help:
 	@echo "Targets:"
@@ -40,6 +40,7 @@ help:
 	@echo "  make poll-task           - poll Celery task (export TASK_ID=… first)"
 	@echo "  make a-e-setup    - print path to A–E setup checklist (docs)"
 	@echo "  make operator-console-help - operator browser UI (/operator on UI_HOST)"
+	@echo "  make operator-console-snapshot - same data as operator pages (troubleshooting)"
 
 deploy-env-check:
 	@python3 scripts/check_deploy_env_warnings.py
@@ -74,6 +75,9 @@ a-e-setup:
 
 operator-console-help:
 	@echo "Operator web UI (parcels, deals, approvals): docs/OPERATOR-CONSOLE.md"
+
+operator-console-snapshot:
+	@python3 scripts/operator_console_snapshot.py --probe-ui
 
 ae-setup-check:
 	@python3 scripts/check_ae_setup.py

@@ -25,7 +25,15 @@ Slack shows the **channel ID** under **View channel details**; the **#channel-na
 
 ---
 
-The stack can post a **recurring “agent standup”** to a Slack channel: one Block Kit message every **20 minutes (UTC)** summarizing what the pipeline has been doing (new parcels, workflow status changes, pending human approvals, recent audit lines). **Once per day (14:00 UTC)** it also posts a **qualified-parcels report**: latest score per parcel vs `qualified_min_score` from the pilot config, with a short **why** line (zoning, lot size, corner, demand) for qualified rows and a sample of not-qualified rows.
+The stack posts **recurring pilot updates** to a Slack channel:
+
+| Message | Cadence | What it covers |
+|---------|---------|----------------|
+| **Kent pilot — agent update** | Every **20 minutes (UTC)** | Funnel load progress, Cartographer/Atlas/Beacon score coverage, dual-qualified count, comp-gated lookups, deal-stage counts, recent pipeline activity, pending approvals |
+| **Dual-qualified parcels — daily report** | **14:00 UTC** daily | Outreach candidates (both floors), Atlas-led and Beacon-led near-misses, sample screened-out rows |
+| **Atlas / Beacon discussion** | **15:30 UTC** daily (optional channel) | Three messages: entitlement picks (POI), strategic picks (gated parking comps), joint comparison |
+
+Previously the 20-minute digest used a 4-hour activity window and generic “ingest / scoring” labels. It now matches the **Kent + unincorporated King funnel**: prescreen at ingest (Cartographer), full pipeline scores (Atlas + Beacon), gated parking comps, and operator deal stages.
 
 Separately, you can configure a **dedicated “agent discussion” channel** where the two deterministic scoring agents post three messages: **Atlas** (entitlement lens), **Beacon** (demand/visibility lens), then a **joint comparison** (consensus + disagreements). This is **outbound notification**, not a full chat employee — see [Limits](#limits-and-future-work) below.
 
@@ -45,12 +53,13 @@ If Slack env is unset, tasks **no-op** (return `skipped` in the task result) so 
 
 ### Per-task “agent” updates (optional)
 
-Set **`SLACK_AGENT_EVENT_UPDATES=1`** (or `true` / `yes` / `on`) in the same env as the **Celery worker** (and API if you want `GET /internal/slack/status` to report the flag). When Slack is fully configured, the worker posts short messages for:
+Set **`SLACK_AGENT_EVENT_UPDATES=1`** (or `true` / `yes` / `on`) on the **Celery worker**. When Slack is configured, the worker posts short messages for:
 
-- **Ingest agent** — after each `ingest_geojson_path` run (counts + optional pipeline enqueue summary).
-- **Scoring & pipeline agent** — on each `run_pipeline` success or failure (includes a **Human-gate coordinator** line on success: pending approvals).
+- **Agent Cartographer (ingest)** — after each GeoJSON chunk load (insert/update counts; prescreen scores; pipeline queue note).
+- **Agent Atlas & Beacon (pipeline)** — on each `run_pipeline` completion: dual-qualified (memo + contract queued), screened out (both scores below floors), or failure.
+- **Cartographer / Beacon (batch refreshes)** — attribute merge, identification refresh, demand distance refresh, parking comp refresh (when those tasks run).
 
-Leave unset in production if you only want the **scheduled digest** (every 20 minutes UTC) and manual/API test messages — bulk ingest can generate many Slack lines.
+Leave unset during bulk ingest if you only want the **scheduled 20-minute digest** — per-parcel lines can be noisy.
 
 **Production compose:** the **`api`** service receives the same **`SLACK_*`** variables as **worker** / **beat** so `GET /internal/slack/status` and **`POST /internal/slack/test-message`** match the worker’s Slack configuration.
 
@@ -159,7 +168,7 @@ Workflow file: [`.github/workflows/slack-digest-now-via-droplet.yml`](../.github
 ## Limits and future work
 
 - **Replies in Slack are not read** by the app today. There is no Events API, Socket Mode, or slash-command handler, so you cannot “talk back” to the agents through Slack without additional work (public HTTPS endpoint, `Slack-Signature` verification, idempotency, and mapping messages to internal actions).
-- **Digest content** is derived from the database (parcels, `workflow_runs`, `approval_requests`, `audit_log`). It does not call LLM “agents”; the sections are labeled *Ingest*, *Scoring & pipeline*, etc., as a readable stand-in for operator reporting.
+- **Digest content** reflects the current funnel: three scoring agents (Cartographer prescreen, Atlas entitlement/POI, Beacon strategic/gated comps), dual qualification, deal progress stages, and ingest backlog vs ~125k candidate target. It reads Postgres only — no LLM.
 - **Good next steps** if you want “manage like an employee”: (1) Slack slash command → signed request → enqueue Celery task or create `approval_requests`; (2) thread `ts` stored per parcel for continuity; (3) optional LLM summarization of diffs before post.
 
 Security: treat **`SLACK_BOT_TOKEN`** like any other secret ([`SECURITY.md`](../SECURITY.md)).

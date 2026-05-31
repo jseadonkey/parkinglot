@@ -6,56 +6,29 @@
 crs: EPSG:4326
 
 region:
-  name: "Washington — statewide pilot"
+  name: "King County — Kent pilot"
   state_fips: "53"
   county_fips:
-    - "53001"
-    - "53003"
-    - "53005"
-    - "53007"
-    - "53009"
-    - "53011"
-    - "53013"
-    - "53015"
-    - "53017"
-    - "53019"
-    - "53021"
-    - "53023"
-    - "53025"
-    - "53027"
-    - "53029"
-    - "53031"
-    - "53033"
-    - "53035"
-    - "53037"
-    - "53039"
-    - "53041"
-    - "53043"
-    - "53045"
-    - "53047"
-    - "53049"
-    - "53051"
-    - "53053"
-    - "53055"
-    - "53057"
-    - "53059"
-    - "53061"
-    - "53063"
-    - "53065"
-    - "53067"
-    - "53069"
-    - "53071"
-    - "53073"
-    - "53075"
-    - "53077"
+    - "53033" # King
   primary_metro_cbsa: "42660"
+  in_scope:
+    kent_city_boundary_geojson: data/boundaries/wa/kent_city_census_places.geojson
+    excluded_incorporated_places_geojson: data/boundaries/wa/king_county_incorporated_excluding_kent.geojson
 
 deal:
-  primary_structure: ground_lease
+  primary_structure: master_lease
   allowed_structures:
+    - master_lease
     - ground_lease
-    - purchase_option
   templates_require_legal_review: true
+  operations:
+    site_use: standalone_unmanned_parking_lot
+    lease_model: master_lease
+    summary: >
+      Master-lease land for standalone, unmanned surface parking only — see config/pilot.yaml operations block.
+    partial_lot_note: >
+      Partially developed lots (e.g. half built, half empty) may qualify if the empty portion
+      can support unmanned surface parking — verify with zoning counsel.
 
 compliance:
   allowed_outreach_channels: []
@@ -73,14 +46,24 @@ scoring:
     zoning_permitted_surface_parking: 25
     lot_size: 20
     corner_lot: 15
-    near_demand_generator_m: 40
+    near_demand_generator_m: 0
+    near_parking_comp_m: 40
   demand_generator_buffer_m: 500
+  parking_comp_market:
+    enabled: true
+    comps_path: data/pilot/kent_king_parking_comps.yaml
+    buffer_m: 800
+    min_rate_usd_per_day: 6.0
+    premium_rate_usd_per_day: 15.0
   demand_generators:
-    - name: "Seattle downtown (illustrative)"
-      lat: 47.6062
-      lon: -122.3321
+    - name: "Kent Station (illustrative)"
+      lat: 47.3854
+      lon: -122.2399
+    - name: "Aurora corridor — Federal Way border (illustrative)"
+      lat: 47.35
+      lon: -122.31
 
 data_sources:
-  parcel_vendor: "TBD — see docs/washington-data.md"
+  parcel_vendor: "King County — see docs/washington-data.md"
   zoning_vendor: "docs/zoning-sources-kent.md + data/zoning/wa/kent_king_surface_parking_rules.yaml"
   poi_source: "osm_or_commercial_tbd"

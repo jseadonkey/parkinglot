@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { ScoringMethodologyPanel } from "../../components/ScoringMethodologyPanel";
 import { bridgeUrl } from "../../lib/paths";
+import { DUAL_QUALIFICATION_NOTE, SCORE_COLUMN_LEGEND } from "../../lib/scoringMethodology";
 
 type Row = {
   parcel_id: string;
   apn: string;
   county_fips: string;
   entitlement_score: number | null;
+  strategic_score: number | null;
   identification_score: number | null;
   workflow_run_id: string | null;
   workflow_status: string | null;
@@ -16,12 +19,14 @@ type Row = {
   workflow_error: string | null;
   workflow_updated_at: string | null;
   has_outreach_brief: boolean;
+  owner_research_tier: string | null;
   pending_approval_count: number;
   pipeline_stage: string;
 };
 
 type Board = {
   qualified_min_entitlement_score: number;
+  qualified_min_strategic_score: number;
   row_count: number;
   rows: Row[];
 };
@@ -68,9 +73,11 @@ export default function OutreachPipelinePage() {
     <main>
       <h1>Outreach pipeline</h1>
       <p className="muted">
-        Parcels whose <strong>latest entitlement score</strong> meets the pilot floor — candidates worth tracking for
-        owner outreach. Columns combine workflow status, outreach brief, and pending approvals.
+        Parcels whose <strong>latest entitlement (Atlas) and strategic (Beacon) scores</strong> both meet the pilot
+        floors — candidates worth tracking for owner outreach. {DUAL_QUALIFICATION_NOTE}
       </p>
+
+      <ScoringMethodologyPanel variant="compact" />
 
       <div className="panel" style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
         <label className="muted">
@@ -98,8 +105,9 @@ export default function OutreachPipelinePage() {
 
       {board ? (
         <p className="muted">
-          Floor entitlement ≥ <strong>{board.qualified_min_entitlement_score}</strong> · showing{" "}
-          <strong>{filtered.length}</strong> of <strong>{board.row_count}</strong> loaded
+          Floors entitlement ≥ <strong>{board.qualified_min_entitlement_score}</strong> · strategic ≥{" "}
+          <strong>{board.qualified_min_strategic_score}</strong> · showing <strong>{filtered.length}</strong> of{" "}
+          <strong>{board.row_count}</strong> loaded
         </p>
       ) : null}
 
@@ -112,9 +120,9 @@ export default function OutreachPipelinePage() {
               <th>Stage</th>
               <th>APN</th>
               <th>County</th>
-              <th>Ent / Id scores</th>
+              <th title={SCORE_COLUMN_LEGEND}>Ent / Str / Id scores</th>
               <th>Workflow</th>
-              <th>Brief</th>
+              <th>Brief / tier</th>
               <th>Pending approvals</th>
               <th />
             </tr>
@@ -129,6 +137,7 @@ export default function OutreachPipelinePage() {
                 <td>{r.county_fips}</td>
                 <td className="muted">
                   {r.entitlement_score != null ? r.entitlement_score.toFixed(1) : "—"} /{" "}
+                  {r.strategic_score != null ? r.strategic_score.toFixed(1) : "—"} /{" "}
                   {r.identification_score != null ? r.identification_score.toFixed(1) : "—"}
                 </td>
                 <td>
@@ -152,7 +161,14 @@ export default function OutreachPipelinePage() {
                     </span>
                   ) : null}
                 </td>
-                <td>{r.has_outreach_brief ? "yes" : "no"}</td>
+                <td>
+                  {r.has_outreach_brief ? "yes" : "no"}
+                  {r.owner_research_tier ? (
+                    <span className="badge" style={{ marginLeft: "0.35rem" }}>
+                      {r.owner_research_tier}
+                    </span>
+                  ) : null}
+                </td>
                 <td>{r.pending_approval_count}</td>
                 <td>
                   <Link href={`/parcels/${r.parcel_id}`}>Parcel →</Link>

@@ -1,0 +1,16 @@
+---
+description: Business operations model — standalone unmanned parking, master lease
+alwaysApply: true
+---
+
+# Operations model (Kent + King pilot)
+
+When scoring, zoning, outreach, memos, or acquisition logic:
+
+1. **We master-lease land for standalone, unmanned surface parking only** — no attendants, valet, or staffed garages.
+2. **Primary use** is unmanned pay parking on the leased portion, not accessory parking for another building.
+3. **Partially developed lots may qualify**: e.g. building on half the lot with a suitable empty half for unmanned surface parking — still needs zoning + counsel review. Building-value ≤70% prescreen is a roll-data proxy for undeveloped capacity.
+4. **Config source of truth**: `config/pilot.yaml` → `deal.operations` and `docs/OPERATIONS-MODEL.md`.
+5. **Deal structure default**: `master_lease` (`deal.primary_structure`).
+
+Do not recommend attended garages, valet, or accessory-only parking as pilot targets unless the user explicitly changes scope.

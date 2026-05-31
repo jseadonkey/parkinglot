@@ -14,6 +14,36 @@ The **operator console** is a Next.js app at **`/operator`** on the same hostnam
 
 End-to-end you may track parcels through: **owner contact → negotiation → contract with owner → contract with a development partner → built / parking operational**. The app today focuses on **identifying qualified lots**, **running the scoring/enrichment pipeline**, **human approvals** (memo/contract drafts), and **structured outreach data** — not full CRM or construction milestones. Mapping richer phases (e.g. “under LOI”, “GC engaged”, “grand opening”) into the UI usually means adding an explicit **deal phase** field (or integrating a CRM) later; the outreach pipeline table is the current **pre-contact / pipeline-readiness** view.
 
+### Approvals vs research readiness
+
+The pipeline **scores and enriches** in-scope parcels only (**Kent city + unincorporated King County**). Parcels in Seattle, Bellevue, and other King County cities are marked **out of pilot scope** and skipped by default lists, enqueue jobs, and the outreach board. Re-tag after boundary updates: `python3 scripts/apply_pilot_scope.py`.
+
+Deal memo + contract approvals are queued only when **both** latest entitlement and strategic scores meet the pilot floors in `config/pilot.yaml` (same rule as **Outreach pipeline**). Parcels below the floor finish as `completed` with enrichment saved — no human-gate items.
+
+Until **Phase B zoning** and other gaps are filled, most parcels will score low or lack data; expect a **small** qualified set and **do not** bulk-approve memo/contract queues “to clear Slack” unless you have reviewed outreach readiness on each parcel.
+
+## Agent troubleshooting (see what the operator sees)
+
+The agent **cannot** see your browser. To troubleshoot errors and stalled progress, run a **snapshot** that loads the same data every operator page uses:
+
+```bash
+cd /opt/workspaces/parkinglot
+python3 scripts/operator_console_snapshot.py
+python3 scripts/operator_console_snapshot.py --probe-ui   # also checks https://UI_HOST/operator + bridge
+python3 scripts/operator_console_snapshot.py --json       # machine-readable for Cursor agents
+```
+
+The script reads **`deploy/.env`** (not your browser login). It:
+
+- Calls the **same API routes** as Overview, Parcels, Deals, Approvals, Audit, Portfolios, and Outreach.
+- Flags **failed workflow runs**, **pipeline errors**, and large **data gaps** (e.g. missing zoning).
+- **Deals / enrich failures:** groups all failed runs by step + error (not limited to 200 UI rows), including sample parcel IDs.
+- With **`--probe-ui`**, hits **`https://<UI_HOST>/operator`** and the **server bridge** using **`X-Internal-Key`** (automation bypass in operator-console middleware — key stays on the server).
+
+**When something looks wrong in the UI:** tell the agent “run operator console snapshot” — or paste a screenshot for layout/visual issues the script cannot capture.
+
+**Optional:** screenshots still help for red error banners, login problems, or Caddy/404 issues.
+
 ## URL
 
 After deploy and Caddy reload:

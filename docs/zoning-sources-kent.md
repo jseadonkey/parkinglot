@@ -48,11 +48,13 @@ Use **`scripts/build_king_kent_zoning_overlay.py`** to pull zoning polygons from
 
 ```bash
 export DATABASE_URL=postgresql+psycopg://…
-export KENT_ZONING='https://…/FeatureServer/0'
-export KING_ZONING='https://…/FeatureServer/0'
+export KENT_ZONING='https://services3.arcgis.com/AME2ELqJ7UG0JjrU/arcgis/rest/services/PUB_PLAN_ZoningDistricts/FeatureServer/0'
+export KING_ZONING='https://gisdata.kingcounty.gov/arcgis/rest/services/OpenDataPortal/planning__zoning_area/MapServer/450'
+export KENT_ZONE_FIELD=Short_Name
 
 python3 scripts/build_king_kent_zoning_overlay.py \
-  -o data/zoning/wa/king_kent_zoning_overlay.geojson
+  -o data/zoning/wa/king_kent_zoning_overlay.geojson \
+  --kent-zone-field Short_Name
 
 python3 scripts/validate_phase_b_overlay.py data/zoning/wa/king_kent_zoning_overlay.geojson
 ```

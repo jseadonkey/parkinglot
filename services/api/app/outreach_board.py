@@ -10,7 +10,8 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import ApprovalRequest, Parcel, ParcelScore, WorkflowRun
-from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION
+from app.pilot_scope_filter import parcel_in_scope_clause
+from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
 from parking_workflows.state import WorkflowStatus
 
 
@@ -20,6 +21,7 @@ class OutreachPipelineRowData:
     apn: str
     county_fips: str
     entitlement_score: float | None
+    strategic_score: float | None
     identification_score: float | None
     workflow_run_id: uuid.UUID | None
     workflow_status: str | None
@@ -29,6 +31,7 @@ class OutreachPipelineRowData:
     has_outreach_brief: bool
     pending_approval_count: int
     pipeline_stage: str
+    owner_research_tier: str | None
 
 
 def _latest_score_subq(parcel_id_col: Any, profile: str) -> Any:
@@ -63,11 +66,13 @@ def query_outreach_pipeline_board(
     db: Session,
     *,
     qualified_min_entitlement: float,
+    qualified_min_strategic: float,
     limit: int,
 ) -> list[OutreachPipelineRowData]:
-    """Parcels whose latest **entitlement** score meets the pilot floor, with latest workflow + counts."""
+    """Parcels whose latest entitlement **and** strategic scores meet pilot floors."""
     cap = min(max(limit, 1), 2000)
     ent_sub = _latest_score_subq(Parcel.id, ENTITLEMENT)
+    str_sub = _latest_score_subq(Parcel.id, STRATEGIC)
     id_sub = _latest_score_subq(Parcel.id, IDENTIFICATION)
 
     stmt = (
@@ -77,10 +82,15 @@ def query_outreach_pipeline_board(
             Parcel.county_fips,
             Parcel.owner_outreach_brief,
             ent_sub.label("ent_score"),
+            str_sub.label("str_score"),
             id_sub.label("id_score"),
         )
-        .where(ent_sub >= qualified_min_entitlement)
-        .order_by(desc(ent_sub), desc(Parcel.created_at))
+        .where(
+            parcel_in_scope_clause(),
+            ent_sub >= qualified_min_entitlement,
+            str_sub >= qualified_min_strategic,
+        )
+        .order_by(desc(ent_sub), desc(str_sub), desc(Parcel.created_at))
         .limit(cap)
     )
     qrows = list(db.execute(stmt).all())
@@ -115,9 +125,14 @@ def query_outreach_pipeline_board(
 
     out: list[OutreachPipelineRowData] = []
     for r in qrows:
-        pid, apn, cfips, brief_json, ent_f, id_f = r[0], r[1], r[2], r[3], r[4], r[5]
+        pid, apn, cfips, brief_json, ent_f, str_f, id_f = r[0], r[1], r[2], r[3], r[4], r[5], r[6]
         wr = latest_wr.get(pid)
         has_brief = bool(brief_json)
+        tier = None
+        if isinstance(brief_json, dict):
+            raw_tier = brief_json.get("owner_research_tier")
+            if isinstance(raw_tier, str):
+                tier = raw_tier
         stage = _derive_pipeline_stage(wr)
         pcount = pending_map.get(str(pid), 0)
         out.append(
@@ -126,6 +141,7 @@ def query_outreach_pipeline_board(
                 apn=apn,
                 county_fips=cfips,
                 entitlement_score=float(ent_f) if ent_f is not None else None,
+                strategic_score=float(str_f) if str_f is not None else None,
                 identification_score=float(id_f) if id_f is not None else None,
                 workflow_run_id=wr.id if wr else None,
                 workflow_status=wr.status if wr else None,
@@ -135,6 +151,7 @@ def query_outreach_pipeline_board(
                 has_outreach_brief=has_brief,
                 pending_approval_count=pcount,
                 pipeline_stage=stage,
+                owner_research_tier=tier,
             ),
         )
     return out

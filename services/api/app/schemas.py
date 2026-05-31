@@ -19,8 +19,148 @@ class ParcelRead(BaseModel):
     zoning_allows_surface_parking: bool
     is_corner_lot: bool
     distance_to_nearest_demand_m: float | None
+    distance_to_nearest_comp_parking_m: float | None = None
+    nearest_parking_comp: dict[str, Any] | None = None
     owner_outreach_brief: dict[str, Any] | None = None
     created_at: datetime
+
+
+class OwnerCandidateRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    display_name: str
+    kind: str
+    confidence: float
+    source: str
+    normalized_owner_key: str | None = None
+    created_at: datetime
+
+
+class DealMemoRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    parcel_id: uuid.UUID
+    title: str
+    body_md: str
+    open_questions: list[Any] | None = None
+    created_at: datetime
+
+
+class ContractDraftRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    parcel_id: uuid.UUID
+    s3_key: str
+    version: int
+    created_at: datetime
+
+
+class ParcelQualificationRead(BaseModel):
+    meets_entitlement_floor: bool
+    meets_strategic_floor: bool
+    dual_qualified: bool
+    qualified_min_entitlement: float
+    qualified_min_strategic: float
+    latest_entitlement_score: float | None = None
+    latest_strategic_score: float | None = None
+
+
+class OwnerContactRead(BaseModel):
+    channel: str
+    value: str
+    label: str | None = None
+    source: str | None = None
+    verified: bool = False
+    confidence: float | None = None
+
+
+class OwnerFieldCandidateRead(BaseModel):
+    value: str
+    source: str | None = None
+    label: str | None = None
+    confidence: float | None = None
+
+
+class OwnerPersonRead(BaseModel):
+    name: str | None = None
+    role: str | None = None
+    address: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    source: str | None = None
+
+
+class OwnerRecordRead(BaseModel):
+    """Taxpayer / owner of record from county assessor enrichment (when loaded)."""
+
+    taxpayer_name: str | None = None
+    taxpayer_attn: str | None = None
+    mailing_address: str | None = None
+    situs_address: str | None = None
+    name_candidates: list[OwnerFieldCandidateRead] = Field(default_factory=list)
+    mailing_address_candidates: list[OwnerFieldCandidateRead] = Field(default_factory=list)
+    situs_address_candidates: list[OwnerFieldCandidateRead] = Field(default_factory=list)
+    appraised_land: float | None = None
+    appraised_improvements: float | None = None
+    property_type: str | None = None
+    erealproperty_url: str | None = None
+    data_source: str | None = None
+    enriched_at: str | None = None
+    owner_kind: str | None = None
+    is_entity: bool = False
+    enrichment_status: str | None = None
+    sos_search_url: str | None = None
+    registered_agent: str | None = None
+    registered_agent_address: str | None = None
+    principal_address: str | None = None
+    underlying_persons: list[OwnerPersonRead] = Field(default_factory=list)
+    contacts: list[OwnerContactRead] = Field(default_factory=list)
+    enrichment_gaps: list[str] = Field(default_factory=list)
+    next_steps: list[str] = Field(default_factory=list)
+    owner_research_tier: str | None = None
+
+
+class ParcelDetailRead(BaseModel):
+    """GET /parcels/{id}/detail — full operator view of one parcel."""
+
+    id: uuid.UUID
+    apn: str
+    county_fips: str
+    lot_sqft: float | None
+    zoning_code: str | None
+    zoning_allows_surface_parking: bool
+    is_corner_lot: bool
+    distance_to_nearest_demand_m: float | None
+    distance_to_nearest_comp_parking_m: float | None = None
+    nearest_parking_comp: dict[str, Any] | None = None
+    pilot_in_scope: bool
+    has_footprint: bool
+    centroid_lat: float | None = None
+    centroid_lon: float | None = None
+    owner_outreach_brief: dict[str, Any] | None = None
+    raw_properties: dict[str, Any] | None = None
+    assessor_summary: dict[str, str] = Field(default_factory=dict)
+    created_at: datetime
+    pilot_region: str
+    qualification: ParcelQualificationRead
+    scores: list[ParcelScoreRead] = Field(default_factory=list)
+    owners: list[OwnerCandidateRead] = Field(default_factory=list)
+    memos: list[DealMemoRead] = Field(default_factory=list)
+    contract_drafts: list[ContractDraftRead] = Field(default_factory=list)
+    approvals: list[ApprovalRead] = Field(default_factory=list)
+    workflow_runs: list[WorkflowRunRead] = Field(default_factory=list)
+    owner_record: OwnerRecordRead = Field(default_factory=OwnerRecordRead)
+
+
+class ParcelListRead(ParcelRead):
+    """Parcel row for list endpoints — latest score per profile when available."""
+
+    latest_identification_score: float | None = None
+    latest_entitlement_score: float | None = None
+    latest_strategic_score: float | None = None
 
 
 class ParcelScoreRead(BaseModel):
@@ -187,6 +327,7 @@ class OutreachPipelineRow(BaseModel):
     apn: str
     county_fips: str
     entitlement_score: float | None
+    strategic_score: float | None
     identification_score: float | None
     workflow_run_id: str | None
     workflow_status: str | None
@@ -194,16 +335,50 @@ class OutreachPipelineRow(BaseModel):
     workflow_error: str | None
     workflow_updated_at: datetime | None
     has_outreach_brief: bool
+    owner_research_tier: str | None = None
     pending_approval_count: int
     pipeline_stage: str
 
 
 class OutreachPipelineBoardResponse(BaseModel):
-    """GET /internal/pipeline/outreach-board — qualified lots worth tracking for owner outreach."""
+    """GET /internal/pipeline/outreach-board — dual-qualified lots for owner outreach."""
 
     qualified_min_entitlement_score: float
+    qualified_min_strategic_score: float
     row_count: int
     rows: list[OutreachPipelineRow]
+
+
+class DealProgressRow(BaseModel):
+    """One in-scope parcel with operator-friendly deal stage (latest workflow run)."""
+
+    parcel_id: str
+    apn: str
+    county_fips: str
+    entitlement_score: float | None
+    strategic_score: float | None
+    identification_score: float | None
+    deal_stage: str
+    deal_stage_label: str
+    workflow_run_id: str | None
+    workflow_status: str | None
+    workflow_step: str | None
+    workflow_error: str | None
+    workflow_updated_at: datetime | None
+    owner_research_tier: str | None = None
+    pending_approval_count: int
+    has_approved_memo: bool
+    has_approved_contract: bool
+
+
+class DealProgressBoardResponse(BaseModel):
+    """GET /internal/pipeline/deal-progress — deal stages for operator console."""
+
+    qualified_min_entitlement_score: float
+    qualified_min_strategic_score: float
+    stage_counts: dict[str, int]
+    row_count: int
+    rows: list[DealProgressRow]
 
 
 class QualifiedMinScores(BaseModel):
@@ -227,6 +402,60 @@ class ScoringSummaryResponse(BaseModel):
     qualified_count_identification: int
     qualified_min_score: QualifiedMinScores
     pilot_region: str
+
+
+class IngestStatusResponse(BaseModel):
+    """GET /internal/stats/ingest-status — bulk load + scoring backlog for operator UI."""
+
+    ingest_active: bool
+    active_ingest_task_id: str | None = None
+    active_ingest_path: str | None = None
+    candidate_geojson_path: str
+    candidate_feature_count: int | None = None
+    parcels_total_db: int
+    parcels_in_scope_db: int
+    parcels_with_entitlement_score: int
+    phase: str
+    headline: str
+    detail: str
+
+
+class WorkflowFailureGroup(BaseModel):
+    """One bucket of failed runs sharing step + error text."""
+
+    current_step: str
+    error_signature: str
+    error_example: str
+    count: int
+    last_updated: datetime | None
+    sample_parcel_ids: list[str]
+    sample_run_ids: list[str]
+
+
+class StorageProbeResponse(BaseModel):
+    """Spaces/S3 bucket check (no secrets)."""
+
+    configured: bool
+    endpoint: str | None
+    bucket: str | None
+    region: str | None
+    reachable: bool
+    error: str | None
+    fix_hint: str | None
+
+
+class WorkflowFailuresResponse(BaseModel):
+    """GET /internal/stats/workflow-failures — all failed enrich/pipeline runs (not UI-capped)."""
+
+    total_runs: int
+    failed_count: int
+    blocked_count: int
+    with_error_count: int
+    ui_list_cap: int
+    ui_note: str
+    failed_by_step: dict[str, int]
+    failure_groups: list[WorkflowFailureGroup]
+    storage: StorageProbeResponse
 
 
 class IngestSampleQueuedResponse(BaseModel):

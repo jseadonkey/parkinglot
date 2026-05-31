@@ -1,0 +1,14 @@
+# Operator console troubleshooting
+
+When the user reports errors, empty tables, stalled progress, or “something looks wrong” in the **operator console** (`https://<UI_HOST>/operator`):
+
+1. **Run the snapshot script** (same data the browser pages load):
+   ```bash
+   cd /opt/workspaces/parkinglot
+   python3 scripts/operator_console_snapshot.py --probe-ui --json
+   ```
+2. Interpret **FAIL/WARN** lines: failed workflow runs, bridge HTTP errors, pending approval backlog, missing zoning/scores.
+3. You **cannot** see the user's browser — use the snapshot + API. Ask for a **screenshot** only for visual/login/Caddy issues the script does not cover.
+4. After fixing **operator-console** middleware or bridge code, rebuild: `docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env up -d --build operator-console`
+
+See `docs/OPERATOR-CONSOLE.md` § Agent troubleshooting.

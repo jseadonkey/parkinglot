@@ -125,6 +125,19 @@ if _s.scheduled_refresh_demand_enabled:
         _dem_cf or "*",
     )
 
+if _s.wa_sos_beat_enabled and _s.wa_sos_lookup_enabled:
+    beat_schedule["enrich-wa-sos-entities"] = {
+        "task": "app.tasks.enrich_wa_sos_entities_batch",
+        "schedule": crontab(minute=f"*/{_s.wa_sos_beat_crontab_minute}"),
+        "kwargs": {"limit": _s.wa_sos_beat_limit, "county_fips": "53033"},
+        "options": {"queue": "sos"},
+    }
+    logger.info(
+        "Beat: WA SOS entity enrichment every %s min, limit=%s (sos queue)",
+        _s.wa_sos_beat_crontab_minute,
+        _s.wa_sos_beat_limit,
+    )
+
 celery = Celery("parking", broker=broker, backend=backend)
 celery.conf.update(
     task_serializer="json",
@@ -133,6 +146,10 @@ celery.conf.update(
     timezone="UTC",
     enable_utc=True,
     task_default_queue="parking",
+    task_routes={
+        "app.tasks.enrich_wa_sos_parcel": {"queue": "sos"},
+        "app.tasks.enrich_wa_sos_entities_batch": {"queue": "sos"},
+    },
     beat_schedule=beat_schedule,
 )
 

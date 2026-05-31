@@ -257,12 +257,13 @@ def main() -> int:
             else:
                 zone = _pick_zoning_for_point(c, king_tree, king_geoms, king_props, args.king_zone_field)
 
-            props = {
+            props: dict[str, Any] = {
                 "APN": row.apn,
                 "COUNTY_FIPS": row.county_fips,
-                "ZONING": zone or "",
                 "ZONING_JURISDICTION": juris,
             }
+            if zone:
+                props["ZONING"] = zone
             out_features.append(
                 {
                     "type": "Feature",

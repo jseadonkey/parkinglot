@@ -11,6 +11,37 @@ def normalize_zone_code(code: str | None) -> str:
     return (code or "").strip().upper()
 
 
+# King County CURRZONE overlay suffixes (longest match first in lookup).
+_ZONE_SUFFIX_FALLBACKS = ("-P-SO", "-SO", "-P", "-DPA")
+
+
+def zone_lookup_candidates(zoning_code: str | None) -> list[str]:
+    """Exact zone first, then progressively shorter base codes for overlay suffixes."""
+    z_norm = normalize_zone_code(zoning_code)
+    if not z_norm:
+        return []
+    candidates = [z_norm]
+    for suffix in _ZONE_SUFFIX_FALLBACKS:
+        if z_norm.endswith(suffix):
+            base = z_norm[: -len(suffix)]
+            if base and base not in candidates:
+                candidates.append(base)
+    return candidates
+
+
+def lookup_zone_entry(zones: dict[str, Any], zoning_code: str | None) -> Any | None:
+    if not isinstance(zones, dict):
+        return None
+    for candidate in zone_lookup_candidates(zoning_code):
+        entry = zones.get(candidate)
+        if entry is not None:
+            return entry
+    raw = (zoning_code or "").strip()
+    if raw:
+        return zones.get(raw)
+    return None
+
+
 def load_zoning_rules(path: Path | None) -> dict[str, Any]:
     """Load rules YAML; empty dict-shaped fallback if path missing or unreadable."""
     if path is None or not path.is_file():
@@ -58,20 +89,13 @@ def resolve_surface_parking(
     if not jk or zoning_code is None or str(zoning_code).strip() == "":
         return default
 
-    z_norm = normalize_zone_code(str(zoning_code))
     jurisdictions = rules.get("jurisdictions") or {}
     block = jurisdictions.get(jk)
     if not isinstance(block, dict):
         return default
 
     zones = block.get("zones") or {}
-    if not isinstance(zones, dict):
-        return default
-
-    entry = zones.get(z_norm)
-    if entry is None:
-        entry = zones.get(str(zoning_code).strip())
-
+    entry = lookup_zone_entry(zones if isinstance(zones, dict) else {}, str(zoning_code))
     if entry is None:
         return default
 
