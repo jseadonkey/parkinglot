@@ -227,7 +227,7 @@ jobs:
           fi
           if [ "$COMPOSE_BASENAME" = "docker-compose.production.ghcr.yml" ] || [ "$COMPOSE_BASENAME" = "docker-compose.production.ghcr-full.yml" ]; then
             # GHCR: pull API image; rebuild browser UIs from synced repo (proxy routes, env).
-            UP_CMD="docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --no-build --force-recreate redis api worker beat && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --build approval-ui operator-console"
+            UP_CMD="docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --no-build --remove-orphans --force-recreate redis api worker beat && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --build approval-ui operator-console caddy"
           else
             UP_CMD="docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --build"
           fi
