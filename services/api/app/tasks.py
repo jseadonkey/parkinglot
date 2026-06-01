@@ -120,6 +120,33 @@ def _session() -> Session:
     return SessionLocal()
 
 
+def _write_slack_digest_audit(
+    *,
+    channel: str,
+    posted: dict[str, Any],
+    fallback: str,
+) -> None:
+    """Write slack_digest_posted audit in a fresh session (read queries must not poison commit)."""
+    audit_db = _session()
+    try:
+        write_audit(
+            audit_db,
+            actor="celery:slack_agent_digest",
+            action="slack_digest_posted",
+            entity_type="slack_channel",
+            entity_id=channel,
+            meta={
+                "slack_ts": posted.get("ts"),
+                "channel": posted.get("channel"),
+                "fallback_preview": (fallback or "")[:240],
+            },
+        )
+    except Exception:
+        logger.exception("slack_digest_posted audit failed (Slack message may already be posted)")
+    finally:
+        audit_db.close()
+
+
 def _upsert_identification_score(db: Session, parcel: Parcel) -> None:
     """Persist ingest-time prescreen score (``identification`` profile)."""
     settings = get_settings()
@@ -910,21 +937,11 @@ def slack_agent_digest() -> dict[str, Any]:
     try:
         blocks, fallback = build_slack_digest_blocks(db, hours=4)
         posted = post_digest_to_slack(settings, blocks, fallback)
-        write_audit(
-            db,
-            actor="celery:slack_agent_digest",
-            action="slack_digest_posted",
-            entity_type="slack_channel",
-            entity_id=channel,
-            meta={
-                "slack_ts": posted.get("ts"),
-                "channel": posted.get("channel"),
-                "fallback_preview": (fallback or "")[:240],
-            },
-        )
+        _write_slack_digest_audit(channel=channel, posted=posted, fallback=fallback)
         return {"skipped": False, **posted}
     except Exception:
         logger.exception("slack_agent_digest failed")
         raise
     finally:
+        db.rollback()
         db.close()

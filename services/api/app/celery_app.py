@@ -134,6 +134,16 @@ celery.conf.update(
     enable_utc=True,
     task_default_queue="parking",
     beat_schedule=beat_schedule,
+    task_routes={
+        "app.tasks.slack_agent_digest": {"priority": 9},
+        "app.tasks.slack_qualified_parcels_report": {"priority": 9},
+        "app.tasks.slack_dual_agent_discussion": {"priority": 9},
+    },
+    broker_transport_options={
+        "priority_steps": list(range(10)),
+        "sep": ":",
+        "queue_order_strategy": "priority",
+    },
 )
 
 import app.tasks  # noqa: E402,F401 — register Celery tasks
