@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import os
-
 from fastapi.testclient import TestClient
 
-os.environ.setdefault("APP_VERSION", "test")
+from app.config import get_settings
+from app.main import app
 
-from app.main import app  # noqa: E402
 
-
-def test_health_returns_ok_and_version() -> None:
+def test_health_returns_ok_and_version(monkeypatch) -> None:
+    monkeypatch.setenv("APP_VERSION", "test")
+    get_settings.cache_clear()
     client = TestClient(app)
     response = client.get("/health")
     assert response.status_code == 200
