@@ -6,12 +6,14 @@ import re
 from typing import Any
 
 from app.db.models import OwnerCandidateRow
+from app.owner_skip_trace import skip_trace_contacts_from_vendor
 from parking_enrichment.owner_outreach_agent import (
     _email_from_props,
     _mailing_from_props,
     _phone_from_props,
     _situs_from_props,
 )
+from parking_enrichment.vendor_sources import vendor_provider_to_source
 
 _CARE_OF_RE = re.compile(r"^(?:C/O|C/O\.|CARE OF)\s+(.+)$", re.I)
 
@@ -428,27 +430,27 @@ def collect_phone_email_contacts(
         )
 
     vendor = brief.get("vendor_lookup")
+    skip_trace_extra: list[dict[str, Any]] = []
     if isinstance(vendor, dict):
-        provider = _clean_str(vendor.get("provider")) or "vendor"
-        for item in vendor.get("contacts") or []:
-            if not isinstance(item, dict):
-                continue
-            val = _clean_str(item.get("value"))
-            if not val:
-                continue
-            channel = (_clean_str(item.get("channel")) or "unknown").lower()
-            kind = channel if channel in ("phone", "email", "mail") else "contact"
-            items.append(
-                {
-                    "value": val,
-                    "source": provider,
-                    "label": _clean_str(item.get("label")) or f"Vendor {channel}",
-                    "confidence": 0.6,
-                    "kind": kind,
-                    "channel": channel,
-                    "verified": False,
-                }
-            )
+        skip_trace_extra.extend(skip_trace_contacts_from_vendor(vendor))
+        if vendor_provider_to_source(_clean_str(vendor.get("provider"))) != "skip_trace":
+            provider = _clean_str(vendor.get("provider")) or "vendor"
+            for item in vendor.get("contacts") or []:
+                if not isinstance(item, dict):
+                    continue
+                val = _clean_str(item.get("value"))
+                if not val:
+                    continue
+                channel = (_clean_str(item.get("channel")) or "unknown").lower()
+                skip_trace_extra.append(
+                    {
+                        "channel": channel,
+                        "value": val,
+                        "label": _clean_str(item.get("label")) or f"Vendor {channel}",
+                        "source": provider,
+                        "verified": False,
+                    }
+                )
 
     for person in persons:
         for field, kind in (("phone", "phone"), ("email", "email")):
@@ -478,7 +480,25 @@ def collect_phone_email_contacts(
                 "confidence": item.get("confidence"),
             }
         )
-    return contacts
+    return _merge_skip_trace_contacts(contacts, skip_trace_extra)
+
+
+def _merge_skip_trace_contacts(
+    base: list[dict[str, Any]], skip_trace: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Prefer skip-trace rows when the same phone/email appears from roll/brief."""
+    by_key: dict[tuple[str, str], dict[str, Any]] = {}
+    for item in base:
+        channel = (_clean_str(item.get("channel")) or "unknown").lower()
+        value = _clean_str(item.get("value"))
+        if value:
+            by_key[(channel, value.upper())] = item
+    for item in skip_trace:
+        channel = (_clean_str(item.get("channel")) or "unknown").lower()
+        value = _clean_str(item.get("value"))
+        if value:
+            by_key[(channel, value.upper())] = item
+    return list(by_key.values())
 
 
 def primary_from_candidates(candidates: list[dict[str, Any]]) -> str | None:

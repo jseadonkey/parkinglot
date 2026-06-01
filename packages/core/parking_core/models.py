@@ -124,6 +124,10 @@ class VendorLookupSummary(BaseModel):
     notes: str | None = None
     contacts: list[VendorContactHint] = Field(default_factory=list)
     error_detail: str | None = None
+    matched_person_name: str | None = Field(
+        default=None,
+        description="Person name returned by skip-trace when available (BatchData V3).",
+    )
 
 
 class OwnerOutreachBrief(BaseModel):

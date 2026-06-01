@@ -239,6 +239,23 @@ function OutreachBriefPanel({ brief }: { brief: Record<string, unknown> }) {
   const checklist = Array.isArray(brief.manual_research_checklist)
     ? (brief.manual_research_checklist as string[])
     : [];
+  const vendor =
+    brief.vendor_lookup && typeof brief.vendor_lookup === "object"
+      ? (brief.vendor_lookup as Record<string, unknown>)
+      : null;
+  const skipContacts =
+    vendor?.outcome === "hit" && Array.isArray(vendor.contacts)
+      ? (vendor.contacts as Array<Record<string, unknown>>)
+      : [];
+  const skipPhones = skipContacts.filter((c) => c.channel === "phone");
+  const skipEmails = skipContacts.filter((c) => c.channel === "email");
+  const hasSkipTrace = skipPhones.length > 0 || skipEmails.length > 0;
+  const matchedPerson =
+    typeof vendor?.matched_person_name === "string"
+      ? vendor.matched_person_name
+      : typeof vendor?.notes === "string" && vendor.notes.includes("Matched person:")
+        ? vendor.notes.replace(/.*Matched person:\s*/i, "").split(".")[0]?.trim()
+        : null;
 
   return (
     <div className="panel">
@@ -256,10 +273,32 @@ function OutreachBriefPanel({ brief }: { brief: Record<string, unknown> }) {
       {typeof brief.mailing_address_guess === "string" && brief.mailing_address_guess ? (
         <p className="muted">Mailing: {brief.mailing_address_guess}</p>
       ) : null}
-      {typeof brief.phone_guess === "string" && brief.phone_guess ? (
+      {hasSkipTrace ? (
+        <>
+          <h3 style={{ fontSize: "0.9rem", margin: "0.75rem 0 0.35rem" }}>Skip trace (BatchData)</h3>
+          {matchedPerson ? (
+            <p className="muted">
+              Matched person: <strong>{matchedPerson}</strong>
+            </p>
+          ) : null}
+          <ul className="score-breakdown">
+            {skipPhones.map((c, i) => (
+              <li key={`brief-st-p-${String(c.value)}-${i}`}>
+                Phone (skip trace): <strong>{String(c.value)}</strong>
+              </li>
+            ))}
+            {skipEmails.map((c, i) => (
+              <li key={`brief-st-e-${String(c.value)}-${i}`}>
+                Email (skip trace): <strong>{String(c.value)}</strong>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+      {!hasSkipTrace && typeof brief.phone_guess === "string" && brief.phone_guess ? (
         <p className="muted">Phone (roll): {brief.phone_guess}</p>
       ) : null}
-      {typeof brief.email_guess === "string" && brief.email_guess ? (
+      {!hasSkipTrace && typeof brief.email_guess === "string" && brief.email_guess ? (
         <p className="muted">Email (roll): {brief.email_guess}</p>
       ) : null}
       {typeof brief.normalized_owner_key === "string" && brief.normalized_owner_key ? (

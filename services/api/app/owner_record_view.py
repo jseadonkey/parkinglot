@@ -12,6 +12,10 @@ from app.owner_candidate_collect import (
     collect_situs_address_candidates,
     primary_from_candidates,
 )
+from app.owner_skip_trace import (
+    skip_trace_person_from_vendor,
+    skip_trace_summary_from_brief,
+)
 from parking_enrichment.owner_classification import classify_owner_display_name, is_entity_name
 from parking_enrichment.registry_lookup import registry_principals_as_persons, wa_ccfs_search_url_for_manual_review
 
@@ -62,7 +66,7 @@ def _contacts_from_brief(brief: dict[str, Any], mailing: str | None) -> list[dic
             {
                 "channel": "phone",
                 "value": phone,
-                "label": "Roll / vendor phone",
+                "label": "Roll / brief phone",
                 "source": "outreach_brief",
                 "verified": False,
             }
@@ -73,28 +77,11 @@ def _contacts_from_brief(brief: dict[str, Any], mailing: str | None) -> list[dic
             {
                 "channel": "email",
                 "value": email,
-                "label": "Roll / vendor email",
+                "label": "Roll / brief email",
                 "source": "outreach_brief",
                 "verified": False,
             }
         )
-    vendor = brief.get("vendor_lookup")
-    if isinstance(vendor, dict):
-        for item in vendor.get("contacts") or []:
-            if not isinstance(item, dict):
-                continue
-            val = _clean_str(item.get("value"))
-            if not val:
-                continue
-            out.append(
-                {
-                    "channel": _clean_str(item.get("channel")) or "unknown",
-                    "value": val,
-                    "label": _clean_str(item.get("label")),
-                    "source": _clean_str(vendor.get("provider")) or "vendor",
-                    "verified": False,
-                }
-            )
     return out
 
 
@@ -106,8 +93,18 @@ def _persons_from_registry(brief: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _merge_contacts(*groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    seen: set[tuple[str, str]] = set()
-    out: list[dict[str, Any]] = []
+    """Merge contact lists; prefer skip-trace over roll/brief when values duplicate."""
+    _rank = {
+        "skip_trace": 0,
+        "wa_sos_ccfs": 1,
+        "registry": 2,
+        "king_county_assessor": 3,
+        "assessor_roll": 4,
+        "outreach_brief": 5,
+        "vendor": 6,
+        "batchdata": 0,
+    }
+    by_key: dict[tuple[str, str], dict[str, Any]] = {}
     for group in groups:
         for item in group:
             channel = (_clean_str(item.get("channel")) or "unknown").lower()
@@ -115,11 +112,13 @@ def _merge_contacts(*groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if not value:
                 continue
             key = (channel, value.upper())
-            if key in seen:
-                continue
-            seen.add(key)
-            out.append(item)
-    return out
+            source = (_clean_str(item.get("source")) or "unknown").lower()
+            existing = by_key.get(key)
+            if existing is None or _rank.get(source, 99) < _rank.get(
+                (_clean_str(existing.get("source")) or "unknown").lower(), 99
+            ):
+                by_key[key] = item
+    return list(by_key.values())
 
 
 def _enrichment_status(
@@ -232,8 +231,18 @@ def build_owner_record_view(
         sos_url = wa_ccfs_search_url_for_manual_review(taxpayer)
 
     persons = _persons_from_registry(brief)
+    vendor = brief.get("vendor_lookup") if isinstance(brief.get("vendor_lookup"), dict) else None
+    if vendor:
+        st_person = skip_trace_person_from_vendor(vendor)
+        if st_person:
+            persons = [*persons, st_person]
     extra_contacts = collect_phone_email_contacts(brief=brief, raw=raw, persons=persons)
-    contacts = _merge_contacts(_contacts_from_brief(brief, mailing), extra_contacts)
+    skip_trace_block = skip_trace_summary_from_brief(brief)
+    contacts = _merge_contacts(
+        skip_trace_block.get("contacts", []) if skip_trace_block else [],
+        _contacts_from_brief(brief, mailing),
+        extra_contacts,
+    )
     has_phone = any(c.get("channel") == "phone" for c in contacts)
     has_email = any(c.get("channel") == "email" for c in contacts)
     tier = _clean_str(brief.get("owner_research_tier"))
@@ -280,4 +289,5 @@ def build_owner_record_view(
         ),
         "next_steps": _next_steps(kind=kind, status=status, sos_url=sos_url, tier=tier),
         "owner_research_tier": tier,
+        "skip_trace": skip_trace_block,
     }

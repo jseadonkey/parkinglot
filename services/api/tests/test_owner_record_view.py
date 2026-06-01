@@ -84,3 +84,41 @@ def test_owner_record_view_multiple_candidates() -> None:
     assert len(view["mailing_address_candidates"]) >= 1
     assert len(view["situs_address_candidates"]) >= 1
     assert view["mailing_address"] != view["situs_address"]
+
+
+def test_owner_record_view_skip_trace_contacts() -> None:
+    parcel = Parcel(
+        id=uuid.uuid4(),
+        apn="033-2951900035",
+        county_fips="53033",
+        raw_properties={
+            "owner_record": {
+                "taxpayer_name": "FLYNN & BACHENBERG TRUST ER",
+                "mailing_address": "216 W GOWE ST KENT WA 98035",
+                "situs_address": "903 W HARRISON ST, Kent, WA 98032",
+                "data_source": "king_county_assessor_gis",
+            }
+        },
+        owner_outreach_brief={
+            "owner_research_tier": "deep",
+            "phone_guess": "(206) 396-3289",
+            "email_guess": "erikflynn@hotmail.com",
+            "vendor_lookup": {
+                "provider": "batchdata",
+                "outcome": "hit",
+                "matched_person_name": "Erik E Flynn",
+                "notes": "Matched person: Erik E Flynn",
+                "contacts": [
+                    {"channel": "phone", "value": "(206) 396-3289", "label": "Skip trace · Mobile"},
+                    {"channel": "email", "value": "erikflynn@hotmail.com", "label": "Skip trace email"},
+                ],
+            },
+        },
+        created_at=datetime.now(tz=UTC),
+    )
+    view = build_owner_record_view(parcel, [])
+    assert view["skip_trace"] is not None
+    assert view["skip_trace"]["matched_person"] == "Erik E Flynn"
+    phones = [c for c in view["contacts"] if c["channel"] == "phone"]
+    assert phones and phones[0]["source"] == "skip_trace"
+    assert any(p.get("source") == "skip_trace" for p in view["underlying_persons"])

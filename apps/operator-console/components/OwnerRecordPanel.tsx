@@ -26,6 +26,14 @@ export type OwnerFieldCandidate = {
   confidence?: number | null;
 };
 
+export type SkipTraceSummary = {
+  provider?: string | null;
+  outcome?: string | null;
+  matched_person?: string | null;
+  notes?: string | null;
+  contacts: OwnerContact[];
+};
+
 export type OwnerRecord = {
   taxpayer_name: string | null;
   taxpayer_attn: string | null;
@@ -52,6 +60,7 @@ export type OwnerRecord = {
   enrichment_gaps: string[];
   next_steps: string[];
   owner_research_tier: string | null;
+  skip_trace: SkipTraceSummary | null;
 };
 
 function formatUsd(n: number | null | undefined): string {
@@ -96,7 +105,14 @@ function statusLabel(status: string | null | undefined): string {
 
 function sourceTag(source: string | null | undefined): string {
   if (!source) return "";
+  if (source === "skip_trace") return "Skip trace";
   return source.replaceAll("_", " ");
+}
+
+function roleLabel(role: string | null | undefined): string {
+  if (!role) return "";
+  if (role === "skip_trace_match") return "Skip trace match";
+  return role.replaceAll("_", " ");
 }
 
 function CandidateList({
@@ -176,6 +192,9 @@ export function OwnerRecordPanel({ record }: { record: OwnerRecord }) {
         : [];
   const phones = record.contacts.filter((c) => c.channel === "phone");
   const emails = record.contacts.filter((c) => c.channel === "email");
+  const skipTrace = record.skip_trace;
+  const skipPhones = skipTrace?.contacts.filter((c) => c.channel === "phone") ?? [];
+  const skipEmails = skipTrace?.contacts.filter((c) => c.channel === "email") ?? [];
 
   return (
     <section aria-labelledby="owner-record-heading">
@@ -274,7 +293,12 @@ export function OwnerRecordPanel({ record }: { record: OwnerRecord }) {
                   {record.underlying_persons.map((p, i) => (
                     <li key={`${p.name}-${i}`}>
                       <strong>{p.name ?? "—"}</strong>
-                      {p.role ? ` (${p.role.replaceAll("_", " ")})` : ""}
+                      {p.role ? ` (${roleLabel(p.role)})` : ""}
+                      {p.source === "skip_trace" ? (
+                        <span className="badge" style={{ marginLeft: "0.35rem" }}>
+                          Skip trace
+                        </span>
+                      ) : null}
                       {p.address ? ` — ${p.address}` : ""}
                       {p.phone ? ` · phone: ${p.phone}` : ""}
                       {p.email ? ` · email: ${p.email}` : ""}
@@ -286,6 +310,51 @@ export function OwnerRecordPanel({ record }: { record: OwnerRecord }) {
               <p className="muted" style={{ marginTop: "0.75rem" }}>
                 {FIELD_HELP.ownerEntityNextStep}
               </p>
+            ) : null}
+            {skipTrace && (skipPhones.length > 0 || skipEmails.length > 0) ? (
+              <>
+                <h3 style={{ fontSize: "0.9rem", margin: "0.75rem 0 0.35rem" }}>
+                  Skip trace (BatchData)
+                </h3>
+                {skipTrace.matched_person ? (
+                  <p className="muted" style={{ fontSize: "0.85rem", margin: "0 0 0.35rem" }}>
+                    Matched person: <strong>{skipTrace.matched_person}</strong>
+                  </p>
+                ) : null}
+                {skipTrace.notes ? (
+                  <p className="muted" style={{ fontSize: "0.78rem", margin: "0 0 0.35rem" }}>
+                    {skipTrace.notes}
+                  </p>
+                ) : null}
+                <ul className="score-breakdown">
+                  {skipPhones.map((c, i) => (
+                    <li key={`st-p-${c.value}-${i}`}>
+                      Phone: <strong>{c.value}</strong>
+                      <span className="badge" style={{ marginLeft: "0.35rem" }}>
+                        Skip trace
+                      </span>
+                      {c.label ? (
+                        <span className="muted" style={{ display: "block", fontSize: "0.78rem" }}>
+                          {c.label}
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+                  {skipEmails.map((c, i) => (
+                    <li key={`st-e-${c.value}-${i}`}>
+                      Email: <strong>{c.value}</strong>
+                      <span className="badge" style={{ marginLeft: "0.35rem" }}>
+                        Skip trace
+                      </span>
+                      {c.label ? (
+                        <span className="muted" style={{ display: "block", fontSize: "0.78rem" }}>
+                          {c.label}
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </>
             ) : null}
             {(phones.length > 0 || emails.length > 0) && (
               <>

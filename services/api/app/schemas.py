@@ -93,6 +93,14 @@ class OwnerPersonRead(BaseModel):
     source: str | None = None
 
 
+class SkipTraceSummaryRead(BaseModel):
+    provider: str | None = None
+    outcome: str | None = None
+    matched_person: str | None = None
+    notes: str | None = None
+    contacts: list[OwnerContactRead] = Field(default_factory=list)
+
+
 class OwnerRecordRead(BaseModel):
     """Taxpayer / owner of record from county assessor enrichment (when loaded)."""
 
@@ -121,6 +129,7 @@ class OwnerRecordRead(BaseModel):
     enrichment_gaps: list[str] = Field(default_factory=list)
     next_steps: list[str] = Field(default_factory=list)
     owner_research_tier: str | None = None
+    skip_trace: SkipTraceSummaryRead | None = None
 
 
 class ParcelDetailRead(BaseModel):

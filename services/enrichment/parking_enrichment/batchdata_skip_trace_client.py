@@ -179,7 +179,7 @@ def _contacts_from_person(person: dict[str, Any]) -> list[VendorContactHint]:
             VendorContactHint(
                 channel="phone",
                 value=_format_phone(number),
-                label=" · ".join(label_parts) if label_parts else "BatchData phone",
+                label=" · ".join(["Skip trace", *label_parts]) if label_parts else "Skip trace phone",
             )
         )
 
@@ -191,7 +191,7 @@ def _contacts_from_person(person: dict[str, Any]) -> list[VendorContactHint]:
     for item in sorted_emails[:_MAX_EMAILS]:
         email = _strip_str(item.get("email"))
         if email:
-            contacts.append(VendorContactHint(channel="email", value=email, label="BatchData email"))
+            contacts.append(VendorContactHint(channel="email", value=email, label="Skip trace email"))
     return contacts
 
 
@@ -295,6 +295,7 @@ def fetch_batchdata_skip_trace(
             http_status=int(code),
             notes=" ".join(notes_parts) if notes_parts else None,
             contacts=contacts,
+            matched_person_name=str(name).strip() if name else None,
             error_detail=None if contacts else "No phone or email in skip-trace response.",
         )
     except urllib.error.HTTPError as e:
