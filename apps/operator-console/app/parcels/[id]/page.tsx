@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { bridgeUrl } from "../../../lib/paths";
+
 type Parcel = {
   id: string;
   apn: string;
@@ -33,8 +35,6 @@ type Score = {
   created_at: string;
 };
 
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-
 export default function ParcelDetailPage() {
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
@@ -51,8 +51,8 @@ export default function ParcelDetailPage() {
       setErr(null);
       try {
         const [rp, rr] = await Promise.all([
-          fetch(`${apiBase}/parcels/${id}`, { cache: "no-store" }),
-          fetch(`${apiBase}/parcels/${id}/workflow-runs?limit=20`, { cache: "no-store" }),
+          fetch(bridgeUrl(`parcels/${id}`), { cache: "no-store" }),
+          fetch(bridgeUrl(`parcels/${id}/workflow-runs?limit=20`), { cache: "no-store" }),
         ]);
         if (!rp.ok) throw new Error(`parcel ${rp.status}`);
         if (!rr.ok) throw new Error(`workflow-runs ${rr.status}`);
@@ -62,7 +62,7 @@ export default function ParcelDetailPage() {
           setParcel(p);
           setRuns(w);
         }
-        const rs = await fetch(`${apiBase}/parcels/${id}/score?profile=entitlement`, { cache: "no-store" });
+        const rs = await fetch(bridgeUrl(`parcels/${id}/score?profile=entitlement`), { cache: "no-store" });
         if (rs.ok) {
           const s = (await rs.json()) as Score;
           if (!cancelled) setScore(s);

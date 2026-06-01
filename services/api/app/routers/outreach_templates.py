@@ -7,6 +7,7 @@ from jinja2 import TemplateSyntaxError
 from sqlalchemy.orm import Session
 
 from app.audit import write_audit
+from app.db.schema_compat import table_exists
 from app.db.session import get_db
 from app.outreach_templates import (
     get_template,
@@ -27,6 +28,14 @@ from app.schemas import (
 router = APIRouter(prefix="/outreach-templates", tags=["outreach-templates"])
 
 
+def _require_templates_table(db: Session) -> None:
+    if not table_exists(db, "outreach_templates"):
+        raise HTTPException(
+            status_code=503,
+            detail="outreach_templates table missing — restart the API container so migrations can run",
+        )
+
+
 @router.get("/meta", response_model=OutreachTemplateMeta)
 def outreach_template_meta() -> OutreachTemplateMeta:
     return OutreachTemplateMeta(placeholders=placeholder_help())
@@ -34,12 +43,14 @@ def outreach_template_meta() -> OutreachTemplateMeta:
 
 @router.get("", response_model=list[OutreachTemplateRead])
 def list_outreach_templates(db: Session = Depends(get_db)) -> list[OutreachTemplateRead]:
+    _require_templates_table(db)
     rows = list_templates(db)
     return [OutreachTemplateRead.model_validate(r) for r in rows]
 
 
 @router.get("/{slug}", response_model=OutreachTemplateRead)
 def get_outreach_template(slug: str, db: Session = Depends(get_db)) -> OutreachTemplateRead:
+    _require_templates_table(db)
     try:
         validate_slug(slug)
     except ValueError as exc:
@@ -56,6 +67,7 @@ def update_outreach_template(
     body: OutreachTemplateUpdate,
     db: Session = Depends(get_db),
 ) -> OutreachTemplateRead:
+    _require_templates_table(db)
     try:
         validate_slug(slug)
     except ValueError as exc:
@@ -90,6 +102,7 @@ def preview_outreach_template(
     slug: str,
     db: Session = Depends(get_db),
 ) -> OutreachTemplatePreview:
+    _require_templates_table(db)
     try:
         validate_slug(slug)
     except ValueError as exc:

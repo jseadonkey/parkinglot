@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { bridgeUrl } from "../../lib/paths";
+
 type WorkflowRun = {
   id: string;
   parcel_id: string;
@@ -11,8 +13,6 @@ type WorkflowRun = {
   error: string | null;
   updated_at: string;
 };
-
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export default function DealsPage() {
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
@@ -23,7 +23,7 @@ export default function DealsPage() {
     (async () => {
       setErr(null);
       try {
-        const res = await fetch(`${apiBase}/workflow-runs?limit=200`, { cache: "no-store" });
+        const res = await fetch(bridgeUrl("workflow-runs?limit=200"), { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as WorkflowRun[];
         if (!cancelled) setRuns(data);

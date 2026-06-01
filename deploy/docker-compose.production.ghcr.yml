@@ -177,6 +177,7 @@ services:
       - .env
     environment:
       NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
+      API_SERVER_URL: http://api:8000
     expose:
       - "3000"
     depends_on:
