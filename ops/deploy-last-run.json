@@ -1,14 +1,14 @@
 {
-  "id": 26769247465,
+  "id": 26769541554,
   "conclusion": "failure",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "3ce5c463b9d63cdd25284228be8b986cb4c06456",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/26769247465",
-  "created_at": "2026-06-01T16:56:22Z",
-  "updated_at": "2026-06-01T16:58:51Z",
-  "display_title": "Merge cursor/fix-outreach-pipeline-500: admin UI 500 fixes",
+  "head_sha": "548b2bd8e211181e827bb45720ff67154fb15d9c",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/26769541554",
+  "created_at": "2026-06-01T17:02:04Z",
+  "updated_at": "2026-06-01T17:02:47Z",
+  "display_title": "Complete parking rate comp types and fix API test suite.",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-06-01T16:59:05Z"
+  "snapshot_recorded_at": "2026-06-01T17:02:58Z"
 }
