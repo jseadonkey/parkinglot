@@ -1,14 +1,14 @@
 {
-  "id": 26766843445,
-  "conclusion": "failure",
+  "id": 26767700647,
+  "conclusion": "success",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "b2f5aa814589b13618dee80caff0a65cb8c14369",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/26766843445",
-  "created_at": "2026-06-01T16:09:26Z",
-  "updated_at": "2026-06-01T16:09:41Z",
-  "display_title": "Fix Slack digest reliability on Droplet and repair SSH workflows.",
+  "head_sha": "76967d4e087742ee0850216f9181925e1fa7fc52",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/26767700647",
+  "created_at": "2026-06-01T16:25:59Z",
+  "updated_at": "2026-06-01T16:26:29Z",
+  "display_title": "Fix GHCR deploy: set API_IMAGE on Droplet and restart api/worker/beat…",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-06-01T16:09:53Z"
+  "snapshot_recorded_at": "2026-06-01T16:26:43Z"
 }
