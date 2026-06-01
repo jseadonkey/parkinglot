@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from app.outreach_templates import render_template_text, sample_render_context
+from app.outreach_templates import render_template_text, sample_render_context, validate_slug
+from parking_core.models import OutreachTemplateSlug
+
+
+def test_validate_slug_includes_sms() -> None:
+    assert validate_slug("sms_outreach") == OutreachTemplateSlug.sms_outreach
 
 
 def test_render_template_fills_owner_and_address() -> None:

@@ -8,7 +8,8 @@ const ADMIN_PAGES: { path: string; label: string; mustInclude?: string }[] = [
   { path: "/operator/deals", label: "Deal progress", mustInclude: "Deal progress" },
   { path: "/operator/approvals", label: "Operator approvals" },
   { path: "/operator/parcels", label: "Parcels", mustInclude: "Parcels" },
-  { path: "/", label: "Approval home" },
+  { path: "/operator/templates", label: "Message templates", mustInclude: "Message templates" },
+  { path: "/templates", label: "Approval UI templates", mustInclude: "Message templates" },
 ];
 
 type ApiFailure = { status: number; url: string; page: string };

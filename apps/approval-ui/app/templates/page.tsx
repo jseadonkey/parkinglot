@@ -128,8 +128,8 @@ export default function TemplatesPage() {
       <main>
         <h1>Message templates</h1>
         <p className="muted">
-          Edit the letter, email, and phone script copy used for owner outreach. Nothing is sent from this screen —
-          sending stays disabled until counsel approval and Lob integration.
+          Edit the default copy for email, text (SMS), voice calls, and certified mail. Nothing is sent from this
+          screen — sending stays disabled until counsel approval and channel integration.
         </p>
 
         <div className="panel" style={{ marginTop: "1.5rem" }}>
@@ -204,9 +204,14 @@ export default function TemplatesPage() {
 
                 <div style={{ marginTop: "1rem" }}>
                   <label className="muted" htmlFor="body">
-                    Body {selected.channel === "phone" ? "(call script)" : ""}
+                    Body{" "}
+                    {selected.channel === "phone"
+                      ? "(call script)"
+                      : selected.channel === "sms"
+                        ? "(SMS — keep brief)"
+                        : ""}
                   </label>
-                  <textarea id="body" value={body} onChange={(e) => setBody(e.target.value)} rows={18} />
+                  <textarea id="body" value={body} onChange={(e) => setBody(e.target.value)} rows={selected.channel === "sms" ? 8 : 18} />
                 </div>
 
                 <div className="muted" style={{ marginTop: "1rem" }}>

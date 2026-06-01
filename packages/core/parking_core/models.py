@@ -210,6 +210,7 @@ class OwnerOutreachBrief(BaseModel):
 
 class OutboundMessageChannel(StrEnum):
     email = "email"
+    sms = "sms"
     certified_mail = "certified_mail"
     phone = "phone"
 
@@ -218,6 +219,7 @@ class OutreachTemplateSlug(StrEnum):
     certified_mail_letter = "certified_mail_letter"
     phone_call_script = "phone_call_script"
     email_outreach = "email_outreach"
+    sms_outreach = "sms_outreach"
 
 
 OUTREACH_TEMPLATE_PLACEHOLDERS: list[str] = [

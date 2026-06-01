@@ -28,6 +28,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <Link href="/owners">Portfolios</Link>
             <span className="sep">|</span>
             <Link href="/outreach">Outreach pipeline</Link>
+            <span className="sep">|</span>
+            <Link href="/templates">Message templates</Link>
           </div>
           <AuthToolbar />
         </nav>
