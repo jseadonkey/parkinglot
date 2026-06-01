@@ -12,6 +12,12 @@ x-logging: &default-logging
     max-size: "20m"
     max-file: "5"
 
+x-worker-parking-cmd: &worker-parking-cmd
+  ["celery", "-A", "app.celery_app", "worker", "-l", "INFO", "-Q", "parking", "--concurrency=2", "-n", "parking@%h"]
+
+x-worker-slack-cmd: &worker-slack-cmd
+  ["celery", "-A", "app.celery_app", "worker", "-l", "INFO", "-Q", "slack", "--concurrency=1", "-n", "slack@%h"]
+
 # Shared env for Celery worker + beat (imports app + DB at startup).
 x-worker-beat-env: &worker-beat-env
   APP_VERSION: ${APP_VERSION:-dev}
@@ -154,7 +160,7 @@ services:
       args:
         APP_VERSION: ${APP_VERSION:-dev}
     restart: always
-    command: ["celery", "-A", "app.celery_app", "worker", "-l", "INFO", "--concurrency=2"]
+    command: *worker-parking-cmd
     environment:
       <<: *worker-beat-env
     volumes:
@@ -164,6 +170,26 @@ services:
       redis:
         condition: service_healthy
     # Dockerfile.backend HEALTHCHECK curls :8000/health (API only). Celery has no HTTP server.
+    healthcheck:
+      disable: true
+    logging: *default-logging
+
+  worker-slack:
+    build:
+      context: ..
+      dockerfile: Dockerfile.backend
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+    restart: always
+    command: *worker-slack-cmd
+    environment:
+      <<: *worker-beat-env
+    volumes:
+      - ../config:/app/config:ro
+      - ../data:/app/data:ro
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       disable: true
     logging: *default-logging

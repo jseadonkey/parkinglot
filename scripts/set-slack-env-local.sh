@@ -50,4 +50,4 @@ env_path.write_text(body + addition, encoding="utf-8", newline="\n")
 print("Updated", env_path)
 PY
 
-echo "Next: docker compose up -d --build worker beat   # or full stack: docker compose up -d --build"
+echo "Next: docker compose up -d --build worker worker-slack beat   # or full stack: docker compose up -d --build"

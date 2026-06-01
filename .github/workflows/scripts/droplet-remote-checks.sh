@@ -114,12 +114,20 @@ for key in ("SLACK_BOT_TOKEN", "SLACK_DIGEST_CHANNEL_ID", "SLACK_AGENT_DISCUSSIO
 dst.write_text(text, encoding="utf-8")
 print("Updated deploy/.env from repo-root .env")
 PY
-      echo "=== Restarting api, worker, beat with synced Slack env ==="
-      docker compose "${ARGS[@]}" up -d --force-recreate api worker beat
+      echo "=== Restarting api, worker, worker-slack, beat with synced Slack env ==="
+      docker compose "${ARGS[@]}" up -d --force-recreate api worker worker-slack beat
     fi
 
-    echo "=== docker compose ps api worker beat ==="
-    docker compose "${ARGS[@]}" ps api worker beat
+    echo "=== docker compose ps api worker worker-slack beat ==="
+    docker compose "${ARGS[@]}" ps api worker worker-slack beat
+
+    echo "=== worker-slack Slack config (from running container) ==="
+    docker compose "${ARGS[@]}" exec -T worker-slack python -c "
+from app.config import get_settings
+s = get_settings()
+print('has_bot_token', bool((s.slack_bot_token or '').strip()))
+print('has_digest_channel', bool((s.slack_digest_channel_id or '').strip()))
+"
 
     echo "=== worker Slack config (from running container) ==="
     docker compose "${ARGS[@]}" exec -T worker python -c "
@@ -236,8 +244,8 @@ print('standup_posted', posted)
     export COMPOSE_REL
     # shellcheck source=scripts/remote/_compose_args.sh
     source "$ROOT/scripts/remote/_compose_args.sh"
-    echo "=== docker compose ps (api worker beat operator-console) ==="
-    docker compose "${ARGS[@]}" ps api worker beat operator-console approval-ui
+    echo "=== docker compose ps (api worker worker-slack beat operator-console) ==="
+    docker compose "${ARGS[@]}" ps api worker worker-slack beat operator-console approval-ui
     echo ""
     echo "=== operator-console → api GET /approvals (first 120 chars) ==="
     docker compose "${ARGS[@]}" exec -T operator-console wget -qO- --timeout=15 \
