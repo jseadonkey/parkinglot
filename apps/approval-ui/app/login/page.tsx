@@ -3,11 +3,12 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { publicBasePath } from "../../lib/auth/publicBasePath";
+import { toOperatorPath } from "../../lib/operatorPaths";
 
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const nextPath = params.get("next") || "/";
+  const nextPath = toOperatorPath(params.get("next") || "/");
   const bp = publicBasePath();
 
   const [identifier, setIdentifier] = useState("");

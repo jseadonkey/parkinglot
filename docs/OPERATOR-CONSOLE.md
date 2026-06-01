@@ -20,7 +20,10 @@ After deploy and Caddy reload:
 
 ```text
 https://<UI_HOST>/operator
+https://<UI_HOST>/operator/outreach
 ```
+
+Shorthand paths such as `/outreach` or `/deals` redirect to `/operator/...` automatically.
 
 If you use alternate HTTPS ports (e.g. **9443**):
 

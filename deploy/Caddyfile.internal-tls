@@ -13,6 +13,10 @@
 	handle @operator {
 		reverse_proxy operator-console:3000
 	}
+	@operator_alias path /outreach /outreach/* /deals /deals/* /parcels /parcels/* /audit /audit/* /owners /owners/* /approvals /approvals/*
+	handle @operator_alias {
+		redir * /operator{uri} 308
+	}
 	handle {
 		reverse_proxy approval-ui:3000
 	}
