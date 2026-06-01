@@ -29,8 +29,8 @@ if [[ ! -f "$COMPOSE_REL" ]]; then
   COMPOSE_REL="deploy/docker-compose.production.yml"
 fi
 export COMPOSE_REL
-# shellcheck source=scripts/remote/_compose_args.sh
-source "$ROOT/scripts/remote/_compose_args.sh"
+# GHCR production uses Managed Postgres — do not auto-attach postgis addon (see _compose_args.sh).
+ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "Missing $ENV_FILE" >&2

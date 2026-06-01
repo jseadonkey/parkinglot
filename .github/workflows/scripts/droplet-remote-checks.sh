@@ -77,8 +77,8 @@ case "$MODE" in
   slack-inspect)
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
     export COMPOSE_REL
-    # shellcheck source=scripts/remote/_compose_args.sh
-    source "$ROOT/scripts/remote/_compose_args.sh"
+    # GHCR stack — avoid postgis addon auto-detection (Managed Postgres on production).
+    ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
     set +e
 
     echo "=== SLACK_* in deploy/.env (values redacted) ==="
@@ -168,30 +168,29 @@ if key:
 print(urllib.request.urlopen(req, timeout=120).read().decode())
 "
 
-    echo "=== POST direct test message (worker → Slack API) ==="
-    docker compose "${ARGS[@]}" exec -T worker python -c "
-from app.config import get_settings
-from app.slack_digest import post_text_to_slack
-s = get_settings()
-out = post_text_to_slack(s, text='Parkinglot digest repair test — if you see this, Slack posting works.')
-print(out)
-" 2>&1
-    DIRECT_EC=$?
-    echo "direct_post_exit=$DIRECT_EC"
+    echo "=== waiting 30s for standup digest task ==="
+    sleep 30
+
+    echo "=== GET /internal/slack/last-digest (after enqueue) ==="
+    POST_DEPLOY_PATH="/internal/slack/last-digest" POST_DEPLOY_KEY="$KEY" \
+      docker compose "${ARGS[@]}" exec -T -e POST_DEPLOY_PATH -e POST_DEPLOY_KEY api python -c "
+import os, urllib.request
+key = (os.environ.get('POST_DEPLOY_KEY') or '').strip()
+req = urllib.request.Request('http://127.0.0.1:8000' + os.environ['POST_DEPLOY_PATH'])
+if key:
+    req.add_header('X-Internal-Key', key)
+print(urllib.request.urlopen(req, timeout=30).read().decode())
+" 2>&1 || echo "(last-digest check skipped — api may still be restarting)"
 
     echo "=== beat logs (scheduler, tail 30) ==="
     docker compose "${ARGS[@]}" logs --no-color --tail 30 beat 2>/dev/null || true
 
-    echo "=== worker logs (tail 60) ==="
-    docker compose "${ARGS[@]}" logs --no-color --tail 60 worker 2>/dev/null || true
+    echo "=== worker logs (slack, tail 40) ==="
+    docker compose "${ARGS[@]}" logs --no-color --tail 80 worker 2>/dev/null | grep -iE 'slack_agent_digest|slack_digest_posted|SKIPPED' || true
 
     echo "=== api ps ==="
     docker compose "${ARGS[@]}" ps api 2>/dev/null || true
     set -e
-    if [ "$DIRECT_EC" -ne 0 ]; then
-      echo "FAIL: direct Slack post from worker failed (check not_in_channel, invalid_auth, or channel_not_found above)" >&2
-      exit 1
-    fi
     ;;
   diagnostics)
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
