@@ -222,12 +222,12 @@ jobs:
           fi
           if [ "$COMPOSE_BASENAME" = "docker-compose.production.ghcr.yml" ] || [ "$COMPOSE_BASENAME" = "docker-compose.production.ghcr-full.yml" ]; then
             # GHCR: pull API image; rebuild browser UIs from synced repo (proxy routes, env).
-            UP_CMD="docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --no-build redis api worker beat && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --build approval-ui operator-console"
+            UP_CMD="docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --no-build --force-recreate redis api worker beat && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --build approval-ui operator-console"
           else
             UP_CMD="docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --build"
           fi
           ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "set -euo pipefail && cd '$REMOTE_PATH' && $UP_CMD && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env ps api worker beat approval-ui operator-console"
+            "set -euo pipefail && cd '$REMOTE_PATH' && $UP_CMD && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env ps api worker beat approval-ui operator-console && (docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env logs api --tail 40 || true)"
 
       # Do not fail the whole deploy if Slack enqueue fails (containers are already updated).
       - name: Enqueue Slack tasks (post-deploy script)
