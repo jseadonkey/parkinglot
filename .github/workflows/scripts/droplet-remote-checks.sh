@@ -186,10 +186,10 @@ print(urllib.request.urlopen(req, timeout=30).read().decode())
     if ! echo "$LAST_DIGEST" | grep -q '"found": true'; then
       echo "=== Celery queue slow — posting standup digest directly from worker ==="
       docker compose "${ARGS[@]}" exec -T worker python -c "
+from app.audit import write_audit
 from app.config import get_settings
 from app.db.session import SessionLocal
 from app.slack_digest import build_slack_digest_blocks, post_digest_to_slack
-from app.tasks import _write_slack_digest_audit
 
 s = get_settings()
 ch = (s.slack_digest_channel_id or '').strip()
@@ -199,9 +199,24 @@ try:
 finally:
     db.close()
 posted = post_digest_to_slack(s, blocks, fallback)
-_write_slack_digest_audit(channel=ch, posted=posted, fallback=fallback)
-print(posted)
-"
+audit_db = SessionLocal()
+try:
+    write_audit(
+        audit_db,
+        actor='celery:slack_agent_digest',
+        action='slack_digest_posted',
+        entity_type='slack_channel',
+        entity_id=ch,
+        meta={
+            'slack_ts': posted.get('ts'),
+            'channel': posted.get('channel'),
+            'fallback_preview': (fallback or '')[:240],
+        },
+    )
+finally:
+    audit_db.close()
+print('standup_posted', posted)
+" 2>&1
     fi
 
     echo "=== beat logs (scheduler, tail 30) ==="
