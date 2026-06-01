@@ -137,7 +137,7 @@ services:
   worker:
     image: ${API_IMAGE:?Set API_IMAGE to the same API/worker image as the api service}
     restart: always
-    command: ["celery", "-A", "app.celery_app", "worker", "-l", "INFO", "--concurrency=2"]
+    command: ["celery", "-A", "app.celery_app", "worker", "-l", "INFO", "--concurrency=4"]
     environment:
       <<: *worker-beat-env
     volumes:

@@ -172,7 +172,7 @@ print(urllib.request.urlopen(req, timeout=120).read().decode())
     sleep 30
 
     echo "=== GET /internal/slack/last-digest (after enqueue) ==="
-    POST_DEPLOY_PATH="/internal/slack/last-digest" POST_DEPLOY_KEY="$KEY" \
+    LAST_DIGEST="$(POST_DEPLOY_PATH="/internal/slack/last-digest" POST_DEPLOY_KEY="$KEY" \
       docker compose "${ARGS[@]}" exec -T -e POST_DEPLOY_PATH -e POST_DEPLOY_KEY api python -c "
 import os, urllib.request
 key = (os.environ.get('POST_DEPLOY_KEY') or '').strip()
@@ -180,7 +180,29 @@ req = urllib.request.Request('http://127.0.0.1:8000' + os.environ['POST_DEPLOY_P
 if key:
     req.add_header('X-Internal-Key', key)
 print(urllib.request.urlopen(req, timeout=30).read().decode())
-" 2>&1 || echo "(last-digest check skipped — api may still be restarting)"
+" 2>&1 || echo '{"found":false}')"
+    echo "$LAST_DIGEST"
+
+    if ! echo "$LAST_DIGEST" | grep -q '"found": true'; then
+      echo "=== Celery queue slow — posting standup digest directly from worker ==="
+      docker compose "${ARGS[@]}" exec -T worker python -c "
+from app.config import get_settings
+from app.db.session import SessionLocal
+from app.slack_digest import build_slack_digest_blocks, post_digest_to_slack
+from app.tasks import _write_slack_digest_audit
+
+s = get_settings()
+ch = (s.slack_digest_channel_id or '').strip()
+db = SessionLocal()
+try:
+    blocks, fallback = build_slack_digest_blocks(db, hours=4)
+finally:
+    db.close()
+posted = post_digest_to_slack(s, blocks, fallback)
+_write_slack_digest_audit(channel=ch, posted=posted, fallback=fallback)
+print(posted)
+"
+    fi
 
     echo "=== beat logs (scheduler, tail 30) ==="
     docker compose "${ARGS[@]}" logs --no-color --tail 30 beat 2>/dev/null || true
