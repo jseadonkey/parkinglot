@@ -87,6 +87,123 @@ input {
   min-width: 200px;
 }
 
+textarea {
+  background: #121922;
+  border: 1px solid #2a3544;
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  color: var(--text);
+  width: 100%;
+  min-height: 280px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+a {
+  color: #7eb6ff;
+}
+
+.admin-header {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.25rem 1.25rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.admin-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.admin-title {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.admin-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nav-link {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 0.875rem;
+}
+
+.nav-link.active {
+  color: var(--text);
+  background: var(--panel);
+  border-color: #2a3544;
+}
+
+.template-layout {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) 1fr;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+@media (max-width: 720px) {
+  .template-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.template-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.template-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+}
+
+.template-tab.active {
+  background: #243041;
+  border-color: #3d8bfd;
+}
+
+.preview-panel {
+  margin-top: 1.25rem;
+}
+
+.preview-body {
+  white-space: pre-wrap;
+  background: #121922;
+  border: 1px solid #2a3544;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  overflow-x: auto;
+}
+
+.success {
+  color: #9ae6b0;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+}
+
 .error {
   color: #ffb4b4;
   margin-top: 0.75rem;

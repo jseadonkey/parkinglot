@@ -23,6 +23,7 @@ class Parcel(Base):
     is_corner_lot: Mapped[bool] = mapped_column(default=False)
     distance_to_nearest_demand_m: Mapped[float | None] = mapped_column(Float, nullable=True)
     raw_properties: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    owner_outreach_brief: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     footprint: Mapped[object | None] = mapped_column(
         geoalchemy2.Geometry(geometry_type="MULTIPOLYGON", srid=4326),
         nullable=True,
@@ -32,6 +33,73 @@ class Parcel(Base):
     scores: Mapped[list[ParcelScore]] = relationship(back_populates="parcel")
     owners: Mapped[list[OwnerCandidateRow]] = relationship(back_populates="parcel")
     memos: Mapped[list[DealMemo]] = relationship(back_populates="parcel")
+    contact_points: Mapped[list[ParcelContactPoint]] = relationship(back_populates="parcel")
+    outreach_attempts: Mapped[list[OutreachAttemptRow]] = relationship(back_populates="parcel")
+
+
+class ParcelContactPoint(Base):
+    """Known email, phone, or postal address for a parcel owner (may be multiple per kind)."""
+
+    __tablename__ = "parcel_contact_points"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    parcel_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("parcels.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    normalized_value: Mapped[str] = mapped_column(Text, nullable=False)
+    source: Mapped[str] = mapped_column(String(128), nullable=False, default="assessor_roll")
+    label: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    parcel: Mapped[Parcel] = relationship(back_populates="contact_points")
+    outreach_attempts: Mapped[list[OutreachAttemptRow]] = relationship(back_populates="contact_point")
+
+
+class OutreachAttemptRow(Base):
+    """One logged outreach to a specific contact (email, phone, or postal address)."""
+
+    __tablename__ = "outreach_attempts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    parcel_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("parcels.id", ondelete="CASCADE"))
+    contact_point_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("parcel_contact_points.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    channel: Mapped[str] = mapped_column(String(32), nullable=False)
+    target_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    target_value: Mapped[str] = mapped_column(Text, nullable=False)
+    result: Mapped[str] = mapped_column(String(64), nullable=False, default="attempted")
+    result_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    attempted_by: Mapped[str] = mapped_column(String(256), nullable=False)
+    attempted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    approval_request_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("approval_requests.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    parcel: Mapped[Parcel] = relationship(back_populates="outreach_attempts")
+    contact_point: Mapped[ParcelContactPoint | None] = relationship(back_populates="outreach_attempts")
+
+
+class OutreachTemplate(Base):
+    """Admin-editable copy for mail, phone scripts, and email (Jinja2 placeholders)."""
+
+    __tablename__ = "outreach_templates"
+
+    slug: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    channel: Mapped[str] = mapped_column(String(32), nullable=False)
+    subject: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_by: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class ParcelScore(Base):

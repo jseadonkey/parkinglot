@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from parking_core.models import ScoreResult
+from parking_core.models import OwnerOutreachBrief, ScoreResult
 
 
 def build_deal_memo_markdown(
@@ -11,6 +11,7 @@ def build_deal_memo_markdown(
     lot_sqft: float | None,
     score: ScoreResult,
     owner_lines: list[str],
+    outreach_brief: OwnerOutreachBrief | None = None,
 ) -> tuple[str, str, list[str]]:
     title = f"Deal memo — {apn} ({county_fips})"
     open_questions = [
@@ -18,6 +19,26 @@ def build_deal_memo_markdown(
         "Validate owner / decision-maker via SOS or direct outreach.",
         "Competitive set and achievable ADR / occupancy assumptions.",
     ]
+
+    outreach_lines: list[str] = []
+    if outreach_brief is not None:
+        contacts = outreach_brief.contact_points or []
+        by_kind: dict[str, list[str]] = {}
+        for cp in contacts:
+            by_kind.setdefault(cp.kind.value, []).append(cp.value)
+        contact_summary = [
+            f"- **{kind.replace('_', ' ')}**: {', '.join(values[:4])}"
+            + (f" (+{len(values) - 4} more)" if len(values) > 4 else "")
+            for kind, values in sorted(by_kind.items())
+        ]
+        outreach_lines = [
+            "",
+            "## Owner outreach brief (deterministic)",
+            f"- **Recorded owner (roll)**: {outreach_brief.recorded_owner_one_liner}",
+            *(contact_summary or []),
+            *(f"- **Step {s.rank}** ({s.channel}): {s.title} — {s.instruction}" for s in outreach_brief.steps[:6]),
+        ]
+
     md = "\n".join(
         [
             f"# {title}",
@@ -40,6 +61,7 @@ def build_deal_memo_markdown(
             "",
             "## Owner candidates (enrichment)",
             "\n".join(f"- {line}" for line in owner_lines) or "- (none)",
+            *outreach_lines,
             "",
             "## Non-binding next steps",
             "- Human review of this memo and attached draft contract.",

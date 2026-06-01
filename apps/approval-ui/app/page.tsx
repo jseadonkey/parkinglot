@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { AdminNav } from "./components/AdminNav";
+import { apiBase } from "./lib/api";
+
 type Approval = {
   id: string;
   type: string;
@@ -11,8 +14,6 @@ type Approval = {
   approved_at: string | null;
   created_at: string;
 };
-
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function Home() {
   const [items, setItems] = useState<Approval[]>([]);
@@ -49,52 +50,57 @@ export default function Home() {
   }
 
   return (
-    <main>
-      <h1>Pending approvals</h1>
-      <p className="muted">
-        Outbound sends and execution are disabled in the API; this UI only records human decisions on drafts and memos.
-      </p>
+    <>
+      <AdminNav active="approvals" />
+      <main>
+        <h1>Pending approvals</h1>
+        <p className="muted">
+          Approve deal memos and contract drafts here. Edit mail and call copy under{" "}
+          <a href="/templates">Message templates</a>. Outbound sends remain disabled in the API until Lob and counsel
+          sign-off.
+        </p>
 
-      <div className="panel" style={{ marginTop: "1.5rem" }}>
-        <label className="muted" htmlFor="actor">
-          Approver identity
-        </label>
-        <div style={{ marginTop: "0.35rem" }}>
-          <input id="actor" value={actor} onChange={(e) => setActor(e.target.value)} placeholder="name@company.com" />
+        <div className="panel" style={{ marginTop: "1.5rem" }}>
+          <label className="muted" htmlFor="actor">
+            Approver identity
+          </label>
+          <div style={{ marginTop: "0.35rem" }}>
+            <input id="actor" value={actor} onChange={(e) => setActor(e.target.value)} placeholder="name@company.com" />
+          </div>
         </div>
-      </div>
 
-      {error ? <div className="error">{error}</div> : null}
+        {error ? <div className="error">{error}</div> : null}
 
-      <div className="panel">
-        {items.length === 0 ? (
-          <p className="muted">No pending items. Ingest sample parcels and run a pipeline from the API.</p>
-        ) : (
-          items.map((a) => (
-            <div key={a.id} className="row">
-              <div>
+        <div className="panel">
+          {items.length === 0 ? (
+            <p className="muted">No pending items. Ingest sample parcels and run a pipeline from the API.</p>
+          ) : (
+            items.map((a) => (
+              <div key={a.id} className="row">
                 <div>
-                  <strong>{a.type}</strong>
-                  <span className="muted" style={{ marginLeft: "0.5rem" }}>
-                    {a.id.slice(0, 8)}…
-                  </span>
+                  <div>
+                    <strong>{a.type}</strong>
+                    <span className="muted" style={{ marginLeft: "0.5rem" }}>
+                      {a.id.slice(0, 8)}…
+                    </span>
+                  </div>
+                  <div className="muted" style={{ marginTop: "0.25rem" }}>
+                    {JSON.stringify(a.payload)}
+                  </div>
                 </div>
-                <div className="muted" style={{ marginTop: "0.25rem" }}>
-                  {JSON.stringify(a.payload)}
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button className="primary" type="button" onClick={() => void decide(a.id, "approve")}>
+                    Approve
+                  </button>
+                  <button className="danger" type="button" onClick={() => void decide(a.id, "reject")}>
+                    Reject
+                  </button>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button className="primary" type="button" onClick={() => void decide(a.id, "approve")}>
-                  Approve
-                </button>
-                <button className="danger" type="button" onClick={() => void decide(a.id, "reject")}>
-                  Reject
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </main>
+            ))
+          )}
+        </div>
+      </main>
+    </>
   );
 }

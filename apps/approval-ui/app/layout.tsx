@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Parking — approvals",
-  description: "Human approval gate for memos and contract drafts",
+  title: "Parking — admin",
+  description: "Approvals and outreach message templates",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

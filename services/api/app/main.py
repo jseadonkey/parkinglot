@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import approvals, audit, health, internal, parcels, workflows
+from app.routers import approvals, audit, health, internal, outreach, outreach_templates, parcels, workflows
 
 
 def _cors_origins() -> list[str]:
@@ -26,6 +26,8 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(parcels.router)
+app.include_router(outreach.router)
+app.include_router(outreach_templates.router)
 app.include_router(approvals.router)
 app.include_router(audit.router)
 app.include_router(workflows.router)

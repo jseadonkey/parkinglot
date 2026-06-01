@@ -96,6 +96,88 @@ class IngestGeojsonServerPathRequest(BaseModel):
         return v
 
 
+class OwnerContactPointRead(BaseModel):
+    id: uuid.UUID
+    kind: str
+    value: str
+    source: str
+    label: str | None = None
+    confidence: float
+    created_at: datetime
+
+
+class OutreachAttemptRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    parcel_id: uuid.UUID
+    contact_point_id: uuid.UUID | None
+    channel: str
+    target_kind: str
+    target_value: str
+    result: str
+    result_detail: str | None
+    attempted_by: str
+    attempted_at: datetime
+    approval_request_id: uuid.UUID | None
+    meta: dict[str, Any] | None
+    created_at: datetime
+
+
+class ParcelOutreachRead(BaseModel):
+    brief: dict[str, Any]
+    contact_points: list[OwnerContactPointRead]
+    attempts: list[OutreachAttemptRead]
+
+
+class OutreachAttemptCreate(BaseModel):
+    channel: str = Field(min_length=1, max_length=32)
+    target_kind: str = Field(min_length=1, max_length=32)
+    target_value: str = Field(min_length=1, max_length=4000)
+    attempted_by: str = Field(min_length=1, max_length=256)
+    result: str = Field(default="attempted", min_length=1, max_length=64)
+    result_detail: str | None = Field(default=None, max_length=4000)
+    contact_point_id: uuid.UUID | None = None
+    approval_request_id: uuid.UUID | None = None
+
+
+class OwnerContactPointCreate(BaseModel):
+    kind: str = Field(min_length=1, max_length=32)
+    value: str = Field(min_length=1, max_length=4000)
+    source: str = Field(default="manual", min_length=1, max_length=128)
+    label: str | None = Field(default=None, max_length=256)
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+
+
+class OutreachTemplateRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    slug: str
+    name: str
+    channel: str
+    subject: str | None
+    body: str
+    updated_by: str | None
+    updated_at: datetime
+
+
+class OutreachTemplateUpdate(BaseModel):
+    body: str = Field(min_length=1, max_length=50000)
+    subject: str | None = Field(default=None, max_length=512)
+    updated_by: str = Field(min_length=1, max_length=256)
+
+
+class OutreachTemplatePreview(BaseModel):
+    slug: str
+    subject: str | None = None
+    body: str
+    sample_context: dict[str, Any] = Field(default_factory=dict)
+
+
+class OutreachTemplateMeta(BaseModel):
+    placeholders: list[str]
+
+
 class SlackTestMessageRequest(BaseModel):
     """One-off Slack message for smoke testing.
 

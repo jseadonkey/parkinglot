@@ -17,6 +17,7 @@ from app.contract_render import render_ground_lease_draft
 from app.db.models import ApprovalRequest, ContractDraft, DealMemo, OwnerCandidateRow, Parcel, ParcelScore, WorkflowRun
 from app.db.session import SessionLocal
 from app.memo_render import build_deal_memo_markdown
+from app.outreach_contacts import sync_contact_points_from_brief
 from app.slack_digest import build_slack_digest_blocks, post_digest_to_slack
 from app.storage import put_text_object
 from parking_core.models import OwnerCandidate, ParcelFeature
@@ -107,6 +108,7 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
             owners=enriched,
         )
         parcel.owner_outreach_brief = outreach_brief.model_dump(mode="json")
+        sync_contact_points_from_brief(db, parcel_id=parcel.id, brief=outreach_brief)
         db.add(parcel)
         db.commit()
 

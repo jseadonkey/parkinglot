@@ -38,6 +38,23 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("SLACK_DIGEST_CHANNEL_ID", "slack_digest_channel_id"),
     )
 
+    outreach_sender_name: str = Field(
+        default="",
+        validation_alias=AliasChoices("OUTREACH_SENDER_NAME", "outreach_sender_name"),
+    )
+    outreach_sender_company: str = Field(
+        default="",
+        validation_alias=AliasChoices("OUTREACH_SENDER_COMPANY", "outreach_sender_company"),
+    )
+    outreach_sender_email: str = Field(
+        default="",
+        validation_alias=AliasChoices("OUTREACH_SENDER_EMAIL", "outreach_sender_email"),
+    )
+    outreach_sender_phone: str = Field(
+        default="",
+        validation_alias=AliasChoices("OUTREACH_SENDER_PHONE", "outreach_sender_phone"),
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

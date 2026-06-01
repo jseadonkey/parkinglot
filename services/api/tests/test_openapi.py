@@ -19,3 +19,8 @@ def test_openapi_lists_workflow_and_internal_task_paths() -> None:
     assert "/internal/ingest/geojson-server-path" in paths
     assert "/internal/pipeline/enqueue-unscored" in paths
     assert "/parcels/{parcel_id}/workflow-runs" in paths
+    assert "/parcels/{parcel_id}/outreach" in paths
+    assert "/parcels/{parcel_id}/outreach/attempts" in paths
+    assert "/outreach-templates" in paths
+    assert "/outreach-templates/{slug}" in paths
+    assert "/outreach-templates/{slug}/preview" in paths
