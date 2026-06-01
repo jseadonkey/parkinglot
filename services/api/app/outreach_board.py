@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, inspect, literal, select
 from sqlalchemy.orm import Session
 
 from app.db.models import ApprovalRequest, Parcel, ParcelScore, WorkflowRun
@@ -43,6 +43,32 @@ def _latest_score_subq(parcel_id_col: Any, profile: str) -> Any:
     )
 
 
+def _parcels_have_outreach_brief_column(db: Session) -> bool:
+    try:
+        cols = inspect(db.get_bind()).get_columns("parcels")
+    except Exception:
+        return False
+    return any(c.get("name") == "owner_outreach_brief" for c in cols)
+
+
+def _pending_approval_counts(db: Session, parcel_ids: list[uuid.UUID]) -> dict[str, int]:
+    """Count pending approvals per parcel from JSON payload (no JSONB ->> SQL)."""
+    if not parcel_ids:
+        return {}
+    want = {str(pid) for pid in parcel_ids}
+    counts = {pid: 0 for pid in want}
+    pending = db.scalars(select(ApprovalRequest).where(ApprovalRequest.status == "pending")).all()
+    for row in pending:
+        payload = row.payload if isinstance(row.payload, dict) else {}
+        raw = payload.get("parcel_id")
+        if raw is None:
+            continue
+        key = str(raw)
+        if key in want:
+            counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
 def _derive_pipeline_stage(wr: WorkflowRun | None) -> str:
     """Single label for UI filters (parallel to ``workflow_runs.status``)."""
     if wr is None:
@@ -69,13 +95,15 @@ def query_outreach_pipeline_board(
     cap = min(max(limit, 1), 2000)
     ent_sub = _latest_score_subq(Parcel.id, ENTITLEMENT)
     id_sub = _latest_score_subq(Parcel.id, IDENTIFICATION)
+    has_brief_col = _parcels_have_outreach_brief_column(db)
+    brief_col = Parcel.owner_outreach_brief if has_brief_col else literal(None).label("owner_outreach_brief")
 
     stmt = (
         select(
             Parcel.id,
             Parcel.apn,
             Parcel.county_fips,
-            Parcel.owner_outreach_brief,
+            brief_col,
             ent_sub.label("ent_score"),
             id_sub.label("id_score"),
         )
@@ -101,23 +129,13 @@ def query_outreach_pipeline_board(
         if w.parcel_id not in latest_wr:
             latest_wr[w.parcel_id] = w
 
-    pid_strings = [str(pid) for pid in parcel_ids]
-    pending_map: dict[str, int] = {}
-    if pid_strings:
-        pid_expr = ApprovalRequest.payload["parcel_id"].as_string()
-        rows_pa = db.execute(
-            select(pid_expr, func.count())
-            .where(ApprovalRequest.status == "pending")
-            .where(pid_expr.in_(pid_strings))
-            .group_by(pid_expr),
-        ).all()
-        pending_map = {str(a): int(b) for a, b in rows_pa}
+    pending_map = _pending_approval_counts(db, parcel_ids)
 
     out: list[OutreachPipelineRowData] = []
     for r in qrows:
         pid, apn, cfips, brief_json, ent_f, id_f = r[0], r[1], r[2], r[3], r[4], r[5]
         wr = latest_wr.get(pid)
-        has_brief = bool(brief_json)
+        has_brief = bool(brief_json) if has_brief_col else False
         stage = _derive_pipeline_stage(wr)
         pcount = pending_map.get(str(pid), 0)
         out.append(

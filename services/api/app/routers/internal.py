@@ -184,7 +184,7 @@ def scoring_summary(db: Session = Depends(get_db)) -> ScoringSummaryResponse:
 
 @router.get("/pipeline/outreach-board", response_model=OutreachPipelineBoardResponse)
 def outreach_pipeline_board(
-    limit: int = Query(default=500, ge=1, le=2000),
+    limit: int = Query(default=100, ge=1, le=2000),
     db: Session = Depends(get_db),
 ) -> OutreachPipelineBoardResponse:
     """Qualified parcels (latest entitlement ≥ pilot floor) with workflow + outreach brief snapshot."""

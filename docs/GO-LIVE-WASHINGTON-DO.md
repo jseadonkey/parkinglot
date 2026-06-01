@@ -112,7 +112,7 @@ Caddy obtains certificates automatically once DNS points at the Droplet and port
 
 ## 6. Migrate database
 
-Migrations run when the **api** container starts (`alembic upgrade head` in `Dockerfile.backend` CMD). If the first boot fails on PostGIS, enable the extension (step 1) and restart:
+Migrations run when the **api** container starts (`alembic upgrade heads` in `Dockerfile.backend` CMD). If the first boot fails on PostGIS, enable the extension (step 1) and restart:
 
 ```bash
 docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env restart api worker
