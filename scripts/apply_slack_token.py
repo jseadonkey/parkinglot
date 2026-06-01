@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -33,7 +32,11 @@ def _resolve_env_path() -> Path:
     if ENV_PATH.is_file():
         return ENV_PATH
     if FALLBACK_ENV.is_file():
-        print(f"note: {ENV_PATH} missing; writing to {FALLBACK_ENV} (copy to deploy/.env for production)", file=sys.stderr)
+        print(
+            f"note: {ENV_PATH} missing; writing to {FALLBACK_ENV} "
+            "(copy to deploy/.env for production)",
+            file=sys.stderr,
+        )
         return FALLBACK_ENV
     ENV_PATH.parent.mkdir(parents=True, exist_ok=True)
     return ENV_PATH
