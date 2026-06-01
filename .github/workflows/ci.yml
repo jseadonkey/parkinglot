@@ -1,8 +1,12 @@
 name: CI
 
 on:
+  # Avoid running lint/test twice on every PR update (push + pull_request). Feature
+  # branches get CI from pull_request; main gets CI when commits land after merge.
   push:
     branches: [main]
+    paths-ignore:
+      - "ops/deploy-last-run.json"
   pull_request:
 
 permissions:
@@ -19,7 +23,7 @@ jobs:
       - name: Install Ruff
         run: pip install ruff==0.9.7
       - name: Ruff check
-        run: ruff check packages/core services/api/app services/scoring services/ingestion services/enrichment services/workflows services/api/tests
+        run: ruff check packages/core services/api/app services/scoring services/ingestion services/enrichment services/workflows services/api/tests scripts
 
   test-api:
     runs-on: ubuntu-latest
@@ -28,6 +32,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            packages/core/pyproject.toml
+            services/scoring/pyproject.toml
+            services/ingestion/pyproject.toml
+            services/enrichment/pyproject.toml
+            services/workflows/pyproject.toml
+            services/api/pyproject.toml
       - name: Install workspace packages
         run: |
           set -euo pipefail
@@ -41,6 +53,19 @@ jobs:
       - name: Pytest (API)
         working-directory: services/api
         run: pytest
+
+      - name: OpenAPI JSON export
+        run: |
+          set -euo pipefail
+          python3 scripts/export_openapi_json.py -o openapi.json
+          python3 -m json.tool openapi.json > /dev/null
+
+      - uses: actions/upload-artifact@v4
+        name: Upload OpenAPI JSON
+        with:
+          name: openapi
+          path: openapi.json
+          retention-days: 14
 
   validate:
     runs-on: ubuntu-latest
@@ -70,9 +95,27 @@ jobs:
           build-args: |
             NEXT_PUBLIC_API_URL=https://api.ci.test
 
+      - name: Build operator console image (smoke)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/operator-console/Dockerfile
+          push: false
+          tags: parking-acquisition-operator-console:ci
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://api.ci.test
+
       - name: Validate compose files
         run: |
           set -euo pipefail
+          # deploy/.env is gitignored; approval-ui / operator-console use env_file: .env (deploy/.env).
+          printf '%s\n' \
+            'AUTH_SECRET=ci-compose-validation-placeholder' \
+            'AUTH_ADMIN_EMAIL=' \
+            'AUTH_ADMIN_PASSWORD=' \
+            'AUTH_VIEWER_USERNAME=' \
+            'AUTH_VIEWER_PASSWORD=' \
+            > deploy/.env
           for f in \
             deploy/docker-compose.production.yml \
             deploy/docker-compose.production.ghcr.yml \
@@ -87,3 +130,11 @@ jobs:
             -f deploy/docker-compose.production.yml \
             -f deploy/docker-compose.postgis-addon.yml \
             --env-file deploy/ci.env config --quiet
+
+      - name: Syntax-check bash scripts (phase runners + ci-api-local)
+        run: |
+          set -euo pipefail
+          for f in scripts/execute-phase-a.sh scripts/execute-phase-b.sh scripts/execute-phase-c.sh scripts/ci-api-local.sh; do
+            echo "bash -n $f"
+            bash -n "$f"
+          done

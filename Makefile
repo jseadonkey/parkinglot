@@ -1,7 +1,16 @@
-.PHONY: help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
+.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
 
 help:
 	@echo "Targets:"
+	@echo "  make verify-sample      - venv + pytest sample GeoJSON trace (scores, enrichment, memo)"
+	@echo "  make api-ci             - venv + Ruff + pytest + OpenAPI export smoke (matches CI test-api)"
+	@echo "  make openapi-export     - print OpenAPI JSON (needs .venv + deps like api-ci)"
+	@echo "  make export-readiness   - print CSV column gap counts (needs DATABASE_URL)"
+	@echo "  make readiness          - alias for export-readiness (Phase A–C gap summary)"
+	@echo "  make phase-a-run        - Phase A: readiness + enqueue + identification backfill + demand refresh (needs DATABASE_URL; see scripts/execute-phase-a.sh)"
+	@echo "  make phase-b-run        - Phase B: zoning overlay merge + readiness (needs DATABASE_URL + PHASE_B_OVERLAY_PATH; see scripts/execute-phase-b.sh)"
+	@echo "  make validate-phase-b-overlay - dry-run overlay stats (needs PHASE_B_OVERLAY_PATH)"
+	@echo "  make phase-c-run        - Phase C: readiness + portfolio internal APIs (needs DATABASE_URL; see scripts/execute-phase-c.sh)"
 	@echo "  make local              - docker compose (dev: Postgres, Redis, MinIO, api, worker, UI)"
 	@echo "  make slack-env-local    - merge SLACK_* into .env (needs SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID in env)"
 	@echo "  make droplet-sync       - rsync repo to Droplet (needs DROPLET=ip, optional REMOTE_PATH / SSH_USER)"
@@ -16,6 +25,66 @@ help:
 	@echo "  make prod-down          - stop production stack (default compose file)"
 	@echo "  make tf-init       - terraform init -upgrade (infra/terraform)"
 	@echo "  make tf-plan       - terraform plan (export TF_VAR_do_token and SPACES_* first)"
+	@echo "  make deploy-env-check   - warn on placeholder deploy/.env (run on Droplet or laptop)"
+	@echo "  make ae-setup-check     - verify deploy/.env keys for phased ops (+ optional /ready probe)"
+	@echo "  make operator-todos - print path to bundled Droplet/GIS checklist (docs)"
+	@echo "  make a-e-setup    - print path to A–E setup checklist (docs)"
+	@echo "  make operator-console-help - operator browser UI (/operator on UI_HOST)"
+
+deploy-env-check:
+	@python3 scripts/check_deploy_env_warnings.py
+
+operator-todos:
+	@echo "Bundled operator checklist (DNS, deploy, phases, backlog): docs/OPERATOR-TODO-BUNDLE.md"
+
+a-e-setup:
+	@echo "A–E configuration checklist (env, Beat, GIS, portfolio): docs/A-E-SETUP-CHECKLIST.md"
+
+operator-console-help:
+	@echo "Operator web UI (parcels, deals, approvals): docs/OPERATOR-CONSOLE.md"
+
+ae-setup-check:
+	@python3 scripts/check_ae_setup.py
+
+verify-sample:
+	@chmod +x scripts/verify-sample-trace.sh
+	@./scripts/verify-sample-trace.sh
+
+api-ci:
+	@chmod +x scripts/ci-api-local.sh
+	@./scripts/ci-api-local.sh
+
+openapi-export:
+	@test -d .venv || (echo "Create .venv and run make api-ci once (or pip install workspace packages)"; exit 1)
+	@. .venv/bin/activate && python3 scripts/export_openapi_json.py
+
+export-readiness:
+	@test -n "$$DATABASE_URL" || (echo "export DATABASE_URL first"; exit 1)
+	@chmod +x scripts/check_export_readiness.py
+	@./scripts/check_export_readiness.py
+
+readiness: export-readiness
+
+phase-a-run:
+	@test -n "$$DATABASE_URL" || (echo "export DATABASE_URL first"; exit 1)
+	@chmod +x scripts/execute-phase-a.sh
+	@./scripts/execute-phase-a.sh
+
+phase-b-run:
+	@test -n "$$DATABASE_URL" || (echo "export DATABASE_URL first"; exit 1)
+	@test -n "$$PHASE_B_OVERLAY_PATH" || (echo "export PHASE_B_OVERLAY_PATH (absolute path to overlay GeoJSON)"; exit 1)
+	@chmod +x scripts/execute-phase-b.sh
+	@./scripts/execute-phase-b.sh
+
+validate-phase-b-overlay:
+	@test -n "$$PHASE_B_OVERLAY_PATH" || (echo "export PHASE_B_OVERLAY_PATH"; exit 1)
+	@chmod +x scripts/validate_phase_b_overlay.py
+	@./scripts/validate_phase_b_overlay.py "$$PHASE_B_OVERLAY_PATH"
+
+phase-c-run:
+	@test -n "$$DATABASE_URL" || (echo "export DATABASE_URL first"; exit 1)
+	@chmod +x scripts/execute-phase-c.sh
+	@./scripts/execute-phase-c.sh
 
 local:
 	docker compose up --build

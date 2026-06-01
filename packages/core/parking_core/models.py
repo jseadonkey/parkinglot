@@ -56,6 +56,8 @@ class ContactKind(StrEnum):
 
 
 class OutreachChannel(StrEnum):
+    """How we might reach the owner or their representative."""
+
     secretary_of_state = "secretary_of_state"
     certified_mail = "certified_mail"
     phone = "phone"
@@ -106,7 +108,9 @@ class OutreachAttemptRead(BaseModel):
 
 
 class OutreachStep(BaseModel):
-    rank: int = Field(ge=1)
+    """One prioritized outreach move (human or system may execute)."""
+
+    rank: int = Field(ge=1, description="1 = try first")
     channel: OutreachChannel
     title: str
     instruction: str
@@ -115,10 +119,19 @@ class OutreachStep(BaseModel):
 
 
 class RegistryLookupSummary(BaseModel):
+    """Result of an automated registry HTTP lookup (e.g. WA SOS name search)."""
+
     state: str
     provider: str
     query_used: str
-    outcome: Literal["hit", "no_results", "error", "skipped_not_wa", "skipped_not_entity"]
+    outcome: Literal[
+        "hit",
+        "no_results",
+        "error",
+        "skipped_not_wa",
+        "skipped_not_entity",
+        "manual_url_only",
+    ]
     http_status: int | None = None
     raw_result_count: int = 0
     top_match_name: str | None = None
@@ -130,6 +143,7 @@ class RegistryLookupSummary(BaseModel):
     principal_address_line: str | None = None
     detail_http_status: int | None = None
     detail_fetch_error: str | None = None
+    notes: str | None = Field(default=None, description="Human-readable context (not from registry payload).")
 
 
 class VendorContactHint(BaseModel):
@@ -139,6 +153,8 @@ class VendorContactHint(BaseModel):
 
 
 class VendorLookupSummary(BaseModel):
+    """Normalized response from an optional outbound vendor webhook."""
+
     provider: str = "webhook"
     outcome: Literal["hit", "skipped_no_url", "skipped_disabled", "error"]
     http_status: int | None = None
@@ -148,6 +164,11 @@ class VendorLookupSummary(BaseModel):
 
 
 class OwnerOutreachBrief(BaseModel):
+    """
+    Agent output: who we think owns the lot (from enrichment) and how to contact them.
+    Deterministic v1 rules; swap in vendor / LLM enrichment later without changing the shape.
+    """
+
     schema_version: str = "2"
     county_fips: str
     apn: str
@@ -162,7 +183,29 @@ class OwnerOutreachBrief(BaseModel):
     compliance_notes: list[str] = Field(default_factory=list)
     registry_lookup: RegistryLookupSummary | None = None
     vendor_lookup: VendorLookupSummary | None = None
-    computed_at: datetime | None = None
+    normalized_owner_key: str | None = Field(
+        default=None,
+        description="US-state-scoped dedupe key for portfolio rollup (see enrichment.normalize).",
+    )
+    same_owner_qualified_other_count: int | None = Field(
+        default=None,
+        description=(
+            "Other parcels in DB with same normalized_owner_key whose latest entitlement score "
+            "meets pilot floor."
+        ),
+    )
+    same_owner_peer_examples: list[str] = Field(
+        default_factory=list,
+        description='Short labels e.g. "53033 / 1234567890" for peer parcels.',
+    )
+    manual_research_checklist: list[str] = Field(
+        default_factory=list,
+        description="Human-only OSINT-style prompts (no automated scraping).",
+    )
+    computed_at: datetime | None = Field(
+        default=None,
+        description="UTC timestamp when this brief was last persisted (recompute or pipeline).",
+    )
 
 
 class OutboundMessageChannel(StrEnum):
@@ -193,6 +236,8 @@ OUTREACH_TEMPLATE_PLACEHOLDERS: list[str] = [
 
 
 class OutboundMessageDraft(BaseModel):
+    """A human-reviewable outreach message draft (no sending)."""
+
     channel: OutboundMessageChannel
     to_name: str | None = None
     to_email: str | None = None

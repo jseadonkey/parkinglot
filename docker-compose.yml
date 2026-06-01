@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: parking
       POSTGRES_DB: parking
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -18,7 +18,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
 
   minio:
     image: minio/minio:latest
@@ -27,8 +27,8 @@ services:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio12345
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - miniodata:/data
 
@@ -54,13 +54,20 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       PILOT_CONFIG_PATH: /app/config/pilot.yaml
+      PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+      PILOT_IDENTIFICATION_CONFIG_PATH: /app/config/pilot_identification.yaml
       STORAGE_ENDPOINT: http://minio:9000
       STORAGE_ACCESS_KEY: minio
       STORAGE_SECRET_KEY: minio12345
       STORAGE_BUCKET: parking-drafts
       STORAGE_REGION: us-east-1
+      # Same tokens as worker so /internal/slack/status and test-message match what Beat→worker digests use.
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
+      SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
+      SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:18000:8000"
     volumes:
       - ./config:/app/config:ro
       - ./data:/app/data:ro
@@ -71,18 +78,34 @@ services:
         condition: service_started
       minio:
         condition: service_started
+    healthcheck:
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)",
+        ]
 
   worker:
     build:
       context: .
       dockerfile: Dockerfile.backend
     command: ["celery", "-A", "app.celery_app", "worker", "-l", "INFO"]
+    healthcheck:
+      disable: true
     environment:
       DATABASE_URL: postgresql+psycopg://parking:parking@postgres:5432/parking
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       PILOT_CONFIG_PATH: /app/config/pilot.yaml
+      PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+      PILOT_IDENTIFICATION_CONFIG_PATH: /app/config/pilot_identification.yaml
       STORAGE_ENDPOINT: http://minio:9000
       STORAGE_ACCESS_KEY: minio
       STORAGE_SECRET_KEY: minio12345
@@ -90,6 +113,8 @@ services:
       STORAGE_REGION: us-east-1
       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
       SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
+      SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
+      SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
     volumes:
       - ./config:/app/config:ro
       - ./data:/app/data:ro
@@ -106,12 +131,16 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     command: ["celery", "-A", "app.celery_app", "beat", "-l", "INFO"]
+    healthcheck:
+      disable: true
     environment:
       DATABASE_URL: postgresql+psycopg://parking:parking@postgres:5432/parking
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       PILOT_CONFIG_PATH: /app/config/pilot.yaml
+      PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+      PILOT_IDENTIFICATION_CONFIG_PATH: /app/config/pilot_identification.yaml
       STORAGE_ENDPOINT: http://minio:9000
       STORAGE_ACCESS_KEY: minio
       STORAGE_SECRET_KEY: minio12345
@@ -119,6 +148,47 @@ services:
       STORAGE_REGION: us-east-1
       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
       SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
+      SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
+      SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+
+  slack-socket:
+    # Optional: requires `app.slack_socket_runner` + SLACK_APP_TOKEN / SLACK_SIGNING_SECRET.
+    # Start with: docker compose --profile slack-socket up -d slack-socket
+    profiles:
+      - slack-socket
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    command: ["python", "-m", "app.slack_socket_runner"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://parking:parking@postgres:5432/parking
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      PILOT_CONFIG_PATH: /app/config/pilot.yaml
+      PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+      PILOT_IDENTIFICATION_CONFIG_PATH: /app/config/pilot_identification.yaml
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_ACCESS_KEY: minio
+      STORAGE_SECRET_KEY: minio12345
+      STORAGE_BUCKET: parking-drafts
+      STORAGE_REGION: us-east-1
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
+      SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
+      SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
+      SLACK_APP_TOKEN: ${SLACK_APP_TOKEN:-}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
     volumes:
       - ./config:/app/config:ro
       - ./data:/app/data:ro
@@ -139,7 +209,7 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
     ports:
-      - "3000:3000"
+      - "127.0.0.1:13000:3000"
     depends_on:
       - api
 

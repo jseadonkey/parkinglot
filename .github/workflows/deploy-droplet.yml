@@ -12,11 +12,23 @@
 #
 # Optional Slack ping after a successful deploy:
 #   slack_notify (default false) — POST /internal/slack/test-message from the Droplet
+#   post_slack_tasks (default none) — run scripts/post-deploy-slack.sh on the Droplet to enqueue
+#     digest / qualified-parcels / dual-agent discussion Celery jobs (API + worker must be up)
 #   Repository secret SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY — same value as INTERNAL_API_KEY in deploy/.env when the API enforces it
+#
+# Automatic deploy (no GitHub UI): push to `main` or `cursor/dual-scoring-agents-slack-channel` runs the same job with
+#   verify_public_ready=false, post_slack_tasks=all, use_local_postgis=false (Managed Postgres in deploy/.env). For a
+#   on-VM PostGIS container instead, run workflow_dispatch and set use_local_postgis=true. Adjust branches in `on.push` if needed.
 
 name: Deploy to Droplet
 
 on:
+  push:
+    branches:
+      - main
+      - cursor/dual-scoring-agents-slack-channel
+    paths-ignore:
+      - "ops/deploy-last-run.json"
   workflow_dispatch:
     inputs:
       compose_file:
@@ -28,9 +40,9 @@ on:
           - docker-compose.production.ghcr.yml
           - docker-compose.production.ghcr-full.yml
       verify_public_ready:
-        description: "After compose up, curl PUBLIC_API_URL/ready from the Droplet (needs DNS + TLS)"
+        description: "After compose up, curl PUBLIC_API_URL/ready (needs real DNS + TLS — off if .env still uses example.com)"
         type: boolean
-        default: true
+        default: false
       slack_notify:
         description: "After deploy (and verify if enabled), POST /internal/slack/test-message — needs Slack env on Droplet"
         type: boolean
@@ -44,9 +56,19 @@ on:
         type: string
         default: ""
       use_local_postgis:
-        description: "Also pass -f deploy/docker-compose.postgis-addon.yml (on-droplet PostGIS). Turn off when using only Managed Postgres."
+        description: "Also pass -f deploy/docker-compose.postgis-addon.yml (on-droplet PostGIS). Off when using only Managed Postgres."
         type: boolean
-        default: true
+        default: false
+      post_slack_tasks:
+        description: "After compose up, enqueue Slack Celery tasks via scripts/post-deploy-slack.sh (needs Slack + channels in deploy/.env)"
+        type: choice
+        default: none
+        options:
+          - none
+          - digest
+          - qualified
+          - discussion
+          - all
 
 concurrency:
   group: deploy-droplet-${{ github.ref }}
@@ -55,11 +77,35 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      # Silence GitHub deprecation warning for actions running on Node 20 (until default is Node 24).
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      # Push events have no workflow_dispatch `inputs`; branch sets sane defaults so one job fits both triggers.
+      - name: Resolve deploy options
+        id: opts
+        env:
+          DISP_COMPOSE: ${{ github.event.inputs.compose_file }}
+          DISP_VERIFY: ${{ github.event.inputs.verify_public_ready }}
+          DISP_POSTGIS: ${{ github.event.inputs.use_local_postgis }}
+          DISP_POST_SLACK: ${{ github.event.inputs.post_slack_tasks }}
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "compose_file=docker-compose.production.yml" >> "$GITHUB_OUTPUT"
+            echo "use_local_postgis=false" >> "$GITHUB_OUTPUT"
+            echo "verify_public_ready=false" >> "$GITHUB_OUTPUT"
+            echo "post_slack_tasks=all" >> "$GITHUB_OUTPUT"
+          else
+            echo "compose_file=${DISP_COMPOSE:-docker-compose.production.yml}" >> "$GITHUB_OUTPUT"
+            echo "use_local_postgis=${DISP_POSTGIS:-true}" >> "$GITHUB_OUTPUT"
+            echo "verify_public_ready=${DISP_VERIFY:-true}" >> "$GITHUB_OUTPUT"
+            echo "post_slack_tasks=${DISP_POST_SLACK:-none}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install SSH key
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
 
@@ -69,16 +115,25 @@ jobs:
           ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Ensure remote directory
+      # Repository variables sometimes paste with a trailing newline — breaks rsync/SSH into "bash: /: Is a directory".
+      - name: Sanitize remote path
         run: |
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
-          ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" "mkdir -p '$REMOTE_PATH'"
+          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          CLEAN="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$CLEAN" ] || CLEAN="/opt/parking-acquisition-agents"
+          echo "DEPLOY_REMOTE_PATH=$CLEAN" >> "$GITHUB_ENV"
+          echo "Using DEPLOY_REMOTE_PATH=$CLEAN"
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
+      - name: Ensure remote directory
+        run: |
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" "mkdir -p '$REMOTE_PATH'"
+
       - name: Rsync application
         run: |
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           rsync -az --delete \
             --exclude .git \
             --exclude node_modules \
@@ -89,14 +144,12 @@ jobs:
             --exclude .env \
             --exclude deploy/.env \
             ./ "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}:$REMOTE_PATH/"
-        env:
-          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
       # bash <<EOF requires closing EOF at column 0; YAML-indented EOF breaks the heredoc.
       - name: Require deploy/.env on Droplet
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           USER_HOST="${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}"
           ssh -oBatchMode=yes "$USER_HOST" \
             bash -s -- "$REMOTE_PATH" "$USER_HOST" <<'EOS'
@@ -113,43 +166,67 @@ jobs:
           echo "Then re-run Deploy to Droplet." >&2
           exit 1
           EOS
-        env:
-          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
       - name: Pull GHCR images
-        if: inputs.compose_file == 'docker-compose.production.ghcr.yml' || inputs.compose_file == 'docker-compose.production.ghcr-full.yml'
+        if: steps.opts.outputs.compose_file == 'docker-compose.production.ghcr.yml' || steps.opts.outputs.compose_file == 'docker-compose.production.ghcr-full.yml'
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
-          COMPOSE_FILE="deploy/${{ inputs.compose_file }}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          COMPOSE_FILE="deploy/${{ steps.opts.outputs.compose_file }}"
           PG_EXTRA=""
-          if ${{ inputs.use_local_postgis }}; then
+          if [ "${{ steps.opts.outputs.use_local_postgis }}" = "true" ]; then
             PG_EXTRA="-f deploy/docker-compose.postgis-addon.yml"
           fi
           ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             "set -euo pipefail && cd '$REMOTE_PATH' && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env pull"
-        env:
-          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
       - name: Docker compose up
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
-          COMPOSE_FILE="deploy/${{ inputs.compose_file }}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          COMPOSE_FILE="deploy/${{ steps.opts.outputs.compose_file }}"
           PG_EXTRA=""
-          if ${{ inputs.use_local_postgis }}; then
+          if [ "${{ steps.opts.outputs.use_local_postgis }}" = "true" ]; then
             PG_EXTRA="-f deploy/docker-compose.postgis-addon.yml"
           fi
           ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             "set -euo pipefail && cd '$REMOTE_PATH' && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --build && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env ps"
-        env:
-          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
-      - name: Verify /ready (on Droplet)
-        if: inputs.verify_public_ready
+      # Do not fail the whole deploy if Slack enqueue fails (containers are already updated).
+      - name: Enqueue Slack tasks (post-deploy script)
+        id: post_slack
+        continue-on-error: true
+        if: steps.opts.outputs.post_slack_tasks != 'none'
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          MODE="${{ steps.opts.outputs.post_slack_tasks }}"
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            bash -s -- "$REMOTE_PATH" "$MODE" <<'EOS'
+          set -euo pipefail
+          REMOTE_PATH="$1"
+          MODE="$2"
+          cd "$REMOTE_PATH"
+          test -f deploy/.env
+          test -f scripts/post-deploy-slack.sh
+          # Avoid exit 126 if +x is stripped on rsync / filesystem — bash runs without execute bit.
+          bash scripts/post-deploy-slack.sh "$MODE"
+          EOS
+
+      - name: Post-deploy Slack status
+        if: steps.opts.outputs.post_slack_tasks != 'none' && always()
+        run: |
+          if [ "${{ steps.post_slack.outcome }}" = "success" ]; then
+            echo "Post-deploy Slack enqueue: OK"
+          else
+            echo "::warning::Post-deploy Slack enqueue failed — check api/worker logs on the Droplet and re-run digest manually."
+          fi
+
+      - name: Verify /ready (on Droplet)
+        if: steps.opts.outputs.verify_public_ready == 'true'
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             bash -s -- "$REMOTE_PATH" <<'EOS'
           set -euo pipefail
@@ -167,13 +244,10 @@ jobs:
           curl -fsSk --connect-timeout 15 --max-time 30 "$BASE/ready"
           echo
           EOS
-        env:
-          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
       - name: Notify Slack (internal API)
-        if: inputs.slack_notify
+        if: github.event_name == 'workflow_dispatch' && inputs.slack_notify
         env:
-          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
           SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
         run: |
           set -euo pipefail
@@ -198,7 +272,7 @@ jobs:
           print(json.dumps(body))
           PY
           )
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             bash -s -- "$REMOTE_PATH" "$PAYLOAD_JSON" "$KEY" <<'EOS'

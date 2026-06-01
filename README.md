@@ -2,7 +2,13 @@
 
 Multi-service system to score pilot parcels for paid parking suitability, enrich owner context, produce deal memos and contract drafts, with **human approval gates** before any outbound communication or contract execution.
 
-CI runs on pushes and pull requests via [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+CI runs via [`.github/workflows/ci.yml`](.github/workflows/ci.yml): **pull requests** (all branches) and **pushes to `main`** (not duplicate runs on every PR push): **Ruff** (Python packages plus [`scripts/`](scripts/)), **pytest** for [`services/api`](services/api), a **`scripts/export_openapi_json.py`** step (writes and validates JSON; **artifact** `openapi` on the workflow run for download), Docker **smoke builds** for API + approval UI images, **Compose config** validation, and **`bash -n`** on shell helpers (phase runners and [`scripts/ci-api-local.sh`](scripts/ci-api-local.sh)). The **`test-api`** job **caches pip** from workspace `pyproject.toml` files to speed installs.
+
+**Same checks on your laptop:** `make api-ci` or [`./scripts/ci-api-local.sh`](scripts/ci-api-local.sh). That mirrors **lint** + **`test-api`** (Ruff, pytest, then OpenAPI JSON export smoke — creates a `.venv` at the repo root on first run; requires network for `pip` until dependencies are installed). Pass through pytest options, e.g. `./scripts/ci-api-local.sh tests/test_openapi.py -v`.
+
+**API contracts:** interactive docs at `/docs`, machine-readable schema at `/openapi.json`. [`services/api/tests/test_openapi.py`](services/api/tests/test_openapi.py) asserts routes and response schema refs stay aligned. To snapshot the schema (e.g. for codegen or diff), use **`make openapi-export`** or `python3 scripts/export_openapi_json.py` with the same Python env as **`make api-ci`**.
+
+**Rollout vs repo:** what is automated in code versus what operators still run on live infra or GIS is summarized in [docs/PHASED-EXECUTION-PLAN-A-E.md](docs/PHASED-EXECUTION-PLAN-A-E.md) (“Where we are — repo vs operations”) and the batched checklist [docs/OPERATOR-TODO-BUNDLE.md](docs/OPERATOR-TODO-BUNDLE.md).
 
 **Pilot region:** Washington State — Puget Sound counties (King, Snohomish, Pierce) in [`config/pilot.yaml`](config/pilot.yaml). Public GIS entry points: [`docs/washington-data.md`](docs/washington-data.md).
 
@@ -20,7 +26,8 @@ Postgres + PostGIS, Redis, Celery worker, MinIO (S3-compatible for Spaces), Fast
 
 ## Layout
 
-- `config/pilot.yaml` — pilot FIPS, deal type, scoring weights, compliance flags
+- `config/pilot.yaml` — pilot FIPS, deal type, scoring weights, compliance flags  
+- `config/pilot_strategic.yaml` / `config/pilot_identification.yaml` — Beacon (pipeline) and Cartographer (ingest prescreen) scoring profiles
 - `packages/core` — shared Pydantic models and pilot config loader
 - `services/ingestion`, `scoring`, `enrichment`, `workflows` — domain packages
 - `services/api` — HTTP API and Alembic migrations
@@ -34,7 +41,7 @@ Infrastructure as code: [infra/terraform/README.md](infra/terraform/README.md) (
 
 **Washington go-live runbook** (DNS, TLS, `.env`, compose): [docs/GO-LIVE-WASHINGTON-DO.md](docs/GO-LIVE-WASHINGTON-DO.md).
 
-Production compose (no laptop required): [deploy/README.md](deploy/README.md). **On the Droplet** the repo usually lives at **`/opt/parking-acquisition-agents`** (override with `REMOTE_PATH` / `DROPLET_REMOTE_PATH` — see that README).
+Production compose (no laptop required): [deploy/README.md](deploy/README.md). **On the Droplet** use repo root **`/opt/parking-acquisition-agents`** ([docs/DROPLET_REPO_PATH.md](docs/DROPLET_REPO_PATH.md); override with `REMOTE_PATH` / `DROPLET_REMOTE_PATH` if needed).
 
 Closest DO region to Washington is **`sfo3`** (no Seattle datacenter); use the same region for Droplet, Postgres, and Spaces.
 
@@ -42,7 +49,9 @@ Closest DO region to Washington is **`sfo3`** (no Seattle datacenter); use the s
 
 Production runbook: [docs/OPERATIONS.md](docs/OPERATIONS.md) (health vs ready, logs, deploy scripts, uptime checks).
 
-**Shortcuts:** `make help` (see [Makefile](Makefile)).
+**Phased rollout (stakeholder CSV → zoning overlay → outreach → multi-county):** status table in [docs/PHASED-EXECUTION-PLAN-A-E.md](docs/PHASED-EXECUTION-PLAN-A-E.md) (“Where we are — repo vs operations”). Batch your Droplet/GIS/vendor todos in [docs/OPERATOR-TODO-BUNDLE.md](docs/OPERATOR-TODO-BUNDLE.md).
+
+**Shortcuts:** `make help` (see [Makefile](Makefile)); `make api-ci` runs Ruff + pytest like CI; `make openapi-export` prints the OpenAPI schema; `make operator-todos` prints the bundle path.
 
 **CI deploy:** GitHub Actions → Droplet over SSH — [docs/GITHUB-DEPLOY.md](docs/GITHUB-DEPLOY.md).
 
@@ -50,7 +59,7 @@ Production runbook: [docs/OPERATIONS.md](docs/OPERATIONS.md) (health vs ready, l
 
 **Dependabot:** [`.github/dependabot.yml`](.github/dependabot.yml) for Actions updates.
 
-**Slack (optional):** 4-hour digest to a channel via Celery Beat + worker — [docs/SLACK.md](docs/SLACK.md). Local env merge: `make slack-env-local` (export `SLACK_BOT_TOKEN` and `SLACK_DIGEST_CHANNEL_ID` first).
+**Slack (optional):** recurring digest to a channel every **20 minutes (UTC)** via Celery Beat + worker — [docs/SLACK.md](docs/SLACK.md). Local env merge: `make slack-env-local` (export `SLACK_BOT_TOKEN` and `SLACK_DIGEST_CHANNEL_ID` first).
 
 ## Legal
 

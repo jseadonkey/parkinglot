@@ -10,6 +10,21 @@ Use licensed parcel vendors for production; these are **starting points** for Ki
 | Snohomish | 53061 | County GIS / assessor portals (verify current URLs and ToS) |
 | Pierce    | 53053 | County GIS / assessor portals |
 
+### WaTech — Washington State Parcels (free statewide layer)
+
+The **Washington State Parcels Project** publishes a **normalized** statewide parcel polygon layer (participating counties). Public **ArcGIS FeatureServer**:
+
+`https://services.arcgis.com/jsIt88o09Q0r1j8h/arcgis/rest/services/Previous_Parcels/FeatureServer/0`
+
+Overview: [Washington State Parcels on geo.wa.gov](https://geo.wa.gov/datasets/watech::washington-state-parcels-parcels-current/about).
+
+**This repo**
+
+- **CLI:** [`scripts/fetch_wa_opendata_parcels.py`](../scripts/fetch_wa_opendata_parcels.py) — writes county-filtered GeoJSON (`--max-features` caps trial pulls).
+- **Worker:** `POST /internal/ingest/watech-county` — JSON `{"county_fips":"53033","max_features":5000,"auto_run_pipeline":true}` enqueues download + ingest. Poll `GET /internal/tasks/{fetch_task_id}`; result payload includes `ingest_task_id` when done.
+
+Use **`max_features`** for short experiments; full counties require many paginated requests.
+
 ## State business registry (entities)
 
 - [Washington Secretary of State — Corporations](https://ccfs.sos.wa.gov/) for entity verification when enriching owners.
@@ -21,6 +36,14 @@ Zoning is **municipal** in Washington (city + county). Map county open GIS + cit
 ## DigitalOcean region
 
 There is **no Seattle DO datacenter**. Use **`sfo3`** (or `sfo2`) for lowest latency from Washington to DigitalOcean; droplet, managed Postgres, and Spaces should use the **same region slug** for simpler networking and Spaces colocation.
+
+## Submarket boundary (Kent city)
+
+For **Kent-only** scoring without depending on zoning portal URLs, use the bundled **city limit** polygon:
+
+- **`data/boundaries/wa/kent_city_census_places.geojson`** — Kent city incorporated place (EPSG:4326), sourced from US Census TIGERweb (see `data/boundaries/README.md` for refresh steps).
+
+Intersect parcel footprints with this geometry in PostGIS (or pre-filter exports) to restrict pipelines to the south-end anchor city.
 
 ## Getting parcel lots into the app (GeoJSON)
 

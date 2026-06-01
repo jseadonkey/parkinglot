@@ -1,0 +1,36 @@
+My SSH command: ssh root@209.38.142.108
+
+=== Handoff / synopsis (edit below) ===
+
+
+--- Synopsis (parking acquisition stack) — appended by agent ---
+
+## Goals
+
+- Operational visibility: recurring Slack "agent standup" digest (~every 20 minutes UTC) summarizing ingest, scoring/pipeline activity, approvals, and recent audit activity.
+- Between-digest momentum: maintenance tick (~15 minutes by default) enqueues pipeline work for parcels that still need scoring/enrichment.
+- Deal-quality signals: parking suitability + benchmark hourly rates (pilot YAML comps + optional Postgres parking_rate_comps).
+- Owner/outreach: persist owner_outreach_brief and related flows from the pipeline.
+- Reliability: SLACK_* on api + worker + beat; internal routes (status, last-digest, digest-preview, digest-now, test-message); CI/workflows; scripts to verify API→Slack vs worker→Slack.
+
+## What we mean by "agents"
+
+- Not one Slack chatbot. The system is services + Celery: Beat schedules slack_agent_digest and enqueue_unscored_pipelines_tick; the worker runs those plus run_parcel_pipeline, ingest, scoring, enrichment, workflows.
+- Digest content is built from Postgres (operator standup), not a generic LLM chat loop.
+- Owner outreach helper (parking_enrichment) builds OwnerOutreachBrief.
+- Optional Slack Socket Mode /parking is separate from digests.
+
+## Progress (high level)
+
+- Scheduling, scoring/comps merge, migrations (parking_rate_comps, owner_outreach_brief), internal APIs, compose env on api for Slack, retries/audit on digest, docs, CI droplet workflows, smoke/alembic helper scripts, rsync excludes for caches.
+
+## On the Droplet / next ops
+
+- Recreate api + worker + beat after env/code changes; deploy/.env has SLACK_*, DATABASE_URL, etc.
+- Prove Slack: POST /internal/slack/test-message (API→Slack), then POST /internal/slack/digest-now and GET /internal/tasks/{id} (worker→Slack).
+- GitHub: DROPLET_* secrets; optional SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY; MAX_DIGEST_AGE_HOURS for digest health.
+
+## Repo path on server (typical)
+
+- /opt/parking-acquisition-agents if you rsync/deploy there; this file is under /root/parking-handoff for easy personal notes.
+

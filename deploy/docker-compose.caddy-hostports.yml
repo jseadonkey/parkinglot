@@ -1,0 +1,11 @@
+# Pin Caddy to host 80/443 when published ports show empty in `docker ps`
+# despite compose config listing ports (merge/interpolation quirks on some hosts).
+#
+# Usage from repo root:
+#   docker compose -f deploy/docker-compose.production.yml -f deploy/docker-compose.caddy-hostports.yml --env-file deploy/.env up -d --force-recreate caddy
+
+services:
+  caddy:
+    ports:
+      - "80:80"
+      - "443:443"

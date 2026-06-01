@@ -7,7 +7,14 @@
 
 {$UI_HOST} {
 	encode gzip
-	reverse_proxy approval-ui:3000
+	# OR segments: `/operator/*` alone does not match bare `/operator` or `/operator/` (Caddy path docs).
+	@operator path /operator /operator/ /operator/*
+	handle @operator {
+		reverse_proxy operator-console:3000
+	}
+	handle {
+		reverse_proxy approval-ui:3000
+	}
 }
 
 {$API_HOST} {

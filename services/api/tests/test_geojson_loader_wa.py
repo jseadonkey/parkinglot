@@ -42,3 +42,23 @@ def test_loader_accepts_classic_apn_keys() -> None:
     assert attrs["apn"] == "123-456-789"
     assert attrs["lot_sqft"] == 6000.0
     assert attrs["zoning_allows_surface_parking"] is True
+
+
+def test_loader_tri_state_missing_zoning_allow_uses_rules_default() -> None:
+    fc = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]},
+                "properties": {
+                    "APN": "999",
+                    "COUNTY_FIPS": "53033",
+                    "ZONING": "UNMAPPED-ZONE",
+                    "ZONING_JURISDICTION": "kent_city",
+                },
+            }
+        ],
+    }
+    attrs, _ = list(iter_parcels_from_geojson_dict(fc))[0]
+    assert attrs["zoning_allows_surface_parking"] is False

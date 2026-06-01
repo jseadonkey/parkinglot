@@ -1,7 +1,14 @@
 .env
 .env.local
+.env.github
+.env.github.*
 deploy/.env
+# Droplet-side backups from db_url merge scripts — may contain DATABASE_URL; never commit
+deploy/.env*.bak*
+deploy/.env.env.bak.*
 .venv
+# Accidental root snapshot from export_openapi_json.py -o openapi.json
+/openapi.json
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -13,6 +20,7 @@ out/
 dist/
 *.egg-info/
 .DS_Store
+*.swp
 terraform.tfstate
 terraform.tfstate.*
 *.tfvars

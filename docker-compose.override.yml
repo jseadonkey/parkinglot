@@ -1,0 +1,12 @@
+services:
+  # Bind all service ports to localhost so nothing is publicly reachable.
+  # Access via SSH port-forwarding:
+  #   ssh -L 3000:localhost:3000 -L 8000:localhost:8000 cursor@<droplet-ip>
+  api:
+    ports:
+      - "127.0.0.1:18000:8000"
+
+  approval-ui:
+    ports:
+      - "127.0.0.1:13000:3000"
+

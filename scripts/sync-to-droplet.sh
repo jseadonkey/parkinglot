@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Rsync repo to a DigitalOcean Droplet (from your laptop). Example:
+#   DROPLET=203.0.113.10 ./scripts/sync-to-droplet.sh
+# Override path if needed:
 #   DROPLET=203.0.113.10 REMOTE_PATH=/opt/parking-acquisition-agents ./scripts/sync-to-droplet.sh
 set -euo pipefail
 

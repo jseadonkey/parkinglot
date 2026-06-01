@@ -107,6 +107,8 @@ class ParcelScore(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     parcel_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("parcels.id", ondelete="CASCADE"))
+    # entitlement = zoning-forward (pilot.yaml); strategic = demand/visibility-forward (pilot_strategic.yaml)
+    score_profile: Mapped[str] = mapped_column(String(32), nullable=False, default="entitlement")
     total_score: Mapped[float] = mapped_column(Float, nullable=False)
     breakdown: Mapped[dict] = mapped_column(JSONB, nullable=False)
     pilot_snapshot: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -125,6 +127,7 @@ class OwnerCandidateRow(Base):
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
     source: Mapped[str] = mapped_column(String(128), nullable=False)
     raw: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    normalized_owner_key: Mapped[str | None] = mapped_column(String(256), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     parcel: Mapped[Parcel] = relationship(back_populates="owners")
@@ -152,7 +155,11 @@ class WorkflowRun(Base):
     current_step: Mapped[str | None] = mapped_column(String(64), nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
 
 
 class ApprovalRequest(Base):

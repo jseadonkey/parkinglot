@@ -28,6 +28,7 @@ class ParcelScoreRead(BaseModel):
 
     id: uuid.UUID
     parcel_id: uuid.UUID
+    score_profile: str
     total_score: float
     breakdown: dict[str, Any]
     pilot_snapshot: dict[str, Any] | None
@@ -75,6 +76,25 @@ class WorkflowRunRead(BaseModel):
     updated_at: datetime
 
 
+class IngestWatechCountyRequest(BaseModel):
+    """Fetch WaTech statewide ArcGIS parcels for one county, then enqueue ingest (Celery worker)."""
+
+    county_fips: str = Field(
+        min_length=5,
+        max_length=5,
+        pattern=r"^53\d{3}$",
+        description="Washington 5-digit county FIPS (e.g. 53033 King).",
+    )
+    max_features: int | None = Field(
+        default=5000,
+        ge=1,
+        le=750000,
+        description="Cap returned parcels per job (full counties can be huge).",
+    )
+    auto_run_pipeline: bool = True
+    max_auto_pipeline: int = Field(default=100, ge=1, le=5000)
+
+
 class IngestGeojsonServerPathRequest(BaseModel):
     """Absolute path on the API/worker host to a GeoJSON file (e.g. rsynced to the Droplet)."""
 
@@ -86,6 +106,264 @@ class IngestGeojsonServerPathRequest(BaseModel):
     @field_validator("path")
     @classmethod
     def path_sanity(cls, v: str) -> str:
+        if "\x00" in v or "\n" in v or "\r" in v:
+            msg = "invalid path"
+            raise ValueError(msg)
+        parts = Path(v).parts
+        if ".." in parts:
+            msg = "path cannot contain parent directory segments"
+            raise ValueError(msg)
+        return v
+
+
+class GapStat(BaseModel):
+    """Single metric: count and percent of parcel rows."""
+
+    count: int
+    pct: float
+
+
+class CeleryTaskIdResponse(BaseModel):
+    """Async job accepted — poll ``GET /internal/tasks/{task_id}``."""
+
+    task_id: str
+
+
+class ParcelPipelineTaskResponse(BaseModel):
+    """POST /parcels/{parcel_id}/pipeline/run — Celery scoring/enrichment job."""
+
+    task_id: str
+    parcel_id: str
+
+
+class ServiceStatusResponse(BaseModel):
+    """GET /health or /ready — process status and build version (no secrets)."""
+
+    status: str
+    version: str
+
+
+class WaTechCountyQueuedResponse(BaseModel):
+    """WaTech fetch+ingest scheduled on the worker."""
+
+    fetch_task_id: str
+
+
+class EnqueueUnscoredResponse(BaseModel):
+    """Parcels missing entitlement score — pipelines enqueued directly (not a nested Celery task id)."""
+
+    enqueued: int
+    parcel_ids: list[str]
+
+
+class EnqueueIncompleteResponse(BaseModel):
+    """Parcels missing entitlement or strategic score — pipelines enqueued directly."""
+
+    enqueued: int
+    parcel_ids: list[str]
+    mode: str = Field(description="missing_entitlement_or_strategic")
+
+
+class ExportReadinessResponse(BaseModel):
+    """Shape returned by GET /internal/stats/export-readiness (Phase A–C gap diagnostics)."""
+
+    parcel_row_total: int
+    parcels_missing_footprint: GapStat
+    parcels_missing_zoning_code: GapStat
+    parcels_missing_lot_sqft: GapStat
+    parcels_missing_distance_to_nearest_demand_m: GapStat
+    parcels_missing_score_identification: GapStat
+    parcels_missing_score_entitlement: GapStat
+    parcels_missing_score_strategic: GapStat
+    parcels_missing_entitlement_or_strategic: GapStat
+    parcels_missing_owner_outreach_brief: GapStat
+    recommended_next_steps: list[str]
+
+
+class OutreachPipelineRow(BaseModel):
+    """One qualified parcel with latest workflow + outreach pipeline status."""
+
+    parcel_id: str
+    apn: str
+    county_fips: str
+    entitlement_score: float | None
+    identification_score: float | None
+    workflow_run_id: str | None
+    workflow_status: str | None
+    workflow_step: str | None
+    workflow_error: str | None
+    workflow_updated_at: datetime | None
+    has_outreach_brief: bool
+    pending_approval_count: int
+    pipeline_stage: str
+
+
+class OutreachPipelineBoardResponse(BaseModel):
+    """GET /internal/pipeline/outreach-board — qualified lots worth tracking for owner outreach."""
+
+    qualified_min_entitlement_score: float
+    row_count: int
+    rows: list[OutreachPipelineRow]
+
+
+class QualifiedMinScores(BaseModel):
+    """Pilot qualification floors per score profile (from pilot YAML)."""
+
+    entitlement: float
+    strategic: float
+    identification: float
+
+
+class ScoringSummaryResponse(BaseModel):
+    """GET /internal/stats/scoring-summary — counts vs pilot floors."""
+
+    total_parcels: int
+    parcels_with_latest_entitlement_score: int
+    parcels_with_latest_strategic_score: int
+    parcels_with_latest_identification_score: int
+    parcels_with_both_profiles_scored: int
+    qualified_count_entitlement: int
+    qualified_count_strategic: int
+    qualified_count_identification: int
+    qualified_min_score: QualifiedMinScores
+    pilot_region: str
+
+
+class IngestSampleQueuedResponse(BaseModel):
+    """Bundled sample GeoJSON — ingest Celery task queued."""
+
+    task_id: str
+    path: str
+    auto_run_pipeline: bool
+    max_auto_pipeline: int
+
+
+class IngestGeojsonUploadQueuedResponse(BaseModel):
+    """Uploaded GeoJSON — ingest Celery task queued."""
+
+    task_id: str
+    filename: str | None = None
+    default_county_fips: str | None = None
+    auto_run_pipeline: bool
+    max_auto_pipeline: int
+
+
+class IngestGeojsonPathQueuedResponse(BaseModel):
+    """Server filesystem GeoJSON — ingest Celery task queued."""
+
+    task_id: str
+    path: str
+    auto_run_pipeline: bool
+    max_auto_pipeline: int
+
+
+class FullSlackUpdateResponse(BaseModel):
+    """POST /internal/slack/full-update-now — three Slack-related Celery tasks."""
+
+    digest_task_id: str
+    qualified_parcels_task_id: str
+    agent_discussion_task_id: str
+
+
+class SlackDigestPreviewResponse(BaseModel):
+    """GET /internal/slack/digest-preview — Block Kit payload built from DB without posting."""
+
+    hours: int = Field(ge=1, le=24)
+    slack_digest_configured: bool
+    digest_channel_id_set: bool
+    fallback_preview: str
+    blocks: list[dict[str, Any]]
+
+
+class SlackAgentDiscussionMessagePreview(BaseModel):
+    """One dual-agent Slack message (fallback + blocks)."""
+
+    fallback: str
+    blocks: list[dict[str, Any]]
+
+
+class SlackAgentDiscussionPreviewResponse(BaseModel):
+    """GET /internal/slack/agent-discussion-preview — payloads without posting."""
+
+    message_count: int = Field(ge=0)
+    messages: list[SlackAgentDiscussionMessagePreview]
+
+
+class SlackTestMessagePostResponse(BaseModel):
+    """POST /internal/slack/test-message — Slack chat.postMessage ack (subset)."""
+
+    ok: bool
+    ts: str | None = None
+    channel: str | None = None
+
+
+class SlackConfigStatusResponse(BaseModel):
+    """GET /internal/slack/status — booleans only (no secrets)."""
+
+    slack_digest_configured: bool
+    has_bot_token: bool
+    has_digest_channel_id: bool
+    slack_dual_agent_configured: bool
+    has_agent_discussion_channel_id: bool
+    slack_agent_event_updates_enabled: bool
+
+
+class CeleryTaskStatusResponse(BaseModel):
+    """GET /internal/tasks/{task_id} — Celery AsyncResult snapshot."""
+
+    task_id: str
+    state: str
+    ready: bool
+    result: Any | None = None
+    error: str | None = None
+    traceback: str | None = None
+
+
+class PeerParcelSummary(BaseModel):
+    """One parcel in GET /internal/owners/peers-by-key (qualified by latest entitlement)."""
+
+    parcel_id: str
+    apn: str
+    county_fips: str
+    latest_entitlement_score: float
+
+
+class OwnersPeersByKeyResponse(BaseModel):
+    """GET /internal/owners/peers-by-key — qualified parcels sharing an owner key."""
+
+    normalized_owner_key: str
+    qualified_min_entitlement_score: float
+    parcel_count: int
+    parcels: list[PeerParcelSummary]
+
+
+class OwnerPortfolioRankRow(BaseModel):
+    """One row in GET /internal/owners/portfolios-ranked."""
+
+    normalized_owner_key: str
+    qualified_parcel_count: int
+
+
+class OwnersPortfoliosRankedResponse(BaseModel):
+    """GET /internal/owners/portfolios-ranked — keys with multiple qualified parcels."""
+
+    qualified_min_entitlement_score: float
+    min_peers: int
+    portfolios: list[OwnerPortfolioRankRow]
+
+
+class MergeGeojsonAttributesRequest(BaseModel):
+    """Path to GeoJSON whose properties update existing parcels (same loader as full ingest)."""
+
+    path: str = Field(min_length=1, max_length=4096)
+    default_county_fips: str | None = None
+    delete_after: bool = False
+    refresh_pipeline: bool = True
+    max_pipeline: int = Field(default=100, ge=0, le=5000)
+
+    @field_validator("path")
+    @classmethod
+    def merge_path_sanity(cls, v: str) -> str:
         if "\x00" in v or "\n" in v or "\r" in v:
             msg = "invalid path"
             raise ValueError(msg)
