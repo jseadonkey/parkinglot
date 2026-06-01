@@ -66,8 +66,7 @@ done
 echo ""
 echo "=== recreate parkinglot stack (--remove-orphans) ==="
 docker compose "${ARGS[@]}" pull api worker beat redis 2>/dev/null || true
-docker compose "${ARGS[@]}" up -d --remove-orphans --force-recreate redis api worker beat
-docker compose "${ARGS[@]}" up -d --build approval-ui operator-console caddy
+docker compose "${ARGS[@]}" up -d --remove-orphans --build
 docker compose "${ARGS[@]}" ps
 
 echo ""
