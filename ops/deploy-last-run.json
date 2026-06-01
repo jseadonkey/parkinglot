@@ -1,14 +1,14 @@
 {
-  "id": 26769541554,
-  "conclusion": "failure",
+  "id": 26769771287,
+  "conclusion": "success",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "548b2bd8e211181e827bb45720ff67154fb15d9c",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/26769541554",
-  "created_at": "2026-06-01T17:02:04Z",
-  "updated_at": "2026-06-01T17:02:47Z",
-  "display_title": "Complete parking rate comp types and fix API test suite.",
+  "head_sha": "23ee9d798afb94638e17fb083f7d1022993cf982",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/26769771287",
+  "created_at": "2026-06-01T17:06:38Z",
+  "updated_at": "2026-06-01T17:07:45Z",
+  "display_title": "Harden deploy when API is slow to migrate: longer health start period…",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-06-01T17:02:58Z"
+  "snapshot_recorded_at": "2026-06-01T17:07:58Z"
 }
