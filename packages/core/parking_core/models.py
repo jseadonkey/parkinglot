@@ -156,7 +156,7 @@ class VendorLookupSummary(BaseModel):
     """Normalized response from an optional outbound vendor webhook."""
 
     provider: str = "webhook"
-    outcome: Literal["hit", "skipped_no_url", "skipped_disabled", "error"]
+    outcome: Literal["hit", "skipped_no_url", "skipped_disabled", "skipped_tier", "error"]
     http_status: int | None = None
     notes: str | None = None
     contacts: list[VendorContactHint] = Field(default_factory=list)
@@ -173,6 +173,10 @@ class OwnerOutreachBrief(BaseModel):
     county_fips: str
     apn: str
     recorded_owner_one_liner: str
+    owner_research_tier: str | None = Field(
+        default=None,
+        description="basic | enriched — whether vendor webhook enrichment ran for this parcel.",
+    )
     contact_points: list[OwnerContactPoint] = Field(default_factory=list)
     mailing_address_guess: str | None = None
     situs_address_guess: str | None = None
