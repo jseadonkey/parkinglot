@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.celery_app import celery
 from app.config import get_settings
 from app.db.models import AuditLog, Parcel
+from app.db.schema_compat import column_exists
 from app.db.session import get_db
 from app.deps_internal import require_internal_key
 from app.export_readiness import export_readiness_summary
@@ -480,6 +481,13 @@ def peers_by_normalized_owner_key(
     settings = get_settings()
     pilot = load_pilot_config(settings.pilot_config_path)
     floor = float(pilot.scoring.qualified_min_score)
+    if not column_exists(db, "owner_candidates", "normalized_owner_key"):
+        return OwnersPeersByKeyResponse(
+            normalized_owner_key=normalized_owner_key,
+            qualified_min_entitlement_score=floor,
+            parcel_count=0,
+            parcels=[],
+        )
     lim = min(max(limit, 1), 500)
     parcels = list_peer_parcel_summaries(
         db,
@@ -506,6 +514,12 @@ def portfolios_ranked(
     pilot = load_pilot_config(settings.pilot_config_path)
     floor = float(pilot.scoring.qualified_min_score)
     mp = min(max(min_peers, 2), 500)
+    if not column_exists(db, "owner_candidates", "normalized_owner_key"):
+        return OwnersPortfoliosRankedResponse(
+            qualified_min_entitlement_score=floor,
+            min_peers=mp,
+            portfolios=[],
+        )
     lim = min(max(limit, 1), 200)
     rows = rank_owner_portfolios(db, entitlement_floor=floor, min_peers=mp, limit=lim)
     return OwnersPortfoliosRankedResponse(

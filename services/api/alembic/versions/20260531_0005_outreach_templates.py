@@ -11,6 +11,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
+from app.db.migration_util import table_exists
+
 revision: str = "0005"
 down_revision: Union[str, None] = "0004"
 branch_labels: Union[str, Sequence[str], None] = None
@@ -72,6 +74,8 @@ DRAFT — REQUIRES COUNSEL AND HUMAN APPROVAL BEFORE SENDING."""
 
 
 def upgrade() -> None:
+    if table_exists("outreach_templates"):
+        return
     op.create_table(
         "outreach_templates",
         sa.Column("slug", sa.String(length=64), primary_key=True),

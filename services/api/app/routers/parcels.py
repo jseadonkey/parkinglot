@@ -7,6 +7,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore, WorkflowRun
+from app.db.schema_compat import parcel_load_only
 from app.db.session import get_db
 from app.schemas import ParcelPipelineTaskResponse, ParcelRead, ParcelScoreRead, WorkflowRunRead
 from app.scoring_profiles import ENTITLEMENT, ScoreProfile
@@ -42,18 +43,19 @@ def list_parcels(
         )
         stmt = (
             select(Parcel)
+            .options(parcel_load_only(db))
             .where(latest_total >= floor)
             .order_by(Parcel.created_at.desc())
             .limit(lim)
         )
     else:
-        stmt = select(Parcel).order_by(Parcel.created_at.desc()).limit(lim)
+        stmt = select(Parcel).options(parcel_load_only(db)).order_by(Parcel.created_at.desc()).limit(lim)
     return list(db.scalars(stmt))
 
 
 @router.get("/{parcel_id}", response_model=ParcelRead)
 def get_parcel(parcel_id: uuid.UUID, db: Session = Depends(get_db)) -> Parcel:
-    row = db.get(Parcel, parcel_id)
+    row = db.scalars(select(Parcel).options(parcel_load_only(db)).where(Parcel.id == parcel_id)).first()
     if row is None:
         raise HTTPException(status_code=404, detail="parcel not found")
     return row

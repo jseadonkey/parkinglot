@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { bridgeUrl } from "../../lib/paths";
 import { canMutate, useAuth } from "../../lib/useAuth";
 
 type Approval = {
@@ -12,8 +13,6 @@ type Approval = {
   approved_at: string | null;
   created_at: string;
 };
-
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export default function ApprovalsPage() {
   const auth = useAuth();
@@ -27,7 +26,7 @@ export default function ApprovalsPage() {
     setErr(null);
     try {
       const q = filter === "pending" ? "?status=pending" : "";
-      const res = await fetch(`${apiBase}/approvals${q}`, { cache: "no-store" });
+      const res = await fetch(bridgeUrl(`approvals${q}`), { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as Approval[];
       setItems(data);
@@ -42,7 +41,7 @@ export default function ApprovalsPage() {
 
   async function decide(id: string, action: "approve" | "reject") {
     setErr(null);
-    const res = await fetch(`${apiBase}/approvals/${id}/${action}`, {
+    const res = await fetch(bridgeUrl(`approvals/${id}/${action}`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ approved_by: actor, note: null }),

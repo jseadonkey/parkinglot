@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { bridgeUrl } from "../../lib/paths";
+
 type ParcelRow = {
   id: string;
   apn: string;
@@ -12,8 +14,6 @@ type ParcelRow = {
   created_at: string;
 };
 
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-
 export default function ParcelsPage() {
   const [limit, setLimit] = useState(50);
   const [rows, setRows] = useState<ParcelRow[]>([]);
@@ -22,7 +22,7 @@ export default function ParcelsPage() {
   const load = useCallback(async () => {
     setErr(null);
     try {
-      const res = await fetch(`${apiBase}/parcels?limit=${limit}`, { cache: "no-store" });
+      const res = await fetch(bridgeUrl(`parcels?limit=${limit}`), { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as ParcelRow[];
       setRows(data);

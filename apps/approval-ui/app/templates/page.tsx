@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { AdminNav } from "../components/AdminNav";
-import { apiBase } from "../lib/api";
+import { apiUrl } from "../lib/api";
 
 type TemplateSummary = {
   slug: string;
@@ -35,7 +35,7 @@ export default function TemplatesPage() {
   const selected = templates.find((t) => t.slug === selectedSlug) ?? null;
 
   const loadMeta = useCallback(async () => {
-    const res = await fetch(`${apiBase}/outreach-templates/meta`, { cache: "no-store" });
+    const res = await fetch(apiUrl("outreach-templates/meta"), { cache: "no-store" });
     if (!res.ok) {
       return;
     }
@@ -45,7 +45,7 @@ export default function TemplatesPage() {
 
   const loadTemplates = useCallback(async () => {
     setError(null);
-    const res = await fetch(`${apiBase}/outreach-templates`, { cache: "no-store" });
+    const res = await fetch(apiUrl("outreach-templates"), { cache: "no-store" });
     if (!res.ok) {
       setError(`Failed to load templates (${res.status})`);
       return;
@@ -61,7 +61,7 @@ export default function TemplatesPage() {
     setError(null);
     setSaved(null);
     setPreview(null);
-    const res = await fetch(`${apiBase}/outreach-templates/${slug}`, { cache: "no-store" });
+    const res = await fetch(apiUrl(`outreach-templates/${slug}`), { cache: "no-store" });
     if (!res.ok) {
       setError(`Failed to load template (${res.status})`);
       return;
@@ -88,7 +88,7 @@ export default function TemplatesPage() {
     }
     setError(null);
     setSaved(null);
-    const res = await fetch(`${apiBase}/outreach-templates/${selectedSlug}`, {
+    const res = await fetch(apiUrl(`outreach-templates/${selectedSlug}`), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -111,7 +111,7 @@ export default function TemplatesPage() {
       return;
     }
     setError(null);
-    const res = await fetch(`${apiBase}/outreach-templates/${selectedSlug}/preview`, {
+    const res = await fetch(apiUrl(`outreach-templates/${selectedSlug}/preview`), {
       method: "POST",
     });
     if (!res.ok) {

@@ -15,7 +15,7 @@ type Approval = {
   created_at: string;
 };
 
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { apiUrl } from "./lib/api";
 
 export default function Home() {
   const auth = useAuth();
@@ -26,7 +26,7 @@ export default function Home() {
 
   const load = useCallback(async () => {
     setError(null);
-    const res = await fetch(`${apiBase}/approvals?status=pending`, { cache: "no-store" });
+    const res = await fetch(apiUrl("approvals?status=pending"), { cache: "no-store" });
     if (!res.ok) {
       setError(`Failed to load approvals (${res.status})`);
       return;
@@ -41,7 +41,7 @@ export default function Home() {
 
   async function decide(id: string, action: "approve" | "reject") {
     setError(null);
-    const res = await fetch(`${apiBase}/approvals/${id}/${action}`, {
+    const res = await fetch(apiUrl(`approvals/${id}/${action}`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ approved_by: actor, note: null }),
