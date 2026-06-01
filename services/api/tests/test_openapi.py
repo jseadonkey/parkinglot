@@ -54,6 +54,7 @@ def test_openapi_lists_required_paths_and_response_models() -> None:
             "/parcels/{parcel_id}",
             "/parcels/{parcel_id}/score",
             "/parcels/{parcel_id}/outreach",
+            "/parcels/{parcel_id}/outreach/drafts",
             "/parcels/{parcel_id}/outreach/attempts",
             "/outreach-templates",
             "/outreach-templates/meta",

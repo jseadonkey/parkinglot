@@ -514,6 +514,22 @@ class OutreachTemplateMeta(BaseModel):
     placeholders: list[str]
 
 
+class ParcelOutreachDraftRead(BaseModel):
+    channel: str
+    template_slug: str
+    to_name: str | None = None
+    to_email: str | None = None
+    to_phone: str | None = None
+    to_mailing_address: str | None = None
+    from_name: str
+    from_company: str | None = None
+    from_email: str | None = None
+    from_phone: str | None = None
+    subject: str | None = None
+    body: str
+    has_recipient: bool = False
+
+
 class SlackTestMessageRequest(BaseModel):
     """One-off Slack message for smoke testing.
 
