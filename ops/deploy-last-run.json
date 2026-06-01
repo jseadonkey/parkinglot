@@ -1,14 +1,14 @@
 {
-  "id": 26767902039,
+  "id": 26768042465,
   "conclusion": "success",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "ced080261aa6923ebd1d5641aa50c463bd75c25b",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/26767902039",
-  "created_at": "2026-06-01T16:29:55Z",
-  "updated_at": "2026-06-01T16:30:40Z",
-  "display_title": "Fix slack-digest-now workflow: inline curl (no remote script path)",
+  "head_sha": "7d7b6168c73a42b9df4ab18cd1998fe59760e7a1",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/26768042465",
+  "created_at": "2026-06-01T16:32:37Z",
+  "updated_at": "2026-06-01T16:33:17Z",
+  "display_title": "Fix morning CI failures: AdminNav import path and Droplet check scripts.",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-06-01T16:30:52Z"
+  "snapshot_recorded_at": "2026-06-01T16:33:29Z"
 }
