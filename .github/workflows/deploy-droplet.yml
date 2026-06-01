@@ -23,12 +23,11 @@
 name: Deploy to Droplet
 
 on:
-  push:
-    branches:
-      - main
-      - cursor/dual-scoring-agents-slack-channel
-    paths-ignore:
-      - "ops/deploy-last-run.json"
+  # Run after GHCR API image is built so `docker pull` gets the commit that was just pushed.
+  workflow_run:
+    workflows: ["Container images"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       compose_file:
@@ -76,14 +75,19 @@ concurrency:
 
 jobs:
   deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     env:
       # Silence GitHub deprecation warning for actions running on Node 20 (until default is Node 24).
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      # Push events have no workflow_dispatch `inputs`; branch sets sane defaults so one job fits both triggers.
+      # workflow_run has no workflow_dispatch `inputs`; branch sets sane defaults so one job fits both triggers.
       - name: Resolve deploy options
         id: opts
         env:
@@ -92,7 +96,7 @@ jobs:
           DISP_POSTGIS: ${{ github.event.inputs.use_local_postgis }}
           DISP_POST_SLACK: ${{ github.event.inputs.post_slack_tasks }}
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
             echo "compose_file=docker-compose.production.ghcr.yml" >> "$GITHUB_OUTPUT"
             echo "use_local_postgis=false" >> "$GITHUB_OUTPUT"
             echo "verify_public_ready=false" >> "$GITHUB_OUTPUT"
@@ -173,9 +177,10 @@ jobs:
           set -euo pipefail
           REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           OWNER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
-          DEFAULT_IMAGE="ghcr.io/${OWNER}/parking-acquisition-api:latest"
+          IMAGE_TAG="${{ github.event.workflow_run.head_sha || github.sha }}"
+          DEFAULT_IMAGE="ghcr.io/${OWNER}/parking-acquisition-api:${IMAGE_TAG}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "REMOTE_PATH=$(printf '%q' "$REMOTE_PATH") DEFAULT_IMAGE=$(printf '%q' "$DEFAULT_IMAGE") bash -c '
+            "REMOTE_PATH=$(printf '%q' "$REMOTE_PATH") DEFAULT_IMAGE=$(printf '%q' "$DEFAULT_IMAGE") IMAGE_TAG=$(printf '%q' "$IMAGE_TAG") bash -c '
           set -euo pipefail
           cd \"$REMOTE_PATH\"
           test -f deploy/.env
