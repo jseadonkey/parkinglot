@@ -14,6 +14,7 @@ from app.db.models import AuditLog, Parcel
 from app.db.schema_compat import column_exists
 from app.db.session import get_db
 from app.deps_internal import require_internal_key
+from app.deal_progress import query_deal_progress_board
 from app.export_readiness import export_readiness_summary
 from app.outreach_board import query_outreach_pipeline_board
 from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
@@ -21,6 +22,9 @@ from app.parcel_scored_list import ParcelSortProfile, query_parcels_scored_list
 from app.schemas import (
     CeleryTaskIdResponse,
     CeleryTaskStatusResponse,
+    DealProgressBoardResponse,
+    DealProgressRow,
+    DealProgressSummary,
     EnqueueIncompleteResponse,
     EnqueueUnscoredResponse,
     ExportReadinessResponse,
@@ -216,6 +220,39 @@ def outreach_pipeline_board(
     ]
     return OutreachPipelineBoardResponse(
         qualified_min_entitlement_score=floor,
+        row_count=len(rows),
+        rows=rows,
+    )
+
+
+@router.get("/pipeline/deal-progress", response_model=DealProgressBoardResponse)
+def deal_progress_board(
+    limit: int = Query(default=200, ge=1, le=2000),
+    db: Session = Depends(get_db),
+) -> DealProgressBoardResponse:
+    """Latest workflow run per parcel — avoids duplicate runs from batch re-triggers."""
+    summary, raw = query_deal_progress_board(db, limit=limit)
+    rows = [
+        DealProgressRow(
+            parcel_id=str(r.parcel_id),
+            apn=r.apn,
+            county_fips=r.county_fips,
+            workflow_run_id=str(r.workflow_run_id),
+            workflow_status=r.workflow_status,
+            workflow_step=r.workflow_step,
+            workflow_error=r.workflow_error,
+            workflow_updated_at=r.workflow_updated_at,
+            pending_approval_count=r.pending_approval_count,
+            pipeline_stage=r.pipeline_stage,
+        )
+        for r in raw
+    ]
+    return DealProgressBoardResponse(
+        summary=DealProgressSummary(
+            total_parcels=summary.total_parcels,
+            by_status=summary.by_status,
+            by_step=summary.by_step,
+        ),
         row_count=len(rows),
         rows=rows,
     )

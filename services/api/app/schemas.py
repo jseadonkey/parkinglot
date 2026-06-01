@@ -206,6 +206,33 @@ class OutreachPipelineBoardResponse(BaseModel):
     rows: list[OutreachPipelineRow]
 
 
+class DealProgressSummary(BaseModel):
+    total_parcels: int
+    by_status: dict[str, int]
+    by_step: dict[str, int]
+
+
+class DealProgressRow(BaseModel):
+    parcel_id: str
+    apn: str
+    county_fips: str
+    workflow_run_id: str
+    workflow_status: str
+    workflow_step: str | None
+    workflow_error: str | None
+    workflow_updated_at: datetime | None
+    pending_approval_count: int
+    pipeline_stage: str
+
+
+class DealProgressBoardResponse(BaseModel):
+    """GET /internal/pipeline/deal-progress — latest workflow state per parcel."""
+
+    summary: DealProgressSummary
+    row_count: int
+    rows: list[DealProgressRow]
+
+
 class ParcelScoredListRow(BaseModel):
     """One parcel with latest entitlement, strategic, and identification scores."""
 

@@ -206,6 +206,69 @@ main.main-wide {
   color: #a0d0ff;
 }
 
+.funnel-panel {
+  margin-top: 1rem;
+}
+
+.funnel-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+}
+
+.funnel-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 4rem;
+}
+
+.funnel-n {
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-wrap {
+  width: 100%;
+}
+
+.progress-track {
+  height: 6px;
+  background: #1e2a3a;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 0.35rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2f5fb8, #5b9cfa);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.progress-fill-err {
+  background: #8a3030;
+}
+
+.progress-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.35rem;
+  font-size: 0.65rem;
+  line-height: 1.2;
+}
+
+.progress-steps .step-current {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.progress-steps .step-done {
+  color: #6a8a6a;
+}
+
 h1 {
   font-size: 1.35rem;
   font-weight: 600;
