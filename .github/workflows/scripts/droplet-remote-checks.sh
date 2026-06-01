@@ -13,7 +13,10 @@ if [[ -n "${BASH_SOURCE[0]:-}" && "${BASH_SOURCE[0]}" != "-" ]]; then
 else
   ROOT="$(pwd)"
 fi
-test -f deploy/.env
+if [ ! -f deploy/.env ]; then
+  echo "FAIL: $(pwd)/deploy/.env not found" >&2
+  exit 1
+fi
 
 BASE=$(grep -E '^PUBLIC_API_URL=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
 if [ -z "$BASE" ]; then

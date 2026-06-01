@@ -36,7 +36,10 @@ jobs:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          echo "Using REMOTE_PATH=$REMOTE_PATH"
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
             "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             "cd $(printf '%q' "$REMOTE_PATH") && bash -s -- slack-inspect deploy/docker-compose.production.ghcr.yml"
