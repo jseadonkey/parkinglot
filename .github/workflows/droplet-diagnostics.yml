@@ -54,5 +54,5 @@ jobs:
           LOG_TAIL="${{ inputs.log_tail }}"
           CURL_READY="${{ inputs.curl_ready }}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "cd $(printf '%q' "$REMOTE_PATH") && bash scripts/remote/droplet-diagnostics.sh \
+            "cd $(printf '%q' "$REMOTE_PATH") && bash .github/workflows/scripts/droplet-remote-checks.sh diagnostics \
             $(printf '%q' "$COMPOSE_REL") $(printf '%q' "$LOG_TAIL") $(printf '%q' "$CURL_READY")"

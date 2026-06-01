@@ -52,5 +52,5 @@ jobs:
           CURL_READY="${{ inputs.curl_ready }}"
           CHECK_SLACK="${{ inputs.check_slack_status }}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "cd $(printf '%q' "$REMOTE_PATH") && bash scripts/remote/droplet-endpoint-checks.sh \
+            "cd $(printf '%q' "$REMOTE_PATH") && bash .github/workflows/scripts/droplet-remote-checks.sh endpoints \
             $(printf '%q' "$CURL_HEALTH") $(printf '%q' "$CURL_READY") $(printf '%q' "$CHECK_SLACK")"

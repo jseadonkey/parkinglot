@@ -44,7 +44,19 @@ jobs:
           MAX_H="${MAX_DIGEST_AGE_HOURS:-2}"
 
           PAYLOAD="$(ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "cd $(printf '%q' "$REMOTE_PATH") && bash scripts/remote/droplet-curl-last-digest.sh $(printf '%q' "$KEY")")"
+            "cd $(printf '%q' "$REMOTE_PATH") && test -f deploy/.env && INTERNAL_KEY=$(printf '%q' "$KEY") bash -c '
+          set -euo pipefail
+          BASE=\$(grep -E \"^PUBLIC_API_URL=\" deploy/.env | head -1 | cut -d= -f2- | tr -d \"\\r\" | sed \"s/^\\\"//;s/\\\"$//\")
+          if [ -z \"\$BASE\" ]; then
+            H=\$(grep -E \"^API_HOST=\" deploy/.env | head -1 | cut -d= -f2- | tr -d \"\\r\" | sed \"s/^\\\"//;s/\\\"$//\")
+            BASE=\"https://\$H\"
+          fi
+          if [ -n \"\${INTERNAL_KEY:-}\" ]; then
+            curl -fsSk --connect-timeout 15 --max-time 60 \"\$BASE/internal/slack/last-digest\" -H \"X-Internal-Key: \$INTERNAL_KEY\"
+          else
+            curl -fsSk --connect-timeout 15 --max-time 60 \"\$BASE/internal/slack/last-digest\"
+          fi
+          '")"
 
           export MAX_H="$MAX_H"
           echo "$PAYLOAD" | python3 <<'PY'

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { AdminNav } from "../components/AdminNav";
+import { AdminNav } from "./components/AdminNav";
 import { canMutate, useAuth } from "../lib/useAuth";
 
 type Approval = {
