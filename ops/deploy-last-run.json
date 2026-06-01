@@ -1,14 +1,14 @@
 {
-  "id": 26767700647,
+  "id": 26767902039,
   "conclusion": "success",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "76967d4e087742ee0850216f9181925e1fa7fc52",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/26767700647",
-  "created_at": "2026-06-01T16:25:59Z",
-  "updated_at": "2026-06-01T16:26:29Z",
-  "display_title": "Fix GHCR deploy: set API_IMAGE on Droplet and restart api/worker/beat…",
+  "head_sha": "ced080261aa6923ebd1d5641aa50c463bd75c25b",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/26767902039",
+  "created_at": "2026-06-01T16:29:55Z",
+  "updated_at": "2026-06-01T16:30:40Z",
+  "display_title": "Fix slack-digest-now workflow: inline curl (no remote script path)",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-06-01T16:26:43Z"
+  "snapshot_recorded_at": "2026-06-01T16:30:52Z"
 }
