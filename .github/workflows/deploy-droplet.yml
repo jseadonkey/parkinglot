@@ -167,6 +167,36 @@ jobs:
           exit 1
           EOS
 
+      - name: Ensure API_IMAGE in deploy/.env (GHCR)
+        if: steps.opts.outputs.compose_file == 'docker-compose.production.ghcr.yml' || steps.opts.outputs.compose_file == 'docker-compose.production.ghcr-full.yml'
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          OWNER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          DEFAULT_IMAGE="ghcr.io/${OWNER}/parking-acquisition-api:latest"
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "REMOTE_PATH=$(printf '%q' "$REMOTE_PATH") DEFAULT_IMAGE=$(printf '%q' "$DEFAULT_IMAGE") bash -c '
+          set -euo pipefail
+          cd \"$REMOTE_PATH\"
+          test -f deploy/.env
+          python3 <<\"PY\"
+          import os
+          import pathlib
+          import re
+
+          root = pathlib.Path.cwd()
+          env_path = root / \"deploy\" / \".env\"
+          text = env_path.read_text(encoding=\"utf-8\")
+          image = os.environ[\"DEFAULT_IMAGE\"]
+          if re.search(r\"^API_IMAGE=\", text, re.M):
+              text = re.sub(r\"^API_IMAGE=.*$\", f\"API_IMAGE={image}\", text, count=1, flags=re.M)
+          else:
+              text = text.rstrip() + f\"\\nAPI_IMAGE={image}\\n\"
+          env_path.write_text(text, encoding=\"utf-8\")
+          print(\"API_IMAGE set to\", image)
+          PY
+          '"
+
       - name: Pull GHCR images
         if: steps.opts.outputs.compose_file == 'docker-compose.production.ghcr.yml' || steps.opts.outputs.compose_file == 'docker-compose.production.ghcr-full.yml'
         run: |
@@ -178,19 +208,26 @@ jobs:
             PG_EXTRA="-f deploy/docker-compose.postgis-addon.yml"
           fi
           ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "set -euo pipefail && cd '$REMOTE_PATH' && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env pull"
+            "set -euo pipefail && cd '$REMOTE_PATH' && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env pull api worker beat"
 
       - name: Docker compose up
         run: |
           set -euo pipefail
           REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           COMPOSE_FILE="deploy/${{ steps.opts.outputs.compose_file }}"
+          COMPOSE_BASENAME="${{ steps.opts.outputs.compose_file }}"
           PG_EXTRA=""
           if [ "${{ steps.opts.outputs.use_local_postgis }}" = "true" ]; then
             PG_EXTRA="-f deploy/docker-compose.postgis-addon.yml"
           fi
+          if [ "$COMPOSE_BASENAME" = "docker-compose.production.ghcr.yml" ] || [ "$COMPOSE_BASENAME" = "docker-compose.production.ghcr-full.yml" ]; then
+            # GHCR: refresh API/worker/beat only (skip approval-ui/operator-console --build failures).
+            UP_CMD="docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --no-build redis api worker beat"
+          else
+            UP_CMD="docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --build"
+          fi
           ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "set -euo pipefail && cd '$REMOTE_PATH' && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env up -d --build && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env ps"
+            "set -euo pipefail && cd '$REMOTE_PATH' && $UP_CMD && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env ps api worker beat"
 
       # Do not fail the whole deploy if Slack enqueue fails (containers are already updated).
       - name: Enqueue Slack tasks (post-deploy script)
