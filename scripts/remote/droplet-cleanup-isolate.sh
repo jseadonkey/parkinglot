@@ -8,8 +8,13 @@
 # removes compose orphans, prunes unused Docker data, recreates the GHCR stack.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+if [[ -n "${BASH_SOURCE[0]:-}" && "${BASH_SOURCE[0]}" != "-" ]]; then
+  ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+else
+  ROOT="$(pwd)"
+fi
 cd "$ROOT"
+test -f deploy/.env
 
 COMPOSE_REL="${COMPOSE_FILE:-deploy/docker-compose.production.ghcr.yml}"
 if [[ ! -f "$COMPOSE_REL" ]]; then
