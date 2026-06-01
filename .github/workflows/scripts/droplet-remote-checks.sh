@@ -256,6 +256,30 @@ print('standup_posted', posted)
       echo ""
     fi
     ;;
+  resources)
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    export COMPOSE_REL
+    ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
+    echo "=== hostname / uptime ==="
+    hostname
+    uptime
+    echo ""
+    echo "=== CPU ==="
+    nproc
+    grep -m1 "model name" /proc/cpuinfo || true
+    echo ""
+    echo "=== memory (free -h) ==="
+    free -h
+    echo ""
+    echo "=== disk (df -h) ==="
+    df -h / /var/lib/docker 2>/dev/null || df -h /
+    echo ""
+    echo "=== docker stats (no stream) ==="
+    docker stats --no-stream "${ARGS[@]}" 2>/dev/null || docker stats --no-stream 2>/dev/null || true
+    echo ""
+    echo "=== compose ps ==="
+    docker compose "${ARGS[@]}" ps 2>/dev/null || true
+    ;;
   *)
     echo "Unknown mode: $MODE" >&2
     exit 2
