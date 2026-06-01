@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { bridgeUrl } from "../../lib/paths";
+import { approvalBodyPreview, approvalDetail, approvalHeadline, approvalRecipient } from "../../lib/approvalLabels";
 import { canMutate, useAuth } from "../../lib/useAuth";
 
 type Approval = {
@@ -65,7 +66,9 @@ export default function ApprovalsPage() {
   return (
     <main>
       <h1>Approvals</h1>
-      <p className="muted">Same approval queue as the standalone approval UI — human gate for memos and contracts.</p>
+      <p className="muted">
+        Human gate for deal memos, contracts, and outbound outreach messages (email, text, voice, mail).
+      </p>
 
       <div className="panel" style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
         <label className="muted">
@@ -107,16 +110,37 @@ export default function ApprovalsPage() {
         {items.length === 0 ? (
           <p className="muted">No rows.</p>
         ) : (
-          items.map((a) => (
+          items.map((a) => {
+            const headline = approvalHeadline(a.type, a.payload);
+            const recipient = approvalRecipient(a.payload);
+            const detail = approvalDetail(a.type, a.payload);
+            const bodyPreview = approvalBodyPreview(a.type, a.payload);
+            return (
             <div key={a.id} className="row">
               <div style={{ flex: 1, minWidth: "200px" }}>
-                <strong>{a.type}</strong>{" "}
+                <strong>{headline}</strong>{" "}
                 <span className="muted">
-                  {a.status} · {a.id.slice(0, 8)}…
+                  {a.type} · {a.status} · {a.id.slice(0, 8)}…
                 </span>
-                <pre className="json" style={{ marginTop: "0.5rem", maxHeight: "120px" }}>
-                  {JSON.stringify(a.payload, null, 2)}
-                </pre>
+                {recipient ? (
+                  <div className="muted" style={{ marginTop: "0.35rem" }}>
+                    To: {recipient}
+                  </div>
+                ) : null}
+                {detail ? (
+                  <div className="muted" style={{ marginTop: "0.25rem" }}>
+                    {detail}
+                  </div>
+                ) : null}
+                {bodyPreview ? (
+                  <pre className="preview-body" style={{ marginTop: "0.5rem", maxHeight: "160px" }}>
+                    {bodyPreview}
+                  </pre>
+                ) : (
+                  <pre className="json" style={{ marginTop: "0.5rem", maxHeight: "120px" }}>
+                    {JSON.stringify(a.payload, null, 2)}
+                  </pre>
+                )}
               </div>
               {a.status === "pending" ? (
                 allowActions ? (
@@ -135,7 +159,8 @@ export default function ApprovalsPage() {
                 <span className="muted">{a.approved_by ?? "—"}</span>
               )}
             </div>
-          ))
+            );
+          })
         )}
       </div>
     </main>

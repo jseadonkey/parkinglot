@@ -10,7 +10,13 @@ from app.audit import write_audit
 from app.db.models import ApprovalRequest
 
 
-def _pending_for_parcel(db: Session, *, approval_type: str, parcel_id: str) -> ApprovalRequest | None:
+def _pending_for_parcel(
+    db: Session,
+    *,
+    approval_type: str,
+    parcel_id: str,
+    payload_match: dict[str, str] | None = None,
+) -> ApprovalRequest | None:
     rows = db.scalars(
         select(ApprovalRequest)
         .where(
@@ -21,9 +27,28 @@ def _pending_for_parcel(db: Session, *, approval_type: str, parcel_id: str) -> A
     ).all()
     for row in rows:
         payload = row.payload or {}
-        if str(payload.get("parcel_id")) == parcel_id:
-            return row
+        if str(payload.get("parcel_id")) != parcel_id:
+            continue
+        if payload_match is not None:
+            if not all(str(payload.get(k)) == v for k, v in payload_match.items()):
+                continue
+        return row
     return None
+
+
+def pending_approval_for(
+    db: Session,
+    *,
+    approval_type: str,
+    parcel_id: str,
+    payload_match: dict[str, str] | None = None,
+) -> ApprovalRequest | None:
+    return _pending_for_parcel(
+        db,
+        approval_type=approval_type,
+        parcel_id=parcel_id,
+        payload_match=payload_match,
+    )
 
 
 def queue_approval(
@@ -33,17 +58,25 @@ def queue_approval(
     payload: dict,
     auto_approve_types: frozenset[str] | None = None,
     actor: str = "system",
+    payload_match: dict[str, str] | None = None,
 ) -> ApprovalRequest | None:
     """Create a pending approval, or skip if one already exists for this parcel+type.
 
     When ``approval_type`` is in ``auto_approve_types``, the row is stored as approved
     immediately (pilot convenience for internal deal memos only).
+
+    ``payload_match`` requires extra payload keys to match (e.g. outreach channel).
     """
     parcel_id = str(payload.get("parcel_id") or "")
     if not parcel_id:
         raise ValueError("approval payload must include parcel_id")
 
-    existing = _pending_for_parcel(db, approval_type=approval_type, parcel_id=parcel_id)
+    existing = _pending_for_parcel(
+        db,
+        approval_type=approval_type,
+        parcel_id=parcel_id,
+        payload_match=payload_match,
+    )
     if existing is not None:
         return None
 

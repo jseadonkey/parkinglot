@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { bridgeUrl } from "../../../lib/paths";
+import { canMutate, useAuth } from "../../../lib/useAuth";
 
 type Parcel = {
   id: string;
@@ -55,6 +56,8 @@ const DRAFT_LABELS: Record<string, string> = {
 };
 
 export default function ParcelDetailPage() {
+  const auth = useAuth();
+  const allowActions = canMutate(auth);
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
   const [parcel, setParcel] = useState<Parcel | null>(null);
@@ -65,6 +68,9 @@ export default function ParcelDetailPage() {
   const [drafts, setDrafts] = useState<OutreachDraft[]>([]);
   const [draftErr, setDraftErr] = useState<string | null>(null);
   const [draftChannel, setDraftChannel] = useState("email");
+  const [requestActor, setRequestActor] = useState("operator@example.com");
+  const [approvalMsg, setApprovalMsg] = useState<string | null>(null);
+  const [requesting, setRequesting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -115,6 +121,31 @@ export default function ParcelDetailPage() {
   }, [id]);
 
   const activeDraft = drafts.find((d) => d.channel === draftChannel) ?? drafts[0] ?? null;
+
+  async function requestApproval(channel: string) {
+    if (!allowActions || !id) return;
+    setApprovalMsg(null);
+    setRequesting(true);
+    try {
+      const res = await fetch(bridgeUrl(`parcels/${id}/outreach/drafts/${channel}/request-approval`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requested_by: requestActor }),
+      });
+      if (res.status === 409) {
+        setApprovalMsg("Already pending approval for this channel — check Approvals.");
+        return;
+      }
+      if (!res.ok) {
+        const detail = await res.text();
+        setApprovalMsg(`Request failed (${res.status}): ${detail}`);
+        return;
+      }
+      setApprovalMsg("Sent to approvals queue for counsel review.");
+    } finally {
+      setRequesting(false);
+    }
+  }
 
   return (
     <main>
@@ -248,6 +279,30 @@ export default function ParcelDetailPage() {
                 </div>
               ) : null}
               <pre className="preview-body">{activeDraft.body}</pre>
+              {allowActions && activeDraft.has_recipient ? (
+                <div className="toolbar-row" style={{ marginTop: "1rem" }}>
+                  <label className="toolbar-field">
+                    <span className="muted">Request as</span>
+                    <input
+                      value={requestActor}
+                      onChange={(e) => setRequestActor(e.target.value)}
+                      placeholder="name@company.com"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={requesting}
+                    onClick={() => void requestApproval(activeDraft.channel)}
+                  >
+                    {requesting ? "Submitting…" : "Request approval to send"}
+                  </button>
+                  <Link href="/approvals" className="btn-link">
+                    View approvals
+                  </Link>
+                </div>
+              ) : null}
+              {approvalMsg ? <div className={approvalMsg.startsWith("Sent") ? "success" : "error"}>{approvalMsg}</div> : null}
             </div>
           ) : parcel.owner_outreach_brief && !draftErr ? (
             <p className="muted">Loading message drafts…</p>

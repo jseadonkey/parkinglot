@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AdminNav } from "./components/AdminNav";
+import { approvalBodyPreview, approvalDetail, approvalHeadline, approvalRecipient } from "../lib/approvalLabels";
 import { canMutate, useAuth } from "../lib/useAuth";
 
 type Approval = {
@@ -88,18 +89,39 @@ export default function Home() {
         {items.length === 0 ? (
           <p className="muted">No pending items. Ingest sample parcels and run a pipeline from the API.</p>
         ) : (
-          items.map((a) => (
+          items.map((a) => {
+            const headline = approvalHeadline(a.type, a.payload);
+            const recipient = approvalRecipient(a.payload);
+            const detail = approvalDetail(a.type, a.payload);
+            const bodyPreview = approvalBodyPreview(a.type, a.payload);
+            return (
             <div key={a.id} className="row">
               <div>
                 <div>
-                  <strong>{a.type}</strong>
+                  <strong>{headline}</strong>
                   <span className="muted" style={{ marginLeft: "0.5rem" }}>
-                    {a.id.slice(0, 8)}…
+                    {a.type} · {a.id.slice(0, 8)}…
                   </span>
                 </div>
-                <div className="muted" style={{ marginTop: "0.25rem" }}>
-                  {JSON.stringify(a.payload)}
-                </div>
+                {recipient ? (
+                  <div className="muted" style={{ marginTop: "0.25rem" }}>
+                    To: {recipient}
+                  </div>
+                ) : null}
+                {detail ? (
+                  <div className="muted" style={{ marginTop: "0.25rem" }}>
+                    {detail}
+                  </div>
+                ) : null}
+                {bodyPreview ? (
+                  <pre className="preview-body" style={{ marginTop: "0.5rem", maxHeight: "160px" }}>
+                    {bodyPreview}
+                  </pre>
+                ) : (
+                  <div className="muted" style={{ marginTop: "0.25rem" }}>
+                    {JSON.stringify(a.payload)}
+                  </div>
+                )}
               </div>
               {allowActions ? (
                 <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -114,7 +136,8 @@ export default function Home() {
                 <span className="muted">—</span>
               )}
             </div>
-          ))
+            );
+          })
         )}
       </div>
       </main>
