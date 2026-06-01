@@ -7,13 +7,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
 
-from sqlalchemy import desc, nulls_last, select
+from sqlalchemy import case, desc, func, nulls_last, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
 
-ParcelSortProfile = Literal["entitlement", "strategic", "identification"]
+ParcelSortProfile = Literal["combined", "entitlement", "strategic", "identification"]
+COMBINED: str = "combined"
 
 
 @dataclass(frozen=True)
@@ -26,7 +27,30 @@ class ParcelScoredRowData:
     entitlement_score: float | None
     strategic_score: float | None
     identification_score: float | None
+    combined_score: float | None
     created_at: datetime
+
+
+def _combined_score_value(
+    entitlement: float | None,
+    strategic: float | None,
+    identification: float | None,
+) -> float | None:
+    parts = [x for x in (entitlement, strategic, identification) if x is not None]
+    if not parts:
+        return None
+    return sum(parts) / len(parts)
+
+
+def _combined_score_sql(ent_sub: Any, str_sub: Any, id_sub: Any) -> Any:
+    """Average of non-null Atlas / Beacon / Cartographer scores (for ORDER BY)."""
+    n = (
+        case((ent_sub.isnot(None), 1), else_=0)
+        + case((str_sub.isnot(None), 1), else_=0)
+        + case((id_sub.isnot(None), 1), else_=0)
+    )
+    total = func.coalesce(ent_sub, 0) + func.coalesce(str_sub, 0) + func.coalesce(id_sub, 0)
+    return total / func.nullif(n, 0)
 
 
 def _latest_score_subq(parcel_id_col: Any, profile: str) -> Any:
@@ -45,7 +69,7 @@ def query_parcels_scored_list(
     db: Session,
     *,
     limit: int,
-    sort: ParcelSortProfile = ENTITLEMENT,
+    sort: ParcelSortProfile = COMBINED,
 ) -> list[ParcelScoredRowData]:
     """All parcels with latest score per profile, ordered by ``sort`` (null scores last)."""
     cap = min(max(limit, 1), 2000)
@@ -53,8 +77,11 @@ def query_parcels_scored_list(
     str_sub = _latest_score_subq(Parcel.id, STRATEGIC)
     id_sub = _latest_score_subq(Parcel.id, IDENTIFICATION)
 
-    sort_col = ent_sub
-    if sort == STRATEGIC:
+    combined_sub = _combined_score_sql(ent_sub, str_sub, id_sub)
+    sort_col = combined_sub
+    if sort == ENTITLEMENT:
+        sort_col = ent_sub
+    elif sort == STRATEGIC:
         sort_col = str_sub
     elif sort == IDENTIFICATION:
         sort_col = id_sub
@@ -77,6 +104,9 @@ def query_parcels_scored_list(
     out: list[ParcelScoredRowData] = []
     for r in db.execute(stmt).all():
         pid, apn, cfips, zoning, sqft, created, ent_f, str_f, id_f = r
+        ent_f = float(ent_f) if ent_f is not None else None
+        str_f = float(str_f) if str_f is not None else None
+        id_f = float(id_f) if id_f is not None else None
         out.append(
             ParcelScoredRowData(
                 parcel_id=pid,
@@ -84,9 +114,10 @@ def query_parcels_scored_list(
                 county_fips=cfips,
                 zoning_code=zoning,
                 lot_sqft=float(sqft) if sqft is not None else None,
-                entitlement_score=float(ent_f) if ent_f is not None else None,
-                strategic_score=float(str_f) if str_f is not None else None,
-                identification_score=float(id_f) if id_f is not None else None,
+                entitlement_score=ent_f,
+                strategic_score=str_f,
+                identification_score=id_f,
+                combined_score=_combined_score_value(ent_f, str_f, id_f),
                 created_at=created,
             ),
         )

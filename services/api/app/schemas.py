@@ -244,6 +244,7 @@ class ParcelScoredListRow(BaseModel):
     entitlement_score: float | None
     strategic_score: float | None
     identification_score: float | None
+    combined_score: float | None
     created_at: datetime
 
 

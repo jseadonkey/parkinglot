@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { bridgeUrl } from "../../lib/paths";
 
-type SortProfile = "entitlement" | "strategic" | "identification";
+type SortProfile = "combined" | "entitlement" | "strategic" | "identification";
 
 type ParcelRow = {
   parcel_id: string;
@@ -16,6 +16,7 @@ type ParcelRow = {
   entitlement_score: number | null;
   strategic_score: number | null;
   identification_score: number | null;
+  combined_score: number | null;
   created_at: string;
 };
 
@@ -31,7 +32,7 @@ function fmtScore(v: number | null): string {
 
 export default function ParcelsPage() {
   const [limit, setLimit] = useState(100);
-  const [sort, setSort] = useState<SortProfile>("entitlement");
+  const [sort, setSort] = useState<SortProfile>("combined");
   const [rows, setRows] = useState<ParcelRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
@@ -59,13 +60,15 @@ export default function ParcelsPage() {
       <h1>Parcels</h1>
       <p className="muted">
         All ingested parcels with latest <strong>Atlas</strong> (entitlement), <strong>Beacon</strong> (strategic), and{" "}
-        <strong>Cartographer</strong> (identification) scores — sorted by the chosen profile (highest first).
+        <strong>Cartographer</strong> (identification) scores. <strong>Combined</strong> is the average of whichever
+        scores exist — default sort is highest combined first.
       </p>
 
       <div className="panel" style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
         <label className="muted">
           Sort by{" "}
           <select value={sort} onChange={(e) => setSort(e.target.value as SortProfile)}>
+            <option value="combined">Combined (avg of agents)</option>
             <option value="entitlement">Entitlement (Atlas)</option>
             <option value="strategic">Strategic (Beacon)</option>
             <option value="identification">Identification (Cartographer)</option>
@@ -92,6 +95,7 @@ export default function ParcelsPage() {
         <table className="data">
           <thead>
             <tr>
+              <th>Combined</th>
               <th>Entitlement</th>
               <th>Strategic</th>
               <th>Identification</th>
@@ -105,6 +109,9 @@ export default function ParcelsPage() {
           <tbody>
             {rows.map((p) => (
               <tr key={p.parcel_id}>
+                <td>
+                  <strong>{fmtScore(p.combined_score)}</strong>
+                </td>
                 <td>{fmtScore(p.entitlement_score)}</td>
                 <td>{fmtScore(p.strategic_score)}</td>
                 <td>{fmtScore(p.identification_score)}</td>
