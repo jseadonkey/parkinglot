@@ -33,7 +33,7 @@ docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}' || true
 echo ""
 
 # Containers that are not part of the current parkinglot compose file but share the deploy project name.
-PARKING_SERVICES="redis api worker beat approval-ui operator-console caddy"
+PARKING_SERVICES="redis api worker worker-slack beat approval-ui operator-console caddy"
 echo "=== stop/remove non-parking containers on this Droplet ==="
 while IFS= read -r name; do
   [[ -z "$name" ]] && continue
@@ -65,7 +65,7 @@ done
 
 echo ""
 echo "=== recreate parkinglot stack (--remove-orphans) ==="
-docker compose "${ARGS[@]}" pull api worker beat redis 2>/dev/null || true
+docker compose "${ARGS[@]}" pull api worker worker-slack beat redis 2>/dev/null || true
 docker compose "${ARGS[@]}" up -d --remove-orphans --build
 docker compose "${ARGS[@]}" ps
 

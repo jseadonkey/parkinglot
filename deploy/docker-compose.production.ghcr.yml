@@ -17,6 +17,12 @@ x-logging: &default-logging
     max-size: "20m"
     max-file: "5"
 
+x-worker-parking-cmd: &worker-parking-cmd
+  ["celery", "-A", "app.celery_app", "worker", "-l", "INFO", "-Q", "parking", "--concurrency=4", "-n", "parking@%h"]
+
+x-worker-slack-cmd: &worker-slack-cmd
+  ["celery", "-A", "app.celery_app", "worker", "-l", "INFO", "-Q", "slack", "--concurrency=1", "-n", "slack@%h"]
+
 x-worker-beat-env: &worker-beat-env
   DATABASE_URL: ${DATABASE_URL}
   REDIS_URL: ${REDIS_URL}
@@ -137,7 +143,23 @@ services:
   worker:
     image: ${API_IMAGE:?Set API_IMAGE to the same API/worker image as the api service}
     restart: always
-    command: ["celery", "-A", "app.celery_app", "worker", "-l", "INFO", "--concurrency=4"]
+    command: *worker-parking-cmd
+    environment:
+      <<: *worker-beat-env
+    volumes:
+      - ../config:/app/config:ro
+      - ../data:/app/data:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    logging: *default-logging
+
+  worker-slack:
+    image: ${API_IMAGE:?Same image as worker — dedicated Slack digest queue}
+    restart: always
+    command: *worker-slack-cmd
     environment:
       <<: *worker-beat-env
     volumes:

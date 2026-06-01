@@ -51,5 +51,5 @@ ARGS=(-f deploy/docker-compose.production.yml -f deploy/docker-compose.postgis-a
 if ! grep -q '^POSTGRES_PASSWORD=' deploy/.env 2>/dev/null; then
   ARGS=(-f deploy/docker-compose.production.yml --env-file deploy/.env)
 fi
-docker compose "${ARGS[@]}" up -d --force-recreate api worker beat approval-ui
+docker compose "${ARGS[@]}" up -d --force-recreate api worker worker-slack beat approval-ui
 EOS

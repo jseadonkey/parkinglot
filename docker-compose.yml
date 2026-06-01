@@ -95,7 +95,42 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    command: ["celery", "-A", "app.celery_app", "worker", "-l", "INFO"]
+    command: ["celery", "-A", "app.celery_app", "worker", "-l", "INFO", "-Q", "parking", "-n", "parking@%h"]
+    healthcheck:
+      disable: true
+    environment:
+      DATABASE_URL: postgresql+psycopg://parking:parking@postgres:5432/parking
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      PILOT_CONFIG_PATH: /app/config/pilot.yaml
+      PILOT_STRATEGIC_CONFIG_PATH: /app/config/pilot_strategic.yaml
+      PILOT_IDENTIFICATION_CONFIG_PATH: /app/config/pilot_identification.yaml
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_ACCESS_KEY: minio
+      STORAGE_SECRET_KEY: minio12345
+      STORAGE_BUCKET: parking-drafts
+      STORAGE_REGION: us-east-1
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
+      SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
+      SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+
+  worker-slack:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    command: ["celery", "-A", "app.celery_app", "worker", "-l", "INFO", "-Q", "slack", "--concurrency=1", "-n", "slack@%h"]
     healthcheck:
       disable: true
     environment:

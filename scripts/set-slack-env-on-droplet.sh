@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Step 3–4: merge Slack vars into remote deploy/.env and restart worker + beat.
+# Step 3–4: merge Slack vars into remote deploy/.env and restart worker, worker-slack, and beat.
 #
 # From your laptop (SSH to the Droplet must work). Example:
 #   export SLACK_BOT_TOKEN='xoxb-...'
@@ -66,13 +66,13 @@ print("Updated", env_path, "with SLACK_* entries.")
 PY
 
 if [[ "$COMPOSE_FILE" == *ghcr* ]]; then
-  docker compose -f "$COMPOSE_FILE" --env-file deploy/.env pull worker beat
-  docker compose -f "$COMPOSE_FILE" --env-file deploy/.env up -d worker beat
+  docker compose -f "$COMPOSE_FILE" --env-file deploy/.env pull worker worker-slack beat
+  docker compose -f "$COMPOSE_FILE" --env-file deploy/.env up -d worker worker-slack beat
 else
-  docker compose -f "$COMPOSE_FILE" --env-file deploy/.env up -d --build worker beat
+  docker compose -f "$COMPOSE_FILE" --env-file deploy/.env up -d --build worker worker-slack beat
 fi
 
-docker compose -f "$COMPOSE_FILE" --env-file deploy/.env ps worker beat
+docker compose -f "$COMPOSE_FILE" --env-file deploy/.env ps worker worker-slack beat
 EOS
 
 echo "Done. Wait for the next scheduled digest, or POST /internal/slack/digest-now to test."

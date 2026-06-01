@@ -12,8 +12,9 @@ The data agents work on here (parcel attributes, scores, workflow status, sample
 
 | Component | Role |
 |-----------|------|
-| **Celery Beat** (`beat` service in compose) | Sends `slack_agent_digest` every **20 minutes** (`minute=*/20` UTC), `slack_qualified_parcels_report` once daily (**14:00 UTC**), and `slack_dual_agent_discussion` once daily (**15:30 UTC**). |
-| **Celery worker** | Executes those tasks: reads Postgres, calls Slack `chat.postMessage` to **`SLACK_DIGEST_CHANNEL_ID`** (digest/verified channel) and optionally **`SLACK_AGENT_DISCUSSION_CHANNEL_ID`** (agents-only channel). |
+| **Celery Beat** (`beat` service in compose) | Sends Slack tasks every **20 minutes** (standup), **daily 14:00 UTC** (qualified parcels), and **daily 15:30 UTC** (dual-agent discussion). |
+| **Celery worker (`worker-slack`)** | Dedicated **`slack`** queue — runs digest/report/discussion tasks so pipeline backlog on `worker` cannot block standups. |
+| **Celery worker (`worker`)** | **`parking`** queue only — pipelines, ingest, scoring batches (does not consume Slack tasks). |
 | **FastAPI** | `POST /internal/slack/digest-now`, `POST /internal/slack/qualified-parcels-now`, and `POST /internal/slack/agent-discussion-now` enqueue the matching tasks (manual test; requires `X-Internal-Key` when `INTERNAL_API_KEY` is set). |
 
 If Slack env is unset, tasks **no-op** (return `skipped` in the task result) so stacks without Slack keep working. The dual-agent discussion needs **`SLACK_BOT_TOKEN`** and **`SLACK_AGENT_DISCUSSION_CHANNEL_ID`**.
@@ -37,7 +38,7 @@ Leave unset in production if you only want the **scheduled digest** (every 20 mi
 4. Open the target channel, run **`/invite @YourBotName`**, or add the app under **Integrations** for that channel.
 5. Copy the **channel ID** (e.g. from channel details / URL) → **`SLACK_DIGEST_CHANNEL_ID`** (usually starts with `C`).
 
-Redeploy so **worker** and **beat** pick up env vars. Rebuild or pull a **new API image** that includes the `slack-sdk` dependency (`services/api/pyproject.toml`).
+Redeploy so **worker**, **worker-slack**, and **beat** pick up env vars. Rebuild or pull a **new API image** that includes the `slack-sdk` dependency (`services/api/pyproject.toml`).
 
 ### One command from your laptop (steps 3 + 4)
 
@@ -53,7 +54,7 @@ export DROPLET='YOUR_DROPLET_IP_OR_HOST'
 ./scripts/set-slack-env-on-droplet.sh
 ```
 
-The script strips any previous `SLACK_*` lines, appends the new ones, then runs `docker compose … up -d` for **worker** and **beat** only (`pull` first when `COMPOSE_FILE` contains `ghcr`). It cannot run from this chat: you need your real token, channel id, and SSH access.
+The script strips any previous `SLACK_*` lines, appends the new ones, then runs `docker compose … up -d` for **worker**, **worker-slack**, and **beat** only (`pull` first when `COMPOSE_FILE` contains `ghcr`). It cannot run from this chat: you need your real token, channel id, and SSH access.
 
 ### Local laptop (repo-root `.env`)
 
@@ -65,7 +66,7 @@ export SLACK_DIGEST_CHANNEL_ID='C…'
 chmod +x scripts/set-slack-env-local.sh
 ./scripts/set-slack-env-local.sh
 # or: make slack-env-local   # same checks + script
-docker compose up -d --build worker beat
+docker compose up -d --build worker worker-slack beat
 ```
 
 Creates **`.env`** from **`.env.example`** if missing, then merges Slack lines.
@@ -80,20 +81,21 @@ With **`X-Internal-Key`** set as for other `/internal/*` routes:
 
 ### Scheduled digest vs “only works when I’m connected”
 
-The **20-minute digest does not use Slack Socket Mode** and does not need your laptop. It is enqueued by the **`beat`** container on the Droplet and executed by **`worker`**.
+The **20-minute digest does not use Slack Socket Mode** and does not need your laptop. It is enqueued by the **`beat`** container on the Droplet and executed by **`worker-slack`** (dedicated `slack` queue).
 
 If digests only appear when you are online, typical causes are:
 
-1. **`beat` or `worker` not running** on the Droplet — `docker compose ps beat worker` should show both **Up**.
-2. **`SLACK_BOT_TOKEN` / `SLACK_DIGEST_CHANNEL_ID` missing inside worker/beat** — API `test-message` can work while the worker skips (`slack_agent_digest SKIPPED` in worker logs). Run `scripts/set-slack-env-on-droplet.sh` and restart **worker + beat**.
+1. **`beat` or `worker-slack` not running** on the Droplet — `docker compose ps beat worker-slack` should show both **Up**.
+2. **`SLACK_BOT_TOKEN` / `SLACK_DIGEST_CHANNEL_ID` missing inside worker-slack** — API `test-message` can work while the slack worker skips (`slack_agent_digest SKIPPED` in worker-slack logs). Run `scripts/set-slack-env-on-droplet.sh` and restart **worker**, **worker-slack**, and **beat**.
 3. **Local `docker compose` on your Mac** — Beat stops when Docker stops; production must use the Droplet stack.
-4. **Stale API image** — pull/redeploy so worker includes `slack-sdk` and the digest task.
+4. **Stale API image** — pull/redeploy so worker-slack includes `slack-sdk` and the digest task.
+5. **Pipeline backlog on `worker`** — should no longer block digests once **`worker-slack`** is deployed; the main **`worker`** only consumes the `parking` queue.
 
 GitHub Actions **Droplet diagnostics** and **Slack digest now** call `scripts/remote/*.sh` on the server (synced on deploy).
 
 ## Operations
 
-- **Logs:** `docker compose … logs -f beat worker` — Beat logs schedule ticks; worker logs Slack errors.
+- **Logs:** `docker compose … logs -f beat worker-slack` — Beat logs schedule ticks; worker-slack logs Slack posts and errors.
 - **Send a one-off test message:**  
   `curl -sS -X POST "https://$API_HOST/internal/slack/test-message" -H "X-Internal-Key: $INTERNAL_API_KEY" -H "Content-Type: application/json" -d '{"text":"hello from parking agents"}'`  
   Notes: Slack requires a **channel ID** (not a name). If you want to override the default digest channel, pass `"channel_id":"C…"` (or `G…` for private).
@@ -139,7 +141,7 @@ Workflow file: [`.github/workflows/slack-digest-now-via-droplet.yml`](../.github
 | `channel_not_found` (token OK) | **Wrong channel for this workspace** — copy the ID from Slack (**About / channel details**), or set **`SLACK_DIGEST_CHANNEL_ID=gf-parkinglot-agents-chat`**. |
 | `invalid_auth` / `token_revoked` | Regenerate token in Slack app **OAuth** page; update **`SLACK_BOT_TOKEN`** and restart **worker** + **beat**. |
 | `missing_scope` | Re-add **`chat:write`** (and reinstall app to workspace). |
-| Task returns `skipped` | One of **`SLACK_BOT_TOKEN`** / **`SLACK_DIGEST_CHANNEL_ID`** is empty in the **worker** environment. |
+| Task returns `skipped` | One of **`SLACK_BOT_TOKEN`** / **`SLACK_DIGEST_CHANNEL_ID`** is empty in the **worker-slack** environment. |
 
 ## Limits and future work
 
