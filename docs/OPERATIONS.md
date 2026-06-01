@@ -17,6 +17,8 @@ If Caddy publishes **HTTPS on a non‑443 port** (for example **9443** when anot
 
 From GitHub (no SSH to your laptop): **Actions → Droplet endpoint checks** curls **`/health`**, **`/ready`**, and optionally **`/internal/slack/status`** from the Droplet (same DNS/TLS path as production). See [GITHUB-DEPLOY.md](GITHUB-DEPLOY.md).
 
+**Admin UI browser agent:** **Actions → Admin UI smoke (browser)** logs in as admin, visits operator pages, and posts failures to Slack (optional). Setup: [UI-SMOKE-AGENT.md](UI-SMOKE-AGENT.md).
+
 ## Logs (Droplet)
 
 ```bash

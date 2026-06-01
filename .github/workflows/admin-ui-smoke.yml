@@ -1,0 +1,58 @@
+# Browser agent: log in as admin, visit key UI pages, report errors to Slack + CI artifacts.
+#
+# Secrets (repository):
+#   UI_SMOKE_ADMIN_EMAIL, UI_SMOKE_ADMIN_PASSWORD — admin login for vspecialist.com
+# Optional:
+#   SLACK_BOT_TOKEN, SLACK_DIGEST_CHANNEL_ID — post failure summary to Slack
+# Variables (repository):
+#   UI_SMOKE_BASE_URL — default https://vspecialist.com
+
+name: Admin UI smoke (browser)
+
+on:
+  schedule:
+    - cron: "15 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Playwright deps
+        working-directory: scripts/admin-ui-smoke
+        run: |
+          npm install
+          npx playwright install chromium --with-deps
+
+      - name: Run admin UI smoke
+        working-directory: scripts/admin-ui-smoke
+        env:
+          UI_SMOKE_BASE_URL: ${{ vars.UI_SMOKE_BASE_URL || 'https://vspecialist.com' }}
+          UI_SMOKE_ADMIN_EMAIL: ${{ secrets.UI_SMOKE_ADMIN_EMAIL }}
+          UI_SMOKE_ADMIN_PASSWORD: ${{ secrets.UI_SMOKE_ADMIN_PASSWORD }}
+        run: npm test
+
+      - name: Upload smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-ui-smoke-report
+          path: scripts/admin-ui-smoke/smoke-report.json
+          if-no-files-found: ignore
+
+      - name: Notify Slack on failure
+        if: failure()
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_DIGEST_CHANNEL_ID: ${{ secrets.SLACK_DIGEST_CHANNEL_ID }}
+          SMOKE_REPORT: scripts/admin-ui-smoke/smoke-report.json
+        run: python3 scripts/admin-ui-smoke/post-smoke-to-slack.py
