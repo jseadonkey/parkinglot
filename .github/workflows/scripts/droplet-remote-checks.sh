@@ -79,6 +79,7 @@ case "$MODE" in
     export COMPOSE_REL
     # shellcheck source=scripts/remote/_compose_args.sh
     source "$ROOT/scripts/remote/_compose_args.sh"
+    set +e
 
     echo "=== SLACK_* in deploy/.env (values redacted) ==="
     grep -E '^SLACK_' deploy/.env 2>/dev/null | sed 's/=.*/=***/' || echo "(none)"
@@ -167,22 +168,30 @@ if key:
 print(urllib.request.urlopen(req, timeout=120).read().decode())
 "
 
-    echo "=== waiting 25s for worker to post digest ==="
-    sleep 25
+    echo "=== POST direct test message (worker → Slack API) ==="
+    docker compose "${ARGS[@]}" exec -T worker python -c "
+from app.config import get_settings
+from app.slack_digest import post_text_to_slack
+s = get_settings()
+out = post_text_to_slack(s, text='Parkinglot digest repair test — if you see this, Slack posting works.')
+print(out)
+" 2>&1
+    DIRECT_EC=$?
+    echo "direct_post_exit=$DIRECT_EC"
 
-    echo "=== GET /internal/slack/last-digest (after enqueue) ==="
-    POST_DEPLOY_PATH="/internal/slack/last-digest" POST_DEPLOY_KEY="$KEY" \
-      docker compose "${ARGS[@]}" exec -T -e POST_DEPLOY_PATH -e POST_DEPLOY_KEY api python -c "
-import os, urllib.request
-key = (os.environ.get('POST_DEPLOY_KEY') or '').strip()
-req = urllib.request.Request('http://127.0.0.1:8000' + os.environ['POST_DEPLOY_PATH'])
-if key:
-    req.add_header('X-Internal-Key', key)
-print(urllib.request.urlopen(req, timeout=30).read().decode())
-"
+    echo "=== beat logs (scheduler, tail 30) ==="
+    docker compose "${ARGS[@]}" logs --no-color --tail 30 beat 2>/dev/null || true
 
     echo "=== worker logs (tail 60) ==="
     docker compose "${ARGS[@]}" logs --no-color --tail 60 worker 2>/dev/null || true
+
+    echo "=== api ps ==="
+    docker compose "${ARGS[@]}" ps api 2>/dev/null || true
+    set -e
+    if [ "$DIRECT_EC" -ne 0 ]; then
+      echo "FAIL: direct Slack post from worker failed (check not_in_channel, invalid_auth, or channel_not_found above)" >&2
+      exit 1
+    fi
     ;;
   diagnostics)
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
