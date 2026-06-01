@@ -1,14 +1,14 @@
 {
-  "id": 26766211490,
+  "id": 26766843445,
   "conclusion": "failure",
   "status": "completed",
   "head_branch": "main",
-  "head_sha": "31a5b211b9cf0bd75ac4ca182d0c0898350a58b1",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/26766211490",
-  "created_at": "2026-06-01T15:57:40Z",
-  "updated_at": "2026-06-01T15:58:21Z",
-  "display_title": "Merge origin/main with owner outreach contacts and admin message temp…",
+  "head_sha": "b2f5aa814589b13618dee80caff0a65cb8c14369",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/26766843445",
+  "created_at": "2026-06-01T16:09:26Z",
+  "updated_at": "2026-06-01T16:09:41Z",
+  "display_title": "Fix Slack digest reliability on Droplet and repair SSH workflows.",
   "event": "push",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-06-01T15:58:34Z"
+  "snapshot_recorded_at": "2026-06-01T16:09:53Z"
 }
