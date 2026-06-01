@@ -25,9 +25,18 @@ export default function ApprovalsPage() {
   const load = useCallback(async () => {
     setErr(null);
     try {
-      const q = filter === "pending" ? "?status=pending" : "";
+      const q = filter === "pending" ? "?status=pending&limit=200" : "?limit=200";
       const res = await fetch(bridgeUrl(`approvals${q}`), { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try {
+          const j = (await res.json()) as { detail?: string };
+          if (j.detail) detail = j.detail;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(detail);
+      }
       const data = (await res.json()) as Approval[];
       setItems(data);
     } catch (e) {
@@ -81,7 +90,18 @@ export default function ApprovalsPage() {
         </button>
       </div>
 
-      {err ? <div className="error">{err}</div> : null}
+      {err ? (
+        <div className="error">
+          {err}
+          <p className="muted" style={{ marginTop: "0.5rem" }}>
+            You can also use the{" "}
+            <a href="/" className="btn-link">
+              standalone approvals page
+            </a>{" "}
+            at the site home, or click Refresh after a moment.
+          </p>
+        </div>
+      ) : null}
 
       <div className="panel">
         {items.length === 0 ? (

@@ -236,8 +236,16 @@ print('standup_posted', posted)
     export COMPOSE_REL
     # shellcheck source=scripts/remote/_compose_args.sh
     source "$ROOT/scripts/remote/_compose_args.sh"
-    echo "=== docker compose ps (api worker beat) ==="
-    docker compose "${ARGS[@]}" ps api worker beat
+    echo "=== docker compose ps (api worker beat operator-console) ==="
+    docker compose "${ARGS[@]}" ps api worker beat operator-console approval-ui
+    echo ""
+    echo "=== operator-console → api GET /approvals (first 120 chars) ==="
+    docker compose "${ARGS[@]}" exec -T operator-console wget -qO- --timeout=15 \
+      "http://api:8000/approvals?status=pending&limit=3" 2>&1 | head -c 120 || echo "wget failed"
+    echo ""
+    echo ""
+    echo "=== operator-console env API_SERVER_URL ==="
+    docker compose "${ARGS[@]}" exec -T operator-console printenv API_SERVER_URL 2>/dev/null || true
     echo ""
     echo "=== worker logs (slack) ==="
     docker compose "${ARGS[@]}" logs --no-color --tail 80 worker 2>/dev/null | grep -iE 'slack_agent_digest|SKIPPED|Slack' || \

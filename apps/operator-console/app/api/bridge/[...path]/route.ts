@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { readApiServerUrl } from "../../../../lib/apiServerUrl";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 /**
  * Server-side proxy to the API — never expose INTERNAL_API_KEY for /internal/* to the browser.
  */
@@ -28,9 +33,7 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     return NextResponse.json({ detail: "INTERNAL_API_KEY not configured on operator-console" }, { status: 503 });
   }
 
-  const base =
-    process.env.API_SERVER_URL?.trim() || process.env.NEXT_PUBLIC_API_URL?.trim() || "http://127.0.0.1:8000";
-  const baseClean = base.replace(/\/$/, "");
+  const baseClean = readApiServerUrl();
   const qs = req.nextUrl.search;
   const url = `${baseClean}/${subpath}${qs}`;
 

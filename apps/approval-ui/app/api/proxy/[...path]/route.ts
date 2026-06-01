@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { readApiServerUrl } from "../../../../lib/apiServerUrl";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 /** Server-side proxy to the API — avoids browser CORS and wrong PUBLIC_API_URL on the client. */
 function allowedPath(path: string): boolean {
   if (path === "approvals" || path.startsWith("approvals/")) return true;
@@ -26,9 +31,7 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     return NextResponse.json({ detail: "path not allowed" }, { status: 403 });
   }
 
-  const base =
-    process.env.API_SERVER_URL?.trim() || process.env.NEXT_PUBLIC_API_URL?.trim() || "http://127.0.0.1:8000";
-  const baseClean = base.replace(/\/$/, "");
+  const baseClean = readApiServerUrl();
   const qs = req.nextUrl.search;
   const url = `${baseClean}/${subpath}${qs}`;
 
@@ -41,7 +44,16 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     init.body = await req.text();
   }
 
-  const res = await fetch(url, init);
+  let res: Response;
+  try {
+    res = await fetch(url, init);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json(
+      { detail: `API unreachable at ${baseClean}: ${msg}` },
+      { status: 503 },
+    );
+  }
   const body = await res.text();
   return new NextResponse(body, {
     status: res.status,
