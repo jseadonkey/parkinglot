@@ -14,6 +14,7 @@ function allowedPath(path: string): boolean {
   if (path === "parcels" || path.startsWith("parcels/")) return true;
   if (path === "audit" || path.startsWith("audit")) return true;
   if (path === "workflow-runs" || path.startsWith("workflow-runs/")) return true;
+  if (path === "outreach-templates" || path.startsWith("outreach-templates/")) return true;
   return false;
 }
 
@@ -72,4 +73,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ path: strin
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   return proxy(req, ctx, "POST");
+}
+
+export async function PUT(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
+  return proxy(req, ctx, "PUT");
 }

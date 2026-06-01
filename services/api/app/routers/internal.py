@@ -10,10 +10,10 @@ from sqlalchemy.orm import Session
 
 from app.celery_app import celery
 from app.config import get_settings
-from app.deal_progress import query_deal_progress_board
 from app.db.models import AuditLog, Parcel
 from app.db.schema_compat import column_exists
 from app.db.session import get_db
+from app.deal_progress import query_deal_progress_board
 from app.deps_internal import require_internal_key
 from app.export_readiness import export_readiness_summary
 from app.outreach_board import query_outreach_pipeline_board
