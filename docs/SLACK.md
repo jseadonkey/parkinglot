@@ -76,6 +76,21 @@ With **`X-Internal-Key`** set as for other `/internal/*` routes:
 
 `GET /internal/slack/status` → `{"slack_digest_configured": true/false, "has_bot_token": ..., "has_digest_channel_id": ...}` (no secrets in the body).
 
+`GET /internal/slack/last-digest` → when the **worker** last posted a digest (`audit_log` action `slack_digest_posted`). Use this to confirm Beat → worker → Slack without watching the channel.
+
+### Scheduled digest vs “only works when I’m connected”
+
+The **20-minute digest does not use Slack Socket Mode** and does not need your laptop. It is enqueued by the **`beat`** container on the Droplet and executed by **`worker`**.
+
+If digests only appear when you are online, typical causes are:
+
+1. **`beat` or `worker` not running** on the Droplet — `docker compose ps beat worker` should show both **Up**.
+2. **`SLACK_BOT_TOKEN` / `SLACK_DIGEST_CHANNEL_ID` missing inside worker/beat** — API `test-message` can work while the worker skips (`slack_agent_digest SKIPPED` in worker logs). Run `scripts/set-slack-env-on-droplet.sh` and restart **worker + beat**.
+3. **Local `docker compose` on your Mac** — Beat stops when Docker stops; production must use the Droplet stack.
+4. **Stale API image** — pull/redeploy so worker includes `slack-sdk` and the digest task.
+
+GitHub Actions **Droplet diagnostics** and **Slack digest now** call `scripts/remote/*.sh` on the server (synced on deploy).
+
 ## Operations
 
 - **Logs:** `docker compose … logs -f beat worker` — Beat logs schedule ticks; worker logs Slack errors.

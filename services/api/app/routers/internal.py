@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.celery_app import celery
 from app.config import get_settings
-from app.db.models import Parcel
+from app.db.models import AuditLog, Parcel
 from app.db.session import get_db
 from app.deps_internal import require_internal_key
 from app.export_readiness import export_readiness_summary
@@ -40,6 +40,7 @@ from app.schemas import (
     SlackAgentDiscussionPreviewResponse,
     SlackConfigStatusResponse,
     SlackDigestPreviewResponse,
+    SlackLastDigestResponse,
     SlackTestMessagePostResponse,
     SlackTestMessageRequest,
     WaTechCountyQueuedResponse,
@@ -97,6 +98,22 @@ def celery_task_status(task_id: str) -> CeleryTaskStatusResponse:
                 tb = tb[:4000] + "\n... (truncated)"
             payload["traceback"] = tb
     return CeleryTaskStatusResponse(**payload)
+
+
+@router.get("/slack/last-digest", response_model=SlackLastDigestResponse)
+def slack_last_digest(db: Session = Depends(get_db)) -> SlackLastDigestResponse:
+    """When the worker last posted a digest to Slack (audit_log action slack_digest_posted)."""
+    stmt = (
+        select(AuditLog)
+        .where(AuditLog.action == "slack_digest_posted")
+        .order_by(AuditLog.created_at.desc())
+        .limit(1)
+    )
+    row = db.execute(stmt).scalar_one_or_none()
+    if row is None:
+        return SlackLastDigestResponse(found=False)
+    created = row.created_at.isoformat() if row.created_at else None
+    return SlackLastDigestResponse(found=True, created_at=created, meta=row.meta)
 
 
 @router.get("/slack/status", response_model=SlackConfigStatusResponse)

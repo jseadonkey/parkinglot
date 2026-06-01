@@ -910,6 +910,18 @@ def slack_agent_digest() -> dict[str, Any]:
     try:
         blocks, fallback = build_slack_digest_blocks(db, hours=4)
         posted = post_digest_to_slack(settings, blocks, fallback)
+        write_audit(
+            db,
+            actor="celery:slack_agent_digest",
+            action="slack_digest_posted",
+            entity_type="slack_channel",
+            entity_id=channel,
+            meta={
+                "slack_ts": posted.get("ts"),
+                "channel": posted.get("channel"),
+                "fallback_preview": (fallback or "")[:240],
+            },
+        )
         return {"skipped": False, **posted}
     except Exception:
         logger.exception("slack_agent_digest failed")

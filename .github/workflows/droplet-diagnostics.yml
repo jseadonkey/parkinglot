@@ -54,42 +54,5 @@ jobs:
           LOG_TAIL="${{ inputs.log_tail }}"
           CURL_READY="${{ inputs.curl_ready }}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            bash -s -- "$REMOTE_PATH" "$COMPOSE_REL" "$LOG_TAIL" "$CURL_READY" <<'EOS'
-          set -euo pipefail
-          REMOTE_PATH="$1"
-          COMPOSE_REL="$2"
-          LOG_TAIL="$3"
-          CURL_READY="$4"
-
-          cd "$REMOTE_PATH"
-          if [ ! -f deploy/.env ]; then
-            echo "Missing deploy/.env — create from deploy/env.production.example first." >&2
-            exit 1
-          fi
-          ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
-          if grep -q '^POSTGRES_PASSWORD=' deploy/.env; then
-            ARGS=(-f "$COMPOSE_REL" -f deploy/docker-compose.postgis-addon.yml --env-file deploy/.env)
-            echo "(using postgis addon compose file — POSTGRES_PASSWORD is set)"
-          fi
-          echo "=== docker compose ps ==="
-          docker compose "${ARGS[@]}" ps -a
-          echo ""
-          echo "=== api logs (tail) ==="
-          docker compose "${ARGS[@]}" logs --no-color --tail "$LOG_TAIL" api || true
-          echo ""
-          if [ "$CURL_READY" = "true" ]; then
-            BASE=$(grep -E '^PUBLIC_API_URL=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
-            if [ -z "$BASE" ]; then
-              H=$(grep -E '^API_HOST=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
-              BASE="https://$H"
-            fi
-            echo "=== curl $BASE/ready (from Droplet) ==="
-            curl -fsSk --connect-timeout 15 --max-time 30 "$BASE/ready" || {
-              echo "curl failed (DNS, TLS, or app not ready). Try again after DNS propagates." >&2
-              exit 1
-            }
-            echo ""
-          else
-            echo "Skipping /ready curl (curl_ready=false)."
-          fi
-          EOS
+            "cd $(printf '%q' "$REMOTE_PATH") && bash scripts/remote/droplet-diagnostics.sh \
+            $(printf '%q' "$COMPOSE_REL") $(printf '%q' "$LOG_TAIL") $(printf '%q' "$CURL_READY")"

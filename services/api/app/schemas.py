@@ -297,6 +297,14 @@ class SlackTestMessagePostResponse(BaseModel):
     channel: str | None = None
 
 
+class SlackLastDigestResponse(BaseModel):
+    """GET /internal/slack/last-digest — last successful scheduled/manual digest audit row."""
+
+    found: bool
+    created_at: str | None = None
+    meta: dict[str, Any] | None = None
+
+
 class SlackConfigStatusResponse(BaseModel):
     """GET /internal/slack/status — booleans only (no secrets)."""
 

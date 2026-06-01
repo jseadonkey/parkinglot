@@ -38,29 +38,5 @@ jobs:
           REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            bash -s -- "$REMOTE_PATH" "$KEY" <<'EOS'
-          set -euo pipefail
-          REMOTE_PATH="$1"
-          KEY="${2:-}"
-
-          cd "$REMOTE_PATH"
-          test -f deploy/.env
-          BASE=$(grep -E '^PUBLIC_API_URL=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
-          if [ -z "$BASE" ]; then
-            H=$(grep -E '^API_HOST=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
-            BASE="https://$H"
-          fi
-          echo "POST $BASE/internal/slack/digest-now"
-          if [ -n "$KEY" ]; then
-            curl -fsSk --connect-timeout 15 --max-time 60 -X POST "$BASE/internal/slack/digest-now" \
-              -H "Content-Type: application/json" \
-              -H "X-Internal-Key: $KEY" \
-              -d '{}'
-          else
-            curl -fsSk --connect-timeout 15 --max-time 60 -X POST "$BASE/internal/slack/digest-now" \
-              -H "Content-Type: application/json" \
-              -d '{}'
-          fi
-          echo
-          echo "Poll task: GET $BASE/internal/tasks/<task_id> (same X-Internal-Key if required)."
-          EOS
+            "cd $(printf '%q' "$REMOTE_PATH") && bash scripts/remote/droplet-slack-digest-now.sh $(printf '%q' "$KEY")"
+          echo "Poll: GET .../internal/tasks/<task_id> (same X-Internal-Key if required)."

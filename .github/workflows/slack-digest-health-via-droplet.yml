@@ -1,0 +1,80 @@
+# Fails if no recent successful Slack digest audit (Beat → worker → Slack → audit_log).
+#
+# Requires: DROPLET_HOST, DROPLET_USER, DROPLET_SSH_PRIVATE_KEY
+# Optional: SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY (same as INTERNAL_API_KEY on the Droplet)
+# Optional: DROPLET_REMOTE_PATH (repo var), MAX_DIGEST_AGE_HOURS (default 7).
+# Beat schedules digest every 20 minutes UTC; default MAX_DIGEST_AGE_HOURS=2 fails CI if worker missed ~2 cycles.
+#
+# Remove the `schedule` block if you only want manual runs.
+
+name: Slack digest health (via Droplet)
+
+on:
+  schedule:
+    - cron: "25 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Verify last digest audit is fresh
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+          SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
+          MAX_DIGEST_AGE_HOURS: ${{ vars.MAX_DIGEST_AGE_HOURS }}
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
+          MAX_H="${MAX_DIGEST_AGE_HOURS:-2}"
+
+          PAYLOAD="$(ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && bash scripts/remote/droplet-curl-last-digest.sh $(printf '%q' "$KEY")")"
+
+          export MAX_H="$MAX_H"
+          echo "$PAYLOAD" | python3 <<'PY'
+          import json
+          import os
+          import sys
+          from datetime import datetime, timedelta, timezone
+
+          max_h = float(os.environ["MAX_H"])
+          raw = sys.stdin.read().strip()
+          if not raw:
+              print("FAIL: empty response from GET /internal/slack/last-digest (curl or SSH failed).")
+              sys.exit(1)
+          try:
+              data = json.loads(raw)
+          except json.JSONDecodeError:
+              print("FAIL: non-JSON from last-digest (first 200 chars):", raw[:200])
+              sys.exit(1)
+          if not data.get("found"):
+              print("FAIL: no slack_digest_posted audit yet (worker may never have posted to Slack).")
+              sys.exit(1)
+          raw = data["created_at"]
+          if raw.endswith("Z"):
+              raw = raw[:-1] + "+00:00"
+          ts = datetime.fromisoformat(raw)
+          if ts.tzinfo is None:
+              ts = ts.replace(tzinfo=timezone.utc)
+          age = datetime.now(timezone.utc) - ts
+          if age > timedelta(hours=max_h):
+              print(f"FAIL: last digest audit stale (age={age}, max={max_h}h).")
+              sys.exit(1)
+          print(f"OK: last digest audit age={age}")
+          PY

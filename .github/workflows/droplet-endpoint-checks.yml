@@ -52,50 +52,5 @@ jobs:
           CURL_READY="${{ inputs.curl_ready }}"
           CHECK_SLACK="${{ inputs.check_slack_status }}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            bash -s -- "$REMOTE_PATH" "$KEY" "$CURL_HEALTH" "$CURL_READY" "$CHECK_SLACK" <<'EOS'
-          set -euo pipefail
-          REMOTE_PATH="$1"
-          KEY="$2"
-          CURL_HEALTH="$3"
-          CURL_READY="$4"
-          CHECK_SLACK="$5"
-
-          cd "$REMOTE_PATH"
-          if [ ! -f deploy/.env ]; then
-            echo "Missing deploy/.env" >&2
-            exit 1
-          fi
-          BASE=$(grep -E '^PUBLIC_API_URL=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
-          if [ -z "$BASE" ]; then
-            H=$(grep -E '^API_HOST=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
-            BASE="https://$H"
-          fi
-          if [ "$CURL_HEALTH" = "true" ]; then
-            echo "=== GET $BASE/health ==="
-            curl -fsSk --connect-timeout 15 --max-time 30 "$BASE/health"
-            echo ""
-          else
-            echo "Skipping /health"
-          fi
-          if [ "$CURL_READY" = "true" ]; then
-            echo "=== GET $BASE/ready ==="
-            curl -fsSk --connect-timeout 15 --max-time 30 "$BASE/ready"
-            echo ""
-          else
-            echo "Skipping /ready"
-          fi
-          if [ "$CHECK_SLACK" = "true" ]; then
-            echo "=== GET $BASE/internal/slack/status ==="
-            if [ -n "$KEY" ]; then
-              curl -fsSk --connect-timeout 15 --max-time 30 \
-                -H "X-Internal-Key: $KEY" \
-                "$BASE/internal/slack/status"
-            else
-              curl -fsSk --connect-timeout 15 --max-time 30 \
-                "$BASE/internal/slack/status"
-            fi
-            echo ""
-          else
-            echo "Skipping /internal/slack/status"
-          fi
-          EOS
+            "cd $(printf '%q' "$REMOTE_PATH") && bash scripts/remote/droplet-endpoint-checks.sh \
+            $(printf '%q' "$CURL_HEALTH") $(printf '%q' "$CURL_READY") $(printf '%q' "$CHECK_SLACK")"
