@@ -16,7 +16,7 @@ from app.audit import write_audit
 from app.celery_app import celery
 from app.config import get_settings
 from app.contract_render import render_ground_lease_draft
-from app.db.models import ApprovalRequest, ContractDraft, DealMemo, OwnerCandidateRow, Parcel, ParcelScore, WorkflowRun
+from app.db.models import ContractDraft, DealMemo, OwnerCandidateRow, Parcel, ParcelScore, WorkflowRun
 from app.db.session import SessionLocal
 from app.exploration_campaign import (
     campaign_day_index,

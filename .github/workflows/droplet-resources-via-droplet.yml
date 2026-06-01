@@ -4,6 +4,11 @@ name: Droplet resources (via Droplet)
 
 on:
   workflow_dispatch:
+    inputs:
+      grow_disk:
+        description: "Grow root filesystem after a DigitalOcean volume resize"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -33,6 +38,10 @@ jobs:
           RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
           [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          MODE="resources"
+          if [ "${{ inputs.grow_disk }}" = "true" ]; then
+            MODE="disk-grow"
+          fi
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
             "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "cd $(printf '%q' "$REMOTE_PATH") && bash -s -- resources deploy/docker-compose.production.ghcr.yml"
+            "cd $(printf '%q' "$REMOTE_PATH") && bash -s -- ${MODE} deploy/docker-compose.production.ghcr.yml"
