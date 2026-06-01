@@ -35,6 +35,25 @@ type Score = {
   created_at: string;
 };
 
+type OutreachDraft = {
+  channel: string;
+  template_slug: string;
+  to_name: string | null;
+  to_email: string | null;
+  to_phone: string | null;
+  to_mailing_address: string | null;
+  subject: string | null;
+  body: string;
+  has_recipient: boolean;
+};
+
+const DRAFT_LABELS: Record<string, string> = {
+  email: "Email",
+  sms: "Text",
+  phone: "Voice",
+  certified_mail: "Mail",
+};
+
 export default function ParcelDetailPage() {
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
@@ -43,6 +62,9 @@ export default function ParcelDetailPage() {
   const [score, setScore] = useState<Score | null>(null);
   const [scoreErr, setScoreErr] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<OutreachDraft[]>([]);
+  const [draftErr, setDraftErr] = useState<string | null>(null);
+  const [draftChannel, setDraftChannel] = useState("email");
 
   useEffect(() => {
     if (!id) return;
@@ -69,6 +91,20 @@ export default function ParcelDetailPage() {
         } else {
           if (!cancelled) setScoreErr(`No entitlement score (${rs.status})`);
         }
+        if (p.owner_outreach_brief) {
+          const rd = await fetch(bridgeUrl(`parcels/${id}/outreach/drafts`), { cache: "no-store" });
+          if (rd.ok) {
+            const d = (await rd.json()) as OutreachDraft[];
+            if (!cancelled) {
+              setDrafts(d);
+              if (d.length > 0) {
+                setDraftChannel((prev) => (d.some((x) => x.channel === prev) ? prev : d[0].channel));
+              }
+            }
+          } else if (!cancelled) {
+            setDraftErr(`Message drafts unavailable (${rd.status})`);
+          }
+        }
       } catch (e) {
         if (!cancelled) setErr(e instanceof Error ? e.message : String(e));
       }
@@ -77,6 +113,8 @@ export default function ParcelDetailPage() {
       cancelled = true;
     };
   }, [id]);
+
+  const activeDraft = drafts.find((d) => d.channel === draftChannel) ?? drafts[0] ?? null;
 
   return (
     <main>
@@ -167,6 +205,53 @@ export default function ParcelDetailPage() {
               <p className="muted">No brief yet — run pipeline / Phase C enrichment.</p>
             )}
           </div>
+
+          <h2>Message drafts</h2>
+          <p className="muted">
+            Rendered from admin templates using this parcel&apos;s owner data.{" "}
+            <Link href="/templates">Edit default templates</Link>
+          </p>
+          {draftErr ? <div className="error">{draftErr}</div> : null}
+          {drafts.length > 0 && activeDraft ? (
+            <div className="panel">
+              <div className="template-tabs" role="tablist" aria-label="Outreach channels">
+                {drafts.map((d) => (
+                  <button
+                    key={d.channel}
+                    type="button"
+                    role="tab"
+                    aria-selected={d.channel === draftChannel}
+                    className={d.channel === draftChannel ? "template-tab-pill active" : "template-tab-pill"}
+                    onClick={() => setDraftChannel(d.channel)}
+                  >
+                    {DRAFT_LABELS[d.channel] ?? d.channel}
+                    {!d.has_recipient ? " · no recipient" : ""}
+                  </button>
+                ))}
+              </div>
+              <div className="muted" style={{ marginTop: "0.85rem", fontSize: "0.85rem" }}>
+                {activeDraft.to_email ? (
+                  <div>
+                    To: {activeDraft.to_name ?? "—"} &lt;{activeDraft.to_email}&gt;
+                  </div>
+                ) : null}
+                {activeDraft.to_phone ? <div>To phone: {activeDraft.to_phone}</div> : null}
+                {activeDraft.to_mailing_address ? <div>To mail: {activeDraft.to_mailing_address}</div> : null}
+                {!activeDraft.has_recipient ? (
+                  <div>No {DRAFT_LABELS[activeDraft.channel]?.toLowerCase() ?? activeDraft.channel} on file for this parcel.</div>
+                ) : null}
+              </div>
+              {activeDraft.subject ? (
+                <div style={{ marginTop: "0.75rem" }}>
+                  <span className="muted">Subject: </span>
+                  {activeDraft.subject}
+                </div>
+              ) : null}
+              <pre className="preview-body">{activeDraft.body}</pre>
+            </div>
+          ) : parcel.owner_outreach_brief && !draftErr ? (
+            <p className="muted">Loading message drafts…</p>
+          ) : null}
         </>
       ) : !err ? (
         <p className="muted">Loading…</p>

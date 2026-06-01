@@ -140,7 +140,8 @@ export default function OutreachPipelinePage() {
           <h1>Outreach pipeline</h1>
           <p className="muted page-lead">
             Qualified parcels ranked by entitlement score. Start with <strong>Needs action</strong> — those are waiting
-            on contract approval or had a pipeline error.
+            on contract approval or had a pipeline error.{" "}
+            <Link href="/templates">Edit message templates</Link>
           </p>
         </div>
         <button type="button" className="outline" onClick={() => void loadBoard()} disabled={loading}>

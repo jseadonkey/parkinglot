@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.audit import write_audit
 from app.db.models import Parcel, ParcelContactPoint
+from app.db.schema_compat import table_exists
 from app.db.session import get_db
 from app.outreach_contacts import (
     find_contact_point,
@@ -17,16 +18,26 @@ from app.outreach_contacts import (
     normalize_contact_value,
     record_outreach_attempt,
 )
+from app.outreach_templates import build_parcel_outreach_drafts
 from app.schemas import (
     OutreachAttemptCreate,
     OutreachAttemptRead,
     OwnerContactPointCreate,
     OwnerContactPointRead,
+    ParcelOutreachDraftRead,
     ParcelOutreachRead,
 )
 from parking_core.models import ContactKind, OwnerOutreachBrief
 
 router = APIRouter(prefix="/parcels", tags=["outreach"])
+
+
+def _require_templates_table(db: Session) -> None:
+    if not table_exists(db, "outreach_templates"):
+        raise HTTPException(
+            status_code=503,
+            detail="outreach_templates table missing — restart the API container so migrations can run",
+        )
 
 
 def _require_brief(parcel: Parcel) -> OwnerOutreachBrief:
@@ -49,6 +60,22 @@ def get_parcel_outreach(parcel_id: uuid.UUID, db: Session = Depends(get_db)) -> 
         contact_points=[OwnerContactPointRead.model_validate(row) for row in persisted],
         attempts=[OutreachAttemptRead.model_validate(row) for row in attempts],
     )
+
+
+@router.get("/{parcel_id}/outreach/drafts", response_model=list[ParcelOutreachDraftRead])
+def get_parcel_outreach_drafts(
+    parcel_id: uuid.UUID,
+    db: Session = Depends(get_db),
+) -> list[ParcelOutreachDraftRead]:
+    _require_templates_table(db)
+    parcel = db.get(Parcel, parcel_id)
+    if parcel is None:
+        raise HTTPException(status_code=404, detail="parcel not found")
+    brief = _require_brief(parcel)
+    persisted = load_persisted_contact_points(db, parcel_id)
+    merged = merge_brief_with_persisted_contacts(brief, persisted)
+    raw = build_parcel_outreach_drafts(db, parcel=parcel, brief=merged)
+    return [ParcelOutreachDraftRead.model_validate(d) for d in raw]
 
 
 @router.get("/{parcel_id}/outreach/attempts", response_model=list[OutreachAttemptRead])
