@@ -530,6 +530,10 @@ class ParcelOutreachDraftRead(BaseModel):
     has_recipient: bool = False
 
 
+class OutreachApprovalRequest(BaseModel):
+    requested_by: str = Field(min_length=1, max_length=256)
+
+
 class SlackTestMessageRequest(BaseModel):
     """One-off Slack message for smoke testing.
 
