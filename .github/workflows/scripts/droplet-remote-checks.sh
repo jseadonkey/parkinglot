@@ -6,8 +6,13 @@ set -euo pipefail
 MODE="${1:-}"
 shift || true
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-cd "$ROOT"
+# When streamed over SSH (bash -s), BASH_SOURCE is unset; use cwd after `cd $REMOTE_PATH`.
+if [[ -n "${BASH_SOURCE[0]:-}" && "${BASH_SOURCE[0]}" != "-" ]]; then
+  ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+  cd "$ROOT"
+else
+  ROOT="$(pwd)"
+fi
 test -f deploy/.env
 
 BASE=$(grep -E '^PUBLIC_API_URL=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
@@ -42,6 +47,13 @@ case "$MODE" in
         curl -fsSk --connect-timeout 15 --max-time 30 "$BASE/internal/slack/status"
       fi
       echo ""
+    fi
+    ;;
+  last-digest)
+    if [ -n "$KEY" ]; then
+      curl -fsSk --connect-timeout 15 --max-time 60 "$BASE/internal/slack/last-digest" -H "X-Internal-Key: $KEY"
+    else
+      curl -fsSk --connect-timeout 15 --max-time 60 "$BASE/internal/slack/last-digest"
     fi
     ;;
   digest-now)

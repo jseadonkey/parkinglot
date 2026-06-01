@@ -33,6 +33,8 @@ jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Install SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -53,6 +55,7 @@ jobs:
           COMPOSE_REL="deploy/${{ inputs.compose_file }}"
           LOG_TAIL="${{ inputs.log_tail }}"
           CURL_READY="${{ inputs.curl_ready }}"
-          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "cd $(printf '%q' "$REMOTE_PATH") && bash .github/workflows/scripts/droplet-remote-checks.sh diagnostics \
+          cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && bash -s -- diagnostics \
             $(printf '%q' "$COMPOSE_REL") $(printf '%q' "$LOG_TAIL") $(printf '%q' "$CURL_READY")"

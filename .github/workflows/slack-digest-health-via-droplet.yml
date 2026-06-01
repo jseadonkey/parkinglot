@@ -21,6 +21,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Install SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -43,20 +45,9 @@ jobs:
           KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
           MAX_H="${MAX_DIGEST_AGE_HOURS:-2}"
 
-          PAYLOAD="$(ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "cd $(printf '%q' "$REMOTE_PATH") && test -f deploy/.env && INTERNAL_KEY=$(printf '%q' "$KEY") bash -c '
-          set -euo pipefail
-          BASE=\$(grep -E \"^PUBLIC_API_URL=\" deploy/.env | head -1 | cut -d= -f2- | tr -d \"\\r\" | sed \"s/^\\\"//;s/\\\"$//\")
-          if [ -z \"\$BASE\" ]; then
-            H=\$(grep -E \"^API_HOST=\" deploy/.env | head -1 | cut -d= -f2- | tr -d \"\\r\" | sed \"s/^\\\"//;s/\\\"$//\")
-            BASE=\"https://\$H\"
-          fi
-          if [ -n \"\${INTERNAL_KEY:-}\" ]; then
-            curl -fsSk --connect-timeout 15 --max-time 60 \"\$BASE/internal/slack/last-digest\" -H \"X-Internal-Key: \$INTERNAL_KEY\"
-          else
-            curl -fsSk --connect-timeout 15 --max-time 60 \"\$BASE/internal/slack/last-digest\"
-          fi
-          '")"
+          PAYLOAD="$(cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && INTERNAL_KEY=$(printf '%q' "$KEY") bash -s -- last-digest")"
 
           export MAX_H="$MAX_H"
           echo "$PAYLOAD" | python3 <<'PY'

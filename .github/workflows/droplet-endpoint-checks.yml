@@ -29,6 +29,8 @@ jobs:
   curl:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Install SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -51,6 +53,7 @@ jobs:
           CURL_HEALTH="${{ inputs.curl_health }}"
           CURL_READY="${{ inputs.curl_ready }}"
           CHECK_SLACK="${{ inputs.check_slack_status }}"
-          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "cd $(printf '%q' "$REMOTE_PATH") && bash .github/workflows/scripts/droplet-remote-checks.sh endpoints \
+          cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && INTERNAL_KEY=$(printf '%q' "$KEY") bash -s -- endpoints \
             $(printf '%q' "$CURL_HEALTH") $(printf '%q' "$CURL_READY") $(printf '%q' "$CHECK_SLACK")"

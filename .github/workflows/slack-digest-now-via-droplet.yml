@@ -18,6 +18,8 @@ jobs:
   enqueue:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Install SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -37,6 +39,7 @@ jobs:
           set -euo pipefail
           REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
-          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "cd $(printf '%q' "$REMOTE_PATH") && INTERNAL_KEY=$(printf '%q' "$KEY") bash .github/workflows/scripts/droplet-remote-checks.sh digest-now"
+          cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && INTERNAL_KEY=$(printf '%q' "$KEY") bash -s -- digest-now"
           echo "Poll: GET .../internal/tasks/<task_id> (same X-Internal-Key if required)."
