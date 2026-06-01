@@ -7,7 +7,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore, WorkflowRun
-from app.db.schema_compat import parcel_load_only
+from app.db.schema_compat import parcel_load_only, parcel_to_read
 from app.db.session import get_db
 from app.schemas import ParcelPipelineTaskResponse, ParcelRead, ParcelScoreRead, WorkflowRunRead
 from app.scoring_profiles import ENTITLEMENT, ScoreProfile
@@ -23,7 +23,7 @@ def list_parcels(
     min_score: float | None = None,
     qualified_only: bool = False,
     db: Session = Depends(get_db),
-) -> list[Parcel]:
+) -> list[ParcelRead]:
     """List parcels. Use ``qualified_only=true`` (latest score ≥ pilot ``qualified_min_score``) or ``min_score=``."""
     lim = min(limit, 200)
     floor = min_score
@@ -50,15 +50,16 @@ def list_parcels(
         )
     else:
         stmt = select(Parcel).options(parcel_load_only(db)).order_by(Parcel.created_at.desc()).limit(lim)
-    return list(db.scalars(stmt))
+    rows = list(db.scalars(stmt))
+    return [parcel_to_read(db, r) for r in rows]
 
 
 @router.get("/{parcel_id}", response_model=ParcelRead)
-def get_parcel(parcel_id: uuid.UUID, db: Session = Depends(get_db)) -> Parcel:
+def get_parcel(parcel_id: uuid.UUID, db: Session = Depends(get_db)) -> ParcelRead:
     row = db.scalars(select(Parcel).options(parcel_load_only(db)).where(Parcel.id == parcel_id)).first()
     if row is None:
         raise HTTPException(status_code=404, detail="parcel not found")
-    return row
+    return parcel_to_read(db, row)
 
 
 @router.get("/{parcel_id}/workflow-runs", response_model=list[WorkflowRunRead])

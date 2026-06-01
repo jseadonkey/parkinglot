@@ -46,7 +46,16 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     init.body = await req.text();
   }
 
-  const res = await fetch(url, init);
+  let res: Response;
+  try {
+    res = await fetch(url, init);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json(
+      { detail: `API unreachable at ${baseClean}: ${msg}` },
+      { status: 503 },
+    );
+  }
   const body = await res.text();
   return new NextResponse(body, {
     status: res.status,

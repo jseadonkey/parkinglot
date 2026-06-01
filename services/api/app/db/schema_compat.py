@@ -6,6 +6,7 @@ from sqlalchemy import inspect
 from sqlalchemy.orm import Session, load_only
 
 from app.db.models import Parcel
+from app.schemas import ParcelRead
 
 
 def table_exists(db: Session, name: str) -> bool:
@@ -42,3 +43,22 @@ def parcel_load_only(db: Session):
     if column_exists(db, "parcels", "owner_outreach_brief"):
         attrs.append(Parcel.owner_outreach_brief)
     return load_only(*attrs)
+
+
+def parcel_to_read(db: Session, row: Parcel) -> ParcelRead:
+    """Build ``ParcelRead`` without touching ORM attrs for missing DB columns."""
+    brief = None
+    if column_exists(db, "parcels", "owner_outreach_brief"):
+        brief = getattr(row, "owner_outreach_brief", None)
+    return ParcelRead(
+        id=row.id,
+        apn=row.apn,
+        county_fips=row.county_fips,
+        lot_sqft=row.lot_sqft,
+        zoning_code=row.zoning_code,
+        zoning_allows_surface_parking=row.zoning_allows_surface_parking,
+        is_corner_lot=row.is_corner_lot,
+        distance_to_nearest_demand_m=row.distance_to_nearest_demand_m,
+        owner_outreach_brief=brief,
+        created_at=row.created_at,
+    )

@@ -1,7 +1,7 @@
 """outreach_templates — admin-editable mail / phone / email copy
 
 Revision ID: 0005
-Revises: 0004
+Revises: 20260531_0005
 Create Date: 2026-05-31
 
 """
@@ -14,7 +14,7 @@ from alembic import op
 from app.db.migration_util import table_exists
 
 revision: str = "0005"
-down_revision: Union[str, None] = "0004"
+down_revision: Union[str, None] = "20260531_0005"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
