@@ -28,7 +28,7 @@ type Board = {
 
 export default function OutreachPipelinePage() {
   const [board, setBoard] = useState<Board | null>(null);
-  const [limit, setLimit] = useState(500);
+  const [limit, setLimit] = useState(100);
   const [stageFilter, setStageFilter] = useState<string>("");
   const [err, setErr] = useState<string | null>(null);
 
