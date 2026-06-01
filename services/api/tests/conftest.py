@@ -9,3 +9,6 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 _DEFAULT_RULES = _REPO_ROOT / "data/zoning/wa/kent_king_surface_parking_rules.yaml"
 if _DEFAULT_RULES.is_file():
     os.environ.setdefault("ZONING_RULES_PATH", str(_DEFAULT_RULES))
+_PILOT = _REPO_ROOT / "config/pilot.yaml"
+if _PILOT.is_file():
+    os.environ.setdefault("PILOT_CONFIG_PATH", str(_PILOT))
