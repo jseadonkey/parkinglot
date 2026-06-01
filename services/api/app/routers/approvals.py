@@ -16,11 +16,16 @@ router = APIRouter(prefix="/approvals", tags=["approvals"])
 
 
 @router.get("", response_model=list[ApprovalRead])
-def list_approvals(status: str | None = None, db: Session = Depends(get_db)) -> list[ApprovalRequest]:
+def list_approvals(
+    status: str | None = None,
+    limit: int = 200,
+    db: Session = Depends(get_db),
+) -> list[ApprovalRequest]:
     stmt = select(ApprovalRequest)
     if status is not None:
         stmt = stmt.where(ApprovalRequest.status == status)
-    stmt = stmt.order_by(ApprovalRequest.created_at.desc()).limit(200)
+    cap = min(max(limit, 1), 2000)
+    stmt = stmt.order_by(ApprovalRequest.created_at.desc()).limit(cap)
     return list(db.scalars(stmt))
 
 

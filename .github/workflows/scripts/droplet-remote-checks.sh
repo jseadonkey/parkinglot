@@ -274,11 +274,34 @@ print('standup_posted', posted)
     echo "=== disk (df -h) ==="
     df -h / /var/lib/docker 2>/dev/null || df -h /
     echo ""
+    echo "=== block devices (lsblk) ==="
+    lsblk -o NAME,SIZE,FSUSE%,MOUNTPOINT 2>/dev/null || true
+    echo ""
     echo "=== docker stats (no stream) ==="
     docker stats --no-stream "${ARGS[@]}" 2>/dev/null || docker stats --no-stream 2>/dev/null || true
     echo ""
     echo "=== compose ps ==="
     docker compose "${ARGS[@]}" ps 2>/dev/null || true
+    ;;
+  disk-grow)
+    echo "=== lsblk before ==="
+    lsblk -o NAME,SIZE,FSUSE%,MOUNTPOINT
+    ROOT_PART="$(findmnt -n -o SOURCE /)"
+    echo "root partition: $ROOT_PART"
+    if command -v growpart >/dev/null 2>&1; then
+      DISK="/dev/vda"
+      PART_NUM="1"
+      growpart "$DISK" "$PART_NUM" || true
+    else
+      echo "growpart not installed; run: apt-get update && apt-get install -y cloud-guest-utils"
+    fi
+    if [[ "$ROOT_PART" == *"vda"* ]]; then
+      resize2fs "$ROOT_PART" || true
+    fi
+    echo ""
+    echo "=== df -h after ==="
+    df -h /
+    lsblk -o NAME,SIZE,FSUSE%,MOUNTPOINT
     ;;
   *)
     echo "Unknown mode: $MODE" >&2

@@ -54,6 +54,7 @@ deal:
     - ground_lease
     - purchase_option
   templates_require_legal_review: true
+  auto_approve_deal_memo_publish: true
 
 compliance:
   allowed_outreach_channels: []

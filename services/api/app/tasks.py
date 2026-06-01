@@ -11,6 +11,7 @@ from shapely.geometry import MultiPolygon, Polygon
 from sqlalchemy import delete, exists, not_, or_, select
 from sqlalchemy.orm import Session
 
+from app.approvals_util import queue_approval
 from app.audit import write_audit
 from app.celery_app import celery
 from app.config import get_settings
@@ -356,21 +357,23 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
         memo_payload = {"deal_memo_id": str(memo.id), "parcel_id": str(parcel.id), "title": title}
         contract_payload = {"contract_draft_id": str(cd.id), "parcel_id": str(parcel.id), "s3_key": key}
 
-        db.add(
-            ApprovalRequest(
-                id=uuid.uuid4(),
-                type="deal_memo_publish",
-                status="pending",
-                payload=memo_payload,
-            )
+        pilot_deal = load_pilot_config(settings.pilot_config_path).deal
+        auto_types: frozenset[str] = (
+            frozenset({"deal_memo_publish"})
+            if pilot_deal.auto_approve_deal_memo_publish
+            else frozenset()
         )
-        db.add(
-            ApprovalRequest(
-                id=uuid.uuid4(),
-                type="contract_send",
-                status="pending",
-                payload=contract_payload,
-            )
+
+        queue_approval(
+            db,
+            approval_type="deal_memo_publish",
+            payload=memo_payload,
+            auto_approve_types=auto_types,
+        )
+        queue_approval(
+            db,
+            approval_type="contract_send",
+            payload=contract_payload,
         )
 
         run.status = WorkflowStatus.blocked.value

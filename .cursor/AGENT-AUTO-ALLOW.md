@@ -38,6 +38,21 @@ gh run list
 
 without you clicking **Allow** each time.
 
+## Approval queue on vspecialist.com
+
+| Type | Auto by agent? | Why |
+|------|----------------|-----|
+| **Deal memo publish** | Yes (pilot) | Internal memo only; `config/pilot.yaml` → `deal.auto_approve_deal_memo_publish: true` |
+| **Contract send** | **No** | Legal gate — counsel must review before any contract goes out |
+
+Duplicate approvals (from pipeline re-runs) are pruned with:
+
+```bash
+python3 scripts/prune-pending-approvals.py --apply
+```
+
+The agent is allowed to run that script without prompts (see `.cursor/permissions.json`).
+
 ## If you still see “Allow” once in a while
 
 - Click **Add to allowlist** on that prompt — Cursor remembers it (unless Run Mode uses only `permissions.json`, in which case add the command prefix to `.cursor/permissions.json` and reload).

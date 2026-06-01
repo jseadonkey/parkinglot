@@ -18,6 +18,8 @@ class DealConfig(BaseModel):
     primary_structure: str
     allowed_structures: list[str] = Field(default_factory=list)
     templates_require_legal_review: bool = True
+    # Pilot: skip human queue for internal deal memos (contract_send still requires approval).
+    auto_approve_deal_memo_publish: bool = False
 
 
 class ComplianceConfig(BaseModel):

@@ -16,7 +16,12 @@
     "zsh:./scripts/",
     "zsh:scripts/",
     "scripts/run-api-tests.sh",
+    "scripts/prune-pending-approvals.py",
+    "python3:scripts/prune-pending-approvals.py",
     "run-api-tests.sh",
+    "curl",
+    "curl:https://api.vspecialist.com",
+    "python3",
     "docker compose",
     "docker-compose",
     "alembic",
@@ -35,7 +40,9 @@
     "allow_instructions": [
       "Use make run-api-tests (or make api-ci) from repo root instead of ./scripts/... paths when possible.",
       "pytest, ruff, alembic, docker compose ps/logs, scripts under scripts/, and read-only git are allowed.",
-      "gh and docker compose for deploy/*.yml are allowed."
+      "gh and docker compose for deploy/*.yml are allowed.",
+      "scripts/prune-pending-approvals.py --apply against api.vspecialist.com is allowed for deal-memo cleanup.",
+      "Auto-approve deal_memo_publish in pilot; never auto-approve contract_send (legal gate)."
     ],
     "block_instructions": [
       "Ask before git push --force, git reset --hard, rm -rf, or production DB drops."
