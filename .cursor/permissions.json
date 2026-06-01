@@ -1,0 +1,44 @@
+{
+  // Parkinglot terminal allowlist (merged with ~/.cursor/permissions.json).
+  // Cursor matches the first token OR uses base:args glob (see cursor.com/docs/reference/permissions).
+
+  "mcpAllowlist": ["*:*"],
+
+  "terminalAllowlist": [
+    "make",
+    "make run-api-tests",
+    "make api-ci",
+    "bash:./scripts/",
+    "bash:scripts/",
+    "bash:run-api-tests",
+    "sh:./scripts/",
+    "sh:scripts/",
+    "zsh:./scripts/",
+    "zsh:scripts/",
+    "scripts/run-api-tests.sh",
+    "run-api-tests.sh",
+    "docker compose",
+    "docker-compose",
+    "alembic",
+    "celery",
+    "uvicorn",
+    "pytest",
+    "python -m pytest",
+    "ruff",
+    ".venv/bin/",
+    "cd",
+    "gh",
+    "git"
+  ],
+
+  "autoRun": {
+    "allow_instructions": [
+      "Use make run-api-tests (or make api-ci) from repo root instead of ./scripts/... paths when possible.",
+      "pytest, ruff, alembic, docker compose ps/logs, scripts under scripts/, and read-only git are allowed.",
+      "gh and docker compose for deploy/*.yml are allowed."
+    ],
+    "block_instructions": [
+      "Ask before git push --force, git reset --hard, rm -rf, or production DB drops."
+    ]
+  }
+}

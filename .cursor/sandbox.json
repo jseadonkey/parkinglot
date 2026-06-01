@@ -1,0 +1,6 @@
+{
+  // Broader sandbox network for this repo (package installs, GHCR, Droplet SSH, APIs).
+  // Merged with ~/.cursor/sandbox.json if present. Docs: cursor.com/docs/agent/tools/terminal
+
+  "networkPolicy": "allowAll"
+}

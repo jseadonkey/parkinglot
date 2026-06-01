@@ -184,6 +184,23 @@ class ContractDraft(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ParkingRateComp(Base):
+    """Spatial benchmark for paid parking rates (see ``parking_rate_comps`` migration)."""
+
+    __tablename__ = "parking_rate_comps"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    hourly_mid_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    source_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    active: Mapped[bool] = mapped_column(default=True)
+    location: Mapped[object] = mapped_column(
+        geoalchemy2.Geometry(geometry_type="POINT", srid=4326),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class AuditLog(Base):
     __tablename__ = "audit_log"
 

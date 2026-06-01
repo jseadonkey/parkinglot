@@ -33,6 +33,17 @@ class ScoringWeights(BaseModel):
     near_demand_generator_m: int = 30
 
 
+class ParkingRateCompObservation(BaseModel):
+    """Benchmark paid-parking rate near a parcel (pilot YAML and/or Postgres ``parking_rate_comps``)."""
+
+    name: str
+    lat: float
+    lon: float
+    hourly_mid_usd: float
+    source_note: str | None = None
+    origin: str = "pilot"
+
+
 class ScoringConfig(BaseModel):
     min_lot_sqft: int = 5000
     weights: ScoringWeights = Field(default_factory=ScoringWeights)
@@ -40,6 +51,9 @@ class ScoringConfig(BaseModel):
     demand_generators: list[dict[str, Any]] = Field(default_factory=list)
     # Latest score at or above this value is treated as a "qualified" lot for listing filters.
     qualified_min_score: float = 55.0
+    # Optional static comps in YAML; merged with DB comps at score time when wired.
+    parking_rate_comps: list[ParkingRateCompObservation] = Field(default_factory=list)
+    parking_rate_comp_radius_m: float = 2500.0
 
 
 class DataSourcesConfig(BaseModel):

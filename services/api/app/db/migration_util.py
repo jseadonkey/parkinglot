@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from alembic import op
 from sqlalchemy import inspect
+
+from alembic import op
 
 
 def table_exists(name: str) -> bool:

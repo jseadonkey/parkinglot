@@ -3,6 +3,7 @@
 help:
 	@echo "Targets:"
 	@echo "  make verify-sample      - venv + pytest sample GeoJSON trace (scores, enrichment, memo)"
+	@echo "  make run-api-tests      - Ruff + pytest via scripts/run-api-tests.sh (Agent-friendly allowlist)"
 	@echo "  make api-ci             - venv + Ruff + pytest + OpenAPI export smoke (matches CI test-api)"
 	@echo "  make openapi-export     - print OpenAPI JSON (needs .venv + deps like api-ci)"
 	@echo "  make export-readiness   - print CSV column gap counts (needs DATABASE_URL)"
@@ -49,6 +50,10 @@ ae-setup-check:
 verify-sample:
 	@chmod +x scripts/verify-sample-trace.sh
 	@./scripts/verify-sample-trace.sh
+
+run-api-tests:
+	@chmod +x scripts/run-api-tests.sh
+	@./scripts/run-api-tests.sh
 
 api-ci:
 	@chmod +x scripts/ci-api-local.sh

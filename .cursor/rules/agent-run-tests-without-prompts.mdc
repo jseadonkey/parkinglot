@@ -1,0 +1,16 @@
+---
+description: Use project test scripts; user configured terminal auto-allow
+alwaysApply: true
+---
+
+# Agent command auto-allow (parkinglot)
+
+The user configured `~/.cursor/permissions.json` and `.cursor/permissions.json` so routine work should not require clicking **Allow**.
+
+When running API tests or lint:
+
+- Prefer `make run-api-tests` from the repo root (allowlisted via `make`). Fallback: `bash scripts/run-api-tests.sh` — not `./scripts/...` (often blocked by prefix rules).
+- Use read-only git (`git status`, `git diff`, `git log`) freely.
+- Do not ask the user to run terminal commands manually when you can run them yourself.
+
+If Run Mode in Cursor is still set to ask every time, remind them once: **Cursor Settings → Agents → Run Mode → Auto-review** (see `.cursor/AGENT-AUTO-ALLOW.md`).

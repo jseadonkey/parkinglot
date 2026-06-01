@@ -1,7 +1,27 @@
 from __future__ import annotations
 
 from parking_core.models import ParcelFeature, ScoreBreakdown, ScoreResult
-from parking_core.pilot import PilotConfig
+from parking_core.pilot import ParkingRateCompObservation, PilotConfig
+
+
+def _rate_comp_key(comp: ParkingRateCompObservation) -> tuple[str, float, float]:
+    return (comp.name, round(comp.lat, 5), round(comp.lon, 5))
+
+
+def _merge_rate_comp_sequences(
+    primary: list[ParkingRateCompObservation],
+    secondary: list[ParkingRateCompObservation],
+) -> list[ParkingRateCompObservation]:
+    """Merge comp lists; ``primary`` wins on duplicate (name, lat, lon)."""
+    out = list(primary)
+    seen = {_rate_comp_key(c) for c in primary}
+    for comp in secondary:
+        key = _rate_comp_key(comp)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(comp)
+    return out
 
 
 def score_parcel(feature: ParcelFeature, pilot: PilotConfig) -> ScoreResult:
