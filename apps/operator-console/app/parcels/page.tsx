@@ -5,31 +5,50 @@ import { useCallback, useEffect, useState } from "react";
 
 import { bridgeUrl } from "../../lib/paths";
 
+type SortProfile = "entitlement" | "strategic" | "identification";
+
 type ParcelRow = {
-  id: string;
+  parcel_id: string;
   apn: string;
   county_fips: string;
   zoning_code: string | null;
   lot_sqft: number | null;
+  entitlement_score: number | null;
+  strategic_score: number | null;
+  identification_score: number | null;
   created_at: string;
 };
 
+type ScoredList = {
+  sort: SortProfile;
+  row_count: number;
+  rows: ParcelRow[];
+};
+
+function fmtScore(v: number | null): string {
+  return v != null ? v.toFixed(1) : "—";
+}
+
 export default function ParcelsPage() {
-  const [limit, setLimit] = useState(50);
+  const [limit, setLimit] = useState(100);
+  const [sort, setSort] = useState<SortProfile>("entitlement");
   const [rows, setRows] = useState<ParcelRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setErr(null);
     try {
-      const res = await fetch(bridgeUrl(`parcels?limit=${limit}`), { cache: "no-store" });
+      const res = await fetch(
+        bridgeUrl(`internal/parcels/scored-list?limit=${limit}&sort=${sort}`),
+        { cache: "no-store" },
+      );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as ParcelRow[];
-      setRows(data);
+      const data = (await res.json()) as ScoredList;
+      setRows(data.rows);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     }
-  }, [limit]);
+  }, [limit, sort]);
 
   useEffect(() => {
     void load();
@@ -38,13 +57,24 @@ export default function ParcelsPage() {
   return (
     <main>
       <h1>Parcels</h1>
-      <p className="muted">Latest parcel rows from the API (newest first).</p>
+      <p className="muted">
+        All ingested parcels with latest <strong>Atlas</strong> (entitlement), <strong>Beacon</strong> (strategic), and{" "}
+        <strong>Cartographer</strong> (identification) scores — sorted by the chosen profile (highest first).
+      </p>
 
       <div className="panel" style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
         <label className="muted">
-          Limit{" "}
+          Sort by{" "}
+          <select value={sort} onChange={(e) => setSort(e.target.value as SortProfile)}>
+            <option value="entitlement">Entitlement (Atlas)</option>
+            <option value="strategic">Strategic (Beacon)</option>
+            <option value="identification">Identification (Cartographer)</option>
+          </select>
+        </label>
+        <label className="muted">
+          Max rows{" "}
           <select value={limit} onChange={(e) => setLimit(Number(e.target.value))}>
-            {[25, 50, 100, 200].map((n) => (
+            {[25, 50, 100, 200, 500].map((n) => (
               <option key={n} value={n}>
                 {n}
               </option>
@@ -62,24 +92,28 @@ export default function ParcelsPage() {
         <table className="data">
           <thead>
             <tr>
+              <th>Entitlement</th>
+              <th>Strategic</th>
+              <th>Identification</th>
               <th>APN</th>
-              <th>County FIPS</th>
+              <th>County</th>
               <th>Zoning</th>
               <th>Lot sqft</th>
-              <th>Created</th>
               <th />
             </tr>
           </thead>
           <tbody>
             {rows.map((p) => (
-              <tr key={p.id}>
+              <tr key={p.parcel_id}>
+                <td>{fmtScore(p.entitlement_score)}</td>
+                <td>{fmtScore(p.strategic_score)}</td>
+                <td>{fmtScore(p.identification_score)}</td>
                 <td>{p.apn}</td>
                 <td>{p.county_fips}</td>
                 <td>{p.zoning_code ?? "—"}</td>
-                <td>{p.lot_sqft != null ? Math.round(p.lot_sqft) : "—"}</td>
-                <td className="muted">{p.created_at?.slice(0, 19) ?? ""}</td>
+                <td>{p.lot_sqft != null ? Math.round(p.lot_sqft).toLocaleString() : "—"}</td>
                 <td>
-                  <Link href={`/parcels/${p.id}`}>Detail →</Link>
+                  <Link href={`/parcels/${p.parcel_id}`}>Detail →</Link>
                 </td>
               </tr>
             ))}

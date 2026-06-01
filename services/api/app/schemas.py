@@ -206,6 +206,28 @@ class OutreachPipelineBoardResponse(BaseModel):
     rows: list[OutreachPipelineRow]
 
 
+class ParcelScoredListRow(BaseModel):
+    """One parcel with latest entitlement, strategic, and identification scores."""
+
+    parcel_id: str
+    apn: str
+    county_fips: str
+    zoning_code: str | None
+    lot_sqft: float | None
+    entitlement_score: float | None
+    strategic_score: float | None
+    identification_score: float | None
+    created_at: datetime
+
+
+class ParcelScoredListResponse(BaseModel):
+    """GET /internal/parcels/scored-list — operator parcel table sorted by score."""
+
+    sort: str
+    row_count: int
+    rows: list[ParcelScoredListRow]
+
+
 class QualifiedMinScores(BaseModel):
     """Pilot qualification floors per score profile (from pilot YAML)."""
 

@@ -17,6 +17,7 @@ from app.deps_internal import require_internal_key
 from app.export_readiness import export_readiness_summary
 from app.outreach_board import query_outreach_pipeline_board
 from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
+from app.parcel_scored_list import ParcelSortProfile, query_parcels_scored_list
 from app.schemas import (
     CeleryTaskIdResponse,
     CeleryTaskStatusResponse,
@@ -35,6 +36,8 @@ from app.schemas import (
     OwnerPortfolioRankRow,
     OwnersPeersByKeyResponse,
     OwnersPortfoliosRankedResponse,
+    ParcelScoredListResponse,
+    ParcelScoredListRow,
     PeerParcelSummary,
     ScoringSummaryResponse,
     SlackAgentDiscussionMessagePreview,
@@ -216,6 +219,31 @@ def outreach_pipeline_board(
         row_count=len(rows),
         rows=rows,
     )
+
+
+@router.get("/parcels/scored-list", response_model=ParcelScoredListResponse)
+def parcels_scored_list(
+    limit: int = Query(default=100, ge=1, le=2000),
+    sort: ParcelSortProfile = Query(default=ENTITLEMENT),
+    db: Session = Depends(get_db),
+) -> ParcelScoredListResponse:
+    """All parcels with latest entitlement / strategic / identification scores (operator table)."""
+    raw = query_parcels_scored_list(db, limit=limit, sort=sort)
+    rows = [
+        ParcelScoredListRow(
+            parcel_id=str(r.parcel_id),
+            apn=r.apn,
+            county_fips=r.county_fips,
+            zoning_code=r.zoning_code,
+            lot_sqft=r.lot_sqft,
+            entitlement_score=r.entitlement_score,
+            strategic_score=r.strategic_score,
+            identification_score=r.identification_score,
+            created_at=r.created_at,
+        )
+        for r in raw
+    ]
+    return ParcelScoredListResponse(sort=sort, row_count=len(rows), rows=rows)
 
 
 @router.get("/slack/digest-preview", response_model=SlackDigestPreviewResponse)
