@@ -142,10 +142,12 @@ def main() -> int:
     print("=== Phase C — optional vendor ===")
     ven = env.get("OWNER_VENDOR_LOOKUP_ENABLED", "").lower() in ("1", "true", "yes", "on")
     if ven:
+        bd = bool(env.get("BATCHDATA_API_KEY", "").strip())
         vurl = bool(env.get("OWNER_VENDOR_LOOKUP_URL", "").strip())
         vkey = bool(env.get("OWNER_VENDOR_LOOKUP_API_KEY", "").strip())
-        print(f"  {'OK ' if vurl and vkey else 'BAD '} OWNER_VENDOR_LOOKUP_* (enabled)")
-        if not (vurl and vkey):
+        ok = bd or (vurl and vkey)
+        print(f"  {'OK ' if ok else 'BAD '} owner vendor (BatchData or webhook URL+key)")
+        if not ok:
             errors += 1
     else:
         print("  OFF OWNER_VENDOR_LOOKUP_ENABLED (optional)")

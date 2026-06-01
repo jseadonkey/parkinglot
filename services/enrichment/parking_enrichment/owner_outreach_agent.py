@@ -169,6 +169,14 @@ def build_owner_outreach_brief(
     phone = _phone_from_props(props)
     email = _email_from_props(props)
 
+    if vendor_lookup and vendor_lookup.outcome == "hit":
+        for contact in vendor_lookup.contacts:
+            ch = (contact.channel or "").lower()
+            if ch == "phone" and not phone:
+                phone = contact.value
+            elif ch == "email" and not email:
+                email = contact.value
+
     gaps: list[str] = []
     if not mail:
         gaps.append("No mailing address on ingest payload — pull from assessor full roll or vendor.")

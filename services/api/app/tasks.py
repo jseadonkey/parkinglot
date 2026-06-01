@@ -352,25 +352,52 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
                 )
 
         vendor_attempted = False
-        if dual_qualified and settings.owner_vendor_lookup_enabled and (settings.owner_vendor_lookup_url or "").strip():
-            vendor = fetch_vendor_owner_enrichment(
-                enabled=True,
-                url=(settings.owner_vendor_lookup_url or "").strip() or None,
-                api_key=(settings.owner_vendor_lookup_api_key or "").strip() or None,
-                parcel_id=str(parcel.id),
-                county_fips=parcel.county_fips,
-                apn=parcel.apn,
-                owners=[
-                    {"display_name": o.display_name, "kind": o.kind.value, "confidence": o.confidence}
-                    for o in enriched
-                ],
-            )
-            vendor_attempted = True
+        batchdata_key = (settings.batchdata_api_key or "").strip()
+        vendor_url = (settings.owner_vendor_lookup_url or "").strip()
+        vendor_configured = bool(batchdata_key or vendor_url)
+        existing_brief = parcel.owner_outreach_brief if isinstance(parcel.owner_outreach_brief, dict) else {}
+        existing_vendor = existing_brief.get("vendor_lookup")
+        reuse_vendor = (
+            isinstance(existing_vendor, dict)
+            and existing_vendor.get("outcome") == "hit"
+            and bool(existing_vendor.get("contacts"))
+            and existing_vendor.get("provider") == "batchdata"
+        )
+        if dual_qualified and settings.owner_vendor_lookup_enabled and vendor_configured:
+            if reuse_vendor:
+                vendor = VendorLookupSummary.model_validate(existing_vendor)
+                vendor_attempted = True
+            else:
+                from parking_enrichment.batchdata_skip_trace_client import should_skip_skip_trace
+
+                skip_bd = should_skip_skip_trace(parcel.raw_properties or {}) if batchdata_key else None
+                if skip_bd:
+                    vendor = VendorLookupSummary(
+                        provider="batchdata",
+                        outcome="skipped_tier",
+                        notes=skip_bd,
+                    )
+                else:
+                    vendor = fetch_vendor_owner_enrichment(
+                        enabled=True,
+                        url=vendor_url or None,
+                        api_key=(settings.owner_vendor_lookup_api_key or "").strip() or None,
+                        batchdata_api_key=batchdata_key or None,
+                        parcel_id=str(parcel.id),
+                        county_fips=parcel.county_fips,
+                        apn=parcel.apn,
+                        raw_properties=parcel.raw_properties or {},
+                        owners=[
+                            {"display_name": o.display_name, "kind": o.kind.value, "confidence": o.confidence}
+                            for o in enriched
+                        ],
+                    )
+                    vendor_attempted = True
         else:
             skip_notes = (
                 "Parcel below dual score floor for vendor lookup."
                 if not dual_qualified
-                else "Vendor webhook disabled or URL not configured."
+                else "Vendor lookup disabled or BATCHDATA_API_KEY / webhook URL not configured."
             )
             vendor = VendorLookupSummary(provider="webhook", outcome="skipped_tier", notes=skip_notes)
 

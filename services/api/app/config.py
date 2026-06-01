@@ -299,6 +299,13 @@ class Settings(BaseSettings):
             "owner_vendor_lookup_api_key",
         ),
     )
+    batchdata_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "BATCHDATA_API_KEY",
+            "batchdata_api_key",
+        ),
+    )
 
     wa_sos_lookup_enabled: bool = Field(
         default=False,
