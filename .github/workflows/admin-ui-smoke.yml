@@ -1,10 +1,13 @@
-# Browser agent: log in as admin, visit key UI pages, report errors to Slack + CI artifacts.
+# Browser agent: log in as admin, visit key UI pages, report to Slack/agents channel every run.
 #
-# Secrets (repository):
-#   UI_SMOKE_ADMIN_EMAIL, UI_SMOKE_ADMIN_PASSWORD — admin login for vspecialist.com
-# Optional:
-#   SLACK_BOT_TOKEN, SLACK_DIGEST_CHANNEL_ID — post failure summary to Slack
-# Variables (repository):
+# Required secrets:
+#   UI_SMOKE_ADMIN_EMAIL, UI_SMOKE_ADMIN_PASSWORD
+# Recommended (posts to agents channel via production API — same path Cursor monitors):
+#   SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY  (same as INTERNAL_API_KEY on Droplet)
+# Fallback:
+#   SLACK_BOT_TOKEN, SLACK_DIGEST_CHANNEL_ID
+# Optional variable:
+#   PUBLIC_API_URL — default https://api.vspecialist.com
 #   UI_SMOKE_BASE_URL — default https://vspecialist.com
 
 name: Admin UI smoke (browser)
@@ -23,17 +26,46 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Preflight — required secrets
+        id: preflight
+        env:
+          UI_SMOKE_ADMIN_EMAIL: ${{ secrets.UI_SMOKE_ADMIN_EMAIL }}
+          UI_SMOKE_ADMIN_PASSWORD: ${{ secrets.UI_SMOKE_ADMIN_PASSWORD }}
+          NOTIFY_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
+          SLACK_BOT: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CH: ${{ secrets.SLACK_DIGEST_CHANNEL_ID }}
+        run: |
+          set -euo pipefail
+          MISSING=()
+          [ -z "${UI_SMOKE_ADMIN_EMAIL:-}" ] && MISSING+=("UI_SMOKE_ADMIN_EMAIL")
+          [ -z "${UI_SMOKE_ADMIN_PASSWORD:-}" ] && MISSING+=("UI_SMOKE_ADMIN_PASSWORD")
+          if [ -z "${NOTIFY_KEY:-}" ] && { [ -z "${SLACK_BOT:-}" ] || [ -z "${SLACK_CH:-}" ]; }; then
+            MISSING+=("SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY or (SLACK_BOT_TOKEN+SLACK_DIGEST_CHANNEL_ID)")
+          fi
+          if [ "${#MISSING[@]}" -gt 0 ]; then
+            echo "error=Missing GitHub secrets: ${MISSING[*]}" >> "$GITHUB_OUTPUT"
+            echo "SMOKE_RUNNER_ERROR=Missing secrets: ${MISSING[*]}" >> "$GITHUB_ENV"
+            exit 1
+          fi
+          echo "error=" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-node@v4
+        if: steps.preflight.outcome == 'success'
         with:
           node-version: "22"
 
       - name: Install Playwright deps
+        id: install
+        if: steps.preflight.outcome == 'success'
         working-directory: scripts/admin-ui-smoke
         run: |
           npm install
           npx playwright install chromium --with-deps
 
       - name: Run admin UI smoke
+        id: run_smoke
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
         working-directory: scripts/admin-ui-smoke
         env:
           UI_SMOKE_BASE_URL: ${{ vars.UI_SMOKE_BASE_URL || 'https://vspecialist.com' }}
@@ -42,17 +74,26 @@ jobs:
         run: npm test
 
       - name: Upload smoke report
-        if: always()
+        if: always() && steps.install.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: admin-ui-smoke-report
           path: scripts/admin-ui-smoke/smoke-report.json
           if-no-files-found: ignore
 
-      - name: Notify Slack on failure
-        if: failure()
+      - name: Report to agents channel (always)
+        if: always()
         env:
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          UI_SMOKE_BASE_URL: ${{ vars.UI_SMOKE_BASE_URL || 'https://vspecialist.com' }}
+          PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL || 'https://api.vspecialist.com' }}
+          SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_DIGEST_CHANNEL_ID: ${{ secrets.SLACK_DIGEST_CHANNEL_ID }}
           SMOKE_REPORT: scripts/admin-ui-smoke/smoke-report.json
-        run: python3 scripts/admin-ui-smoke/post-smoke-to-slack.py
+          SMOKE_PREFLIGHT_OUTCOME: ${{ steps.preflight.outcome }}
+          SMOKE_PREFLIGHT_ERROR: ${{ steps.preflight.outputs.error }}
+          SMOKE_INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          SMOKE_TEST_OUTCOME: ${{ steps.run_smoke.outcome }}
+          SMOKE_RUNNER_ERROR: ${{ env.SMOKE_RUNNER_ERROR }}
+        run: python3 scripts/admin-ui-smoke/report-smoke.py

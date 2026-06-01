@@ -100,6 +100,7 @@ test.describe("Admin UI smoke", () => {
     const report = {
       checked_at: new Date().toISOString(),
       base_url: process.env.UI_SMOKE_BASE_URL || "https://vspecialist.com",
+      status: pageIssues.length > 0 ? "ui_failed" : "ok",
       issue_count: pageIssues.length,
       issues: pageIssues,
     };
