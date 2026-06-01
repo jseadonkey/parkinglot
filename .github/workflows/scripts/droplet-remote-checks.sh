@@ -167,8 +167,22 @@ if key:
 print(urllib.request.urlopen(req, timeout=120).read().decode())
 "
 
-    echo "=== worker logs (slack, tail 40) ==="
-    docker compose "${ARGS[@]}" logs --no-color --tail 40 worker 2>/dev/null | grep -iE 'slack|SKIPPED' || echo "(no recent slack lines)"
+    echo "=== waiting 25s for worker to post digest ==="
+    sleep 25
+
+    echo "=== GET /internal/slack/last-digest (after enqueue) ==="
+    POST_DEPLOY_PATH="/internal/slack/last-digest" POST_DEPLOY_KEY="$KEY" \
+      docker compose "${ARGS[@]}" exec -T -e POST_DEPLOY_PATH -e POST_DEPLOY_KEY api python -c "
+import os, urllib.request
+key = (os.environ.get('POST_DEPLOY_KEY') or '').strip()
+req = urllib.request.Request('http://127.0.0.1:8000' + os.environ['POST_DEPLOY_PATH'])
+if key:
+    req.add_header('X-Internal-Key', key)
+print(urllib.request.urlopen(req, timeout=30).read().decode())
+"
+
+    echo "=== worker logs (tail 60) ==="
+    docker compose "${ARGS[@]}" logs --no-color --tail 60 worker 2>/dev/null || true
     ;;
   diagnostics)
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
