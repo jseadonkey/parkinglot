@@ -1,17 +1,25 @@
 #!/usr/bin/env python3
-"""Merge SLACK_* into repo-root .env on the droplet and restart api, worker, beat."""
+"""Merge SLACK_* into deploy/.env on the Droplet and restart api, worker, beat."""
 
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-ENV_PATH = ROOT / ".env"
+# Production compose always loads deploy/.env (not repo-root .env).
+ENV_PATH = ROOT / "deploy" / ".env"
+FALLBACK_ENV = ROOT / ".env"
 # Purveyors of Leisure — #gf-parkinglot-agents-chat (copy from Slack channel details if yours differs).
 DEFAULT_CHANNEL = "C0B0VPSAH44"
+
+COMPOSE_FILES = [
+    "deploy/docker-compose.production.ghcr.yml",
+    "deploy/docker-compose.production.yml",
+]
 
 
 def _drop_slack_assignment(line: str) -> bool:
@@ -19,6 +27,23 @@ def _drop_slack_assignment(line: str) -> bool:
     if t.startswith("#"):
         t = t[1:].strip()
     return t.startswith("SLACK_BOT_TOKEN=") or t.startswith("SLACK_DIGEST_CHANNEL_ID=")
+
+
+def _resolve_env_path() -> Path:
+    if ENV_PATH.is_file():
+        return ENV_PATH
+    if FALLBACK_ENV.is_file():
+        print(f"note: {ENV_PATH} missing; writing to {FALLBACK_ENV} (copy to deploy/.env for production)", file=sys.stderr)
+        return FALLBACK_ENV
+    ENV_PATH.parent.mkdir(parents=True, exist_ok=True)
+    return ENV_PATH
+
+
+def _compose_file() -> str:
+    for rel in COMPOSE_FILES:
+        if (ROOT / rel).is_file():
+            return rel
+    return COMPOSE_FILES[-1]
 
 
 def main() -> int:
@@ -41,8 +66,9 @@ def main() -> int:
         return 1
 
     chan = os.environ.get("SLACK_DIGEST_CHANNEL_ID", DEFAULT_CHANNEL).strip()
+    env_path = _resolve_env_path()
 
-    text = ENV_PATH.read_text(encoding="utf-8") if ENV_PATH.is_file() else ""
+    text = env_path.read_text(encoding="utf-8") if env_path.is_file() else ""
     lines: list[str] = []
     for line in text.splitlines():
         if "Optional Slack standup" in line and "docs/SLACK.md" in line:
@@ -56,15 +82,29 @@ def main() -> int:
         f"SLACK_BOT_TOKEN={token}\n"
         f"SLACK_DIGEST_CHANNEL_ID={chan}\n"
     )
-    ENV_PATH.write_text(body + block, encoding="utf-8", newline="\n")
-    os.chmod(ENV_PATH, 0o600)
+    env_path.write_text(body + block, encoding="utf-8", newline="\n")
+    os.chmod(env_path, 0o600)
 
+    compose = _compose_file()
     subprocess.run(
-        ["docker", "compose", "up", "-d", "api", "worker", "beat"],
+        [
+            "docker",
+            "compose",
+            "-f",
+            compose,
+            "--env-file",
+            "deploy/.env" if (ROOT / "deploy" / ".env").is_file() else str(env_path.relative_to(ROOT)),
+            "up",
+            "-d",
+            "--force-recreate",
+            "api",
+            "worker",
+            "beat",
+        ],
         cwd=str(ROOT),
         check=True,
     )
-    print("Updated .env and restarted api, worker, beat.")
+    print(f"Updated {env_path} and restarted api, worker, beat (compose: {compose}).")
     return 0
 
 

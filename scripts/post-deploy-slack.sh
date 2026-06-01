@@ -23,6 +23,15 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 ENV_FILE="${DEPLOY_ENV_FILE:-$ROOT/deploy/.env}"
 
+# Match production stack (GHCR vs local build). Deploy workflow sets COMPOSE_FILE.
+COMPOSE_REL="${COMPOSE_FILE:-deploy/docker-compose.production.ghcr.yml}"
+if [[ ! -f "$COMPOSE_REL" ]]; then
+  COMPOSE_REL="deploy/docker-compose.production.yml"
+fi
+export COMPOSE_REL
+# shellcheck source=scripts/remote/_compose_args.sh
+source "$ROOT/scripts/remote/_compose_args.sh"
+
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "Missing $ENV_FILE" >&2
   exit 1
@@ -87,11 +96,7 @@ _compose_api_post() {
   local wait="${POST_DEPLOY_COMPOSE_WAIT:-12}"
   while [[ "$attempt" -le "$max" ]]; do
     set +e
-    if [[ -f deploy/docker-compose.postgis-addon.yml ]]; then
-      _compose_api_post_once "$path" -f deploy/docker-compose.production.yml -f deploy/docker-compose.postgis-addon.yml --env-file deploy/.env
-    else
-      _compose_api_post_once "$path" -f deploy/docker-compose.production.yml --env-file deploy/.env
-    fi
+    _compose_api_post_once "$path" "${ARGS[@]}"
     local ec=$?
     if [[ "$ec" -eq 0 ]]; then
       set -e
@@ -102,15 +107,6 @@ _compose_api_post() {
     sleep "$wait"
     attempt=$((attempt + 1))
   done
-  # Second strategy: stack might have been started without postgis override file.
-  if [[ -f deploy/docker-compose.postgis-addon.yml ]]; then
-    echo "Retrying compose exec without postgis-addon overlay…" >&2
-    set +e
-    _compose_api_post_once "$path" -f deploy/docker-compose.production.yml --env-file deploy/.env
-    local ec2=$?
-    set -e
-    [[ "$ec2" -eq 0 ]] && return 0
-  fi
   return 1
 }
 

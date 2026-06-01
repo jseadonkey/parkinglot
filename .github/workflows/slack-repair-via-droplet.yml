@@ -1,0 +1,42 @@
+# Diagnose Slack digest pipeline on the Droplet and attempt repair:
+# - sync SLACK_* from repo-root .env → deploy/.env if misconfigured
+# - restart api/worker/beat
+# - enqueue digest-now via docker compose exec (no stale GitHub internal-key secret)
+#
+# Requires: DROPLET_HOST, DROPLET_USER, DROPLET_SSH_PRIVATE_KEY
+# Optional: DROPLET_REMOTE_PATH
+
+name: Slack repair (via Droplet)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Inspect and repair Slack on Droplet
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && bash -s -- slack-inspect deploy/docker-compose.production.ghcr.yml"

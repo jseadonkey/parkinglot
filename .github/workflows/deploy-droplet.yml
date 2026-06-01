@@ -251,6 +251,7 @@ jobs:
           cd "$REMOTE_PATH"
           test -f deploy/.env
           test -f scripts/post-deploy-slack.sh
+          export COMPOSE_FILE="deploy/${{ steps.opts.outputs.compose_file }}"
           # Avoid exit 126 if +x is stripped on rsync / filesystem — bash runs without execute bit.
           bash scripts/post-deploy-slack.sh "$MODE"
           EOS
