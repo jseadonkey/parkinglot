@@ -68,28 +68,16 @@ except urllib.error.HTTPError as exc:
 PY
 }
 
-_internal_api_post() {
+_internal_api_post_via_container() {
   local path="$1"
-  local payload="${2:-{}}"
-  local body=""
-  if [ -n "$KEY" ]; then
-    body="$(curl -sSk --connect-timeout 15 --max-time 60 -X POST "${BASE}${path}" \
-      -H "Content-Type: application/json" -H "X-Internal-Key: $KEY" -d "$payload" 2>/dev/null || true)"
-  else
-    body="$(curl -sSk --connect-timeout 15 --max-time 60 -X POST "${BASE}${path}" \
-      -H "Content-Type: application/json" -d "$payload" 2>/dev/null || true)"
-  fi
-  if [ -n "$body" ]; then
-    printf '%s' "$body"
-    return 0
-  fi
-  local compose_rel
-  compose_rel="${COMPOSE_REL:-deploy/docker-compose.production.ghcr.yml}"
+  local payload="${2:-"{}"}"
+  local compose_rel="${COMPOSE_REL:-deploy/docker-compose.production.ghcr.yml}"
   if ! docker compose -f "$compose_rel" --env-file deploy/.env ps -q api 2>/dev/null | grep -q .; then
-    return 0
+    echo "api container not running"
+    return 1
   fi
   docker compose -f "$compose_rel" --env-file deploy/.env exec -T \
-    -e "API_PATH=$path" -e "API_PAYLOAD=$payload" api python - <<'PY'
+    -e "API_PATH=$path" -e "API_PAYLOAD=$payload" -e "INTERNAL_API_KEY=$KEY" api python - <<'PY'
 import os
 import urllib.error
 import urllib.request
@@ -102,11 +90,41 @@ if key:
     headers["X-Internal-Key"] = key
 req = urllib.request.Request(f"http://127.0.0.1:8000{path}", data=payload, method="POST", headers=headers)
 try:
-    with urllib.request.urlopen(req, timeout=60) as resp:
+    with urllib.request.urlopen(req, timeout=120) as resp:
         print(resp.read().decode())
 except urllib.error.HTTPError as exc:
     print(exc.read().decode() if exc.fp else str(exc))
 PY
+}
+
+_internal_api_post() {
+  local path="$1"
+  local payload="${2:-"{}"}"
+  # Non-empty JSON bodies: POST via API container (curl through Caddy often drops or corrupts body).
+  if [ "$payload" != "{}" ]; then
+    _internal_api_post_via_container "$path" "$payload"
+    return $?
+  fi
+  local body=""
+  local http_code="000"
+  if [ -n "$KEY" ]; then
+    body="$(curl -sSk --connect-timeout 15 --max-time 60 -w $'\n%{http_code}' -X POST "${BASE}${path}" \
+      -H "Content-Type: application/json" -H "X-Internal-Key: $KEY" -d "$payload" 2>/dev/null || true)"
+  else
+    body="$(curl -sSk --connect-timeout 15 --max-time 60 -w $'\n%{http_code}' -X POST "${BASE}${path}" \
+      -H "Content-Type: application/json" -d "$payload" 2>/dev/null || true)"
+  fi
+  if [ -n "$body" ]; then
+    http_code="$(printf '%s' "$body" | tail -n 1)"
+    body="$(printf '%s' "$body" | sed '$d')"
+  fi
+  case "$http_code" in
+    200|201|202|204)
+      printf '%s' "$body"
+      return 0
+      ;;
+  esac
+  _internal_api_post_via_container "$path" "$payload"
 }
 
 case "$MODE" in
