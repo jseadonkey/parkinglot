@@ -795,7 +795,7 @@ for key, val in sorted(updates.items()):
 PY
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
     echo "=== recreate worker + beat ==="
-    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps worker beat
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps api worker beat
     ;;
   enable-slow-statewide-expansion)
     echo "=== enable slow statewide expansion (1 county/day + keep priority pipeline) ==="
