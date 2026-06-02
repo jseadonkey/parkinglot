@@ -80,19 +80,12 @@ export default function OwnersPage() {
   const rows = board?.portfolios ?? [];
 
   return (
-    <main>
-      <header className="page-header">
-        <div>
-          <h1>Owner portfolios</h1>
-          <p className="muted page-lead">
-            Owners with <strong>two or more</strong> entitlement-qualified parcels — click a row to expand their lots
-            and open deal detail.
-          </p>
-        </div>
+    <div className="page-content">
+      <div className="page-actions">
         <button type="button" className="outline" onClick={() => void load()} disabled={loading}>
           {loading ? "Loading…" : "Refresh"}
         </button>
-      </header>
+      </div>
 
       {board ? (
         <p className="muted result-meta">
@@ -186,6 +179,6 @@ export default function OwnersPage() {
           outreach.
         </p>
       </div>
-    </main>
+    </div>
   );
 }

@@ -58,15 +58,7 @@ export default function ParcelsPage() {
   }, [load]);
 
   return (
-    <main>
-      <h1>Parcels</h1>
-      <p className="muted page-lead">
-        All ingested parcels with latest agent scores. <strong>Atlas</strong> = entitlement (zoning fit),{" "}
-        <strong>Beacon</strong> = strategic (market/demand), <strong>Cartographer</strong> = identification prescreen
-        at ingest. <strong>Combined</strong> averages whichever scores exist. For deal-ready lots, use{" "}
-        <Link href="/outreach">Outreach pipeline</Link> (entitlement ≥ qualified floor only).
-      </p>
-
+    <div className="page-content">
       <div className="panel" style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
         <label className="muted">
           Sort by{" "}
@@ -131,6 +123,6 @@ export default function ParcelsPage() {
         </table>
         {rows.length === 0 && !err ? <p className="muted">No parcels returned.</p> : null}
       </div>
-    </main>
+    </div>
   );
 }

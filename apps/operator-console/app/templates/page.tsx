@@ -138,17 +138,7 @@ export default function TemplatesPage() {
   }
 
   return (
-    <main className="main-wide">
-      <div className="page-header">
-        <div>
-          <h1>Message templates</h1>
-          <p className="page-lead muted">
-            Edit the default copy for email, text messages, voice calls, and certified mail. Nothing is sent from this
-            screen — outreach stays gated by counsel approval and channel integration.
-          </p>
-        </div>
-      </div>
-
+    <div className="page-content main-wide">
       <div className="template-tabs" role="tablist" aria-label="Template channels">
         {TEMPLATE_TABS.map((tab) => {
           const loaded = templates.some((t) => t.slug === tab.slug);
@@ -274,6 +264,6 @@ export default function TemplatesPage() {
           <pre className="preview-body">{preview.body}</pre>
         </div>
       ) : null}
-    </main>
+    </div>
   );
 }

@@ -144,21 +144,12 @@ export default function DealsPage() {
   const stepCounts = summary?.by_step ?? {};
 
   return (
-    <main className="main-wide">
-      <header className="page-header">
-        <div>
-          <h1>Deal progress</h1>
-          <p className="muted page-lead">
-            Every parcel that has started the automated pipeline — one row per parcel (latest run only). Steps:{" "}
-            <strong>Score</strong> → <strong>Enrich</strong> (owner + skip trace) → <strong>Memo</strong> →{" "}
-            <strong>Contract</strong> → <strong>Review</strong> (your approval). For qualified deals only, see{" "}
-            <Link href="/outreach">Outreach pipeline</Link>.
-          </p>
-        </div>
+    <div className="page-content main-wide">
+      <div className="page-actions">
         <button type="button" className="outline" onClick={() => void load()} disabled={loading}>
           {loading ? "Loading…" : "Refresh"}
         </button>
-      </header>
+      </div>
 
       {summary ? (
         <div className="cols pipeline-stats">
@@ -305,6 +296,6 @@ export default function DealsPage() {
           )}
         </div>
       )}
-    </main>
+    </div>
   );
 }

@@ -233,25 +233,21 @@ export default function OverviewPage() {
   const funnelBase = funnelSteps[0]?.count ?? 0;
 
   return (
-    <main>
-      <h1>Operator overview</h1>
-      <p className="muted page-lead">
-        Washington parking acquisition pilot — scope, scoring totals, and how parcels narrow from GIS ingest to
-        qualified outreach candidates.
-      </p>
-
+    <div className="page-content">
       <QuickStartCards />
 
-      <div className="panel partner-banner">
-        <strong>Sharing with partners?</strong>
-        <p className="muted" style={{ margin: "0.35rem 0 0.5rem" }}>
-          The <Link href="/platform">Platform</Link> page showcases live metrics, sample memos and contracts, the
-          three scoring agents, and top deals — <strong>shareable without login</strong>.
+      <details className="panel partner-banner">
+        <summary>
+          <strong>Sharing with partners?</strong>
+        </summary>
+        <p className="muted" style={{ margin: "0.5rem 0" }}>
+          Send them <Link href="/platform">Platform showcase</Link> — live metrics and redacted samples, no login
+          required.
         </p>
         <Link href="/platform" className="btn-link btn-link-primary">
           Open platform showcase →
         </Link>
-      </div>
+      </details>
 
       <OperatorGuide />
 
@@ -437,6 +433,6 @@ export default function OverviewPage() {
           <p className="muted">Open to load gap diagnostics (skipped on initial page load).</p>
         )}
       </details>
-    </main>
+    </div>
   );
 }

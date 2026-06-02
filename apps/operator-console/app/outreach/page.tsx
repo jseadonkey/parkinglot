@@ -145,22 +145,12 @@ export default function OutreachPipelinePage() {
   ];
 
   return (
-    <main className="main-wide">
-      <header className="page-header">
-        <div>
-          <h1>Outreach pipeline</h1>
-          <p className="muted page-lead">
-            Your working queue: parcels with entitlement at or above the pilot floor, highest score first. Workflow:
-            agents enrich → draft memo &amp; contract → you approve in{" "}
-            <Link href="/approvals">Approvals</Link> → outbound message (after counsel sign-off). Start with{" "}
-            <strong>Needs action</strong>. Est. gross is illustrative parking revenue from nearby comps.{" "}
-            <Link href="/templates">Edit message templates</Link>
-          </p>
-        </div>
+    <div className="page-content main-wide">
+      <div className="page-actions">
         <button type="button" className="outline" onClick={() => void loadBoard()} disabled={loading}>
           {loading ? "Loading…" : "Refresh"}
         </button>
-      </header>
+      </div>
 
       <div className="cols pipeline-stats">
         <div className="stat">
@@ -324,6 +314,6 @@ export default function OutreachPipelinePage() {
           )}
         </div>
       )}
-    </main>
+    </div>
   );
 }

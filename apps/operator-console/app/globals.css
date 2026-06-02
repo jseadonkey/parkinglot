@@ -20,14 +20,263 @@ body {
   line-height: 1.5;
 }
 
-main {
+/* —— App shell (same layout every visit) —— */
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: #111820;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.app-brand {
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.app-brand:hover .app-brand-title {
+  color: var(--accent);
+}
+
+.app-brand-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.app-brand-sub {
+  font-size: 0.68rem;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+}
+
+.app-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: #0e141c;
+  padding: 1rem 0.75rem 1.5rem;
+  position: sticky;
+  top: 2.5rem;
+  align-self: flex-start;
+  max-height: calc(100vh - 2.5rem);
+  overflow-y: auto;
+}
+
+.sidebar-group {
+  margin-bottom: 1rem;
+}
+
+.sidebar-group-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  padding: 0 0.5rem 0.35rem;
+}
+
+.sidebar-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar-link {
+  display: block;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.sidebar-link:hover {
+  color: var(--text);
+  background: rgba(91, 156, 250, 0.06);
+}
+
+.sidebar-link.active {
+  color: #fff;
+  background: #1e3a5f;
+  font-weight: 600;
+}
+
+.sidebar-memory {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+}
+
+.sidebar-memory-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-routine {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+}
+
+.sidebar-routine li {
+  margin-bottom: 0.55rem;
+}
+
+.sidebar-routine a {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.sidebar-routine a:hover {
+  color: var(--accent);
+}
+
+.routine-n {
+  display: inline-flex;
+  width: 1.25rem;
+  height: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #1e3a5f;
+  color: #fff;
+  font-size: 0.68rem;
+  margin-right: 0.35rem;
+}
+
+.routine-hint {
+  display: block;
+  font-size: 0.68rem;
+  margin-left: 1.6rem;
+  margin-top: 0.1rem;
+}
+
+.sidebar-legend {
+  font-size: 0.68rem;
+  line-height: 1.45;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-legend strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
   max-width: 1100px;
-  margin: 0 auto;
-  padding: 1.5rem 1.25rem 3rem;
+  padding: 1.25rem 1.5rem 3rem;
+}
+
+.app-main:has(.platform-page) {
+  max-width: 1280px;
+}
+
+.app-page-meta {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-page-title {
+  margin: 0.35rem 0 0.25rem;
+  font-size: 1.45rem;
+  font-weight: 700;
+}
+
+.app-page-purpose {
+  margin: 0;
+  max-width: 40rem;
+  font-size: 0.88rem;
+}
+
+.breadcrumbs {
+  font-size: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.breadcrumb-item a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.breadcrumb-item a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-sep {
+  margin: 0 0.35rem;
+  color: var(--muted);
+}
+
+.page-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.page-content.main-wide {
+  /* wide tables */
+}
+
+@media (max-width: 900px) {
+  .app-body {
+    flex-direction: column;
+  }
+
+  .app-sidebar {
+    width: 100%;
+    position: relative;
+    top: 0;
+    max-height: none;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .sidebar-memory {
+    grid-column: 1 / -1;
+  }
+}
+
+main {
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 main.main-wide {
-  max-width: 1280px;
+  max-width: none;
 }
 
 .page-header {
@@ -882,7 +1131,9 @@ select {
 @media print {
   nav.nav,
   .no-print,
-  .platform-cta-links {
+  .platform-cta-links,
+  .app-sidebar,
+  .app-topbar {
     display: none !important;
   }
 

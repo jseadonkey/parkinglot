@@ -64,14 +64,7 @@ export default function ApprovalsPage() {
   }
 
   return (
-    <main>
-      <h1>Approvals</h1>
-      <p className="muted page-lead">
-        Human gate before anything is published or sent. Agents queue deal memos, contract drafts, and outbound
-        messages (email, text, voice, mail) here. Approve to allow the next step; reject to stop. After approving
-        outreach, the parcel moves toward send (channel integration on the backend).
-      </p>
-
+    <div className="page-content">
       <div className="panel" style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
         <label className="muted">
           Show{" "}
@@ -165,6 +158,6 @@ export default function ApprovalsPage() {
           })
         )}
       </div>
-    </main>
+    </div>
   );
 }

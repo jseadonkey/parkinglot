@@ -203,15 +203,27 @@ export default function ParcelDetailPage() {
   }
 
   return (
-    <main>
-      <p className="muted">
-        <Link href="/parcels">← Parcels</Link>
-      </p>
-      <h1>Parcel detail</h1>
-      <p className="muted page-lead">
-        End-to-end view for one lot: scores, parking market context, owner research, workflow status, and outreach
-        drafts. Approve sends from <Link href="/approvals">Approvals</Link>.
-      </p>
+    <div className="page-content">
+      <header className="app-page-meta" style={{ marginBottom: "1rem" }}>
+        <nav className="breadcrumbs" aria-label="Breadcrumb">
+          <span className="breadcrumb-item">
+            <Link href="/">Home</Link>
+          </span>
+          <span className="breadcrumb-item">
+            <span className="breadcrumb-sep">›</span>
+            <Link href="/parcels">Parcels</Link>
+          </span>
+          <span className="breadcrumb-item">
+            <span className="breadcrumb-sep">›</span>
+            <span aria-current="page">{parcel?.apn ?? "Parcel"}</span>
+          </span>
+        </nav>
+        <h1 className="app-page-title">{parcel ? parcel.apn : "Parcel detail"}</h1>
+        <p className="app-page-purpose muted">
+          Scores, parking market context, owner research, workflow, and outreach drafts — then{" "}
+          <Link href="/approvals">Approvals</Link> before anything sends.
+        </p>
+      </header>
 
       {err ? <div className="error">{err}</div> : null}
 
@@ -602,6 +614,6 @@ export default function ParcelDetailPage() {
       ) : !err ? (
         <p className="muted">Loading…</p>
       ) : null}
-    </main>
+    </div>
   );
 }

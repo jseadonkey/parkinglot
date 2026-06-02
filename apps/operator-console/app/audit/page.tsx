@@ -49,13 +49,7 @@ export default function AuditPage() {
   }, [rows, filter]);
 
   return (
-    <main>
-      <h1>Audit log</h1>
-      <p className="muted page-lead">
-        History of approvals, pipeline events, template edits, and Slack notifications — newest first. Use this when
-        you need to confirm who approved what and when.
-      </p>
-
+    <div className="page-content">
       <div className="panel toolbar">
         <div className="filter-chips" role="tablist" aria-label="Audit filter">
           {(
@@ -114,6 +108,6 @@ export default function AuditPage() {
         </table>
         {filtered.length === 0 && !err ? <p className="muted empty-state">No matching events.</p> : null}
       </div>
-    </main>
+    </div>
   );
 }

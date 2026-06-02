@@ -197,7 +197,7 @@ export default function PlatformPage() {
     : null;
 
   return (
-    <main className="main-wide platform-page">
+    <div className="page-content platform-page">
       <header className="platform-hero">
         <div className="platform-hero-top">
           <div>
@@ -454,6 +454,6 @@ export default function PlatformPage() {
       ) : loading && !err ? (
         <div className="panel muted">Loading platform showcase…</div>
       ) : null}
-    </main>
+    </div>
   );
 }
