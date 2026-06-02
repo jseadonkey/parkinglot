@@ -9,9 +9,22 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "services" / "ingestion"))
 
-from parking_ingestion.baltimore_parcels import fetch_baltimore_city_geojson  # noqa: E402
+
+def _load_fetcher():
+    """Load fetcher without importing parking_ingestion.__init__ (avoids shapely on bare host)."""
+    import importlib.util
+
+    mod_path = ROOT / "services/ingestion/parking_ingestion/baltimore_parcels.py"
+    spec = importlib.util.spec_from_file_location("baltimore_parcels", mod_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load {mod_path}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.fetch_baltimore_city_geojson
+
+
+fetch_baltimore_city_geojson = _load_fetcher()
 
 
 def main() -> None:

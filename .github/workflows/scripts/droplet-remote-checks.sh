@@ -901,8 +901,9 @@ PY
     OVERLAY="data/baltimore/baltimore_city_zoning_overlay.geojson"
     WORKER_OVERLAY="/app/data/baltimore/baltimore_city_zoning_overlay.geojson"
 
-    echo "=== git pull (scripts + zoning rules on Droplet) ==="
-    git pull --ff-only 2>/dev/null || true
+    echo "=== git fetch latest main on Droplet ==="
+    git fetch origin main 2>/dev/null || true
+    git merge --ff-only origin/main 2>/dev/null || git pull --ff-only origin main 2>/dev/null || true
 
     export PYTHONPATH="${ROOT}/services/ingestion${PYTHONPATH:+:$PYTHONPATH}"
 
