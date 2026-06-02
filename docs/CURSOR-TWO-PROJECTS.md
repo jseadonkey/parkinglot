@@ -1,6 +1,8 @@
 # Two projects at once (parkinglot + mobile-home-parks)
 
-Use **two Cursor windows** and **never type a raw IP** when syncing or deploying. Each repo and each Droplet has a fixed name.
+Use **two Cursor windows** on the **Droplets** (Remote SSH). You do **not** need a `mobile-home-parks` folder on your Mac.
+
+See [DROPLET-FIRST-WORKFLOW.md](DROPLET-FIRST-WORKFLOW.md) for what exists today on GitHub and each server.
 
 ## 1. SSH aliases (your Mac — `~/.ssh/config`)
 
@@ -18,10 +20,10 @@ ssh mobile-home-parks 'hostname; cat /opt/workspaces/mobile-home-parks/.droplet-
 
 ## 2. Two Cursor windows (recommended)
 
-| Window | Open folder (local) | Optional Remote-SSH |
-|--------|---------------------|---------------------|
-| **A — parkinglot** | `~/parkinglot/parkinglot` (this repo) | Connect to host **`parkinglot`**, folder `/opt/workspaces/parkinglot` |
-| **B — mobile-home-parks** | Your `mobile-home-parks` clone | Connect to host **`mobile-home-parks`**, folder that project’s path on that server |
+| Window | Remote-SSH host | Open folder **on server** |
+|--------|-----------------|---------------------------|
+| **A — parkinglot** | **`parkinglot`** | `/opt/workspaces/parkinglot` |
+| **B — mobile-home-parks** | **`mobile-home-parks`** | `/opt/workspaces/mobile-home-parks` (after [bootstrap](../scripts/bootstrap-mobile-home-parks-droplet.sh)) |
 
 Rules:
 
