@@ -797,6 +797,63 @@ PY
     echo "=== recreate worker + beat ==="
     docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps worker beat
     ;;
+  enable-slow-statewide-expansion)
+    echo "=== enable slow statewide expansion (1 county/day + keep priority pipeline) ==="
+    python3 - <<'PY'
+import pathlib
+
+path = pathlib.Path("deploy/.env")
+if not path.is_file():
+    raise SystemExit("deploy/.env missing")
+
+updates = {
+    "WA_STATEWIDE_ROLLOUT_ENABLED": "true",
+    "WA_STATEWIDE_ROLLOUT_CONFIG_PATH": "/app/config/wa_statewide_rollout.yaml",
+    "WA_STATEWIDE_ROLLOUT_CRONTAB_HOUR": "7",
+    "WA_STATEWIDE_ROLLOUT_CRONTAB_MINUTE": "15",
+    "SCHEDULED_PRIORITY_PIPELINE_ENABLED": "true",
+    "SCHEDULED_PRIORITY_PIPELINE_LIMIT": "75",
+    "SCHEDULED_PRIORITY_PIPELINE_CRONTAB_HOUR": "*/2",
+    "SCHEDULED_PRIORITY_PIPELINE_CRONTAB_MINUTE": "20",
+    "SCHEDULED_ENQUEUE_UNSCORED_LIMIT": "75",
+}
+lines = path.read_text(encoding="utf-8").splitlines()
+keys = set(updates)
+out: list[str] = []
+seen: set[str] = set()
+for line in lines:
+    if not line or line.lstrip().startswith("#") or "=" not in line:
+        out.append(line)
+        continue
+    key = line.split("=", 1)[0].strip()
+    if key in keys:
+        out.append(f"{key}={updates[key]}")
+        seen.add(key)
+    else:
+        out.append(line)
+missing = [k for k in keys if k not in seen]
+if missing:
+    if out and out[-1].strip():
+        out.append("")
+    out.append("# Slow statewide expansion — WaTech 1 county/day; priority pipeline stays on")
+    for key in sorted(missing):
+        out.append(f"{key}={updates[key]}")
+path.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
+for key, val in sorted(updates.items()):
+    print(f"Set {key}={val}")
+PY
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    echo "=== recreate worker + beat ==="
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps worker beat
+    echo "=== rollout status (before kickstart) ==="
+    if [ -n "$KEY" ]; then
+      _internal_api_get "/internal/ingest/wa-rollout-status" || true
+    fi
+    if [ "${KICKSTART_ROLLOUT:-true}" = "true" ] && [ -n "$KEY" ]; then
+      echo "=== POST /internal/ingest/wa-rollout-now (first/next county if queue OK) ==="
+      _internal_api_post "/internal/ingest/wa-rollout-now" || echo "wa-rollout-now skipped or deferred"
+    fi
+    ;;
   wa-rollout-status)
     echo "=== GET /internal/ingest/wa-rollout-status ==="
     if [ -n "$KEY" ]; then

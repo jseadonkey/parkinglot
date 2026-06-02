@@ -45,6 +45,10 @@ on:
         description: "Enable daily WaTech ingest for next empty WA county + restart worker/beat"
         type: boolean
         default: false
+      enable_slow_statewide_expansion:
+        description: "Enable 1 county/day statewide ingest AND keep priority pipeline (recommended)"
+        type: boolean
+        default: false
       wa_rollout_now:
         description: "Enqueue next county WaTech ingest now (requires rollout enabled on droplet)"
         type: boolean
@@ -121,6 +125,8 @@ jobs:
             MODE="fix-hourly-slack-reports"
           elif [ "${{ inputs.enable_wa_statewide_rollout }}" = "true" ]; then
             MODE="enable-wa-statewide-rollout"
+          elif [ "${{ inputs.enable_slow_statewide_expansion }}" = "true" ]; then
+            MODE="enable-slow-statewide-expansion"
           elif [ "${{ inputs.wa_rollout_now }}" = "true" ]; then
             MODE="wa-rollout-now"
           elif [ "${{ inputs.wa_rollout_status }}" = "true" ]; then

@@ -1,5 +1,8 @@
 # Slow statewide parcel ingest: one county per day (WaTech), Puget Sound first.
 # See docs/WA_STATEWIDE_ROLLOUT.md and Beat task app.tasks.wa_statewide_rollout_tick.
+#
+# Run together with SCHEDULED_PRIORITY_PIPELINE_* so top King/Puget parcels still get
+# enrichment first while new counties load (~1/day).
 
 # Counties with zero parcel rows in DB are ingested in this order (King first — skipped once loaded).
 county_fips_priority:
@@ -46,7 +49,7 @@ county_fips_priority:
 watech_max_features: null
 
 # After ingest, auto-run pipeline on at most this many parcels (keeps load gradual).
-max_auto_pipeline: 40
+max_auto_pipeline: 30
 
 # Skip starting a new county if parking Celery queue is deeper than this.
-max_parking_queue_depth: 800
+max_parking_queue_depth: 600

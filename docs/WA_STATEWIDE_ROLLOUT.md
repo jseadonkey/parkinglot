@@ -1,6 +1,8 @@
 # Washington statewide rollout (slow)
 
-**Paused by default** when `WA_STATEWIDE_ROLLOUT_ENABLED=false` — prioritize **top entitlement parcels** (deal context + `SCHEDULED_PRIORITY_PIPELINE_*`) before expanding ingest.
+**Paused by default** when `WA_STATEWIDE_ROLLOUT_ENABLED=false`. Use **`enable_slow_statewide_expansion`** on the Droplet to turn on **one county per day** while **keeping the priority pipeline** for top entitlement parcels.
+
+Prioritize **top entitlement parcels** (deal context + `SCHEDULED_PRIORITY_PIPELINE_*`) — statewide ingest runs in parallel at a low rate, not instead of it.
 
 Adds **one new county per day** from the public **WaTech** statewide parcel layer when the Celery **parking** queue is not overloaded. King County is skipped once it already has rows in Postgres.
 
@@ -15,10 +17,20 @@ Adds **one new county per day** from the public **WaTech** statewide parcel laye
 
 Default caps (tunable in YAML):
 
-- **40** parcels get `run_pipeline` per new county ingest batch (`max_auto_pipeline`)
-- Skip a new county if **parking** queue depth **> 800**
+- **30** parcels get `run_pipeline` per new county ingest batch (`max_auto_pipeline`)
+- Skip a new county if **parking** queue depth **> 600**
 
 ## Enable on the Droplet
+
+**Recommended (slow expansion + priority pipeline):**
+
+```bash
+# GitHub Actions → Droplet resources → enable_slow_statewide_expansion = true
+```
+
+This sets `WA_STATEWIDE_ROLLOUT_ENABLED=true`, keeps `SCHEDULED_PRIORITY_PIPELINE_ENABLED=true`, caps backlog enqueue at 75, and kickstarts the next county if the queue is healthy.
+
+**Rollout only (no priority tweak):**
 
 ```bash
 # GitHub Actions → Droplet resources → enable_wa_statewide_rollout = true
@@ -29,6 +41,7 @@ Or merge into `deploy/.env`:
 ```bash
 WA_STATEWIDE_ROLLOUT_ENABLED=true
 WA_STATEWIDE_ROLLOUT_CONFIG_PATH=/app/config/wa_statewide_rollout.yaml
+SCHEDULED_PRIORITY_PIPELINE_ENABLED=true
 ```
 
 Restart **worker** + **beat** after deploy (new API image includes the task).

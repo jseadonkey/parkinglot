@@ -25,13 +25,15 @@ Enable on Droplet:
 
 ```bash
 # GitHub Actions → Droplet resources → enable_priority_pipeline = true
+# Or for statewide + priority together:
+# enable_slow_statewide_expansion = true
 ```
 
 Or:
 
 ```bash
 SCHEDULED_PRIORITY_PIPELINE_ENABLED=true
-WA_STATEWIDE_ROLLOUT_ENABLED=false
+WA_STATEWIDE_ROLLOUT_ENABLED=false   # or true with enable_slow_statewide_expansion
 ```
 
 Manual burst:
