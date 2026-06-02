@@ -10,10 +10,13 @@ from sqlalchemy.orm import Session
 from app.db.models import Parcel, ParcelScore
 from app.pipeline_funnel import (
     count_where,
+    entitlement_qualified_floor,
     identification_prescreen_floor,
     identification_prescreen_qualified,
     missing_pipeline_pair,
+    needs_pipeline_scoring,
     pipeline_funnel_backlog,
+    ruled_out_at_atlas,
     ruled_out_by_prescreen,
 )
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
@@ -29,6 +32,7 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
     """Return parcel coverage stats for scores, CSV columns, and owner outreach brief."""
     total = int(db.scalar(select(func.count()).select_from(Parcel)) or 0)
     floor_i = identification_prescreen_floor()
+    floor_ent = entitlement_qualified_floor()
 
     no_footprint = count_where(db, Parcel.footprint.is_(None))
     no_zoning = count_where(db, Parcel.zoning_code.is_(None))
@@ -66,12 +70,14 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
     prescreen_qualified = count_where(db, identification_prescreen_qualified(floor_i))
     funnel_backlog = count_where(db, pipeline_funnel_backlog(floor_i))
     prescreen_ruled_out = count_where(db, ruled_out_by_prescreen(floor_i))
+    atlas_ruled_out = count_where(db, ruled_out_at_atlas())
 
     miss_brief = count_where(db, Parcel.owner_outreach_brief.is_(None))
 
     recommended_next_steps: list[str] = [
-        f"Funnel backlog (prescreen ≥ {floor_i:.0f}, missing Atlas/Beacon): "
+        f"Funnel backlog (prescreen ≥ {floor_i:.0f}, needs Atlas and/or Beacon): "
         "POST /internal/pipeline/enqueue-incomplete?limit=500 — scheduled Beat uses the same gate.",
+        "Atlas below floor → Beacon and enrichment skipped; Beacon below floor → enrichment skipped.",
         "Gross count `parcels_missing_entitlement_or_strategic` includes prescreen ruled-out lots; "
         "use `parcels_pipeline_funnel_backlog` for work that should run `run_pipeline`.",
         "If identification gaps: POST /internal/metrics/refresh-identification-scores?limit=2000 (or re-ingest).",
@@ -113,6 +119,11 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
             "count": prescreen_ruled_out,
             "pct": _pct(prescreen_ruled_out, total),
             "floor": floor_i,
+        },
+        "parcels_ruled_out_at_atlas": {
+            "count": atlas_ruled_out,
+            "pct": _pct(atlas_ruled_out, total),
+            "floor": floor_ent,
         },
         "parcels_missing_owner_outreach_brief": {"count": miss_brief, "pct": _pct(miss_brief, total)},
         "recommended_next_steps": recommended_next_steps,

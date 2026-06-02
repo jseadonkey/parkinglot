@@ -192,7 +192,7 @@ export default function OverviewPage() {
         key: "pipeline",
         label: "Full pipeline scored",
         detail:
-          "Atlas (entitlement) + Beacon (strategic) scores — runs only when `run_pipeline` is enqueued, not on every ingested APN.",
+          "Atlas (entitlement) first — if below floor, Beacon and enrichment are skipped. If Atlas passes, Beacon runs; enrichment only when both pass.",
         count: summary.parcels_with_both_profiles_scored,
       },
       {

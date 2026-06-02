@@ -184,6 +184,7 @@ class ExportReadinessResponse(BaseModel):
     parcels_prescreen_qualified: PrescreenGapStat
     parcels_pipeline_funnel_backlog: PrescreenGapStat
     parcels_ruled_out_by_prescreen: PrescreenGapStat
+    parcels_ruled_out_at_atlas: PrescreenGapStat
     parcels_missing_owner_outreach_brief: GapStat
     recommended_next_steps: list[str]
 

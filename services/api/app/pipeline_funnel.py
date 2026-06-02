@@ -77,13 +77,75 @@ def has_strategic_score() -> ColumnElement[bool]:
     )
 
 
+def entitlement_qualified_floor() -> float:
+    settings = get_settings()
+    pilot = load_pilot_config(settings.pilot_config_path)
+    return float(pilot.scoring.qualified_min_score)
+
+
+def strategic_qualified_floor() -> float:
+    settings = get_settings()
+    pilot = load_pilot_config(settings.pilot_strategic_config_path)
+    return float(pilot.scoring.qualified_min_score)
+
+
+def _latest_profile_score_at_least(profile: str, floor: float) -> ColumnElement[bool]:
+    agg = (
+        select(
+            ParcelScore.parcel_id.label("pid"),
+            func.max(ParcelScore.created_at).label("mx"),
+        )
+        .where(ParcelScore.score_profile == profile)
+        .group_by(ParcelScore.parcel_id)
+        .subquery()
+    )
+    return exists(
+        select(1)
+        .select_from(ParcelScore)
+        .join(
+            agg,
+            and_(
+                ParcelScore.parcel_id == agg.c.pid,
+                ParcelScore.created_at == agg.c.mx,
+            ),
+        )
+        .where(
+            ParcelScore.parcel_id == Parcel.id,
+            ParcelScore.score_profile == profile,
+            ParcelScore.total_score >= floor,
+        )
+    )
+
+
+def needs_pipeline_scoring() -> ColumnElement[bool]:
+    """True when Atlas has not run, or Atlas passed and Beacon has not run yet."""
+    floor_ent = entitlement_qualified_floor()
+    return or_(
+        not_(has_entitlement_score()),
+        and_(
+            _latest_profile_score_at_least(ENTITLEMENT, floor_ent),
+            not_(has_strategic_score()),
+        ),
+    )
+
+
 def missing_pipeline_pair() -> ColumnElement[bool]:
     return or_(not_(has_entitlement_score()), not_(has_strategic_score()))
 
 
 def pipeline_funnel_backlog(floor: float | None = None) -> ColumnElement[bool]:
-    """Prescreen-qualified parcels still missing entitlement or strategic scores."""
-    return and_(missing_pipeline_pair(), identification_prescreen_qualified(floor))
+    """Prescreen-qualified parcels that still need Atlas and/or Beacon scoring."""
+    return and_(identification_prescreen_qualified(floor), needs_pipeline_scoring())
+
+
+def ruled_out_at_atlas() -> ColumnElement[bool]:
+    """Atlas scored below floor — Beacon and enrichment should not run."""
+    floor_ent = entitlement_qualified_floor()
+    return and_(
+        identification_prescreen_qualified(),
+        has_entitlement_score(),
+        not_(_latest_profile_score_at_least(ENTITLEMENT, floor_ent)),
+    )
 
 
 def ruled_out_by_prescreen(floor: float | None = None) -> ColumnElement[bool]:

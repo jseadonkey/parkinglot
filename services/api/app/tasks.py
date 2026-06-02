@@ -29,8 +29,10 @@ from app.owner_portfolio import count_qualified_peer_parcels
 from app.pipeline_funnel import (
     filter_prescreen_qualified_ids,
     identification_prescreen_floor,
-    missing_pipeline_pair,
+    needs_pipeline_scoring,
     parcel_prescreen_qualified,
+    entitlement_qualified_floor,
+    strategic_qualified_floor,
 )
 from app.scoring_profiles import (
     ENTITLEMENT,
@@ -98,7 +100,7 @@ def enqueue_incomplete_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
         stmt = (
             select(Parcel.id)
             .join(ident, Parcel.id == ident.c.parcel_id)
-            .where(missing_pipeline_pair())
+            .where(needs_pipeline_scoring())
             .order_by(ident.c.id_score.desc())
             .limit(cap)
         )
@@ -187,6 +189,82 @@ def _to_multi(geom: Polygon | MultiPolygon) -> MultiPolygon:
     return geom
 
 
+def _persist_pipeline_score(
+    db: Session,
+    *,
+    parcel_id: uuid.UUID,
+    profile: str,
+    result: Any,
+) -> None:
+    db.execute(
+        delete(ParcelScore).where(
+            ParcelScore.parcel_id == parcel_id,
+            ParcelScore.score_profile == profile,
+        )
+    )
+    db.add(
+        ParcelScore(
+            id=uuid.uuid4(),
+            parcel_id=parcel_id,
+            score_profile=profile,
+            total_score=result.total_score,
+            breakdown=result.breakdown.model_dump(),
+            pilot_snapshot=result.pilot_snapshot,
+        )
+    )
+
+
+def _complete_pipeline_scoring_only(
+    db: Session,
+    run: WorkflowRun,
+    *,
+    parcel_id: str,
+    apn: str,
+    reason: str,
+    entitlement_score: float,
+    strategic_score: float | None,
+    entitlement_floor: float,
+    strategic_floor: float,
+) -> dict[str, Any]:
+    run.status = WorkflowStatus.completed.value
+    run.current_step = WorkflowStep.score.value
+    db.add(run)
+    db.commit()
+    write_audit(
+        db,
+        actor="system",
+        action="pipeline_scoring_ruled_out",
+        entity_type="workflow_run",
+        entity_id=str(run.id),
+        meta={
+            "parcel_id": parcel_id,
+            "reason": reason,
+            "entitlement_score": entitlement_score,
+            "strategic_score": strategic_score,
+        },
+    )
+    if reason == "below_entitlement_floor":
+        detail = (
+            f"Parcel `{apn}` — Atlas *{entitlement_score:.1f}* (below floor *{entitlement_floor:.0f}*); "
+            "Beacon and enrichment skipped."
+        )
+    else:
+        detail = (
+            f"Parcel `{apn}` — Atlas *{entitlement_score:.1f}*; "
+            f"Beacon *{float(strategic_score or 0):.1f}* (below floor *{strategic_floor:.0f}*); "
+            "enrichment skipped."
+        )
+    post_agent_event_to_slack(get_settings(), agent="Scoring & pipeline agent", detail=detail)
+    return {
+        "workflow_run_id": str(run.id),
+        "status": run.status,
+        "skipped_enrichment": True,
+        "reason": reason,
+        "entitlement_score": entitlement_score,
+        "strategic_score": strategic_score,
+    }
+
+
 @celery.task(name="app.tasks.run_pipeline")
 def run_pipeline(parcel_id: str) -> dict[str, Any]:
     db = _session()
@@ -240,35 +318,54 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
             is_corner_lot=parcel.is_corner_lot,
             distance_to_nearest_demand_m=parcel.distance_to_nearest_demand_m,
         )
-        score = score_parcel(feature, pilot_ent)
-        score_strategic = score_parcel(feature, pilot_str)
+        floor_ent = entitlement_qualified_floor()
+        floor_str = strategic_qualified_floor()
 
-        db.execute(
-            delete(ParcelScore).where(
-                ParcelScore.parcel_id == parcel.id,
-                ParcelScore.score_profile.in_(PIPELINE_PROFILES),
+        score = score_parcel(feature, pilot_ent)
+        _persist_pipeline_score(db, parcel_id=parcel.id, profile=ENTITLEMENT, result=score)
+        db.commit()
+
+        if float(score.total_score) < floor_ent:
+            logger.info(
+                "run_pipeline parcel %s Atlas %.1f below floor %.0f — skipping Beacon and enrichment",
+                parcel_id,
+                score.total_score,
+                floor_ent,
             )
-        )
-        db.add(
-            ParcelScore(
-                id=uuid.uuid4(),
-                parcel_id=parcel.id,
-                score_profile=ENTITLEMENT,
-                total_score=score.total_score,
-                breakdown=score.breakdown.model_dump(),
-                pilot_snapshot=score.pilot_snapshot,
+            return _complete_pipeline_scoring_only(
+                db,
+                run,
+                parcel_id=parcel_id,
+                apn=parcel.apn,
+                reason="below_entitlement_floor",
+                entitlement_score=float(score.total_score),
+                strategic_score=None,
+                entitlement_floor=floor_ent,
+                strategic_floor=floor_str,
             )
-        )
-        db.add(
-            ParcelScore(
-                id=uuid.uuid4(),
-                parcel_id=parcel.id,
-                score_profile=STRATEGIC,
-                total_score=score_strategic.total_score,
-                breakdown=score_strategic.breakdown.model_dump(),
-                pilot_snapshot=score_strategic.pilot_snapshot,
+
+        score_strategic = score_parcel(feature, pilot_str)
+        _persist_pipeline_score(db, parcel_id=parcel.id, profile=STRATEGIC, result=score_strategic)
+        db.commit()
+
+        if float(score_strategic.total_score) < floor_str:
+            logger.info(
+                "run_pipeline parcel %s Beacon %.1f below floor %.0f — skipping enrichment",
+                parcel_id,
+                score_strategic.total_score,
+                floor_str,
             )
-        )
+            return _complete_pipeline_scoring_only(
+                db,
+                run,
+                parcel_id=parcel_id,
+                apn=parcel.apn,
+                reason="below_strategic_floor",
+                entitlement_score=float(score.total_score),
+                strategic_score=float(score_strategic.total_score),
+                entitlement_floor=floor_ent,
+                strategic_floor=floor_str,
+            )
 
         run.current_step = WorkflowStep.enrich.value
         db.add(run)
