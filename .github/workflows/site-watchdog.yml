@@ -59,6 +59,36 @@ jobs:
             | tee "$LOG"
           grep '^WATCHDOG_JSON=' "$LOG" | sed 's/^WATCHDOG_JSON=//' > scripts/site-watchdog/server-checks.json || echo '{"ok":false,"checks":[],"runner":"github-ssh","failure_count":1}' > scripts/site-watchdog/server-checks.json
 
+      - name: Auto disk maintenance when root disk unhealthy
+        if: always()
+        continue-on-error: true
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          if ! python3 -c "
+          import json, sys
+          p = 'scripts/site-watchdog/server-checks.json'
+          try:
+              r = json.load(open(p))
+          except Exception:
+              sys.exit(1)
+          for c in r.get('checks') or []:
+              if c.get('name') == 'disk_root' and not c.get('ok'):
+                  sys.exit(0)
+          sys.exit(1)
+          "; then
+            echo "disk_root ok — skip auto maintenance"
+            exit 0
+          fi
+          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          echo "disk_root unhealthy — running disk maintenance on Droplet"
+          cat scripts/remote/droplet-disk-maintenance.sh | ssh -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && DISK_MAINTENANCE_AGGRESSIVE=1 bash -s"
+
       - name: Upload watchdog reports
         if: always()
         uses: actions/upload-artifact@v4

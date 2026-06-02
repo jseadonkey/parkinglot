@@ -66,10 +66,19 @@ curl -sS https://api.vspecialist.com/internal/watchdog/status \
 
 The root volume is small (~48G on many DO droplets). Large GeoJSON under `data/baltimore/` and Docker images/layers fill it quickly.
 
-1. **GitHub Actions → Droplet resources** — enable **`relieve_load`** (pause enqueue + purge backlog) if the Celery queue is huge.
-2. Same workflow or SSH: run **`scripts/remote/droplet-cleanup-isolate.sh`** on the Droplet (prune Docker, trim old images).
-3. Remove or compress stale files under `data/` (Baltimore parcel/zoning exports are safe to delete after merge).
-4. If the volume was resized in DigitalOcean: **Droplet resources → `grow_disk`** (runs `growpart` + `resize2fs`).
+**Automated (no UI click required after deploy):**
+
+| Runner | Schedule | Behavior |
+|--------|----------|----------|
+| **Droplet disk maintenance** (`droplet-disk-maintenance.yml`) | Sunday 06:15 UTC | Prune Docker; drop Baltimore staging GeoJSON when overlay exists |
+| **Site watchdog** (`site-watchdog.yml`) | `:10`, `:40` each hour | If `disk_root` fails, runs the same maintenance script before Slack alert |
+
+**Manual if needed:**
+
+1. **Droplet resources** → **`disk_maintenance`** (or workflow **Droplet disk maintenance** with **aggressive**).
+2. **`relieve_load`** if the Celery queue is huge.
+3. **`droplet-cleanup-isolate`** for a heavier reset (recreates stack + aggressive prune when disk ≥85%).
+4. **Droplet resources → `grow_disk`** after resizing the volume in DigitalOcean.
 
 ## Related docs
 

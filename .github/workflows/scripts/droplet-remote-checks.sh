@@ -455,6 +455,15 @@ print('standup_posted', posted)
     echo "=== compose ps ==="
     docker compose "${ARGS[@]}" ps 2>/dev/null || true
     ;;
+  disk-maintenance)
+    echo "=== scheduled disk maintenance (prune + Baltimore staging cleanup) ==="
+    if [ -f scripts/remote/droplet-disk-maintenance.sh ]; then
+      DISK_MAINTENANCE_AGGRESSIVE="${DISK_MAINTENANCE_AGGRESSIVE:-1}" bash scripts/remote/droplet-disk-maintenance.sh
+    else
+      echo "FAIL: scripts/remote/droplet-disk-maintenance.sh missing" >&2
+      exit 1
+    fi
+    ;;
   disk-grow)
     echo "=== lsblk before ==="
     lsblk -o NAME,SIZE,FSUSE%,MOUNTPOINT

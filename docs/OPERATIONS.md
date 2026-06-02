@@ -35,6 +35,8 @@ Slack digests (optional): [docs/SLACK.md](SLACK.md). Trigger a digest immediatel
 
 Compose uses **log rotation** (`max-size` / `max-file`) to avoid filling the disk.
 
+**Scheduled disk maintenance:** GitHub Actions workflow **Droplet disk maintenance** (Sundays 06:15 UTC) prunes unused Docker data and removes Baltimore staging GeoJSON when the zoning overlay file already exists. **Site watchdog** runs the same script automatically when root disk is ≥90%. Manual: **Droplet resources** → `disk_maintenance`, or **Droplet cleanup and isolate** for a heavier reset. Details: [SITE-WATCHDOG.md](SITE-WATCHDOG.md).
+
 ## Pipeline and Celery visibility
 
 - **Workflow runs (DB):** `GET /workflow-runs` — latest runs across parcels (optional query `parcel_id=<uuid>&limit=50`). `GET /workflow-runs/{run_id}` — one run (`status`, `current_step`, `error`, timestamps). Convenience: `GET /parcels/{parcel_id}/workflow-runs` (404 if parcel missing). Same data the worker writes while `run_pipeline` executes; use **OpenAPI** (`/docs`) for exact shapes.

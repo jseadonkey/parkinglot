@@ -9,6 +9,10 @@ on:
         description: "Grow root filesystem after a DigitalOcean volume resize"
         type: boolean
         default: false
+      disk_maintenance:
+        description: "Routine Docker prune + remove Baltimore staging GeoJSON when overlay exists"
+        type: boolean
+        default: false
       relieve_load:
         description: "Pause auto-enqueue and purge parking Celery backlog"
         type: boolean
@@ -133,6 +137,8 @@ jobs:
           MODE="resources"
           if [ "${{ inputs.grow_disk }}" = "true" ]; then
             MODE="disk-grow"
+          elif [ "${{ inputs.disk_maintenance }}" = "true" ]; then
+            MODE="disk-maintenance"
           elif [ "${{ inputs.relieve_load }}" = "true" ]; then
             MODE="relieve-load"
           elif [ "${{ inputs.probe_outreach_drafts }}" = "true" ]; then

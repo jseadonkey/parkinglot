@@ -22,8 +22,11 @@ if [[ ! -f "$COMPOSE_REL" ]]; then
 fi
 ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
 
+USE_PCT=0
 echo "=== disk before ==="
-df -h /
+DF_LINE="$(df -h / 2>/dev/null | tail -1)"
+echo "$DF_LINE"
+USE_PCT="$(echo "$DF_LINE" | awk '{print $5}' | tr -d '%')"
 echo ""
 docker system df || true
 echo ""
@@ -74,8 +77,13 @@ echo "=== docker prune (stopped containers, dangling images, build cache) ==="
 docker container prune -f
 docker image prune -f
 docker builder prune -f --keep-storage 3GB 2>/dev/null || docker builder prune -f || true
-# Unused images not referenced by any container (keeps running stack images).
-docker image prune -a -f --filter "until=72h" 2>/dev/null || docker image prune -a -f
+# When root is nearly full, drop all unused images (running stack keeps its tags).
+if [ -n "$USE_PCT" ] && [ "$USE_PCT" -ge 85 ] 2>/dev/null; then
+  echo "=== aggressive: docker image prune -a (disk was ${USE_PCT}%) ==="
+  docker image prune -a -f 2>/dev/null || true
+else
+  docker image prune -a -f --filter "until=72h" 2>/dev/null || docker image prune -a -f
+fi
 
 echo ""
 echo "=== largest docker dirs ==="
