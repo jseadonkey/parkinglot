@@ -429,6 +429,40 @@ PY
     echo ""
     echo "Done. Scheduled incomplete-pipeline enqueue is ON (limit=${ENQUEUE_LIMIT} per run)."
     ;;
+  pipeline-velocity)
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    export COMPOSE_REL
+    ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
+    echo "=== scheduled enqueue config (deploy/.env) ==="
+    grep -E '^SCHEDULED_ENQUEUE_' deploy/.env 2>/dev/null || echo "(no SCHEDULED_ENQUEUE_* lines)"
+    echo ""
+    echo "=== load / memory ==="
+    uptime
+    free -h | head -2
+    echo ""
+    echo "=== redis queue lengths ==="
+    PARKING_Q="$(docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN parking 2>/dev/null || echo n/a)"
+    SLACK_Q="$(docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN slack 2>/dev/null || echo n/a)"
+    echo "parking: ${PARKING_Q}"
+    echo "slack: ${SLACK_Q}"
+    echo ""
+    echo "=== export-readiness (backlog gaps) ==="
+    if [ -n "$KEY" ]; then
+      curl -fsSk --connect-timeout 15 --max-time 60 \
+        "$BASE/internal/stats/export-readiness" -H "X-Internal-Key: $KEY" || echo "export-readiness failed"
+    else
+      echo "INTERNAL_API_KEY not set — skipping export-readiness"
+    fi
+    echo ""
+    echo "=== worker parking (active/reserved) ==="
+    docker compose "${ARGS[@]}" exec -T worker celery -A app.celery_app inspect active -d parking@ 2>/dev/null | head -40 || true
+    echo ""
+    echo "=== beat schedule snippet (enqueue-unscored) ==="
+    docker compose "${ARGS[@]}" logs --no-color --tail 200 beat 2>/dev/null | grep -iE 'enqueue unscored|enqueue-unscored|Beat:' | tail -8 || true
+    echo ""
+    echo "=== worker parking recent run_pipeline (tail) ==="
+    docker compose "${ARGS[@]}" logs --no-color --tail 120 worker 2>/dev/null | grep -iE 'run_pipeline|succeeded|failed' | tail -15 || true
+    ;;
   outreach-drafts)
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
     ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)

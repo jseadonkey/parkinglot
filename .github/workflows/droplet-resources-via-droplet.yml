@@ -25,6 +25,10 @@ on:
         description: "Parcels per scheduled enqueue run (when enable_enqueue is true)"
         type: string
         default: "50"
+      probe_pipeline_velocity:
+        description: "Report enqueue settings, queue depth, and export-readiness backlog"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -63,6 +67,8 @@ jobs:
             MODE="outreach-drafts"
           elif [ "${{ inputs.enable_enqueue }}" = "true" ]; then
             MODE="enable-enqueue"
+          elif [ "${{ inputs.probe_pipeline_velocity }}" = "true" ]; then
+            MODE="pipeline-velocity"
           fi
           ENQUEUE_LIMIT="${{ inputs.enqueue_limit || '50' }}"
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
