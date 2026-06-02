@@ -101,10 +101,43 @@ def _post_token(text: str) -> bool:
         return False
 
 
+def _synthetic_from_step_failures() -> dict | None:
+    """When a workflow step failed before writing JSON, surface that in the merged report."""
+    checks: list[dict] = []
+    for name, step_env, path_env, default_path in (
+        ("external_step", "EXTERNAL_STEP", "WATCHDOG_EXTERNAL_REPORT", "scripts/site-watchdog/external-checks.json"),
+        ("server_step", "SERVER_STEP", "WATCHDOG_SERVER_REPORT", "scripts/site-watchdog/server-checks.json"),
+    ):
+        step = os.environ.get(step_env, "").strip()
+        path = os.environ.get(path_env, default_path).strip() or default_path
+        if step == "failure" and not Path(path).is_file():
+            checks.append(
+                {
+                    "name": name,
+                    "ok": False,
+                    "detail": f"step outcome={step}, no report file",
+                    "source": "github-actions",
+                }
+            )
+    if not checks:
+        return None
+    return {
+        "checked_at": datetime.now(tz=UTC).isoformat(),
+        "runner": "github-actions",
+        "ok": False,
+        "failure_count": len(checks),
+        "checks": checks,
+    }
+
+
 def main() -> int:
     external = _load(os.environ.get("WATCHDOG_EXTERNAL_REPORT", "scripts/site-watchdog/external-checks.json"))
     server = _load(os.environ.get("WATCHDOG_SERVER_REPORT", "scripts/site-watchdog/server-checks.json"))
     reports = [r for r in (external, server) if r]
+    if not reports:
+        synthetic = _synthetic_from_step_failures()
+        if synthetic:
+            reports = [synthetic]
     if not reports:
         print("ERROR: no watchdog reports found", file=sys.stderr)
         return 1

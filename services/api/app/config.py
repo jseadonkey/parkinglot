@@ -401,5 +401,6 @@ class Settings(BaseSettings):
             "site_watchdog_crontab_minute",
         ),
     )
+@lru_cache
 def get_settings() -> Settings:
     return Settings()

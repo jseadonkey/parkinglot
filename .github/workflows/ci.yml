@@ -52,6 +52,10 @@ jobs:
           pip install "./services/api[dev]"
       - name: Pytest (API)
         working-directory: services/api
+        env:
+          PILOT_CONFIG_PATH: ../../config/pilot.yaml
+          PILOT_STRATEGIC_CONFIG_PATH: ../../config/pilot_strategic.yaml
+          PILOT_IDENTIFICATION_CONFIG_PATH: ../../config/pilot_identification.yaml
         run: pytest
 
       - name: OpenAPI JSON export
