@@ -31,12 +31,12 @@ on:
   workflow_dispatch:
     inputs:
       compose_file:
-        description: "Compose file (under deploy/)"
+        description: "Compose file (under deploy/) — must match what you run in production"
         type: choice
-        default: docker-compose.production.yml
+        default: docker-compose.production.ghcr.yml
         options:
-          - docker-compose.production.yml
           - docker-compose.production.ghcr.yml
+          - docker-compose.production.yml
           - docker-compose.production.ghcr-full.yml
       verify_public_ready:
         description: "After compose up, curl PUBLIC_API_URL/ready (needs real DNS + TLS — off if .env still uses example.com)"
@@ -102,8 +102,8 @@ jobs:
             echo "verify_public_ready=false" >> "$GITHUB_OUTPUT"
             echo "post_slack_tasks=all" >> "$GITHUB_OUTPUT"
           else
-            echo "compose_file=${DISP_COMPOSE:-docker-compose.production.yml}" >> "$GITHUB_OUTPUT"
-            echo "use_local_postgis=${DISP_POSTGIS:-true}" >> "$GITHUB_OUTPUT"
+            echo "compose_file=${DISP_COMPOSE:-docker-compose.production.ghcr.yml}" >> "$GITHUB_OUTPUT"
+            echo "use_local_postgis=${DISP_POSTGIS:-false}" >> "$GITHUB_OUTPUT"
             echo "verify_public_ready=${DISP_VERIFY:-true}" >> "$GITHUB_OUTPUT"
             echo "post_slack_tasks=${DISP_POST_SLACK:-none}" >> "$GITHUB_OUTPUT"
           fi

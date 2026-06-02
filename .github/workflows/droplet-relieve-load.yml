@@ -1,24 +1,15 @@
-# Print CPU, memory, disk, and docker stats from the production Droplet.
+# Pause pipeline auto-enqueue and purge the parking Celery backlog when the Droplet feels pegged.
 
-name: Droplet resources (via Droplet)
+name: Droplet relieve load
 
 on:
   workflow_dispatch:
-    inputs:
-      grow_disk:
-        description: "Grow root filesystem after a DigitalOcean volume resize"
-        type: boolean
-        default: false
-      relieve_load:
-        description: "Pause auto-enqueue and purge parking Celery backlog"
-        type: boolean
-        default: false
 
 permissions:
   contents: read
 
 jobs:
-  inspect:
+  relieve:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +25,7 @@ jobs:
           ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      - name: CPU, RAM, disk, docker stats
+      - name: Relieve load on Droplet
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
         run: |
@@ -42,12 +33,6 @@ jobs:
           RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
           REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
           [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
-          MODE="resources"
-          if [ "${{ inputs.grow_disk }}" = "true" ]; then
-            MODE="disk-grow"
-          elif [ "${{ inputs.relieve_load }}" = "true" ]; then
-            MODE="relieve-load"
-          fi
-          cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
+          cat scripts/remote/droplet-relieve-load.sh | ssh -oBatchMode=yes \
             "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "cd $(printf '%q' "$REMOTE_PATH") && bash -s -- ${MODE} deploy/docker-compose.production.ghcr.yml"
+            "cd $(printf '%q' "$REMOTE_PATH") && COMPOSE_FILE=deploy/docker-compose.production.ghcr.yml bash -s"
