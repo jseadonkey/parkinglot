@@ -14,8 +14,7 @@ type PeerParcel = {
   parcel_id: string;
   apn: string;
   county_fips: string;
-  entitlement_score: number | null;
-  lot_sqft: number | null;
+  latest_entitlement_score: number;
 };
 
 type Board = {
@@ -151,7 +150,6 @@ export default function OwnersPage() {
                                 <th>APN</th>
                                 <th>County</th>
                                 <th>Score</th>
-                                <th>Lot</th>
                                 <th />
                               </tr>
                             </thead>
@@ -160,10 +158,7 @@ export default function OwnersPage() {
                                 <tr key={p.parcel_id}>
                                   <td>{p.apn}</td>
                                   <td className="muted">{countyLine(countyLabel, p.county_fips)}</td>
-                                  <td>{p.entitlement_score != null ? p.entitlement_score.toFixed(0) : "—"}</td>
-                                  <td className="muted">
-                                    {p.lot_sqft != null ? `${Math.round(p.lot_sqft).toLocaleString()} sf` : "—"}
-                                  </td>
+                                  <td>{p.latest_entitlement_score.toFixed(0)}</td>
                                   <td>
                                     <Link href={`/parcels/${p.parcel_id}`} className="btn-link">
                                       Open →
