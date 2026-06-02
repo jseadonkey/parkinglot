@@ -145,6 +145,12 @@ def main() -> int:
     report = _merge(reports)
     text, ok = _build_message(report)
 
+    if "--print-text" in sys.argv:
+        always = os.environ.get("WATCHDOG_ALWAYS_NOTIFY", "").strip().lower() in ("1", "true", "yes")
+        if not ok or always:
+            sys.stdout.write(text)
+        return 0
+
     # Always notify on failure; on success post only if ALWAYS_NOTIFY=1 (heartbeat from GH)
     always = os.environ.get("WATCHDOG_ALWAYS_NOTIFY", "").strip().lower() in ("1", "true", "yes")
     if ok and not always:
@@ -154,7 +160,6 @@ def main() -> int:
     posted = _post_api(text) or _post_token(text)
     if not posted:
         print("ERROR: could not post to Slack", file=sys.stderr)
-        # Green checks should not fail GitHub Actions when Slack/API notify is misconfigured.
         return 0 if ok else 1
 
     print("Posted site watchdog report to Slack")

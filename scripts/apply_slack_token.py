@@ -25,7 +25,9 @@ def _drop_slack_assignment(line: str) -> bool:
     t = line.strip()
     if t.startswith("#"):
         t = t[1:].strip()
-    return t.startswith("SLACK_BOT_TOKEN=") or t.startswith("SLACK_DIGEST_CHANNEL_ID=")
+    return t.startswith("SLACK_BOT_TOKEN=") or t.startswith("SLACK_DIGEST_CHANNEL_ID=") or t.startswith(
+        "SLACK_AGENT_DISCUSSION_CHANNEL_ID="
+    ) or t.startswith("SITE_WATCHDOG_SLACK_CHANNEL_ID=")
 
 
 def _resolve_env_path() -> Path:
@@ -84,6 +86,8 @@ def main() -> int:
         "\n\n# Slack — worker digests + API routes (docs/SLACK.md)\n"
         f"SLACK_BOT_TOKEN={token}\n"
         f"SLACK_DIGEST_CHANNEL_ID={chan}\n"
+        f"SLACK_AGENT_DISCUSSION_CHANNEL_ID={chan}\n"
+        f"SITE_WATCHDOG_SLACK_CHANNEL_ID={chan}\n"
     )
     env_path.write_text(body + block, encoding="utf-8", newline="\n")
     os.chmod(env_path, 0o600)
@@ -102,6 +106,7 @@ def main() -> int:
             "--force-recreate",
             "api",
             "worker",
+            "worker-slack",
             "beat",
         ],
         cwd=str(ROOT),

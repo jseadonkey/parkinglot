@@ -2,10 +2,9 @@
 #
 # Requires repository secrets (same as Deploy to Droplet):
 #   DROPLET_HOST, DROPLET_USER, DROPLET_SSH_PRIVATE_KEY
-# Optional: SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY — same as INTERNAL_API_KEY on the Droplet
 # Optional variable: DROPLET_REMOTE_PATH (default /opt/parking-acquisition-agents)
 #
-# The Droplet must have deploy/.env with SLACK_* configured and a reachable PUBLIC_API_URL (or API_HOST).
+# Uses deploy/.env SLACK_* on the server — no GitHub Slack secrets required.
 
 name: Slack test (via Droplet)
 
@@ -28,6 +27,8 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Install SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -39,10 +40,9 @@ jobs:
           ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      - name: POST /internal/slack/test-message from Droplet
+      - name: Post test message via Droplet
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
-          SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
         run: |
           set -euo pipefail
           REPO="${{ github.repository }}"
@@ -51,45 +51,11 @@ jobs:
           DEFAULT_MSG="Slack test from GitHub Actions: ${REPO} (${REF}) — ${RUN_URL}"
           TEXT_INPUT="${{ inputs.message_text }}"
           if [ -n "$TEXT_INPUT" ]; then NOTIFY_TEXT="$TEXT_INPUT"; else NOTIFY_TEXT="$DEFAULT_MSG"; fi
-          export NOTIFY_TEXT
-          export NOTIFY_CHANNEL_ID="${{ inputs.channel_id }}"
-          PAYLOAD_JSON=$(python3 <<'PY'
-          import json
-          import os
-
-          body = {"text": os.environ["NOTIFY_TEXT"]}
-          cid = (os.environ.get("NOTIFY_CHANNEL_ID") or "").strip()
-          if cid:
-              body["channel_id"] = cid
-          print(json.dumps(body))
-          PY
-          )
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
-          KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
-          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            bash -s -- "$REMOTE_PATH" "$PAYLOAD_JSON" "$KEY" <<'EOS'
-          set -euo pipefail
-          REMOTE_PATH="$1"
-          PAYLOAD_JSON="$2"
-          KEY="${3:-}"
-
-          cd "$REMOTE_PATH"
-          test -f deploy/.env
-          BASE=$(grep -E '^PUBLIC_API_URL=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
-          if [ -z "$BASE" ]; then
-            H=$(grep -E '^API_HOST=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')
-            BASE="https://$H"
-          fi
-          echo "POST $BASE/internal/slack/test-message"
-          if [ -n "$KEY" ]; then
-            curl -fsSk --connect-timeout 15 --max-time 60 -X POST "$BASE/internal/slack/test-message" \
-              -H "Content-Type: application/json" \
-              -H "X-Internal-Key: $KEY" \
-              -d "$PAYLOAD_JSON"
-          else
-            curl -fsSk --connect-timeout 15 --max-time 60 -X POST "$BASE/internal/slack/test-message" \
-              -H "Content-Type: application/json" \
-              -d "$PAYLOAD_JSON"
-          fi
-          echo
-          EOS
+          NOTIFY_CHANNEL="${{ inputs.channel_id }}"
+          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          B64="$(printf '%s' "$NOTIFY_TEXT" | base64 | tr -d '\n')"
+          cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && NOTIFY_TEXT=\$(printf '%s' '$B64' | base64 -d) NOTIFY_CHANNEL=$(printf '%q' "$NOTIFY_CHANNEL") bash -s -- post-slack-text deploy/docker-compose.production.ghcr.yml"

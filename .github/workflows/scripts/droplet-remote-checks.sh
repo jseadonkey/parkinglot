@@ -146,6 +146,69 @@ case "$MODE" in
     _internal_api_post "/internal/slack/digest-now"
     echo ""
     ;;
+  post-slack-text)
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    export COMPOSE_REL
+    TEXT="${NOTIFY_TEXT:-}"
+    if [ -z "$TEXT" ] && [ ! -t 0 ]; then
+      TEXT="$(cat)"
+    fi
+    if [ -z "$TEXT" ]; then
+      echo "FAIL: post-slack-text needs NOTIFY_TEXT or stdin" >&2
+      exit 1
+    fi
+    export NOTIFY_TEXT="$TEXT"
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env exec -T -e NOTIFY_TEXT -e "NOTIFY_CHANNEL=${NOTIFY_CHANNEL:-}" api python - <<'PY'
+import os
+from app.config import get_settings
+from app.slack_digest import post_text_to_slack
+
+settings = get_settings()
+text = os.environ["NOTIFY_TEXT"]
+channel = (os.environ.get("NOTIFY_CHANNEL") or "").strip() or None
+posted = post_text_to_slack(settings, text=text[:3900], channel_id=channel)
+print("slack_posted", posted)
+PY
+    ;;
+  sync-slack-channels)
+    echo "=== align alert channel IDs with SLACK_DIGEST_CHANNEL_ID ==="
+    python3 - <<'PY'
+import pathlib
+
+path = pathlib.Path("deploy/.env")
+text = path.read_text(encoding="utf-8")
+values = {}
+for line in text.splitlines():
+    if not line or line.lstrip().startswith("#") or "=" not in line:
+        continue
+    k, v = line.split("=", 1)
+    values[k.strip()] = v.strip().strip('"')
+
+digest = values.get("SLACK_DIGEST_CHANNEL_ID", "") or "C0B0VPSAH44"
+updates = {
+    "SITE_WATCHDOG_SLACK_CHANNEL_ID": digest,
+    "SLACK_AGENT_DISCUSSION_CHANNEL_ID": values.get("SLACK_AGENT_DISCUSSION_CHANNEL_ID", "") or digest,
+}
+out: list[str] = []
+seen = set()
+for line in text.splitlines():
+    key = line.split("=", 1)[0].strip() if "=" in line and not line.lstrip().startswith("#") else ""
+    if key in updates:
+        out.append(f"{key}={updates[key]}")
+        seen.add(key)
+    else:
+        out.append(line)
+for key, val in updates.items():
+    if key not in seen:
+        out.append(f"{key}={val}")
+path.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
+print(f"digest_channel={digest}")
+for k, v in updates.items():
+    print(f"{k}={v}")
+PY
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps api worker worker-slack beat
+    ;;
   slack-inspect)
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
     export COMPOSE_REL
@@ -263,7 +326,7 @@ print(urllib.request.urlopen(req, timeout=30).read().decode())
 " 2>&1 || echo '{"found":false}')"
     echo "$LAST_DIGEST"
 
-    if ! echo "$LAST_DIGEST" | grep -q '"found": true'; then
+    if ! echo "$LAST_DIGEST" | grep -qE '"found"[[:space:]]*:[[:space:]]*true'; then
       echo "=== Celery queue slow — posting standup digest directly from worker ==="
       docker compose "${ARGS[@]}" exec -T worker python -c "
 from app.audit import write_audit

@@ -67,19 +67,27 @@ jobs:
           path: scripts/site-watchdog/*.json
           if-no-files-found: ignore
 
-      - name: Notify Slack
+      - name: Notify Slack (via Droplet — uses deploy/.env token)
         if: always()
         continue-on-error: true
         env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
           GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL || 'https://api.vspecialist.com' }}
-          SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_DIGEST_CHANNEL_ID: ${{ secrets.SLACK_DIGEST_CHANNEL_ID }}
-          SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${{ secrets.SLACK_AGENT_DISCUSSION_CHANNEL_ID }}
-          SITE_WATCHDOG_SLACK_CHANNEL_ID: ${{ vars.SITE_WATCHDOG_SLACK_CHANNEL_ID }}
           WATCHDOG_EXTERNAL_REPORT: scripts/site-watchdog/external-checks.json
           WATCHDOG_SERVER_REPORT: scripts/site-watchdog/server-checks.json
           EXTERNAL_STEP: ${{ steps.external.outcome }}
           SERVER_STEP: ${{ steps.server.outcome }}
-        run: python3 scripts/site-watchdog/report-watchdog.py
+        run: |
+          set -euo pipefail
+          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          MSG="$(python3 scripts/site-watchdog/report-watchdog.py --print-text 2>/dev/null || true)"
+          if [ -z "$MSG" ]; then
+            echo "No Slack message needed (checks passed)."
+            exit 0
+          fi
+          B64="$(printf '%s' "$MSG" | base64 | tr -d '\n')"
+          cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && NOTIFY_TEXT=\$(printf '%s' '$B64' | base64 -d) bash -s -- post-slack-text deploy/docker-compose.production.ghcr.yml"

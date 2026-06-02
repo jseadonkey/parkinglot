@@ -33,6 +33,10 @@ on:
         description: "Set SITE_WATCHDOG_UI_BASE_URL in deploy/.env and restart worker-slack + beat"
         type: boolean
         default: false
+      sync_slack_channels:
+        description: "Point watchdog + agent-discussion channels at SLACK_DIGEST_CHANNEL_ID"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -75,6 +79,8 @@ jobs:
             MODE="pipeline-velocity"
           elif [ "${{ inputs.fix_watchdog_env }}" = "true" ]; then
             MODE="fix-watchdog-env"
+          elif [ "${{ inputs.sync_slack_channels }}" = "true" ]; then
+            MODE="sync-slack-channels"
           fi
           ENQUEUE_LIMIT="${{ inputs.enqueue_limit || '50' }}"
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
