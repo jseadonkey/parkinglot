@@ -46,10 +46,11 @@ jobs:
           [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
           KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
           MAX_H="${MAX_DIGEST_AGE_HOURS:-2}"
+          [ -n "$MAX_H" ] || MAX_H=2
 
           PAYLOAD="$(cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
             "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "cd $(printf '%q' "$REMOTE_PATH") && INTERNAL_KEY=$(printf '%q' "$KEY") bash -s -- last-digest")"
+            "cd $(printf '%q' "$REMOTE_PATH") && bash -s -- last-digest")"
 
           export MAX_H="$MAX_H"
           echo "$PAYLOAD" | python3 <<'PY'

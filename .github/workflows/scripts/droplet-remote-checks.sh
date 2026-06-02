@@ -31,6 +31,58 @@ if [[ -n "${ENV_KEY}" ]]; then
   KEY="$ENV_KEY"
 fi
 
+# Curl an internal API path; fall back to in-container localhost when PUBLIC_API_URL is unreachable.
+_internal_api_get() {
+  local path="$1"
+  local body=""
+  if [ -n "$KEY" ]; then
+    body="$(curl -sSk --connect-timeout 10 --max-time 45 "${BASE}${path}" -H "X-Internal-Key: $KEY" 2>/dev/null || true)"
+  else
+    body="$(curl -sSk --connect-timeout 10 --max-time 45 "${BASE}${path}" 2>/dev/null || true)"
+  fi
+  if [ -n "$body" ]; then
+    printf '%s' "$body"
+    return 0
+  fi
+  local fallback compose_rel
+  fallback="$(grep -E '^LOCAL_API_FALLBACK=' deploy/.env 2>/dev/null | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//' || true)"
+  compose_rel="${COMPOSE_REL:-deploy/docker-compose.production.ghcr.yml}"
+  if [ -n "$KEY" ]; then
+    docker compose -f "$compose_rel" --env-file deploy/.env exec -T api \
+      curl -sS --connect-timeout 10 --max-time 45 "http://127.0.0.1:8000${path}" -H "X-Internal-Key: $KEY" 2>/dev/null \
+      || { [ -n "$fallback" ] && curl -sSk --connect-timeout 10 --max-time 45 "${fallback}${path}" -H "X-Internal-Key: $KEY" 2>/dev/null; } \
+      || true
+  else
+    docker compose -f "$compose_rel" --env-file deploy/.env exec -T api \
+      curl -sS --connect-timeout 10 --max-time 45 "http://127.0.0.1:8000${path}" 2>/dev/null \
+      || { [ -n "$fallback" ] && curl -sSk --connect-timeout 10 --max-time 45 "${fallback}${path}" 2>/dev/null; } \
+      || true
+  fi
+}
+
+_internal_api_post() {
+  local path="$1"
+  local body=""
+  if [ -n "$KEY" ]; then
+    body="$(curl -sSk --connect-timeout 15 --max-time 60 -X POST "${BASE}${path}" \
+      -H "Content-Type: application/json" -H "X-Internal-Key: $KEY" -d '{}' 2>/dev/null || true)"
+  else
+    body="$(curl -sSk --connect-timeout 15 --max-time 60 -X POST "${BASE}${path}" \
+      -H "Content-Type: application/json" -d '{}' 2>/dev/null || true)"
+  fi
+  if [ -n "$body" ]; then
+    printf '%s' "$body"
+    return 0
+  fi
+  local compose_rel
+  compose_rel="${COMPOSE_REL:-deploy/docker-compose.production.ghcr.yml}"
+  if [ -n "$KEY" ]; then
+    docker compose -f "$compose_rel" --env-file deploy/.env exec -T api \
+      curl -sS -X POST "http://127.0.0.1:8000${path}" \
+      -H "Content-Type: application/json" -H "X-Internal-Key: $KEY" -d '{}' 2>/dev/null || true
+  fi
+}
+
 case "$MODE" in
   endpoints)
     CURL_HEALTH="${1:-true}"
@@ -57,21 +109,12 @@ case "$MODE" in
     fi
     ;;
   last-digest)
-    if [ -n "$KEY" ]; then
-      curl -fsSk --connect-timeout 15 --max-time 60 "$BASE/internal/slack/last-digest" -H "X-Internal-Key: $KEY"
-    else
-      curl -fsSk --connect-timeout 15 --max-time 60 "$BASE/internal/slack/last-digest"
-    fi
+    _internal_api_get "/internal/slack/last-digest"
+    echo ""
     ;;
   digest-now)
     echo "POST $BASE/internal/slack/digest-now"
-    if [ -n "$KEY" ]; then
-      curl -fsSk --connect-timeout 15 --max-time 60 -X POST "$BASE/internal/slack/digest-now" \
-        -H "Content-Type: application/json" -H "X-Internal-Key: $KEY" -d '{}'
-    else
-      curl -fsSk --connect-timeout 15 --max-time 60 -X POST "$BASE/internal/slack/digest-now" \
-        -H "Content-Type: application/json" -d '{}'
-    fi
+    _internal_api_post "/internal/slack/digest-now"
     echo ""
     ;;
   slack-inspect)
@@ -448,16 +491,14 @@ PY
     echo ""
     echo "=== export-readiness (backlog gaps) ==="
     if [ -n "$KEY" ]; then
-      curl -fsSk --connect-timeout 15 --max-time 60 \
-        "$BASE/internal/stats/export-readiness" -H "X-Internal-Key: $KEY" || echo "export-readiness failed"
+      _internal_api_get "/internal/stats/export-readiness" || echo "export-readiness failed"
     else
       echo "INTERNAL_API_KEY not set — skipping export-readiness"
     fi
     echo ""
     echo "=== scoring-summary (funnel counts) ==="
     if [ -n "$KEY" ]; then
-      curl -fsSk --connect-timeout 15 --max-time 60 \
-        "$BASE/internal/stats/scoring-summary" -H "X-Internal-Key: $KEY" || echo "scoring-summary failed"
+      _internal_api_get "/internal/stats/scoring-summary" || echo "scoring-summary failed"
     else
       echo "INTERNAL_API_KEY not set — skipping scoring-summary"
     fi

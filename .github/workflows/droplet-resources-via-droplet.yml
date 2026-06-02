@@ -29,6 +29,10 @@ on:
         description: "Report enqueue settings, queue depth, and export-readiness backlog"
         type: boolean
         default: false
+      fix_watchdog_env:
+        description: "Set SITE_WATCHDOG_UI_BASE_URL in deploy/.env and restart worker-slack + beat"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -69,6 +73,8 @@ jobs:
             MODE="enable-enqueue"
           elif [ "${{ inputs.probe_pipeline_velocity }}" = "true" ]; then
             MODE="pipeline-velocity"
+          elif [ "${{ inputs.fix_watchdog_env }}" = "true" ]; then
+            MODE="fix-watchdog-env"
           fi
           ENQUEUE_LIMIT="${{ inputs.enqueue_limit || '50' }}"
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
