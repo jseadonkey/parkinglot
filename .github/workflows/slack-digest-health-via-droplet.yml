@@ -70,7 +70,11 @@ jobs:
               print("FAIL: non-JSON from last-digest (first 200 chars):", raw[:200])
               sys.exit(1)
           if not data.get("found"):
-              print("FAIL: no slack_digest_posted audit yet (worker may never have posted to Slack).")
+              err = data.get("error", "")
+              if err:
+                  print(f"FAIL: last-digest unreachable from Droplet ({err}).")
+              else:
+                  print("FAIL: no slack_digest_posted audit yet (worker may never have posted to Slack).")
               sys.exit(1)
           raw = data["created_at"]
           if raw.endswith("Z"):

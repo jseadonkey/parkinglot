@@ -154,7 +154,8 @@ def main() -> int:
     posted = _post_api(text) or _post_token(text)
     if not posted:
         print("ERROR: could not post to Slack", file=sys.stderr)
-        return 1
+        # Green checks should not fail GitHub Actions when Slack/API notify is misconfigured.
+        return 0 if ok else 1
 
     print("Posted site watchdog report to Slack")
     return 0 if ok else 1

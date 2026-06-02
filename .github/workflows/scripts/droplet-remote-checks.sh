@@ -44,19 +44,26 @@ _internal_api_get() {
     printf '%s' "$body"
     return 0
   fi
-  local fallback compose_rel
-  fallback="$(grep -E '^LOCAL_API_FALLBACK=' deploy/.env 2>/dev/null | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//' || true)"
+  local compose_rel
   compose_rel="${COMPOSE_REL:-deploy/docker-compose.production.ghcr.yml}"
-  if [ -n "$KEY" ]; then
-    docker compose -f "$compose_rel" --env-file deploy/.env exec -T api \
-      curl -sS --connect-timeout 10 --max-time 45 "http://127.0.0.1:8000${path}" -H "X-Internal-Key: $KEY" 2>/dev/null \
-      || { [ -n "$fallback" ] && curl -sSk --connect-timeout 10 --max-time 45 "${fallback}${path}" -H "X-Internal-Key: $KEY" 2>/dev/null; } \
-      || true
-  else
-    docker compose -f "$compose_rel" --env-file deploy/.env exec -T api \
-      curl -sS --connect-timeout 10 --max-time 45 "http://127.0.0.1:8000${path}" 2>/dev/null \
-      || { [ -n "$fallback" ] && curl -sSk --connect-timeout 10 --max-time 45 "${fallback}${path}" 2>/dev/null; } \
-      || true
+  if docker compose -f "$compose_rel" --env-file deploy/.env ps -q api 2>/dev/null | grep -q .; then
+    docker compose -f "$compose_rel" --env-file deploy/.env exec -T -e "INTERNAL_KEY=$KEY" api python -c "
+import os
+import urllib.error
+import urllib.request
+
+path = '''${path}'''
+headers = {'Accept': 'application/json'}
+key = (os.environ.get('INTERNAL_KEY') or '').strip()
+if key:
+    headers['X-Internal-Key'] = key
+req = urllib.request.Request(f'http://127.0.0.1:8000{path}', headers=headers)
+try:
+    with urllib.request.urlopen(req, timeout=45) as resp:
+        print(resp.read().decode())
+except urllib.error.HTTPError as exc:
+    print(exc.read().decode() if exc.fp else str(exc))
+" 2>/dev/null || true
   fi
 }
 
@@ -76,10 +83,25 @@ _internal_api_post() {
   fi
   local compose_rel
   compose_rel="${COMPOSE_REL:-deploy/docker-compose.production.ghcr.yml}"
-  if [ -n "$KEY" ]; then
-    docker compose -f "$compose_rel" --env-file deploy/.env exec -T api \
-      curl -sS -X POST "http://127.0.0.1:8000${path}" \
-      -H "Content-Type: application/json" -H "X-Internal-Key: $KEY" -d '{}' 2>/dev/null || true
+  if docker compose -f "$compose_rel" --env-file deploy/.env ps -q api 2>/dev/null | grep -q .; then
+    docker compose -f "$compose_rel" --env-file deploy/.env exec -T -e "INTERNAL_KEY=$KEY" api python -c "
+import json
+import os
+import urllib.error
+import urllib.request
+
+path = '''${path}'''
+headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
+key = (os.environ.get('INTERNAL_KEY') or '').strip()
+if key:
+    headers['X-Internal-Key'] = key
+req = urllib.request.Request(f'http://127.0.0.1:8000{path}', data=b'{}', method='POST', headers=headers)
+try:
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        print(resp.read().decode())
+except urllib.error.HTTPError as exc:
+    print(exc.read().decode() if exc.fp else str(exc))
+" 2>/dev/null || true
   fi
 }
 
@@ -109,8 +131,12 @@ case "$MODE" in
     fi
     ;;
   last-digest)
-    _internal_api_get "/internal/slack/last-digest"
-    echo ""
+    body="$(_internal_api_get "/internal/slack/last-digest" || true)"
+    if [ -z "$body" ]; then
+      echo '{"found":false,"error":"unreachable"}'
+    else
+      printf '%s\n' "$body"
+    fi
     ;;
   digest-now)
     echo "POST $BASE/internal/slack/digest-now"

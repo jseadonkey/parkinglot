@@ -69,6 +69,7 @@ jobs:
 
       - name: Notify Slack
         if: always()
+        continue-on-error: true
         env:
           GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL || 'https://api.vspecialist.com' }}
