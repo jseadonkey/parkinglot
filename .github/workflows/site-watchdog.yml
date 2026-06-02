@@ -1,0 +1,106 @@
+# Site watchdog: external website/API checks + Droplet server checks (runs when your laptop is off).
+#
+# Posts to Slack on failure (same channel as admin UI smoke / agents chat).
+# Complements Celery Beat task site_watchdog_check on the Droplet (every 30 min).
+#
+# Secrets: SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY or SLACK_BOT_TOKEN + channel id
+#          DROPLET_* for SSH server checks
+
+name: Site watchdog
+
+on:
+  schedule:
+    - cron: "10,40 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: External API + operator UI checks
+        id: external
+        continue-on-error: true
+        env:
+          PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL || 'https://api.vspecialist.com' }}
+          UI_SMOKE_BASE_URL: ${{ vars.UI_SMOKE_BASE_URL || 'https://vspecialist.com' }}
+          WATCHDOG_REPORT_PATH: scripts/site-watchdog/external-checks.json
+        run: python3 scripts/site-watchdog/run_external_checks.py
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Droplet server checks
+        id: server
+        continue-on-error: true
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          LOG="$(mktemp)"
+          cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && bash -s -- site-watchdog-server deploy/docker-compose.production.ghcr.yml" \
+            | tee "$LOG"
+          grep '^WATCHDOG_JSON=' "$LOG" | sed 's/^WATCHDOG_JSON=//' > scripts/site-watchdog/server-checks.json || echo '{"ok":false,"checks":[],"runner":"github-ssh","failure_count":1}' > scripts/site-watchdog/server-checks.json
+
+      - name: Upload watchdog reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-watchdog-reports
+          path: scripts/site-watchdog/*.json
+          if-no-files-found: ignore
+
+      - name: Notify Slack
+        if: always()
+        env:
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL || 'https://api.vspecialist.com' }}
+          SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_DIGEST_CHANNEL_ID: ${{ secrets.SLACK_DIGEST_CHANNEL_ID }}
+          SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${{ secrets.SLACK_AGENT_DISCUSSION_CHANNEL_ID }}
+          SITE_WATCHDOG_SLACK_CHANNEL_ID: ${{ vars.SITE_WATCHDOG_SLACK_CHANNEL_ID }}
+          WATCHDOG_EXTERNAL_REPORT: scripts/site-watchdog/external-checks.json
+          WATCHDOG_SERVER_REPORT: scripts/site-watchdog/server-checks.json
+          EXTERNAL_STEP: ${{ steps.external.outcome }}
+          SERVER_STEP: ${{ steps.server.outcome }}
+        run: |
+          set -euo pipefail
+          if [ "${EXTERNAL_STEP}" = "failure" ] || [ "${SERVER_STEP}" = "failure" ]; then
+            python3 - <<'PY' || true
+import json
+from datetime import UTC, datetime
+from pathlib import Path
+
+checks = []
+for label, path in [("external_step", "scripts/site-watchdog/external-checks.json"), ("server_step", "scripts/site-watchdog/server-checks.json")]:
+    p = Path(path)
+    if p.is_file():
+        checks.extend(json.loads(p.read_text()).get("checks") or [])
+    else:
+        import os
+        step = os.environ.get("EXTERNAL_STEP" if "external" in label else "SERVER_STEP", "unknown")
+        checks.append({"name": label, "ok": False, "detail": f"step outcome={step}, no report file", "source": "github-actions"})
+report = {"ok": False, "checks": checks, "checked_at": datetime.now(tz=UTC).isoformat(), "failure_count": sum(1 for c in checks if not c.get("ok")), "runner": "github-actions"}
+Path("scripts/site-watchdog").mkdir(parents=True, exist_ok=True)
+Path("scripts/site-watchdog/external-checks.json").write_text(json.dumps(report), encoding="utf-8")
+PY
+          fi
+          python3 scripts/site-watchdog/report-watchdog.py

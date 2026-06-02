@@ -388,6 +388,25 @@ class SlackConfigStatusResponse(BaseModel):
     slack_agent_event_updates_enabled: bool
 
 
+class SiteWatchdogCheckRead(BaseModel):
+    name: str
+    ok: bool
+    detail: str
+    latency_ms: float | None = None
+    source: str = "droplet"
+
+
+class SiteWatchdogStatusResponse(BaseModel):
+    """GET /internal/watchdog/status — last check persisted in Redis."""
+
+    found: bool
+    ok: bool | None = None
+    checked_at: str | None = None
+    runner: str | None = None
+    failure_count: int | None = None
+    checks: list[SiteWatchdogCheckRead] = Field(default_factory=list)
+
+
 class CeleryTaskStatusResponse(BaseModel):
     """GET /internal/tasks/{task_id} — Celery AsyncResult snapshot."""
 

@@ -325,7 +325,46 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("OUTREACH_SENDER_PHONE", "outreach_sender_phone"),
     )
 
-
-@lru_cache
+    # Site watchdog: API + UI + server checks (separate from pipeline Slack digest).
+    site_watchdog_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("SITE_WATCHDOG_ENABLED", "site_watchdog_enabled"),
+    )
+    site_watchdog_ui_base_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("SITE_WATCHDOG_UI_BASE_URL", "site_watchdog_ui_base_url"),
+    )
+    site_watchdog_slack_channel_id: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "SITE_WATCHDOG_SLACK_CHANNEL_ID",
+            "site_watchdog_slack_channel_id",
+        ),
+    )
+    site_watchdog_parking_queue_warn: int = Field(
+        default=50_000,
+        ge=1000,
+        le=2_000_000,
+        validation_alias=AliasChoices(
+            "SITE_WATCHDOG_PARKING_QUEUE_WARN",
+            "site_watchdog_parking_queue_warn",
+        ),
+    )
+    site_watchdog_heartbeat_hours: int = Field(
+        default=12,
+        ge=0,
+        le=168,
+        validation_alias=AliasChoices(
+            "SITE_WATCHDOG_HEARTBEAT_HOURS",
+            "site_watchdog_heartbeat_hours",
+        ),
+    )
+    site_watchdog_crontab_minute: str = Field(
+        default="5,35",
+        validation_alias=AliasChoices(
+            "SITE_WATCHDOG_CRONTAB_MINUTE",
+            "site_watchdog_crontab_minute",
+        ),
+    )
 def get_settings() -> Settings:
     return Settings()

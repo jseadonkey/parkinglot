@@ -407,7 +407,62 @@ PY
     echo "=== GET $BASE/parcels/$PID/outreach/drafts ==="
     curl -sS -w "\nHTTP %{http_code}\n" "$BASE/parcels/$PID/outreach/drafts" || true
     ;;
-  *)
+  site-watchdog-server)
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
+    export COMPOSE_REL
+    echo "=== site watchdog server checks (JSON on last line) ==="
+    docker compose "${ARGS[@]}" exec -T -e COMPOSE_REL api python - <<'PY'
+import json
+import os
+import subprocess
+
+from app.config import get_settings
+from app.db.session import SessionLocal
+from app.site_watchdog import WatchdogCheck, build_report, run_server_checks
+
+checks: list[WatchdogCheck] = []
+db = SessionLocal()
+try:
+    checks.extend(run_server_checks(db, get_settings(), source="github-ssh"))
+finally:
+    db.close()
+
+try:
+    line = subprocess.check_output(["df", "-h", "/"], text=True).strip().splitlines()[-1]
+    parts = line.split()
+    use_pct = int(parts[4].rstrip("%")) if len(parts) >= 5 else 0
+    checks.append(WatchdogCheck("disk_root", use_pct < 90, line, source="github-ssh"))
+except Exception as exc:
+    checks.append(WatchdogCheck("disk_root", False, str(exc)[:200], source="github-ssh"))
+
+unhealthy: list[str] = []
+try:
+    rel = os.environ.get("COMPOSE_REL", "deploy/docker-compose.production.ghcr.yml")
+    out = subprocess.check_output(
+        ["docker", "compose", "-f", rel, "--env-file", "deploy/.env", "ps", "--format", "{{.Name}}:{{.Health}}"],
+        text=True,
+        cwd="/opt/workspaces/parkinglot" if os.path.isdir("/opt/workspaces/parkinglot") else os.getcwd(),
+    )
+    for row in out.splitlines():
+        h = row.split(":")[-1].lower() if ":" in row else ""
+        if h and h not in ("healthy", ""):
+            unhealthy.append(row.strip())
+    checks.append(
+        WatchdogCheck(
+            "compose_health",
+            len(unhealthy) == 0,
+            "ok" if not unhealthy else "; ".join(unhealthy[:8]),
+            source="github-ssh",
+        )
+    )
+except Exception as exc:
+    checks.append(WatchdogCheck("compose_health", False, str(exc)[:200], source="github-ssh"))
+
+report = build_report(checks, runner="github-ssh")
+print("WATCHDOG_JSON=" + json.dumps(report))
+PY
+    ;;
     echo "Unknown mode: $MODE" >&2
     exit 2
     ;;

@@ -55,6 +55,8 @@ from app.schemas import (
     SlackLastDigestResponse,
     SlackTestMessagePostResponse,
     SlackTestMessageRequest,
+    SiteWatchdogCheckRead,
+    SiteWatchdogStatusResponse,
     WaTechCountyQueuedResponse,
 )
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
@@ -77,6 +79,7 @@ from app.tasks import (
     slack_agent_digest,
     slack_dual_agent_discussion,
     slack_qualified_parcels_report,
+    site_watchdog_check,
 )
 from parking_core.pilot import load_pilot_config
 
@@ -143,6 +146,32 @@ def slack_config_status() -> SlackConfigStatusResponse:
         has_agent_discussion_channel_id=has_agent_ch,
         slack_agent_event_updates_enabled=slack_agent_event_updates_enabled(s),
     )
+
+
+@router.get("/watchdog/status", response_model=SiteWatchdogStatusResponse)
+def site_watchdog_status() -> SiteWatchdogStatusResponse:
+    """Last site+server health check (Redis). Separate from pipeline Slack digest."""
+    from app.site_watchdog import load_last_report
+
+    report = load_last_report(get_settings())
+    if report is None:
+        return SiteWatchdogStatusResponse(found=False)
+    checks = [SiteWatchdogCheckRead.model_validate(c) for c in (report.get("checks") or [])]
+    return SiteWatchdogStatusResponse(
+        found=True,
+        ok=bool(report.get("ok")),
+        checked_at=report.get("checked_at"),
+        runner=report.get("runner"),
+        failure_count=report.get("failure_count"),
+        checks=checks,
+    )
+
+
+@router.post("/watchdog/run-now", response_model=CeleryTaskIdResponse)
+def site_watchdog_run_now() -> CeleryTaskIdResponse:
+    """Enqueue site watchdog on the Slack Celery queue (same as scheduled checks)."""
+    async_result = site_watchdog_check.delay()
+    return CeleryTaskIdResponse(task_id=async_result.id)
 
 
 @router.get("/stats/export-readiness", response_model=ExportReadinessResponse)

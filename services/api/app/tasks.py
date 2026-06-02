@@ -948,3 +948,50 @@ def slack_agent_digest() -> dict[str, Any]:
     finally:
         db.rollback()
         db.close()
+
+
+@celery.task(name="app.tasks.site_watchdog_check")
+def site_watchdog_check() -> dict[str, Any]:
+    """Check API, operator UI, Postgres, Redis/queues; alert Slack on failure or recovery."""
+    from app.site_watchdog import (
+        build_slack_text,
+        load_last_report,
+        run_droplet_watchdog,
+        should_post_slack,
+        watchdog_slack_channel,
+    )
+
+    settings = get_settings()
+    token = (settings.slack_bot_token or "").strip()
+    channel = watchdog_slack_channel(settings)
+    if not token or not channel:
+        logger.warning(
+            "site_watchdog_check SKIPPED: missing SLACK_BOT_TOKEN or watchdog channel "
+            "(SITE_WATCHDOG_SLACK_CHANNEL_ID / SLACK_AGENT_DISCUSSION_CHANNEL_ID / SLACK_DIGEST_CHANNEL_ID)",
+        )
+        return {"skipped": True, "reason": "slack not configured for watchdog"}
+
+    db = _session()
+    try:
+        previous = load_last_report(settings)
+        report = run_droplet_watchdog(db)
+        post, recovered = should_post_slack(settings, report, previous)
+        result: dict[str, Any] = {"skipped": False, "ok": report.get("ok"), "posted": False}
+        if post:
+            text = build_slack_text(report, recovered=recovered)
+            post_text_to_slack(settings, text=text, channel_id=channel)
+            write_audit(
+                db,
+                actor="celery:site_watchdog",
+                action="site_watchdog_alert" if not report.get("ok") else "site_watchdog_ok",
+                entity_type="slack_channel",
+                entity_id=channel,
+                meta={"ok": report.get("ok"), "failure_count": report.get("failure_count"), "recovered": recovered},
+            )
+            result["posted"] = True
+        return result
+    except Exception:
+        logger.exception("site_watchdog_check failed")
+        raise
+    finally:
+        db.close()

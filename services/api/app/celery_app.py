@@ -21,6 +21,7 @@ SLACK_TASK_NAMES: tuple[str, ...] = (
     "app.tasks.slack_agent_digest",
     "app.tasks.slack_qualified_parcels_report",
     "app.tasks.slack_dual_agent_discussion",
+    "app.tasks.site_watchdog_check",
 )
 
 _SLACK_BEAT_OPTIONS = {"queue": SLACK_QUEUE}
@@ -44,6 +45,16 @@ beat_schedule: dict = {
 }
 
 _s = get_settings()
+
+if _s.site_watchdog_enabled:
+    _wd_minute = (_s.site_watchdog_crontab_minute or "5,35").strip()
+    beat_schedule["site-watchdog"] = {
+        "task": "app.tasks.site_watchdog_check",
+        "schedule": crontab(minute=_wd_minute),
+        "options": _SLACK_BEAT_OPTIONS,
+    }
+    logger.info("Beat: site watchdog at minute=%s UTC (slack queue)", _wd_minute)
+
 _ingest_path = (_s.scheduled_geojson_ingest_path or "").strip()
 if _ingest_path:
     _fips = (_s.scheduled_geojson_ingest_default_county_fips or "").strip()
