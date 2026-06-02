@@ -6,7 +6,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Parking — operator console",
-  description: "Browse parcels, deal workflow, approvals, and readiness metrics",
+  description: "Washington parking acquisition — browse parcels, track deals, approve outreach",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -14,22 +14,23 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         <nav className="nav">
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem 0.75rem", alignItems: "center", flex: "1 1 auto" }}>
-            <Link href="/">Overview</Link>
-            <span className="sep">|</span>
-            <Link href="/parcels">Parcels</Link>
-            <span className="sep">|</span>
-            <Link href="/deals">Deal progress</Link>
-            <span className="sep">|</span>
-            <Link href="/approvals">Approvals</Link>
-            <span className="sep">|</span>
-            <Link href="/audit">Audit</Link>
-            <span className="sep">|</span>
-            <Link href="/owners">Portfolios</Link>
-            <span className="sep">|</span>
-            <Link href="/outreach">Outreach pipeline</Link>
-            <span className="sep">|</span>
-            <Link href="/templates">Message templates</Link>
+          <div className="nav-inner">
+            <div className="nav-brand">
+              <span className="nav-title">WA parking acquisition</span>
+              <span className="nav-sub muted">Operator console</span>
+            </div>
+            <div className="nav-links">
+              <Link href="/">Overview</Link>
+              <Link href="/outreach" className="nav-primary">
+                Outreach
+              </Link>
+              <Link href="/approvals">Approvals</Link>
+              <Link href="/deals">Deal progress</Link>
+              <Link href="/parcels">Parcels</Link>
+              <Link href="/templates">Templates</Link>
+              <Link href="/owners">Portfolios</Link>
+              <Link href="/audit">Audit</Link>
+            </div>
           </div>
           <AuthToolbar />
         </nav>

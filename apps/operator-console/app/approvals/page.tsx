@@ -66,8 +66,10 @@ export default function ApprovalsPage() {
   return (
     <main>
       <h1>Approvals</h1>
-      <p className="muted">
-        Human gate for deal memos, contracts, and outbound outreach messages (email, text, voice, mail).
+      <p className="muted page-lead">
+        Human gate before anything is published or sent. Agents queue deal memos, contract drafts, and outbound
+        messages (email, text, voice, mail) here. Approve to allow the next step; reject to stop. After approving
+        outreach, the parcel moves toward send (channel integration on the backend).
       </p>
 
       <div className="panel" style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
@@ -97,11 +99,11 @@ export default function ApprovalsPage() {
         <div className="error">
           {err}
           <p className="muted" style={{ marginTop: "0.5rem" }}>
-            You can also use the{" "}
-            <a href="/" className="btn-link">
-              standalone approvals page
-            </a>{" "}
-            at the site home, or click Refresh after a moment.
+            If this persists, click Refresh or open the parcel from{" "}
+            <a href="/outreach" className="btn-link">
+              Outreach pipeline
+            </a>
+            .
           </p>
         </div>
       ) : null}

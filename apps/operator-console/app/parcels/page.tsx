@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { bridgeUrl } from "../../lib/paths";
+import { countyLine, useCountyNames } from "../../lib/useCountyNames";
 
 type SortProfile = "combined" | "entitlement" | "strategic" | "identification";
 
@@ -31,6 +32,7 @@ function fmtScore(v: number | null): string {
 }
 
 export default function ParcelsPage() {
+  const countyLabel = useCountyNames();
   const [limit, setLimit] = useState(100);
   const [sort, setSort] = useState<SortProfile>("combined");
   const [rows, setRows] = useState<ParcelRow[]>([]);
@@ -58,10 +60,11 @@ export default function ParcelsPage() {
   return (
     <main>
       <h1>Parcels</h1>
-      <p className="muted">
-        All ingested parcels with latest <strong>Atlas</strong> (entitlement), <strong>Beacon</strong> (strategic), and{" "}
-        <strong>Cartographer</strong> (identification) scores. <strong>Combined</strong> is the average of whichever
-        scores exist — default sort is highest combined first.
+      <p className="muted page-lead">
+        All ingested parcels with latest agent scores. <strong>Atlas</strong> = entitlement (zoning fit),{" "}
+        <strong>Beacon</strong> = strategic (market/demand), <strong>Cartographer</strong> = identification prescreen
+        at ingest. <strong>Combined</strong> averages whichever scores exist. For deal-ready lots, use{" "}
+        <Link href="/outreach">Outreach pipeline</Link> (entitlement ≥ qualified floor only).
       </p>
 
       <div className="panel" style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
@@ -116,7 +119,7 @@ export default function ParcelsPage() {
                 <td>{fmtScore(p.strategic_score)}</td>
                 <td>{fmtScore(p.identification_score)}</td>
                 <td>{p.apn}</td>
-                <td>{p.county_fips}</td>
+                <td>{countyLine(countyLabel, p.county_fips)}</td>
                 <td>{p.zoning_code ?? "—"}</td>
                 <td>{p.lot_sqft != null ? Math.round(p.lot_sqft).toLocaleString() : "—"}</td>
                 <td>

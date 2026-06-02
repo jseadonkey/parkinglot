@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { auditActionLabel, auditEntityLabel } from "../../lib/auditLabels";
 import { bridgeUrl } from "../../lib/paths";
 
 type AuditRow = {
@@ -17,6 +18,7 @@ type AuditRow = {
 export default function AuditPage() {
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "approvals" | "pipeline" | "slack">("all");
 
   useEffect(() => {
     let cancelled = false;
@@ -36,46 +38,81 @@ export default function AuditPage() {
     };
   }, []);
 
+  const filtered = useMemo(() => {
+    return rows.filter((r) => {
+      if (filter === "all") return true;
+      if (filter === "approvals") return r.action.includes("approval");
+      if (filter === "pipeline") return r.action.includes("pipeline");
+      if (filter === "slack") return r.action.includes("slack");
+      return true;
+    });
+  }, [rows, filter]);
+
   return (
     <main>
       <h1>Audit log</h1>
-      <p className="muted">Recent decisions and pipeline events (newest first).</p>
+      <p className="muted page-lead">
+        History of approvals, pipeline events, template edits, and Slack notifications — newest first. Use this when
+        you need to confirm who approved what and when.
+      </p>
+
+      <div className="panel toolbar">
+        <div className="filter-chips" role="tablist" aria-label="Audit filter">
+          {(
+            [
+              ["all", "All"],
+              ["approvals", "Approvals"],
+              ["pipeline", "Pipeline"],
+              ["slack", "Slack"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={filter === key}
+              className={filter === key ? "chip chip-active" : "chip"}
+              onClick={() => setFilter(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {err ? <div className="error">{err}</div> : null}
 
-      <div className="panel" style={{ overflowX: "auto" }}>
+      <div className="panel panel-flush">
         <table className="data">
           <thead>
             <tr>
               <th>When</th>
-              <th>Actor</th>
-              <th>Action</th>
-              <th>Entity</th>
-              <th>Meta</th>
+              <th>What happened</th>
+              <th>Who</th>
+              <th>Details</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {filtered.map((r) => (
               <tr key={r.id}>
-                <td className="muted">{r.created_at?.slice(0, 19)}</td>
-                <td>{r.actor}</td>
-                <td>{r.action}</td>
+                <td className="muted">{r.created_at?.slice(0, 19).replace("T", " ")}</td>
                 <td>
-                  {r.entity_type}
-                  {r.entity_id ? (
-                    <span className="muted">
-                      <br />
-                      {r.entity_id}
-                    </span>
-                  ) : null}
+                  <strong>{auditActionLabel(r.action)}</strong>
+                  <div className="muted cell-sub">{auditEntityLabel(r.entity_type, r.entity_id)}</div>
                 </td>
+                <td>{r.actor}</td>
                 <td style={{ maxWidth: "280px" }}>
-                  <span className="muted">{r.meta ? JSON.stringify(r.meta).slice(0, 160) : "—"}</span>
+                  {r.meta && Object.keys(r.meta).length > 0 ? (
+                    <span className="muted">{JSON.stringify(r.meta).slice(0, 120)}</span>
+                  ) : (
+                    <span className="muted">—</span>
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {filtered.length === 0 && !err ? <p className="muted empty-state">No matching events.</p> : null}
       </div>
     </main>
   );

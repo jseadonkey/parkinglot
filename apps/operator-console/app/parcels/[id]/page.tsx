@@ -11,6 +11,7 @@ import {
   parseSkipTraceView,
   skipTraceRan,
 } from "../../../lib/skipTraceDisplay";
+import { countyLine, useCountyNames } from "../../../lib/useCountyNames";
 import { canMutate, useAuth } from "../../../lib/useAuth";
 
 type Parcel = {
@@ -89,6 +90,7 @@ const DRAFT_LABELS: Record<string, string> = {
 
 export default function ParcelDetailPage() {
   const auth = useAuth();
+  const countyLabel = useCountyNames();
   const allowActions = canMutate(auth);
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
@@ -163,6 +165,17 @@ export default function ParcelDetailPage() {
 
   const activeDraft = drafts.find((d) => d.channel === draftChannel) ?? drafts[0] ?? null;
   const skipTrace = useMemo(() => parseSkipTraceView(parcel?.owner_outreach_brief), [parcel?.owner_outreach_brief]);
+  const latestRun = runs[0] ?? null;
+
+  const nextStepHint = useMemo(() => {
+    if (!parcel) return null;
+    if (!latestRun) return "No pipeline run yet — top-scoring qualified parcels are enqueued automatically every few hours.";
+    if (latestRun.status === "failed") return "Pipeline failed — check the error below or retry from ops.";
+    if (latestRun.status === "running") return `Processing: ${latestRun.current_step?.replaceAll("_", " ") ?? "in progress"}…`;
+    if (!parcel.owner_outreach_brief) return "Pipeline running or brief not ready — owner enrichment may still be in progress.";
+    if (drafts.length === 0) return "Brief ready — message drafts will appear when templates and contacts are available.";
+    return "Review message drafts below, then request counsel approval before anything is sent.";
+  }, [parcel, latestRun, drafts.length]);
 
   async function requestApproval(channel: string) {
     if (!allowActions || !id) return;
@@ -194,9 +207,22 @@ export default function ParcelDetailPage() {
       <p className="muted">
         <Link href="/parcels">← Parcels</Link>
       </p>
-      <h1>Parcel</h1>
+      <h1>Parcel detail</h1>
+      <p className="muted page-lead">
+        End-to-end view for one lot: scores, parking market context, owner research, workflow status, and outreach
+        drafts. Approve sends from <Link href="/approvals">Approvals</Link>.
+      </p>
 
       {err ? <div className="error">{err}</div> : null}
+
+      {parcel && nextStepHint ? (
+        <div className="panel panel-inset next-step-panel">
+          <strong>What happens next</strong>
+          <p className="muted" style={{ margin: "0.35rem 0 0" }}>
+            {nextStepHint}
+          </p>
+        </div>
+      ) : null}
 
       {parcel ? (
         <>
@@ -205,7 +231,7 @@ export default function ParcelDetailPage() {
               <div>
                 <strong>{parcel.apn}</strong>
                 <span className="muted" style={{ marginLeft: "0.5rem" }}>
-                  {parcel.county_fips}
+                  {countyLine(countyLabel, parcel.county_fips)}
                 </span>
               </div>
               <span className="badge">{parcel.id}</span>
@@ -243,6 +269,9 @@ export default function ParcelDetailPage() {
           </div>
 
           <h2>Parking market context</h2>
+          <p className="muted">
+            Illustrative revenue from nearby paid parking comps and estimated stall count — not a formal pro forma.
+          </p>
           <div className="panel">
             {dealErr ? <p className="muted">{dealErr}</p> : null}
             {dealContext ? (

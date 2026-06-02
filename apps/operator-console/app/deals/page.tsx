@@ -11,6 +11,7 @@ import {
   stageBadgeClass,
   statusLabel,
 } from "../../lib/dealProgress";
+import { countyLine, useCountyNames } from "../../lib/useCountyNames";
 
 type Row = {
   parcel_id: string;
@@ -95,6 +96,7 @@ function ProgressBar({ row }: { row: Row }) {
 }
 
 export default function DealsPage() {
+  const countyLabel = useCountyNames();
   const [board, setBoard] = useState<Board | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>("all");
@@ -147,8 +149,10 @@ export default function DealsPage() {
         <div>
           <h1>Deal progress</h1>
           <p className="muted page-lead">
-            One row per parcel — the <strong>latest</strong> workflow run only. Use this to see where deals are in the
-            pipeline (score → enrich → memo → contract → your review).
+            Every parcel that has started the automated pipeline — one row per parcel (latest run only). Steps:{" "}
+            <strong>Score</strong> → <strong>Enrich</strong> (owner + skip trace) → <strong>Memo</strong> →{" "}
+            <strong>Contract</strong> → <strong>Review</strong> (your approval). For qualified deals only, see{" "}
+            <Link href="/outreach">Outreach pipeline</Link>.
           </p>
         </div>
         <button type="button" className="outline" onClick={() => void load()} disabled={loading}>
@@ -263,7 +267,7 @@ export default function DealsPage() {
                       <Link href={`/parcels/${r.parcel_id}`} className="apn-link">
                         {r.apn}
                       </Link>
-                      <div className="muted cell-sub">King Co · {r.county_fips}</div>
+                      <div className="muted cell-sub">{countyLine(countyLabel, r.county_fips)}</div>
                     </td>
                     <td style={{ minWidth: "14rem" }}>
                       <ProgressBar row={r} />

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { OperatorGuide, QuickStartCards } from "../components/OperatorGuide";
 import { bridgeUrl } from "../lib/paths";
 import { PILOT_SCOPE_DEFAULTS } from "../lib/pilotScopeDefaults";
 
@@ -235,8 +236,12 @@ export default function OverviewPage() {
     <main>
       <h1>Operator overview</h1>
       <p className="muted page-lead">
-        Pilot scope, scoring totals, and how parcels narrow from statewide ingest to qualified outreach candidates.
+        Washington parking acquisition pilot — scope, scoring totals, and how parcels narrow from GIS ingest to
+        qualified outreach candidates.
       </p>
+
+      <QuickStartCards />
+      <OperatorGuide />
 
       <h2>Geographic scope</h2>
       <div className="panel scope-panel">
@@ -348,8 +353,10 @@ export default function OverviewPage() {
 
       <h2>Outreach candidates</h2>
       <p className="muted">
-        See <Link href="/outreach">Outreach pipeline</Link> for parcels at or above the entitlement score floor, with deal
-        workflow status and brief/approval columns.
+        <Link href="/outreach">Outreach pipeline</Link> lists parcels at or above the entitlement score floor, sorted
+        by score. Use <strong>Needs action</strong> for blocked deals, errors, or pending approvals.{" "}
+        <Link href="/deals">Deal progress</Link> shows the same pipeline runs with a step-by-step progress bar for
+        every parcel that has started enrichment — not just qualified ones.
       </p>
 
       <h2>Data funnel</h2>

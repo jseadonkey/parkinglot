@@ -10,6 +10,7 @@ import {
   statusDetail,
   statusHeadline,
 } from "../../lib/outreachLabels";
+import { countyLine, useCountyNames } from "../../lib/useCountyNames";
 
 type Row = {
   parcel_id: string;
@@ -79,6 +80,7 @@ function sortRows(rows: Row[], sort: SortKey): Row[] {
 }
 
 export default function OutreachPipelinePage() {
+  const countyLabel = useCountyNames();
   const [board, setBoard] = useState<Board | null>(null);
   const [loading, setLoading] = useState(true);
   const [limit, setLimit] = useState(100);
@@ -148,8 +150,10 @@ export default function OutreachPipelinePage() {
         <div>
           <h1>Outreach pipeline</h1>
           <p className="muted page-lead">
-            Qualified parcels ranked by entitlement score. Start with <strong>Needs action</strong> — those are waiting
-            on contract approval or had a pipeline error.{" "}
+            Your working queue: parcels with entitlement at or above the pilot floor, highest score first. Workflow:
+            agents enrich → draft memo &amp; contract → you approve in{" "}
+            <Link href="/approvals">Approvals</Link> → outbound message (after counsel sign-off). Start with{" "}
+            <strong>Needs action</strong>. Est. gross is illustrative parking revenue from nearby comps.{" "}
             <Link href="/templates">Edit message templates</Link>
           </p>
         </div>
@@ -268,7 +272,7 @@ export default function OutreachPipelinePage() {
                         <Link href={`/parcels/${r.parcel_id}`} className="apn-link">
                           {r.apn}
                         </Link>
-                        <div className="muted cell-sub">King Co · {r.county_fips}</div>
+                        <div className="muted cell-sub">{countyLine(countyLabel, r.county_fips)}</div>
                       </td>
                       <td>
                         <div className="score-main">
