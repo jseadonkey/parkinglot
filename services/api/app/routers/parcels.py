@@ -11,6 +11,7 @@ from app.db.schema_compat import parcel_load_only, parcel_to_read
 from app.db.session import get_db
 from app.schemas import ParcelPipelineTaskResponse, ParcelRead, ParcelScoreRead, WorkflowRunRead
 from app.scoring_profiles import ENTITLEMENT, ScoreProfile
+from app.pipeline_funnel import identification_prescreen_floor, parcel_prescreen_qualified
 from app.tasks import run_pipeline
 from parking_core.pilot import load_pilot_config
 
@@ -106,5 +107,14 @@ def run_pipeline_for_parcel(
 ) -> ParcelPipelineTaskResponse:
     if db.get(Parcel, parcel_id) is None:
         raise HTTPException(status_code=404, detail="parcel not found")
+    floor = identification_prescreen_floor()
+    if not parcel_prescreen_qualified(db, parcel_id):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"parcel below identification prescreen floor ({floor:.0f}); "
+                "full pipeline (owner enrichment, memo, contract) is not run for ruled-out lots"
+            ),
+        )
     async_result = run_pipeline.delay(str(parcel_id))
     return ParcelPipelineTaskResponse(task_id=async_result.id, parcel_id=str(parcel_id))

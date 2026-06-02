@@ -8,7 +8,7 @@ from typing import Any
 
 from geoalchemy2.elements import WKTElement
 from shapely.geometry import MultiPolygon, Polygon
-from sqlalchemy import delete, exists, not_, or_, select
+from sqlalchemy import and_, delete, exists, func, select
 from sqlalchemy.orm import Session
 
 from app.approvals_util import queue_approval
@@ -26,6 +26,12 @@ from app.exploration_campaign import (
 from app.memo_render import build_deal_memo_markdown
 from app.outreach_contacts import sync_contact_points_from_brief
 from app.owner_portfolio import count_qualified_peer_parcels
+from app.pipeline_funnel import (
+    filter_prescreen_qualified_ids,
+    identification_prescreen_floor,
+    missing_pipeline_pair,
+    parcel_prescreen_qualified,
+)
 from app.scoring_profiles import (
     ENTITLEMENT,
     IDENTIFICATION,
@@ -39,6 +45,7 @@ from app.slack_digest import (
     post_agent_event_to_slack,
     post_blocks_to_slack_channel,
     post_digest_to_slack,
+    post_text_to_slack,
 )
 from app.storage import put_text_object
 from parking_core.models import OwnerCandidate, ParcelFeature
@@ -55,64 +62,55 @@ logger = logging.getLogger(__name__)
 
 
 def enqueue_unscored_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
-    """Enqueue ``run_pipeline`` for parcels missing an **entitlement** score row.
-
-    Parcels may already have an ingest-time ``identification`` score; missing **strategic**
-    alone does **not** match — use ``enqueue_incomplete_pipeline_jobs`` for that.
-
-    Used by ``POST /internal/pipeline/enqueue-unscored`` and periodic Beat.
-    """
-    cap = min(max(limit, 1), 500)
-    db = _session()
-    try:
-        stmt = (
-            select(Parcel.id)
-            .where(
-                ~exists(
-                    select(1).where(
-                        ParcelScore.parcel_id == Parcel.id,
-                        ParcelScore.score_profile == ENTITLEMENT,
-                    )
-                )
-            )
-            .order_by(Parcel.created_at.desc())
-            .limit(cap)
-        )
-        ids = [str(i) for i in db.scalars(stmt)]
-        for pid in ids:
-            run_pipeline.delay(pid)
-        return {"enqueued": len(ids), "parcel_ids": ids}
-    finally:
-        db.close()
-
+    """Enqueue ``run_pipeline`` for prescreen-qualified parcels missing an entitlement score."""
+    return enqueue_incomplete_pipeline_jobs(limit)
 
 def enqueue_incomplete_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
-    """Enqueue ``run_pipeline`` when entitlement **or** strategic score is missing."""
+    """Enqueue ``run_pipeline`` for prescreen-qualified parcels missing entitlement or strategic."""
     cap = min(max(limit, 1), 500)
+    floor_i = identification_prescreen_floor()
     db = _session()
     try:
-        has_ent = exists(
-            select(1).where(
-                ParcelScore.parcel_id == Parcel.id,
-                ParcelScore.score_profile == ENTITLEMENT,
+        agg = (
+            select(
+                ParcelScore.parcel_id.label("pid"),
+                func.max(ParcelScore.created_at).label("mx"),
             )
+            .where(ParcelScore.score_profile == IDENTIFICATION)
+            .group_by(ParcelScore.parcel_id)
+            .subquery()
         )
-        has_str = exists(
-            select(1).where(
-                ParcelScore.parcel_id == Parcel.id,
-                ParcelScore.score_profile == STRATEGIC,
+        ident = (
+            select(ParcelScore.parcel_id, ParcelScore.total_score.label("id_score"))
+            .join(
+                agg,
+                and_(
+                    ParcelScore.parcel_id == agg.c.pid,
+                    ParcelScore.created_at == agg.c.mx,
+                ),
             )
+            .where(
+                ParcelScore.score_profile == IDENTIFICATION,
+                ParcelScore.total_score >= floor_i,
+            )
+            .subquery()
         )
         stmt = (
             select(Parcel.id)
-            .where(or_(not_(has_ent), not_(has_str)))
-            .order_by(Parcel.created_at.desc())
+            .join(ident, Parcel.id == ident.c.parcel_id)
+            .where(missing_pipeline_pair())
+            .order_by(ident.c.id_score.desc())
             .limit(cap)
         )
         ids = [str(i) for i in db.scalars(stmt)]
         for pid in ids:
             run_pipeline.delay(pid)
-        return {"enqueued": len(ids), "parcel_ids": ids, "mode": "missing_entitlement_or_strategic"}
+        return {
+            "enqueued": len(ids),
+            "parcel_ids": ids,
+            "mode": "prescreen_qualified_missing_entitlement_or_strategic",
+            "prescreen_floor": floor_i,
+        }
     finally:
         db.close()
 
@@ -191,6 +189,26 @@ def _to_multi(geom: Polygon | MultiPolygon) -> MultiPolygon:
 
 @celery.task(name="app.tasks.run_pipeline")
 def run_pipeline(parcel_id: str) -> dict[str, Any]:
+    db = _session()
+    try:
+        parcel = db.get(Parcel, uuid.UUID(parcel_id))
+        if parcel is None:
+            raise ValueError("parcel not found")
+        if not parcel_prescreen_qualified(db, parcel.id):
+            logger.info(
+                "run_pipeline skipped parcel %s (identification prescreen below floor %s)",
+                parcel_id,
+                identification_prescreen_floor(),
+            )
+            return {
+                "skipped": True,
+                "reason": "below_identification_prescreen_floor",
+                "parcel_id": parcel_id,
+                "prescreen_floor": identification_prescreen_floor(),
+            }
+    finally:
+        db.close()
+
     db = _session()
     wid = uuid.uuid4()
     run = WorkflowRun(
@@ -650,28 +668,36 @@ def ingest_geojson_path(
                 "auto_run_pipeline": auto_run_pipeline,
             },
         )
+        pipelines_enqueued = 0
         if auto_run_pipeline and ids:
-            for pid in ids[: max(0, max_auto_pipeline)]:
+            qualified = filter_prescreen_qualified_ids(db, ids)
+            pipelines_enqueued = min(len(qualified), max(0, max_auto_pipeline))
+            for pid in qualified[: max(0, max_auto_pipeline)]:
                 run_pipeline.delay(pid)
-            if len(ids) > max_auto_pipeline:
+            if len(qualified) > max_auto_pipeline:
                 logger.warning(
-                    "ingest_geojson_path: auto_run_pipeline capped at %s of %s parcels",
+                    "ingest_geojson_path: auto_run_pipeline capped at %s of %s prescreen-qualified parcels",
                     max_auto_pipeline,
-                    len(ids),
+                    len(qualified),
+                )
+            if len(ids) > len(qualified):
+                logger.info(
+                    "ingest_geojson_path: skipped pipeline for %s parcels below prescreen floor",
+                    len(ids) - len(qualified),
                 )
         label = Path(path).name
         ingest_detail = (
             f"File `{label}` — inserted *{inserted}*, updated *{updated}*, skipped *{skipped}*."
         )
-        if auto_run_pipeline and ids:
-            ingest_detail += f" Pipelines enqueued: *{min(len(ids), max_auto_pipeline)}*."
+        if pipelines_enqueued:
+            ingest_detail += f" Pipelines enqueued: *{pipelines_enqueued}* (prescreen-qualified)."
         post_agent_event_to_slack(get_settings(), agent="Ingest agent", detail=ingest_detail)
         return {
             "parcel_ids": ids,
             "inserted": inserted,
             "updated": updated,
             "skipped": skipped,
-            "pipelines_enqueued": min(len(ids), max_auto_pipeline) if auto_run_pipeline else 0,
+            "pipelines_enqueued": pipelines_enqueued,
         }
     finally:
         db.close()
@@ -756,9 +782,15 @@ def merge_parcel_attributes_geojson(
         cap = min(max(max_pipeline, 0), 5000)
         enq = 0
         if refresh_pipeline and pipeline_ids and cap > 0:
-            for pid in pipeline_ids[:cap]:
+            qualified = filter_prescreen_qualified_ids(db, pipeline_ids)
+            for pid in qualified[:cap]:
                 run_pipeline.delay(pid)
                 enq += 1
+            if len(pipeline_ids) > len(qualified):
+                logger.info(
+                    "merge_parcel_attributes_geojson: skipped pipeline for %s parcels below prescreen floor",
+                    len(pipeline_ids) - len(qualified),
+                )
         post_agent_event_to_slack(
             get_settings(),
             agent="Cartographer (attribute merge)",

@@ -157,11 +157,16 @@ class EnqueueUnscoredResponse(BaseModel):
 
 
 class EnqueueIncompleteResponse(BaseModel):
-    """Parcels missing entitlement or strategic score — pipelines enqueued directly."""
+    """Prescreen-qualified parcels missing entitlement or strategic — pipelines enqueued directly."""
 
     enqueued: int
     parcel_ids: list[str]
-    mode: str = Field(description="missing_entitlement_or_strategic")
+    mode: str = Field(description="prescreen_qualified_missing_entitlement_or_strategic")
+    prescreen_floor: float | None = None
+
+
+class PrescreenGapStat(GapStat):
+    floor: float = Field(description="Identification prescreen qualified_min_score from pilot_identification.yaml")
 
 
 class ExportReadinessResponse(BaseModel):
@@ -176,6 +181,9 @@ class ExportReadinessResponse(BaseModel):
     parcels_missing_score_entitlement: GapStat
     parcels_missing_score_strategic: GapStat
     parcels_missing_entitlement_or_strategic: GapStat
+    parcels_prescreen_qualified: PrescreenGapStat
+    parcels_pipeline_funnel_backlog: PrescreenGapStat
+    parcels_ruled_out_by_prescreen: PrescreenGapStat
     parcels_missing_owner_outreach_brief: GapStat
     recommended_next_steps: list[str]
 

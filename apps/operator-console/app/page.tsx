@@ -183,10 +183,10 @@ export default function OverviewPage() {
       },
       {
         key: "identification",
-        label: "Identification prescreen",
+        label: `Identification prescreen (≥ ${floors.identification})`,
         detail:
-          "Lightweight Cartographer score at ingest from geometry + zoning + lot size + demand distance. No owner lookup yet.",
-        count: summary.parcels_with_latest_identification_score,
+          "Cartographer score at ingest — only parcels at or above this floor should enter the full pipeline (owner lookup, memo, contract).",
+        count: summary.qualified_count_identification,
       },
       {
         key: "pipeline",
