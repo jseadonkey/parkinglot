@@ -463,6 +463,7 @@ report = build_report(checks, runner="github-ssh")
 print("WATCHDOG_JSON=" + json.dumps(report))
 PY
     ;;
+  *)
     echo "Unknown mode: $MODE" >&2
     exit 2
     ;;

@@ -71,12 +71,17 @@ jobs:
               did = d.get("id")
               region = (d.get("region") or {}).get("slug")
               status = d.get("status")
+              size = d.get("size_slug") or (d.get("size") or {}).get("slug")
+              vcpus = d.get("vcpus")
+              memory_mb = d.get("memory")
+              disk_gb = d.get("disk")
               nets = d.get("networks") or {}
               v4 = (nets.get("v4") or [])
               pub = [n for n in v4 if n.get("type") == "public"]
               ip = pub[0].get("ip_address") if pub else None
               print(f"\n{name} (id={did})")
               print(f"  region: {region}  status: {status}")
+              print(f"  size: {size}  vcpus: {vcpus}  memory_mb: {memory_mb}  disk_gb: {disk_gb}")
               print(f"  public_ipv4: {ip or '(none yet)'}")
 
           print(
