@@ -901,23 +901,22 @@ PY
     OVERLAY="data/baltimore/baltimore_city_zoning_overlay.geojson"
     WORKER_OVERLAY="/app/data/baltimore/baltimore_city_zoning_overlay.geojson"
 
+    echo "=== git pull (scripts + zoning rules on Droplet) ==="
+    git pull --ff-only 2>/dev/null || true
+
+    echo "=== ensure host shapely for overlay build ==="
+    python3 -c "import shapely" 2>/dev/null || pip3 install -q shapely
+
+    export PYTHONPATH="${ROOT}/services/ingestion${PYTHONPATH:+:$PYTHONPATH}"
+
     echo "=== fetch Baltimore City parcels (20k cap) ==="
     python3 scripts/fetch_baltimore_city_parcels.py -o "$PARCELS" --max-features 20000
     echo "=== fetch Baltimore City zoning districts ==="
     python3 scripts/fetch_baltimore_zoning_districts.py -o "$ZONING"
 
-    echo "=== spatial join (worker container) ==="
-    if docker compose -f "$COMPOSE_REL" --env-file deploy/.env ps -q worker 2>/dev/null | grep -q .; then
-      docker compose -f "$COMPOSE_REL" --env-file deploy/.env exec -T worker \
-        python3 /app/scripts/build_baltimore_zoning_overlay.py \
-          --parcels "/app/${PARCELS}" \
-          --zoning "/app/${ZONING}" \
-          -o "$WORKER_OVERLAY" \
-        || { echo "worker overlay build failed; trying host python3"; python3 scripts/build_baltimore_zoning_overlay.py; }
-    else
-      python3 scripts/build_baltimore_zoning_overlay.py \
-        --parcels "$PARCELS" --zoning "$ZONING" -o "$OVERLAY"
-    fi
+    echo "=== spatial join (host python + parking_ingestion) ==="
+    python3 scripts/build_baltimore_zoning_overlay.py \
+      --parcels "$PARCELS" --zoning "$ZONING" -o "$OVERLAY"
 
     if [ ! -f "$OVERLAY" ]; then
       echo "FAIL: overlay not found at $OVERLAY" >&2
