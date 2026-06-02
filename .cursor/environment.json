@@ -1,0 +1,4 @@
+{
+  "install": "python3 -m venv .venv && .venv/bin/pip install -U pip && .venv/bin/pip install ./packages/core ./services/scoring ./services/ingestion ./services/enrichment ./services/workflows './services/api[dev]' && .venv/bin/pip install ruff==0.9.7",
+  "start": "echo 'Cloud agent env ready — run: make run-api-tests or bash scripts/run-api-tests.sh'"
+}
