@@ -222,6 +222,13 @@ export default function OverviewPage() {
     return withData.length > 0 ? withData : sorted.slice(0, 8);
   }, [scopeView, showAllCounties]);
 
+  const countiesWithData = useMemo(() => {
+    if (!scopeView) return [];
+    return scopeView.counties
+      .filter((c) => c.parcels_in_db > 0)
+      .sort((a, b) => b.parcels_in_db - a.parcels_in_db);
+  }, [scopeView]);
+
   const funnelBase = funnelSteps[0]?.count ?? 0;
 
   return (
@@ -237,8 +244,8 @@ export default function OverviewPage() {
           <div>
             <div className="scope-region">{regionName}</div>
             <p className="muted scope-sub">
-              {stateName} (FIPS {stateFips}) · {countyCount} counties in pilot config · Primary metro:{" "}
-              <strong>{metroLabel}</strong>
+              {stateName} (FIPS {stateFips}) · <strong>{countyCount} counties allowed in config</strong> (not all
+              loaded yet) · Primary metro: <strong>{metroLabel}</strong>
             </p>
           </div>
           <div className="scope-badges">
@@ -248,13 +255,26 @@ export default function OverviewPage() {
         </div>
 
         <p className="muted scope-note">
-          Ingest skips parcels outside the county FIPS list in <code>config/pilot.yaml</code>.
+          <strong>Config scope</strong> — ingest may load any of the {countyCount} county FIPS codes in{" "}
+          <code>config/pilot.yaml</code>; parcels outside that list are skipped.
           {scopeView ? (
             <>
               {" "}
-              We have loaded parcels in <strong>{scopeView.counties_with_ingested_parcels}</strong> of{" "}
-              {scopeView.pilot_county_count} pilot counties ({scopeView.parcels_in_pilot_counties.toLocaleString()}{" "}
-              rows in DB).
+              <strong>Data loaded</strong> —{" "}
+              <strong>{scopeView.parcels_in_pilot_counties.toLocaleString()}</strong> parcel rows in{" "}
+              <strong>{scopeView.counties_with_ingested_parcels}</strong> of {scopeView.pilot_county_count} counties
+              {countiesWithData.length > 0 ? (
+                <>
+                  :{" "}
+                  {countiesWithData
+                    .map((c) => `${c.county_name} (${c.county_fips}): ${c.parcels_in_db.toLocaleString()}`)
+                    .join("; ")}
+                </>
+              ) : (
+                " (none yet)"
+              )}
+              . The other {scopeView.pilot_county_count - scopeView.counties_with_ingested_parcels} counties are
+              configured but have no GIS ingest yet.
             </>
           ) : scopeLoading ? (
             <> Parcel counts by county are loading…</>
