@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 from app.config import Settings
 from app.site_watchdog import _api_base_url, _ui_base_url, should_post_slack
 
@@ -58,7 +60,8 @@ def test_should_post_on_recovery() -> None:
 
 def test_should_not_spam_when_still_ok() -> None:
     settings = type("S", (), {"site_watchdog_heartbeat_hours": 12})()
-    report = {"ok": True, "checked_at": "2026-06-02T00:00:00+00:00"}
-    previous = {"ok": True, "checked_at": "2026-06-02T00:10:00+00:00"}
+    now = datetime.now(tz=UTC)
+    report = {"ok": True, "checked_at": now.isoformat()}
+    previous = {"ok": True, "checked_at": (now - timedelta(hours=1)).isoformat()}
     post, _ = should_post_slack(settings, report, previous)
     assert post is False

@@ -39,14 +39,14 @@ jobs:
           MISSING=()
           [ -z "${UI_SMOKE_ADMIN_EMAIL:-}" ] && MISSING+=("UI_SMOKE_ADMIN_EMAIL")
           [ -z "${UI_SMOKE_ADMIN_PASSWORD:-}" ] && MISSING+=("UI_SMOKE_ADMIN_PASSWORD")
-          if [ -z "${NOTIFY_KEY:-}" ] && { [ -z "${SLACK_BOT:-}" ] || [ -z "${SLACK_CH:-}" ]; }; then
-            MISSING+=("SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY or (SLACK_BOT_TOKEN+SLACK_DIGEST_CHANNEL_ID)")
-          fi
           if [ "${#MISSING[@]}" -gt 0 ]; then
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
             echo "error=Missing GitHub secrets: ${MISSING[*]}" >> "$GITHUB_OUTPUT"
             echo "SMOKE_RUNNER_ERROR=Missing secrets: ${MISSING[*]}" >> "$GITHUB_ENV"
-            exit 1
+            echo "::notice::Admin UI smoke skipped — add UI_SMOKE_ADMIN_EMAIL and UI_SMOKE_ADMIN_PASSWORD in repo secrets to enable."
+            exit 0
           fi
+          echo "skipped=false" >> "$GITHUB_OUTPUT"
           echo "error=" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v4
@@ -82,7 +82,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Report to agents channel (always)
-        if: always()
+        if: always() && steps.preflight.outputs.skipped != 'true'
         env:
           GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           UI_SMOKE_BASE_URL: ${{ vars.UI_SMOKE_BASE_URL || 'https://vspecialist.com' }}

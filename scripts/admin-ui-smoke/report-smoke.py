@@ -158,10 +158,13 @@ def main() -> int:
 
     if not posted:
         print(
-            "ERROR: Could not notify Slack/agent channel. Set SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY "
+            "WARNING: Could not notify Slack/agent channel. Set SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY "
             "(posts via api …/internal/slack/test-message) or SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID.",
             file=sys.stderr,
         )
+        # Do not fail CI when only notification is missing — avoids GitHub failure emails.
+        if kind == "ok":
+            return 0
         return 1
 
     print(f"Posted smoke report to agents channel ({kind})")
