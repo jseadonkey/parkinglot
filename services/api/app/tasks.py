@@ -27,11 +27,11 @@ from app.memo_render import build_deal_memo_markdown
 from app.outreach_contacts import sync_contact_points_from_brief
 from app.owner_portfolio import count_qualified_peer_parcels
 from app.pipeline_funnel import (
+    entitlement_qualified_floor,
     filter_prescreen_qualified_ids,
     identification_prescreen_floor,
     needs_pipeline_scoring,
     parcel_prescreen_qualified,
-    entitlement_qualified_floor,
     strategic_qualified_floor,
 )
 from app.scoring_profiles import (

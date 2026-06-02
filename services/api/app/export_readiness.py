@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import exists, func, or_, select
+from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore
@@ -14,7 +14,6 @@ from app.pipeline_funnel import (
     identification_prescreen_floor,
     identification_prescreen_qualified,
     missing_pipeline_pair,
-    needs_pipeline_scoring,
     pipeline_funnel_backlog,
     ruled_out_at_atlas,
     ruled_out_by_prescreen,

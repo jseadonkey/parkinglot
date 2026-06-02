@@ -133,7 +133,13 @@ def run_public_http_checks(settings: Settings, *, source: str = "droplet") -> li
     else:
         detail = f"HTTP {status}" if status else body[:200]
     checks.append(
-        WatchdogCheck(name="operator_ui", ok=ok, detail=f"{operator_url} — {detail}", latency_ms=round(ms, 1), source=source)
+        WatchdogCheck(
+            name="operator_ui",
+            ok=ok,
+            detail=f"{operator_url} — {detail}",
+            latency_ms=round(ms, 1),
+            source=source,
+        )
     )
 
     return checks
@@ -151,7 +157,15 @@ def run_server_checks(
     try:
         db.execute(text("SELECT 1"))
         ms = (time.perf_counter() - started) * 1000
-        checks.append(WatchdogCheck(name="postgres", ok=True, detail="SELECT 1 ok", latency_ms=round(ms, 1), source=source))
+        checks.append(
+            WatchdogCheck(
+                name="postgres",
+                ok=True,
+                detail="SELECT 1 ok",
+                latency_ms=round(ms, 1),
+                source=source,
+            )
+        )
     except Exception as exc:
         checks.append(WatchdogCheck(name="postgres", ok=False, detail=str(exc)[:240], source=source))
 

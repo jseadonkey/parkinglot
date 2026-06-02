@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 from app.db.models import Parcel, ParcelScore, WorkflowRun
 from app.db.schema_compat import parcel_load_only, parcel_to_read
 from app.db.session import get_db
+from app.pipeline_funnel import identification_prescreen_floor, parcel_prescreen_qualified
 from app.schemas import ParcelPipelineTaskResponse, ParcelRead, ParcelScoreRead, WorkflowRunRead
 from app.scoring_profiles import ENTITLEMENT, ScoreProfile
-from app.pipeline_funnel import identification_prescreen_floor, parcel_prescreen_qualified
 from app.tasks import run_pipeline
 from parking_core.pilot import load_pilot_config
 

@@ -48,6 +48,8 @@ from app.schemas import (
     PilotScopeResponse,
     QualifiedMinScores,
     ScoringSummaryResponse,
+    SiteWatchdogCheckRead,
+    SiteWatchdogStatusResponse,
     SlackAgentDiscussionMessagePreview,
     SlackAgentDiscussionPreviewResponse,
     SlackConfigStatusResponse,
@@ -55,8 +57,6 @@ from app.schemas import (
     SlackLastDigestResponse,
     SlackTestMessagePostResponse,
     SlackTestMessageRequest,
-    SiteWatchdogCheckRead,
-    SiteWatchdogStatusResponse,
     WaTechCountyQueuedResponse,
 )
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
@@ -76,10 +76,10 @@ from app.tasks import (
     merge_parcel_attributes_geojson,
     refresh_demand_distances_batch,
     refresh_identification_scores_batch,
+    site_watchdog_check,
     slack_agent_digest,
     slack_dual_agent_discussion,
     slack_qualified_parcels_report,
-    site_watchdog_check,
 )
 from parking_core.pilot import load_pilot_config
 
