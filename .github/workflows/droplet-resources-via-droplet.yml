@@ -17,6 +17,14 @@ on:
         description: "Probe parcel outreach drafts endpoint and DB tables"
         type: boolean
         default: false
+      enable_enqueue:
+        description: "Re-enable scheduled incomplete-pipeline enqueue (safe default limit 50)"
+        type: boolean
+        default: false
+      enqueue_limit:
+        description: "Parcels per scheduled enqueue run (when enable_enqueue is true)"
+        type: string
+        default: "50"
 
 permissions:
   contents: read
@@ -53,7 +61,10 @@ jobs:
             MODE="relieve-load"
           elif [ "${{ inputs.probe_outreach_drafts }}" = "true" ]; then
             MODE="outreach-drafts"
+          elif [ "${{ inputs.enable_enqueue }}" = "true" ]; then
+            MODE="enable-enqueue"
           fi
+          ENQUEUE_LIMIT="${{ inputs.enqueue_limit || '50' }}"
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
             "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "cd $(printf '%q' "$REMOTE_PATH") && bash -s -- ${MODE} deploy/docker-compose.production.ghcr.yml"
+            "cd $(printf '%q' "$REMOTE_PATH") && ENQUEUE_LIMIT=$(printf '%q' "$ENQUEUE_LIMIT") bash -s -- ${MODE} deploy/docker-compose.production.ghcr.yml"

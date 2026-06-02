@@ -372,6 +372,63 @@ PY
     echo ""
     echo "Done. Re-enable enqueue with SCHEDULED_ENQUEUE_UNSCORED_ENABLED=true and recreate beat when ready."
     ;;
+  enable-enqueue)
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    ENQUEUE_LIMIT="${ENQUEUE_LIMIT:-50}"
+    if ! docker compose -f "$COMPOSE_REL" --env-file deploy/.env ps -q worker 2>/dev/null | grep -q .; then
+      for alt in deploy/docker-compose.production.yml deploy/docker-compose.production.ghcr-full.yml; do
+        if docker compose -f "$alt" --env-file deploy/.env ps -q worker 2>/dev/null | grep -q .; then
+          COMPOSE_REL="$alt"
+          break
+        fi
+      done
+    fi
+    ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
+    echo "=== using compose file: $COMPOSE_REL ==="
+    echo "=== load / memory ==="
+    uptime
+    free -h
+    echo ""
+    echo "=== redis queue lengths (before) ==="
+    docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN parking 2>/dev/null || echo "parking: (n/a)"
+    docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN slack 2>/dev/null || echo "slack: (n/a)"
+    echo ""
+    echo "=== enable SCHEDULED_ENQUEUE_UNSCORED in deploy/.env (limit=${ENQUEUE_LIMIT}) ==="
+    ENQUEUE_LIMIT="$ENQUEUE_LIMIT" python3 <<'PY'
+import os
+import pathlib
+import re
+
+path = pathlib.Path("deploy/.env")
+text = path.read_text(encoding="utf-8")
+limit = os.environ["ENQUEUE_LIMIT"]
+
+def set_key(key: str, value: str) -> None:
+    global text
+    if re.search(rf"^{re.escape(key)}=", text, re.M):
+        text = re.sub(rf"^{re.escape(key)}=.*$", f"{key}={value}", text, count=1, flags=re.M)
+    else:
+        text = text.rstrip() + f"\n{key}={value}\n"
+
+set_key("SCHEDULED_ENQUEUE_UNSCORED_ENABLED", "true")
+set_key("SCHEDULED_ENQUEUE_UNSCORED_LIMIT", limit)
+path.write_text(text, encoding="utf-8")
+print("Set SCHEDULED_ENQUEUE_UNSCORED_ENABLED=true")
+print(f"Set SCHEDULED_ENQUEUE_UNSCORED_LIMIT={limit}")
+PY
+    echo ""
+    echo "=== restart beat + workers ==="
+    docker compose "${ARGS[@]}" up -d --force-recreate beat worker worker-slack
+    echo ""
+    echo "=== redis queue lengths (after) ==="
+    sleep 3
+    docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN parking 2>/dev/null || true
+    docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN slack 2>/dev/null || true
+    echo ""
+    docker stats --no-stream "${ARGS[@]}" 2>/dev/null | head -12 || docker stats --no-stream | head -12
+    echo ""
+    echo "Done. Scheduled incomplete-pipeline enqueue is ON (limit=${ENQUEUE_LIMIT} per run)."
+    ;;
   outreach-drafts)
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
     ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
