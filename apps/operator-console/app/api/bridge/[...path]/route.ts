@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { readApiServerUrl } from "../../../../lib/apiServerUrl";
-import { cacheKey, isStatsCachePath, readBridgeCache, writeBridgeCache } from "../../../../lib/bridgeGetCache";
+import {
+  cacheKey,
+  isStatsCachePath,
+  readBridgeCache,
+  statsCacheTtlMs,
+  writeBridgeCache,
+} from "../../../../lib/bridgeGetCache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -77,7 +83,7 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   }
   const body = await res.text();
   if (statsCacheKey && res.ok) {
-    writeBridgeCache(statsCacheKey, res.status, body);
+    writeBridgeCache(statsCacheKey, res.status, body, statsCacheTtlMs(subpath));
   }
   return new NextResponse(body, {
     status: res.status,
