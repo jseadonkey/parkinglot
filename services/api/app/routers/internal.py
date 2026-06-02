@@ -16,10 +16,10 @@ from app.db.session import get_db
 from app.deal_progress import query_deal_progress_board
 from app.deps_internal import require_internal_key
 from app.export_readiness import export_readiness_summary
-from app.pilot_scope import pilot_scope_summary
 from app.outreach_board import query_outreach_pipeline_board
 from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
 from app.parcel_scored_list import COMBINED, ParcelSortProfile, query_parcels_scored_list
+from app.pilot_scope import pilot_scope_summary
 from app.schemas import (
     CeleryTaskIdResponse,
     CeleryTaskStatusResponse,
