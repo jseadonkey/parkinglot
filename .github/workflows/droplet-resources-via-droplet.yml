@@ -77,6 +77,10 @@ on:
         description: "Re-score qualified King County parcels with nearby paid parking comps"
         type: boolean
         default: false
+      corner_lot_stats:
+        description: "Print Postgres counts for is_corner_lot (diagnose IS_CORNER overlay)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -141,6 +145,8 @@ jobs:
             MODE="enqueue-priority-now"
           elif [ "${{ inputs.refresh_rate_comp_scores }}" = "true" ]; then
             MODE="refresh-rate-comp-scores"
+          elif [ "${{ inputs.corner_lot_stats }}" = "true" ]; then
+            MODE="corner-lot-stats"
           fi
           ENQUEUE_LIMIT="${{ inputs.enqueue_limit || '50' }}"
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \

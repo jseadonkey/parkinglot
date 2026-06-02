@@ -844,7 +844,7 @@ for key, val in sorted(updates.items()):
 PY
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
     echo "=== recreate worker + beat ==="
-    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps worker beat
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps api worker beat
     echo "=== rollout status (before kickstart) ==="
     if [ -n "$KEY" ]; then
       _internal_api_get "/internal/ingest/wa-rollout-status" || true
@@ -906,6 +906,47 @@ PY
     else
       echo "INTERNAL_API_KEY not set"
     fi
+    ;;
+  corner-lot-stats)
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
+    echo "=== corner lot counts (Postgres) ==="
+    docker compose "${ARGS[@]}" exec -T api python - <<'PY'
+from sqlalchemy import func, select
+
+from app.db.models import Parcel
+from app.db.session import SessionLocal
+
+db = SessionLocal()
+try:
+    total = int(db.scalar(select(func.count()).select_from(Parcel)) or 0)
+    corner = int(db.scalar(select(func.count()).where(Parcel.is_corner_lot.is_(True))) or 0)
+    king_total = int(
+        db.scalar(select(func.count()).where(Parcel.county_fips == "53033")) or 0
+    )
+    king_corner = int(
+        db.scalar(
+            select(func.count()).where(
+                Parcel.county_fips == "53033",
+                Parcel.is_corner_lot.is_(True),
+            )
+        )
+        or 0
+    )
+    print("corner_lot_stats", {
+        "parcels_total": total,
+        "parcels_is_corner_lot_true": corner,
+        "pct_corner": round(100.0 * corner / total, 4) if total else 0.0,
+        "king_county_total": king_total,
+        "king_county_corner": king_corner,
+        "note": (
+            "is_corner_lot is set only when ingest/merge GeoJSON has IS_CORNER or is_corner=true; "
+            "WaTech statewide parcels do not include that field by default."
+        ),
+    })
+finally:
+    db.close()
+PY
     ;;
   fix-hourly-slack-reports)
     echo "=== set hourly Slack digest + site watchdog in deploy/.env ==="
