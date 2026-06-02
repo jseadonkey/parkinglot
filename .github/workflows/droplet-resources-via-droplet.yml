@@ -13,6 +13,10 @@ on:
         description: "Pause auto-enqueue and purge parking Celery backlog"
         type: boolean
         default: false
+      probe_outreach_drafts:
+        description: "Probe parcel outreach drafts endpoint and DB tables"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -47,6 +51,8 @@ jobs:
             MODE="disk-grow"
           elif [ "${{ inputs.relieve_load }}" = "true" ]; then
             MODE="relieve-load"
+          elif [ "${{ inputs.probe_outreach_drafts }}" = "true" ]; then
+            MODE="outreach-drafts"
           fi
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
             "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \

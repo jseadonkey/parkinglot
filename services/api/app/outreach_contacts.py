@@ -56,6 +56,10 @@ def sync_contact_points_from_brief(
 
 
 def load_persisted_contact_points(db: Session, parcel_id: uuid.UUID) -> list[ParcelContactPoint]:
+    from app.db.schema_compat import table_exists
+
+    if not table_exists(db, "parcel_contact_points"):
+        return []
     stmt = (
         select(ParcelContactPoint)
         .where(ParcelContactPoint.parcel_id == parcel_id)
@@ -65,6 +69,10 @@ def load_persisted_contact_points(db: Session, parcel_id: uuid.UUID) -> list[Par
 
 
 def load_outreach_attempts(db: Session, parcel_id: uuid.UUID, *, limit: int = 200) -> list[OutreachAttemptRow]:
+    from app.db.schema_compat import table_exists
+
+    if not table_exists(db, "outreach_attempts"):
+        return []
     cap = min(max(limit, 1), 500)
     stmt = (
         select(OutreachAttemptRow)

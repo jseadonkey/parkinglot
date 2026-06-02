@@ -372,6 +372,41 @@ PY
     echo ""
     echo "Done. Re-enable enqueue with SCHEDULED_ENQUEUE_UNSCORED_ENABLED=true and recreate beat when ready."
     ;;
+  outreach-drafts)
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
+    PID="e3308aee-f7ef-4a89-8731-54932aec07f5"
+    echo "=== outreach schema + drafts probe (parcel $PID) ==="
+    docker compose "${ARGS[@]}" exec -T api python - <<'PY'
+import traceback
+import uuid
+
+from app.db.schema_compat import table_exists
+from app.db.session import SessionLocal
+
+db = SessionLocal()
+for name in ("parcel_contact_points", "outreach_templates", "outreach_attempts"):
+    print(name, table_exists(db, name))
+try:
+    from app.db.models import Parcel
+    from app.outreach_contacts import load_persisted_contact_points, merge_brief_with_persisted_contacts
+    from app.outreach_templates import build_parcel_outreach_drafts
+    from parking_core.models import OwnerOutreachBrief
+
+    pid = uuid.UUID("e3308aee-f7ef-4a89-8731-54932aec07f5")
+    parcel = db.get(Parcel, pid)
+    brief = OwnerOutreachBrief.model_validate(parcel.owner_outreach_brief)
+    persisted = load_persisted_contact_points(db, pid)
+    merged = merge_brief_with_persisted_contacts(brief, persisted)
+    drafts = build_parcel_outreach_drafts(db, parcel=parcel, brief=merged)
+    print("drafts_ok", len(drafts))
+except Exception:
+    traceback.print_exc()
+PY
+    echo ""
+    echo "=== GET $BASE/parcels/$PID/outreach/drafts ==="
+    curl -sS -w "\nHTTP %{http_code}\n" "$BASE/parcels/$PID/outreach/drafts" || true
+    ;;
   *)
     echo "Unknown mode: $MODE" >&2
     exit 2
