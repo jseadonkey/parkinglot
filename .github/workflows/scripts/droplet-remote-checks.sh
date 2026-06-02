@@ -562,6 +562,57 @@ report = build_report(checks, runner="github-ssh")
 print("WATCHDOG_JSON=" + json.dumps(report))
 PY
     ;;
+  fix-watchdog-env)
+    echo "=== ensure SITE_WATCHDOG_UI_BASE_URL in deploy/.env ==="
+    python3 - <<'PY'
+import pathlib
+
+path = pathlib.Path("deploy/.env")
+if not path.is_file():
+    raise SystemExit("deploy/.env missing")
+
+lines = path.read_text(encoding="utf-8").splitlines()
+values = {}
+for line in lines:
+    if not line or line.lstrip().startswith("#") or "=" not in line:
+        continue
+    key, val = line.split("=", 1)
+    values[key.strip()] = val.strip().strip('"')
+
+ui = values.get("SITE_WATCHDOG_UI_BASE_URL", "")
+if not ui:
+    ui = values.get("UI_HOST", "")
+    if ui and not ui.startswith("http"):
+        ui = f"https://{ui}"
+if not ui:
+    cors = values.get("CORS_ALLOW_ORIGINS", "")
+    ui = cors.split(",")[0].strip() if cors else ""
+
+if not ui:
+    raise SystemExit("Could not derive UI URL — set SITE_WATCHDOG_UI_BASE_URL or UI_HOST in deploy/.env")
+
+key = "SITE_WATCHDOG_UI_BASE_URL"
+new_line = f"{key}={ui}"
+found = False
+out: list[str] = []
+for line in lines:
+    if line.startswith(f"{key}="):
+        out.append(new_line)
+        found = True
+    else:
+        out.append(line)
+if not found:
+    if out and out[-1].strip():
+        out.append("")
+    out.append("# Site watchdog operator UI (auto-set by fix-watchdog-env)")
+    out.append(new_line)
+path.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
+print(f"Set {key}={ui}")
+PY
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    echo "=== recreate worker-slack + beat (pick up watchdog env) ==="
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps worker-slack beat
+    ;;
   *)
     echo "Unknown mode: $MODE" >&2
     exit 2

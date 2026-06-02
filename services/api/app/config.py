@@ -50,7 +50,10 @@ class Settings(BaseSettings):
     storage_secret_key: str = "minio12345"
     storage_bucket: str = "parking-drafts"
     storage_region: str = "us-east-1"
-    api_public_url: str = "http://localhost:8000"
+    api_public_url: str = Field(
+        default="http://localhost:8000",
+        validation_alias=AliasChoices("API_PUBLIC_URL", "PUBLIC_API_URL", "api_public_url"),
+    )
 
     # Slack (optional): bot posts a digest on a schedule from Celery Beat → worker task.
     slack_bot_token: str = Field(default="", validation_alias=AliasChoices("SLACK_BOT_TOKEN", "slack_bot_token"))
@@ -333,6 +336,38 @@ class Settings(BaseSettings):
     site_watchdog_ui_base_url: str = Field(
         default="",
         validation_alias=AliasChoices("SITE_WATCHDOG_UI_BASE_URL", "site_watchdog_ui_base_url"),
+    )
+    site_watchdog_internal_api_url: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "SITE_WATCHDOG_INTERNAL_API_URL",
+            "site_watchdog_internal_api_url",
+        ),
+    )
+    site_watchdog_internal_ui_url: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "SITE_WATCHDOG_INTERNAL_UI_URL",
+            "site_watchdog_internal_ui_url",
+        ),
+    )
+    site_watchdog_retry_count: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        validation_alias=AliasChoices(
+            "SITE_WATCHDOG_RETRY_COUNT",
+            "site_watchdog_retry_count",
+        ),
+    )
+    site_watchdog_retry_delay_seconds: float = Field(
+        default=5.0,
+        ge=0.0,
+        le=60.0,
+        validation_alias=AliasChoices(
+            "SITE_WATCHDOG_RETRY_DELAY_SECONDS",
+            "site_watchdog_retry_delay_seconds",
+        ),
     )
     site_watchdog_slack_channel_id: str = Field(
         default="",

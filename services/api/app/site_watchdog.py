@@ -49,26 +49,68 @@ def _http_get(url: str, *, timeout: float = 20.0) -> tuple[int, str, float]:
         return 0, str(exc.reason or exc), elapsed_ms
 
 
+def _is_localhost_url(url: str) -> bool:
+    lowered = url.lower()
+    return "localhost" in lowered or "127.0.0.1" in lowered
+
+
+def _api_base_url(settings: Settings) -> str:
+    internal = (settings.site_watchdog_internal_api_url or "").strip()
+    if internal:
+        return internal.rstrip("/")
+    public = (settings.api_public_url or "").strip()
+    if public and not _is_localhost_url(public):
+        return public.rstrip("/")
+    return "http://api:8000"
+
+
 def _ui_base_url(settings: Settings) -> str:
-    explicit = (getattr(settings, "site_watchdog_ui_base_url", None) or "").strip()
+    explicit = (settings.site_watchdog_ui_base_url or "").strip()
     if explicit:
         return explicit.rstrip("/")
-    # Fallback: first CORS origin (production UI) or localhost dev.
     raw = (settings.cors_allow_origins or "").strip()
     if raw:
         first = raw.split(",")[0].strip()
-        if first:
+        if first and not _is_localhost_url(first):
             return first.rstrip("/")
-    return "http://127.0.0.1:3000"
+    internal = (settings.site_watchdog_internal_ui_url or "").strip()
+    if internal:
+        return internal.rstrip("/")
+    return "http://operator-console:3000"
+
+
+def _http_get_with_retry(
+    url: str,
+    *,
+    timeout: float = 20.0,
+    retries: int = 1,
+    delay_seconds: float = 0.0,
+) -> tuple[int, str, float]:
+    last = (0, "", 0.0)
+    attempts = max(1, retries)
+    for attempt in range(attempts):
+        last = _http_get(url, timeout=timeout)
+        status, _, _ = last
+        if status != 0 or attempt + 1 >= attempts:
+            return last
+        if delay_seconds > 0:
+            time.sleep(delay_seconds)
+    return last
 
 
 def run_public_http_checks(settings: Settings, *, source: str = "droplet") -> list[WatchdogCheck]:
-    api_base = (settings.api_public_url or "http://localhost:8000").rstrip("/")
+    api_base = _api_base_url(settings)
     ui_base = _ui_base_url(settings)
+    retries = settings.site_watchdog_retry_count
+    retry_delay = settings.site_watchdog_retry_delay_seconds
     checks: list[WatchdogCheck] = []
 
     for path, label in (("/health", "api_health"), ("/ready", "api_ready")):
-        status, body, ms = _http_get(f"{api_base}{path}")
+        status, body, ms = _http_get_with_retry(
+            f"{api_base}{path}",
+            retries=retries,
+            delay_seconds=retry_delay,
+        )
         ok = status == 200 and '"status"' in body
         if path == "/ready":
             ok = ok and '"ready"' in body
@@ -78,7 +120,12 @@ def run_public_http_checks(settings: Settings, *, source: str = "droplet") -> li
         checks.append(WatchdogCheck(name=label, ok=ok, detail=detail, latency_ms=round(ms, 1), source=source))
 
     operator_url = f"{ui_base}/operator"
-    status, body, ms = _http_get(operator_url, timeout=25.0)
+    status, body, ms = _http_get_with_retry(
+        operator_url,
+        timeout=25.0,
+        retries=retries,
+        delay_seconds=retry_delay,
+    )
     ok = status in (200, 302, 307, 308) and status != 0
     if status == 200 and ("502 Bad Gateway" in body or "503 Service" in body):
         ok = False
