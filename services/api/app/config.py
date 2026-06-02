@@ -331,6 +331,40 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Prefer highest entitlement scores when draining pipeline backlog (see enqueue_priority_qualified).
+    scheduled_priority_pipeline_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "SCHEDULED_PRIORITY_PIPELINE_ENABLED",
+            "scheduled_priority_pipeline_enabled",
+        ),
+    )
+    scheduled_priority_pipeline_limit: int = Field(
+        default=75,
+        ge=1,
+        le=200,
+        validation_alias=AliasChoices(
+            "SCHEDULED_PRIORITY_PIPELINE_LIMIT",
+            "scheduled_priority_pipeline_limit",
+        ),
+    )
+    scheduled_priority_pipeline_crontab_hour: str = Field(
+        default="*/2",
+        validation_alias=AliasChoices(
+            "SCHEDULED_PRIORITY_PIPELINE_CRONTAB_HOUR",
+            "scheduled_priority_pipeline_crontab_hour",
+        ),
+    )
+    scheduled_priority_pipeline_crontab_minute: int = Field(
+        default=20,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "SCHEDULED_PRIORITY_PIPELINE_CRONTAB_MINUTE",
+            "scheduled_priority_pipeline_crontab_minute",
+        ),
+    )
+
     # Optional licensed vendor webhook for owner/contact enrichment (POST JSON from pipeline).
     owner_vendor_lookup_enabled: bool = Field(
         default=False,

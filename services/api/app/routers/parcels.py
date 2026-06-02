@@ -9,8 +9,15 @@ from sqlalchemy.orm import Session
 from app.db.models import Parcel, ParcelScore, WorkflowRun
 from app.db.schema_compat import parcel_load_only, parcel_to_read
 from app.db.session import get_db
+from app.parcel_deal_context import build_parcel_deal_context
 from app.pipeline_funnel import identification_prescreen_floor, parcel_prescreen_qualified
-from app.schemas import ParcelPipelineTaskResponse, ParcelRead, ParcelScoreRead, WorkflowRunRead
+from app.schemas import (
+    ParcelDealContextResponse,
+    ParcelPipelineTaskResponse,
+    ParcelRead,
+    ParcelScoreRead,
+    WorkflowRunRead,
+)
 from app.scoring_profiles import ENTITLEMENT, ScoreProfile
 from app.tasks import run_pipeline
 from parking_core.pilot import load_pilot_config
@@ -79,6 +86,18 @@ def list_workflow_runs_for_parcel(
         .limit(cap)
     )
     return list(db.scalars(stmt))
+
+
+@router.get("/{parcel_id}/deal-context", response_model=ParcelDealContextResponse)
+def get_parcel_deal_context(
+    parcel_id: uuid.UUID,
+    db: Session = Depends(get_db),
+) -> ParcelDealContextResponse:
+    """Nearby qualified parcels, parking rate comps, and illustrative gross revenue."""
+    raw = build_parcel_deal_context(db, parcel_id)
+    if not raw.get("found"):
+        raise HTTPException(status_code=404, detail="parcel not found")
+    return ParcelDealContextResponse(**raw)
 
 
 @router.get("/{parcel_id}/score", response_model=ParcelScoreRead)

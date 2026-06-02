@@ -1,0 +1,226 @@
+"""Nearby qualified parcels and parking revenue context for operator deal review."""
+
+from __future__ import annotations
+
+import statistics
+import uuid
+from typing import Any
+
+from geoalchemy2 import Geography
+from geoalchemy2.shape import to_shape
+from sqlalchemy import and_, cast, desc, func, select
+from sqlalchemy.orm import Session
+
+from app.config import get_settings
+from app.db.models import Parcel, ParcelScore
+from app.rate_comps import fetch_parking_rate_comps_near
+from app.scoring_profiles import ENTITLEMENT
+from parking_core.pilot import ParkingRateCompObservation, PilotConfig, load_pilot_config
+from parking_scoring.engine import _merge_rate_comp_sequences
+
+
+def parcel_centroid_lat_lon(parcel: Parcel) -> tuple[float, float] | None:
+    if parcel.footprint is None:
+        return None
+    try:
+        geom = to_shape(parcel.footprint)
+        c = geom.centroid
+        return float(c.y), float(c.x)
+    except Exception:
+        return None
+
+
+def rate_comps_for_parcel(
+    db: Session,
+    *,
+    lat: float,
+    lon: float,
+    pilot: PilotConfig,
+) -> list[ParkingRateCompObservation]:
+    radius = float(pilot.scoring.parking_rate_comp_radius_m or 2500.0)
+    yaml_comps = list(pilot.scoring.parking_rate_comps or [])
+    db_comps = fetch_parking_rate_comps_near(db, lat=lat, lon=lon, radius_m=radius)
+    return _merge_rate_comp_sequences(db_comps, yaml_comps)
+
+
+def estimate_parking_revenue(
+    *,
+    lot_sqft: float | None,
+    comps: list[ParkingRateCompObservation],
+    stall_sqft: float = 200.0,
+    hours_per_day: float = 10.0,
+    days_per_month: float = 22.0,
+    occupancy: float = 0.55,
+) -> dict[str, Any]:
+    """Illustrative gross revenue from lot size and median nearby hourly comp (not a pro forma)."""
+    if lot_sqft is None or lot_sqft <= 0 or not comps:
+        return {
+            "available": False,
+            "reason": "need lot_sqft and at least one parking rate comp",
+        }
+    rates = sorted(float(c.hourly_mid_usd) for c in comps)
+    hourly_mid = float(statistics.median(rates))
+    stalls = max(1, int(lot_sqft / stall_sqft))
+    monthly = stalls * hourly_mid * hours_per_day * days_per_month * occupancy
+    return {
+        "available": True,
+        "stalls_estimated": stalls,
+        "hourly_rate_median_usd": round(hourly_mid, 2),
+        "hourly_rate_min_usd": round(rates[0], 2),
+        "hourly_rate_max_usd": round(rates[-1], 2),
+        "comp_count": len(comps),
+        "monthly_gross_usd": round(monthly, 0),
+        "annual_gross_usd": round(monthly * 12, 0),
+        "assumptions": {
+            "stall_sqft": stall_sqft,
+            "hours_per_day": hours_per_day,
+            "days_per_month": days_per_month,
+            "occupancy": occupancy,
+        },
+    }
+
+
+def _latest_entitlement_subq():
+    agg = (
+        select(
+            ParcelScore.parcel_id.label("pid"),
+            func.max(ParcelScore.created_at).label("mx"),
+        )
+        .where(ParcelScore.score_profile == ENTITLEMENT)
+        .group_by(ParcelScore.parcel_id)
+        .subquery()
+    )
+    return (
+        select(
+            ParcelScore.parcel_id.label("parcel_id"),
+            ParcelScore.total_score.label("ent_score"),
+        )
+        .join(
+            agg,
+            and_(
+                ParcelScore.parcel_id == agg.c.pid,
+                ParcelScore.created_at == agg.c.mx,
+            ),
+        )
+        .where(ParcelScore.score_profile == ENTITLEMENT)
+        .subquery()
+    )
+
+
+def nearby_qualified_parcels(
+    db: Session,
+    *,
+    parcel_id: uuid.UUID,
+    lat: float,
+    lon: float,
+    radius_m: float,
+    min_entitlement_score: float,
+    limit: int = 12,
+) -> list[dict[str, Any]]:
+    """Other entitlement-qualified parcels within ``radius_m`` of ``(lat, lon)``."""
+    cap = min(max(limit, 1), 50)
+    pt = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326)
+    ent = _latest_entitlement_subq()
+    dist_m = func.ST_Distance(
+        cast(Parcel.footprint, Geography),
+        cast(pt, Geography),
+    ).label("distance_m")
+    stmt = (
+        select(
+            Parcel.id,
+            Parcel.apn,
+            Parcel.county_fips,
+            Parcel.lot_sqft,
+            Parcel.zoning_code,
+            ent.c.ent_score,
+            dist_m,
+        )
+        .join(ent, Parcel.id == ent.c.parcel_id)
+        .where(Parcel.id != parcel_id)
+        .where(Parcel.footprint.isnot(None))
+        .where(ent.c.ent_score >= min_entitlement_score)
+        .where(
+            func.ST_DWithin(
+                cast(Parcel.footprint, Geography),
+                cast(pt, Geography),
+                radius_m,
+            ),
+        )
+        .order_by(desc(ent.c.ent_score), dist_m)
+        .limit(cap)
+    )
+    rows: list[dict[str, Any]] = []
+    for row in db.execute(stmt):
+        rows.append(
+            {
+                "parcel_id": str(row.id),
+                "apn": row.apn,
+                "county_fips": row.county_fips,
+                "lot_sqft": row.lot_sqft,
+                "zoning_code": row.zoning_code,
+                "entitlement_score": float(row.ent_score),
+                "distance_m": round(float(row.distance_m), 1) if row.distance_m is not None else None,
+            },
+        )
+    return rows
+
+
+def build_parcel_deal_context(db: Session, parcel_id: uuid.UUID) -> dict[str, Any]:
+    parcel = db.get(Parcel, parcel_id)
+    if parcel is None:
+        return {"found": False}
+
+    settings = get_settings()
+    pilot = load_pilot_config(settings.pilot_config_path)
+    floor_ent = float(pilot.scoring.qualified_min_score)
+    centroid = parcel_centroid_lat_lon(parcel)
+    radius_m = float(pilot.scoring.parking_rate_comp_radius_m or 2500.0)
+
+    comps: list[ParkingRateCompObservation] = []
+    nearby: list[dict[str, Any]] = []
+    if centroid is not None:
+        lat, lon = centroid
+        comps = rate_comps_for_parcel(db, lat=lat, lon=lon, pilot=pilot)
+        nearby = nearby_qualified_parcels(
+            db,
+            parcel_id=parcel_id,
+            lat=lat,
+            lon=lon,
+            radius_m=radius_m,
+            min_entitlement_score=floor_ent,
+        )
+
+    revenue = estimate_parking_revenue(lot_sqft=parcel.lot_sqft, comps=comps)
+
+    ent_row = db.scalars(
+        select(ParcelScore)
+        .where(ParcelScore.parcel_id == parcel_id)
+        .where(ParcelScore.score_profile == ENTITLEMENT)
+        .order_by(ParcelScore.created_at.desc())
+        .limit(1),
+    ).first()
+
+    return {
+        "found": True,
+        "parcel_id": str(parcel_id),
+        "apn": parcel.apn,
+        "county_fips": parcel.county_fips,
+        "lot_sqft": parcel.lot_sqft,
+        "centroid": {"lat": centroid[0], "lon": centroid[1]} if centroid else None,
+        "entitlement_score": float(ent_row.total_score) if ent_row else None,
+        "qualified_floor": floor_ent,
+        "rate_comp_radius_m": radius_m,
+        "rate_comps": [
+            {
+                "name": c.name,
+                "lat": c.lat,
+                "lon": c.lon,
+                "hourly_mid_usd": c.hourly_mid_usd,
+                "source_note": c.source_note,
+                "origin": c.origin,
+            }
+            for c in comps
+        ],
+        "revenue_estimate": revenue,
+        "nearby_qualified_parcels": nearby,
+    }

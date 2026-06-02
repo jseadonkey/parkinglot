@@ -8,7 +8,8 @@ Production may have alembic_version at 0007 while migration 0004 was skipped on 
 legacy branch stamp — recreate missing tables idempotently.
 """
 
-from typing import Sequence, Union
+from typing import Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
@@ -17,9 +18,9 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from app.db.migration_util import table_exists
 
 revision: str = "0008"
-down_revision: Union[str, None] = "0007"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "0007"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

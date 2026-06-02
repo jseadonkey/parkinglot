@@ -72,6 +72,83 @@ def enqueue_unscored_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
     """Enqueue ``run_pipeline`` for prescreen-qualified parcels missing an entitlement score."""
     return enqueue_incomplete_pipeline_jobs(limit)
 
+def enqueue_priority_qualified_pipeline_jobs(limit: int = 75) -> dict[str, Any]:
+    """Enqueue pipeline for prescreen-qualified parcels, highest entitlement first."""
+    cap = min(max(limit, 1), 200)
+    floor_i = identification_prescreen_floor()
+    floor_ent = entitlement_qualified_floor()
+    db = _session()
+    try:
+        ident_agg = (
+            select(
+                ParcelScore.parcel_id.label("pid"),
+                func.max(ParcelScore.created_at).label("mx"),
+            )
+            .where(ParcelScore.score_profile == IDENTIFICATION)
+            .group_by(ParcelScore.parcel_id)
+            .subquery()
+        )
+        ident = (
+            select(ParcelScore.parcel_id, ParcelScore.total_score.label("id_score"))
+            .join(
+                ident_agg,
+                and_(
+                    ParcelScore.parcel_id == ident_agg.c.pid,
+                    ParcelScore.created_at == ident_agg.c.mx,
+                ),
+            )
+            .where(
+                ParcelScore.score_profile == IDENTIFICATION,
+                ParcelScore.total_score >= floor_i,
+            )
+            .subquery()
+        )
+        ent_agg = (
+            select(
+                ParcelScore.parcel_id.label("pid"),
+                func.max(ParcelScore.created_at).label("mx"),
+            )
+            .where(ParcelScore.score_profile == ENTITLEMENT)
+            .group_by(ParcelScore.parcel_id)
+            .subquery()
+        )
+        ent = (
+            select(ParcelScore.parcel_id, ParcelScore.total_score.label("ent_score"))
+            .join(
+                ent_agg,
+                and_(
+                    ParcelScore.parcel_id == ent_agg.c.pid,
+                    ParcelScore.created_at == ent_agg.c.mx,
+                ),
+            )
+            .where(
+                ParcelScore.score_profile == ENTITLEMENT,
+                ParcelScore.total_score >= floor_ent,
+            )
+            .subquery()
+        )
+        stmt = (
+            select(Parcel.id)
+            .join(ident, Parcel.id == ident.c.parcel_id)
+            .join(ent, Parcel.id == ent.c.parcel_id)
+            .where(needs_pipeline_scoring())
+            .order_by(ent.c.ent_score.desc(), ident.c.id_score.desc())
+            .limit(cap)
+        )
+        ids = [str(i) for i in db.scalars(stmt)]
+        for pid in ids:
+            run_pipeline.delay(pid)
+        return {
+            "enqueued": len(ids),
+            "parcel_ids": ids,
+            "mode": "priority_qualified_entitlement_ge_floor",
+            "prescreen_floor": floor_i,
+            "entitlement_floor": floor_ent,
+        }
+    finally:
+        db.close()
+
+
 def enqueue_incomplete_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
     """Enqueue ``run_pipeline`` for prescreen-qualified parcels missing entitlement or strategic."""
     cap = min(max(limit, 1), 500)
@@ -102,11 +179,36 @@ def enqueue_incomplete_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
             )
             .subquery()
         )
+        ent_agg = (
+            select(
+                ParcelScore.parcel_id.label("pid"),
+                func.max(ParcelScore.created_at).label("mx"),
+            )
+            .where(ParcelScore.score_profile == ENTITLEMENT)
+            .group_by(ParcelScore.parcel_id)
+            .subquery()
+        )
+        ent = (
+            select(ParcelScore.parcel_id, ParcelScore.total_score.label("ent_score"))
+            .join(
+                ent_agg,
+                and_(
+                    ParcelScore.parcel_id == ent_agg.c.pid,
+                    ParcelScore.created_at == ent_agg.c.mx,
+                ),
+            )
+            .where(ParcelScore.score_profile == ENTITLEMENT)
+            .subquery()
+        )
         stmt = (
             select(Parcel.id)
             .join(ident, Parcel.id == ident.c.parcel_id)
+            .outerjoin(ent, Parcel.id == ent.c.parcel_id)
             .where(needs_pipeline_scoring())
-            .order_by(ident.c.id_score.desc())
+            .order_by(
+                ent.c.ent_score.desc().nulls_last(),
+                ident.c.id_score.desc(),
+            )
             .limit(cap)
         )
         ids = [str(i) for i in db.scalars(stmt)]
@@ -713,6 +815,18 @@ def fetch_watech_county_and_ingest(
         "ingest_task_id": ar.id,
         "max_features_cap": max_features,
     }
+
+
+@celery.task(name="app.tasks.enqueue_priority_qualified_scheduled")
+def enqueue_priority_qualified_scheduled(limit: int = 75) -> dict[str, Any]:
+    """Beat: drain prescreen-qualified backlog starting with highest entitlement scores."""
+    out = enqueue_priority_qualified_pipeline_jobs(limit)
+    if out["enqueued"]:
+        logger.info(
+            "enqueue_priority_qualified_scheduled: enqueued %s pipeline(s)",
+            out["enqueued"],
+        )
+    return out
 
 
 @celery.task(name="app.tasks.enqueue_unscored_pipelines_scheduled")

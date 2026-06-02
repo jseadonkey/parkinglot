@@ -42,6 +42,32 @@ type Score = {
   created_at: string;
 };
 
+type DealContext = {
+  rate_comps: Array<{
+    name: string;
+    hourly_mid_usd: number;
+    origin: string;
+    source_note: string | null;
+  }>;
+  revenue_estimate: {
+    available: boolean;
+    monthly_gross_usd?: number;
+    annual_gross_usd?: number;
+    hourly_rate_median_usd?: number;
+    stalls_estimated?: number;
+    comp_count?: number;
+    reason?: string;
+  };
+  nearby_qualified_parcels: Array<{
+    parcel_id: string;
+    apn: string;
+    entitlement_score: number;
+    distance_m: number | null;
+    lot_sqft: number | null;
+  }>;
+  rate_comp_radius_m: number;
+};
+
 type OutreachDraft = {
   channel: string;
   template_slug: string;
@@ -77,6 +103,8 @@ export default function ParcelDetailPage() {
   const [requestActor, setRequestActor] = useState("operator@example.com");
   const [approvalMsg, setApprovalMsg] = useState<string | null>(null);
   const [requesting, setRequesting] = useState(false);
+  const [dealContext, setDealContext] = useState<DealContext | null>(null);
+  const [dealErr, setDealErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -102,6 +130,13 @@ export default function ParcelDetailPage() {
           if (!cancelled) setScore(s);
         } else {
           if (!cancelled) setScoreErr(`No entitlement score (${rs.status})`);
+        }
+        const dc = await fetch(bridgeUrl(`parcels/${id}/deal-context`), { cache: "no-store" });
+        if (dc.ok) {
+          const ctx = (await dc.json()) as DealContext;
+          if (!cancelled) setDealContext(ctx);
+        } else if (!cancelled) {
+          setDealErr(`Deal context unavailable (${dc.status})`);
         }
         if (p.owner_outreach_brief) {
           const rd = await fetch(bridgeUrl(`parcels/${id}/outreach/drafts`), { cache: "no-store" });
@@ -204,6 +239,67 @@ export default function ParcelDetailPage() {
               </p>
             ) : (
               <p className="muted">{scoreErr ?? "No score loaded."}</p>
+            )}
+          </div>
+
+          <h2>Parking market context</h2>
+          <div className="panel">
+            {dealErr ? <p className="muted">{dealErr}</p> : null}
+            {dealContext ? (
+              <>
+                {dealContext.revenue_estimate.available ? (
+                  <p>
+                    Illustrative gross revenue:{" "}
+                    <strong>${dealContext.revenue_estimate.monthly_gross_usd?.toLocaleString()}/mo</strong> (
+                    ${dealContext.revenue_estimate.annual_gross_usd?.toLocaleString()}/yr) — median comp $
+                    {dealContext.revenue_estimate.hourly_rate_median_usd}/hr, ~
+                    {dealContext.revenue_estimate.stalls_estimated} stalls (
+                    {dealContext.revenue_estimate.comp_count} comps within {dealContext.rate_comp_radius_m}m)
+                  </p>
+                ) : (
+                  <p className="muted">
+                    Revenue estimate unavailable ({dealContext.revenue_estimate.reason ?? "add rate comps"}).
+                  </p>
+                )}
+                {dealContext.rate_comps.length > 0 ? (
+                  <ul className="muted" style={{ marginBottom: "0.75rem" }}>
+                    {dealContext.rate_comps.slice(0, 6).map((c) => (
+                      <li key={c.name}>
+                        {c.name}: ${c.hourly_mid_usd}/hr ({c.origin})
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                <strong>Nearby qualified parcels</strong>
+                {dealContext.nearby_qualified_parcels.length === 0 ? (
+                  <p className="muted">None within radius (or missing footprint).</p>
+                ) : (
+                  <table className="data">
+                    <thead>
+                      <tr>
+                        <th>APN</th>
+                        <th>Score</th>
+                        <th>Distance</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dealContext.nearby_qualified_parcels.map((n) => (
+                        <tr key={n.parcel_id}>
+                          <td>{n.apn}</td>
+                          <td>{n.entitlement_score.toFixed(1)}</td>
+                          <td>{n.distance_m != null ? `${n.distance_m} m` : "—"}</td>
+                          <td>
+                            <Link href={`/parcels/${n.parcel_id}`}>Open</Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </>
+            ) : (
+              <p className="muted">Loading market context…</p>
             )}
           </div>
 

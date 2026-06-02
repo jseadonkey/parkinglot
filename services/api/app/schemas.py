@@ -23,6 +23,55 @@ class ParcelRead(BaseModel):
     created_at: datetime
 
 
+class RateCompRead(BaseModel):
+    name: str
+    lat: float
+    lon: float
+    hourly_mid_usd: float
+    source_note: str | None = None
+    origin: str = "pilot"
+
+
+class NearbyQualifiedParcelRead(BaseModel):
+    parcel_id: str
+    apn: str
+    county_fips: str
+    lot_sqft: float | None
+    zoning_code: str | None = None
+    entitlement_score: float
+    distance_m: float | None = None
+
+
+class ParkingRevenueEstimateRead(BaseModel):
+    available: bool
+    reason: str | None = None
+    stalls_estimated: int | None = None
+    hourly_rate_median_usd: float | None = None
+    hourly_rate_min_usd: float | None = None
+    hourly_rate_max_usd: float | None = None
+    comp_count: int | None = None
+    monthly_gross_usd: float | None = None
+    annual_gross_usd: float | None = None
+    assumptions: dict[str, float] | None = None
+
+
+class ParcelDealContextResponse(BaseModel):
+    """GET /parcels/{id}/deal-context — nearby comps and illustrative revenue for top deals."""
+
+    found: bool
+    parcel_id: str | None = None
+    apn: str | None = None
+    county_fips: str | None = None
+    lot_sqft: float | None = None
+    centroid: dict[str, float] | None = None
+    entitlement_score: float | None = None
+    qualified_floor: float | None = None
+    rate_comp_radius_m: float | None = None
+    rate_comps: list[RateCompRead] = Field(default_factory=list)
+    revenue_estimate: ParkingRevenueEstimateRead | None = None
+    nearby_qualified_parcels: list[NearbyQualifiedParcelRead] = Field(default_factory=list)
+
+
 class ParcelScoreRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

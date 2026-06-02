@@ -121,6 +121,22 @@ if _s.wa_statewide_rollout_enabled:
         _s.wa_statewide_rollout_crontab_minute,
     )
 
+if _s.scheduled_priority_pipeline_enabled:
+    beat_schedule["enqueue-priority-qualified"] = {
+        "task": "app.tasks.enqueue_priority_qualified_scheduled",
+        "schedule": crontab(
+            minute=_s.scheduled_priority_pipeline_crontab_minute,
+            hour=_s.scheduled_priority_pipeline_crontab_hour,
+        ),
+        "kwargs": {"limit": _s.scheduled_priority_pipeline_limit},
+    }
+    logger.info(
+        "Beat: priority qualified pipelines — hour=%s minute=%02d limit=%s",
+        _s.scheduled_priority_pipeline_crontab_hour,
+        _s.scheduled_priority_pipeline_crontab_minute,
+        _s.scheduled_priority_pipeline_limit,
+    )
+
 if _s.scheduled_enqueue_unscored_enabled:
     beat_schedule["enqueue-unscored-pipelines"] = {
         "task": "app.tasks.enqueue_unscored_pipelines_scheduled",

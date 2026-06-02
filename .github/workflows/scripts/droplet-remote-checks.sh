@@ -695,6 +695,64 @@ report = build_report(checks, runner="github-ssh")
 print("WATCHDOG_JSON=" + json.dumps(report))
 PY
     ;;
+  pause-wa-statewide-rollout)
+    echo "=== pause WA statewide rollout (prioritize top parcels) ==="
+    python3 - <<'PY'
+import pathlib
+path = pathlib.Path("deploy/.env")
+lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+out = []
+for line in lines:
+    if line.startswith("WA_STATEWIDE_ROLLOUT_ENABLED="):
+        out.append("WA_STATEWIDE_ROLLOUT_ENABLED=false")
+    else:
+        out.append(line)
+path.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
+print("Set WA_STATEWIDE_ROLLOUT_ENABLED=false")
+PY
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps worker beat
+    ;;
+  enable-priority-pipeline)
+    echo "=== enable priority pipeline enqueue (top entitlement first) ==="
+    python3 - <<'PY'
+import pathlib
+path = pathlib.Path("deploy/.env")
+if not path.is_file():
+    raise SystemExit("deploy/.env missing")
+updates = {
+    "SCHEDULED_PRIORITY_PIPELINE_ENABLED": "true",
+    "SCHEDULED_PRIORITY_PIPELINE_LIMIT": "75",
+    "SCHEDULED_PRIORITY_PIPELINE_CRONTAB_HOUR": "*/2",
+    "SCHEDULED_PRIORITY_PIPELINE_CRONTAB_MINUTE": "20",
+    "WA_STATEWIDE_ROLLOUT_ENABLED": "false",
+}
+lines = path.read_text(encoding="utf-8").splitlines()
+keys = set(updates)
+out, seen = [], set()
+for line in lines:
+    if not line or line.lstrip().startswith("#") or "=" not in line:
+        out.append(line)
+        continue
+    key = line.split("=", 1)[0].strip()
+    if key in keys:
+        out.append(f"{key}={updates[key]}")
+        seen.add(key)
+    else:
+        out.append(line)
+missing = [k for k in keys if k not in seen]
+if missing:
+    out.append("")
+    out.append("# Top-parcel priority (enable-priority-pipeline)")
+    for k in sorted(missing):
+        out.append(f"{k}={updates[k]}")
+path.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
+for k, v in sorted(updates.items()):
+    print(f"Set {k}={v}")
+PY
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps worker beat
+    ;;
   enable-wa-statewide-rollout)
     echo "=== enable WA statewide rollout (one county/day via WaTech) ==="
     python3 - <<'PY'

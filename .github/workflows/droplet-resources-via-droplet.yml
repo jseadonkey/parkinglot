@@ -53,6 +53,14 @@ on:
         description: "Print statewide county ingest progress JSON"
         type: boolean
         default: false
+      enable_priority_pipeline:
+        description: "Pause statewide rollout; enqueue top entitlement parcels every 2h"
+        type: boolean
+        default: false
+      pause_wa_statewide_rollout:
+        description: "Set WA_STATEWIDE_ROLLOUT_ENABLED=false and restart worker/beat"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -105,6 +113,10 @@ jobs:
             MODE="wa-rollout-now"
           elif [ "${{ inputs.wa_rollout_status }}" = "true" ]; then
             MODE="wa-rollout-status"
+          elif [ "${{ inputs.enable_priority_pipeline }}" = "true" ]; then
+            MODE="enable-priority-pipeline"
+          elif [ "${{ inputs.pause_wa_statewide_rollout }}" = "true" ]; then
+            MODE="pause-wa-statewide-rollout"
           fi
           ENQUEUE_LIMIT="${{ inputs.enqueue_limit || '50' }}"
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \

@@ -6,7 +6,8 @@ Create Date: 2026-06-01
 
 """
 
-from typing import Sequence, Union
+from typing import Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
@@ -14,9 +15,9 @@ from alembic import op
 from app.db.migration_util import table_exists
 
 revision: str = "0007"
-down_revision: Union[str, None] = "0006"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "0006"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 _DEFAULT_SMS = """Hi {{ owner_name }} — {{ sender_company }} here. We are exploring a ground lease for surface parking at APN {{ apn }} in {{ region_name }}. Open to a brief call? {{ sender_phone }}
 

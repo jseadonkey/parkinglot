@@ -70,6 +70,7 @@ from app.slack_digest import (
 )
 from app.tasks import (
     enqueue_incomplete_pipeline_jobs,
+    enqueue_priority_qualified_pipeline_jobs,
     enqueue_unscored_pipeline_jobs,
     fetch_watech_county_and_ingest,
     ingest_geojson_path,
@@ -549,6 +550,15 @@ def enqueue_incomplete_pipelines(
 ) -> EnqueueIncompleteResponse:
     """Enqueue ``run_pipeline`` when **entitlement** or **strategic** score is missing (Atlas/Beacon pair)."""
     raw = enqueue_incomplete_pipeline_jobs(limit)
+    return EnqueueIncompleteResponse(**raw)
+
+
+@router.post("/pipeline/enqueue-priority", response_model=EnqueueIncompleteResponse)
+def enqueue_priority_pipelines(
+    limit: int = 75,
+) -> EnqueueIncompleteResponse:
+    """Enqueue pipeline for prescreen-qualified parcels, highest entitlement score first."""
+    raw = enqueue_priority_qualified_pipeline_jobs(limit)
     return EnqueueIncompleteResponse(**raw)
 
 

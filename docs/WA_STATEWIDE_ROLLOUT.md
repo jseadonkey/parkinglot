@@ -1,5 +1,7 @@
 # Washington statewide rollout (slow)
 
+**Paused by default** when `WA_STATEWIDE_ROLLOUT_ENABLED=false` — prioritize **top entitlement parcels** (deal context + `SCHEDULED_PRIORITY_PIPELINE_*`) before expanding ingest.
+
 Adds **one new county per day** from the public **WaTech** statewide parcel layer when the Celery **parking** queue is not overloaded. King County is skipped once it already has rows in Postgres.
 
 ## How it works

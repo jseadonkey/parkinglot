@@ -79,6 +79,19 @@ scoring:
     - name: "Seattle downtown (illustrative)"
       lat: 47.6062
       lon: -122.3321
+  # Illustrative paid-parking benchmarks (merged with DB ``parking_rate_comps`` at deal-context time).
+  parking_rate_comp_radius_m: 2500
+  parking_rate_comps:
+    - name: "Downtown Seattle garage (illustrative)"
+      lat: 47.6062
+      lon: -122.3321
+      hourly_mid_usd: 12.0
+      source_note: "Pilot placeholder — replace with verified comps in DB or vendor feed"
+    - name: "Capitol Hill surface (illustrative)"
+      lat: 47.6253
+      lon: -122.3222
+      hourly_mid_usd: 9.5
+      source_note: "Pilot placeholder"
 
 data_sources:
   parcel_vendor: "TBD — see docs/washington-data.md"
