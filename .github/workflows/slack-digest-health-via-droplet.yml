@@ -3,7 +3,7 @@
 # Requires: DROPLET_HOST, DROPLET_USER, DROPLET_SSH_PRIVATE_KEY
 # Optional: SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY (same as INTERNAL_API_KEY on the Droplet)
 # Optional: DROPLET_REMOTE_PATH (repo var), MAX_DIGEST_AGE_HOURS (default 7).
-# Beat schedules digest every 20 minutes UTC; default MAX_DIGEST_AGE_HOURS=2 fails CI if worker missed ~2 cycles.
+# Beat schedules digest hourly UTC; default MAX_DIGEST_AGE_HOURS=3 fails CI if worker missed ~2 cycles.
 #
 # Remove the `schedule` block if you only want manual runs.
 
@@ -45,7 +45,7 @@ jobs:
           REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
           [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
           KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
-          MAX_H="${MAX_DIGEST_AGE_HOURS:-2}"
+          MAX_H="${MAX_DIGEST_AGE_HOURS:-3}"
           [ -n "$MAX_H" ] || MAX_H=2
 
           PAYLOAD="$(cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \

@@ -74,6 +74,23 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("SLACK_AGENT_EVENT_UPDATES", "slack_agent_event_updates"),
     )
+    # Celery Beat: pipeline standup digest (default hourly at :00 UTC).
+    slack_digest_crontab_minute: int = Field(
+        default=0,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices("SLACK_DIGEST_CRONTAB_MINUTE", "slack_digest_crontab_minute"),
+    )
+    slack_digest_crontab_hour: str = Field(
+        default="*",
+        validation_alias=AliasChoices("SLACK_DIGEST_CRONTAB_HOUR", "slack_digest_crontab_hour"),
+    )
+    slack_digest_window_hours: int = Field(
+        default=1,
+        ge=1,
+        le=24,
+        validation_alias=AliasChoices("SLACK_DIGEST_WINDOW_HOURS", "slack_digest_window_hours"),
+    )
 
     # Optional Celery Beat: ingest GeoJSON from a path on the API container (e.g. rsync county export).
     scheduled_geojson_ingest_path: str = Field(
@@ -386,7 +403,7 @@ class Settings(BaseSettings):
         ),
     )
     site_watchdog_heartbeat_hours: int = Field(
-        default=12,
+        default=1,
         ge=0,
         le=168,
         validation_alias=AliasChoices(
@@ -395,7 +412,7 @@ class Settings(BaseSettings):
         ),
     )
     site_watchdog_crontab_minute: str = Field(
-        default="5,35",
+        default="0",
         validation_alias=AliasChoices(
             "SITE_WATCHDOG_CRONTAB_MINUTE",
             "site_watchdog_crontab_minute",

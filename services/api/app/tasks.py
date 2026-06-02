@@ -1067,7 +1067,8 @@ def slack_agent_digest() -> dict[str, Any]:
         return {"skipped": True, "reason": "slack not configured (set SLACK_BOT_TOKEN and SLACK_DIGEST_CHANNEL_ID)"}
     db = _session()
     try:
-        blocks, fallback = build_slack_digest_blocks(db, hours=4)
+        window_h = max(1, int(get_settings().slack_digest_window_hours or 1))
+        blocks, fallback = build_slack_digest_blocks(db, hours=window_h)
         posted = post_digest_to_slack(settings, blocks, fallback)
         _write_slack_digest_audit(channel=channel, posted=posted, fallback=fallback)
         return {"skipped": False, **posted}

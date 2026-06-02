@@ -695,6 +695,51 @@ report = build_report(checks, runner="github-ssh")
 print("WATCHDOG_JSON=" + json.dumps(report))
 PY
     ;;
+  fix-hourly-slack-reports)
+    echo "=== set hourly Slack digest + site watchdog in deploy/.env ==="
+    python3 - <<'PY'
+import pathlib
+
+path = pathlib.Path("deploy/.env")
+if not path.is_file():
+    raise SystemExit("deploy/.env missing")
+
+updates = {
+    "SLACK_DIGEST_CRONTAB_MINUTE": "0",
+    "SLACK_DIGEST_CRONTAB_HOUR": "*",
+    "SLACK_DIGEST_WINDOW_HOURS": "1",
+    "SITE_WATCHDOG_HEARTBEAT_HOURS": "1",
+    "SITE_WATCHDOG_CRONTAB_MINUTE": "0",
+}
+lines = path.read_text(encoding="utf-8").splitlines()
+keys = set(updates)
+out: list[str] = []
+seen: set[str] = set()
+for line in lines:
+    if not line or line.lstrip().startswith("#") or "=" not in line:
+        out.append(line)
+        continue
+    key = line.split("=", 1)[0].strip()
+    if key in keys:
+        out.append(f"{key}={updates[key]}")
+        seen.add(key)
+    else:
+        out.append(line)
+missing = [k for k in keys if k not in seen]
+if missing:
+    if out and out[-1].strip():
+        out.append("")
+    out.append("# Hourly Slack standup + site watchdog (fix-hourly-slack-reports)")
+    for key in sorted(missing):
+        out.append(f"{key}={updates[key]}")
+path.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
+for key, val in sorted(updates.items()):
+    print(f"Set {key}={val}")
+PY
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    echo "=== recreate worker-slack + beat (hourly schedules; requires current API image) ==="
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps worker-slack beat
+    ;;
   fix-watchdog-env)
     echo "=== ensure SITE_WATCHDOG_UI_BASE_URL in deploy/.env ==="
     python3 - <<'PY'

@@ -26,10 +26,15 @@ SLACK_TASK_NAMES: tuple[str, ...] = (
 
 _SLACK_BEAT_OPTIONS = {"queue": SLACK_QUEUE}
 
+_s = get_settings()
+
 beat_schedule: dict = {
-    "slack-parking-digest-20m": {
+    "slack-parking-digest-hourly": {
         "task": "app.tasks.slack_agent_digest",
-        "schedule": crontab(minute="*/20"),
+        "schedule": crontab(
+            minute=_s.slack_digest_crontab_minute,
+            hour=_s.slack_digest_crontab_hour,
+        ),
         "options": _SLACK_BEAT_OPTIONS,
     },
     "slack-qualified-parcels-daily": {
@@ -44,16 +49,25 @@ beat_schedule: dict = {
     },
 }
 
-_s = get_settings()
+logger.info(
+    "Beat: pipeline Slack digest — hour=%s minute=%02d window=%sh (slack queue)",
+    _s.slack_digest_crontab_hour,
+    _s.slack_digest_crontab_minute,
+    _s.slack_digest_window_hours,
+)
 
 if _s.site_watchdog_enabled:
-    _wd_minute = (_s.site_watchdog_crontab_minute or "5,35").strip()
+    _wd_minute = (_s.site_watchdog_crontab_minute or "0").strip()
     beat_schedule["site-watchdog"] = {
         "task": "app.tasks.site_watchdog_check",
         "schedule": crontab(minute=_wd_minute),
         "options": _SLACK_BEAT_OPTIONS,
     }
-    logger.info("Beat: site watchdog at minute=%s UTC (slack queue)", _wd_minute)
+    logger.info(
+        "Beat: site watchdog at minute=%s UTC, heartbeat=%sh (slack queue)",
+        _wd_minute,
+        _s.site_watchdog_heartbeat_hours,
+    )
 
 _ingest_path = (_s.scheduled_geojson_ingest_path or "").strip()
 if _ingest_path:

@@ -16,7 +16,7 @@ def test_default_queue_is_parking() -> None:
 def test_beat_slack_entries_target_slack_queue() -> None:
     schedule = celery.conf.beat_schedule or {}
     for key in (
-        "slack-parking-digest-20m",
+        "slack-parking-digest-hourly",
         "slack-qualified-parcels-daily",
         "slack-dual-agent-discussion-daily",
         "site-watchdog",

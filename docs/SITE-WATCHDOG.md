@@ -2,7 +2,7 @@
 
 A **dedicated uptime agent** that checks the **public website**, **API**, and **Droplet server** on a fixed schedule. It runs in the cloud when your laptop is off.
 
-This is **not** the Slack pipeline digest (`slack_agent_digest`), which reports parcel ingest/scoring activity every 20 minutes and can feel inconsistent for “is the site up?” questions.
+This is **not** the Slack pipeline digest (`slack_agent_digest`), which reports parcel ingest/scoring activity on an hourly schedule and can feel inconsistent for “is the site up?” questions.
 
 ## What it checks
 
@@ -20,7 +20,7 @@ This is **not** the Slack pipeline digest (`slack_agent_digest`), which reports 
 
 | Runner | Schedule | Slack |
 |--------|----------|-------|
-| **Celery Beat** → `worker-slack` | `:05` and `:35` each hour | Alert on failure/recovery; optional “all clear” every 12h |
+| **Celery Beat** → `worker-slack` | `:00` each hour (UTC) | Alert on failure/recovery; optional “all clear” every 1h when healthy |
 | **GitHub Actions** `site-watchdog.yml` | `:10` and `:40` each hour | Alert on any failure |
 | **Admin UI smoke** (existing) | `:15` every 6h | Logged-in browser tour |
 
@@ -42,7 +42,8 @@ SITE_WATCHDOG_UI_BASE_URL=https://vspecialist.com
 # Optional: dedicated channel; else agents or digest channel
 # SITE_WATCHDOG_SLACK_CHANNEL_ID=C...
 SITE_WATCHDOG_PARKING_QUEUE_WARN=50000
-SITE_WATCHDOG_HEARTBEAT_HOURS=12
+SITE_WATCHDOG_HEARTBEAT_HOURS=1
+SITE_WATCHDOG_CRONTAB_MINUTE=0
 ```
 
 ## Manual runs

@@ -1,6 +1,6 @@
 # Slack integration
 
-The stack can post a **recurring “agent standup”** to a Slack channel: one Block Kit message every **20 minutes (UTC)** summarizing what the pipeline has been doing (new parcels, workflow status changes, pending human approvals, recent audit lines). **Once per day (14:00 UTC)** it also posts a **qualified-parcels report**: latest score per parcel vs `qualified_min_score` from the pilot config, with a short **why** line (zoning, lot size, corner, demand) for qualified rows and a sample of not-qualified rows.
+The stack can post a **recurring “agent standup”** to a Slack channel: one Block Kit message **every hour (UTC, top of the hour by default)** summarizing what the pipeline has been doing (new parcels, workflow status changes, pending human approvals, recent audit lines). **Once per day (14:00 UTC)** it also posts a **qualified-parcels report**: latest score per parcel vs `qualified_min_score` from the pilot config, with a short **why** line (zoning, lot size, corner, demand) for qualified rows and a sample of not-qualified rows.
 
 Separately, you can configure a **dedicated “agent discussion” channel** where the two deterministic scoring agents post three messages: **Atlas** (entitlement lens), **Beacon** (demand/visibility lens), then a **joint comparison** (consensus + disagreements). This is **outbound notification**, not a full chat employee — see [Limits](#limits-and-future-work) below.
 
@@ -12,7 +12,7 @@ The data agents work on here (parcel attributes, scores, workflow status, sample
 
 | Component | Role |
 |-----------|------|
-| **Celery Beat** (`beat` service in compose) | Sends Slack tasks every **20 minutes** (standup), **daily 14:00 UTC** (qualified parcels), and **daily 15:30 UTC** (dual-agent discussion). |
+| **Celery Beat** (`beat` service in compose) | Sends Slack tasks **hourly** (standup), **daily 14:00 UTC** (qualified parcels), and **daily 15:30 UTC** (dual-agent discussion). |
 | **Celery worker (`worker-slack`)** | Dedicated **`slack`** queue — runs digest/report/discussion tasks so pipeline backlog on `worker` cannot block standups. |
 | **Celery worker (`worker`)** | **`parking`** queue only — pipelines, ingest, scoring batches (does not consume Slack tasks). |
 | **FastAPI** | `POST /internal/slack/digest-now`, `POST /internal/slack/qualified-parcels-now`, and `POST /internal/slack/agent-discussion-now` enqueue the matching tasks (manual test; requires `X-Internal-Key` when `INTERNAL_API_KEY` is set). |
@@ -26,7 +26,7 @@ Set **`SLACK_AGENT_EVENT_UPDATES=1`** (or `true` / `yes` / `on`) in the same env
 - **Ingest agent** — after each `ingest_geojson_path` run (counts + optional pipeline enqueue summary).
 - **Scoring & pipeline agent** — on each `run_pipeline` success or failure (includes a **Human-gate coordinator** line on success: pending approvals).
 
-Leave unset in production if you only want the **scheduled digest** (every 20 minutes UTC) and manual/API test messages — bulk ingest can generate many Slack lines.
+Leave unset in production if you only want the **scheduled digest** (hourly UTC by default) and manual/API test messages — bulk ingest can generate many Slack lines.
 
 **Production compose:** the **`api`** service receives the same **`SLACK_*`** variables as **worker** / **beat** so `GET /internal/slack/status` and **`POST /internal/slack/test-message`** match the worker’s Slack configuration.
 
@@ -81,7 +81,7 @@ With **`X-Internal-Key`** set as for other `/internal/*` routes:
 
 ### Scheduled digest vs “only works when I’m connected”
 
-The **20-minute digest does not use Slack Socket Mode** and does not need your laptop. It is enqueued by the **`beat`** container on the Droplet and executed by **`worker-slack`** (dedicated `slack` queue).
+The **hourly digest does not use Slack Socket Mode** and does not need your laptop. It is enqueued by the **`beat`** container on the Droplet and executed by **`worker-slack`** (dedicated `slack` queue).
 
 If digests only appear when you are online, typical causes are:
 
