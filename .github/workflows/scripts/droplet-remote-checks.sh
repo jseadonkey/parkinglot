@@ -903,9 +903,6 @@ PY
     else
       echo "INTERNAL_API_KEY not set"
     fi
-    else
-      echo "INTERNAL_API_KEY not set"
-    fi
     ;;
   enable-slow-statewide-expansion)
     echo "=== enable slow statewide expansion (7d/county + keep priority pipeline) ==="
