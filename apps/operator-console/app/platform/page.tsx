@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { platformShowcaseUrl } from "../lib/paths";
-import { countyLine, useCountyNames } from "../lib/useCountyNames";
+import { platformShowcaseUrl } from "../../lib/paths";
+import { countyLine, useCountyNames } from "../../lib/useCountyNames";
 
 type SampleDeliverable = {
   kind: string;
