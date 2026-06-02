@@ -1,14 +1,14 @@
 {
-  "id": 26853826359,
-  "conclusion": "cancelled",
+  "id": 26853830496,
+  "conclusion": "success",
   "status": "completed",
   "head_branch": "main",
   "head_sha": "be492385cf3424e5eeba72258f02785af7f1f644",
-  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/26853826359",
-  "created_at": "2026-06-02T23:19:40Z",
-  "updated_at": "2026-06-02T23:19:52Z",
+  "html_url": "https://github.com/jseadonkey/parkinglot/actions/runs/26853830496",
+  "created_at": "2026-06-02T23:19:47Z",
+  "updated_at": "2026-06-02T23:20:48Z",
   "display_title": "Deploy to Droplet",
   "event": "workflow_run",
   "run_attempt": 1,
-  "snapshot_recorded_at": "2026-06-02T23:19:59Z"
+  "snapshot_recorded_at": "2026-06-02T23:20:56Z"
 }
