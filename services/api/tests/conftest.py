@@ -12,3 +12,6 @@ if _DEFAULT_RULES.is_file():
 _PILOT = _REPO_ROOT / "config/pilot.yaml"
 if _PILOT.is_file():
     os.environ.setdefault("PILOT_CONFIG_PATH", str(_PILOT))
+_GEO_MARKETS = _REPO_ROOT / "config/geo_markets.yaml"
+if _GEO_MARKETS.is_file():
+    os.environ.setdefault("GEO_MARKETS_CONFIG_PATH", str(_GEO_MARKETS))
