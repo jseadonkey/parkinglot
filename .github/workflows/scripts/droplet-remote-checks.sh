@@ -46,25 +46,26 @@ _internal_api_get() {
   fi
   local compose_rel
   compose_rel="${COMPOSE_REL:-deploy/docker-compose.production.ghcr.yml}"
-  if docker compose -f "$compose_rel" --env-file deploy/.env ps -q api 2>/dev/null | grep -q .; then
-    docker compose -f "$compose_rel" --env-file deploy/.env exec -T -e "INTERNAL_KEY=$KEY" api python -c "
+  if ! docker compose -f "$compose_rel" --env-file deploy/.env ps -q api 2>/dev/null | grep -q .; then
+    return 0
+  fi
+  docker compose -f "$compose_rel" --env-file deploy/.env exec -T -e "API_PATH=$path" api python - <<'PY'
 import os
 import urllib.error
 import urllib.request
 
-path = '''${path}'''
-headers = {'Accept': 'application/json'}
-key = (os.environ.get('INTERNAL_KEY') or '').strip()
+path = os.environ["API_PATH"]
+headers = {"Accept": "application/json"}
+key = (os.environ.get("INTERNAL_API_KEY") or "").strip()
 if key:
-    headers['X-Internal-Key'] = key
-req = urllib.request.Request(f'http://127.0.0.1:8000{path}', headers=headers)
+    headers["X-Internal-Key"] = key
+req = urllib.request.Request(f"http://127.0.0.1:8000{path}", headers=headers)
 try:
     with urllib.request.urlopen(req, timeout=45) as resp:
         print(resp.read().decode())
 except urllib.error.HTTPError as exc:
     print(exc.read().decode() if exc.fp else str(exc))
-" 2>/dev/null || true
-  fi
+PY
 }
 
 _internal_api_post() {
@@ -83,26 +84,26 @@ _internal_api_post() {
   fi
   local compose_rel
   compose_rel="${COMPOSE_REL:-deploy/docker-compose.production.ghcr.yml}"
-  if docker compose -f "$compose_rel" --env-file deploy/.env ps -q api 2>/dev/null | grep -q .; then
-    docker compose -f "$compose_rel" --env-file deploy/.env exec -T -e "INTERNAL_KEY=$KEY" api python -c "
-import json
+  if ! docker compose -f "$compose_rel" --env-file deploy/.env ps -q api 2>/dev/null | grep -q .; then
+    return 0
+  fi
+  docker compose -f "$compose_rel" --env-file deploy/.env exec -T -e "API_PATH=$path" api python - <<'PY'
 import os
 import urllib.error
 import urllib.request
 
-path = '''${path}'''
-headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-key = (os.environ.get('INTERNAL_KEY') or '').strip()
+path = os.environ["API_PATH"]
+headers = {"Accept": "application/json", "Content-Type": "application/json"}
+key = (os.environ.get("INTERNAL_API_KEY") or "").strip()
 if key:
-    headers['X-Internal-Key'] = key
-req = urllib.request.Request(f'http://127.0.0.1:8000{path}', data=b'{}', method='POST', headers=headers)
+    headers["X-Internal-Key"] = key
+req = urllib.request.Request(f"http://127.0.0.1:8000{path}", data=b"{}", method="POST", headers=headers)
 try:
     with urllib.request.urlopen(req, timeout=60) as resp:
         print(resp.read().decode())
 except urllib.error.HTTPError as exc:
     print(exc.read().decode() if exc.fp else str(exc))
-" 2>/dev/null || true
-  fi
+PY
 }
 
 case "$MODE" in
@@ -131,7 +132,9 @@ case "$MODE" in
     fi
     ;;
   last-digest)
-    body="$(_internal_api_get "/internal/slack/last-digest" || true)"
+    set +e
+    body="$(_internal_api_get "/internal/slack/last-digest")"
+    set -e
     if [ -z "$body" ]; then
       echo '{"found":false,"error":"unreachable"}'
     else
