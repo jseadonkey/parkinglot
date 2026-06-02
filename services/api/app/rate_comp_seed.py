@@ -161,7 +161,13 @@ KING_COUNTY_PARKING_RATE_COMPS: tuple[RateCompSeedRow, ...] = (
 
 
 def _existing_by_name(db: Session) -> dict[str, ParkingRateComp]:
-    rows = db.scalars(select(ParkingRateComp).where(ParkingRateComp.active.is_(True))).all()
+    try:
+        rows = db.scalars(select(ParkingRateComp).where(ParkingRateComp.active.is_(True))).all()
+    except Exception as exc:
+        msg = str(exc).lower()
+        if "parking_rate_comps" in msg and ("does not exist" in msg or "undefinedtable" in msg):
+            return {}
+        raise
     return {r.name: r for r in rows}
 
 

@@ -816,6 +816,8 @@ PY
   seed-king-rate-comps)
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
     ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
+    echo "=== alembic upgrade heads (ensure parking_rate_comps) ==="
+    docker compose "${ARGS[@]}" exec -T api alembic upgrade heads
     echo "=== seed King County parking rate comps ==="
     docker compose "${ARGS[@]}" exec -T api python - <<'PY'
 from app.db.session import SessionLocal
