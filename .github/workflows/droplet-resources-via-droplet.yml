@@ -61,6 +61,14 @@ on:
         description: "Set WA_STATEWIDE_ROLLOUT_ENABLED=false and restart worker/beat"
         type: boolean
         default: false
+      seed_king_rate_comps:
+        description: "Load Puget Sound parking rate benchmarks into parking_rate_comps"
+        type: boolean
+        default: false
+      enqueue_priority_now:
+        description: "Enqueue up to 75 top-entitlement pipeline jobs now"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -117,6 +125,10 @@ jobs:
             MODE="enable-priority-pipeline"
           elif [ "${{ inputs.pause_wa_statewide_rollout }}" = "true" ]; then
             MODE="pause-wa-statewide-rollout"
+          elif [ "${{ inputs.seed_king_rate_comps }}" = "true" ]; then
+            MODE="seed-king-rate-comps"
+          elif [ "${{ inputs.enqueue_priority_now }}" = "true" ]; then
+            MODE="enqueue-priority-now"
           fi
           ENQUEUE_LIMIT="${{ inputs.enqueue_limit || '50' }}"
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \

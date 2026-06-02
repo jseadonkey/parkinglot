@@ -271,6 +271,16 @@ class OutreachPipelineRow(BaseModel):
     has_outreach_brief: bool
     pending_approval_count: int
     pipeline_stage: str
+    monthly_gross_usd: float | None = None
+    revenue_available: bool = False
+
+
+class RateCompSeedResponse(BaseModel):
+    inserted: int
+    updated: int
+    skipped: int
+    total_seed_rows: int
+    replace_existing: bool
 
 
 class OutreachPipelineBoardResponse(BaseModel):

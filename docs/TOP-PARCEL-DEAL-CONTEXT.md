@@ -42,4 +42,16 @@ POST /internal/pipeline/enqueue-priority?limit=75
 
 ## Adding real rate comps
 
-Insert rows into **`parking_rate_comps`** (PostGIS point + `hourly_mid_usd`) or extend `pilot.yaml` list. Replace illustrative Seattle placeholders with verified garage/lot benchmarks.
+**One-shot seed (19 Puget Sound garages/lots):**
+
+```bash
+POST /internal/rate-comps/seed-king-pilot
+```
+
+GitHub Actions → **Droplet resources** → `seed_king_rate_comps = true`.
+
+Or insert rows into **`parking_rate_comps`** (PostGIS point + `hourly_mid_usd`) or extend `pilot.yaml`. Replace illustrative placeholders with operator-verified benchmarks.
+
+## Outreach board revenue column
+
+`GET /internal/pipeline/outreach-board` includes illustrative **monthly gross** for the top 25 rows (by entitlement score). Operator **Outreach** page shows **Est. gross**.

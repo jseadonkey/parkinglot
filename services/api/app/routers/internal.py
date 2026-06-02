@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.celery_app import celery
 from app.config import get_settings
-from app.db.models import AuditLog
+from app.db.models import AuditLog, Parcel
 from app.db.schema_compat import column_exists
 from app.db.session import get_db
 from app.deal_progress import query_deal_progress_board
@@ -18,8 +18,10 @@ from app.deps_internal import require_internal_key
 from app.export_readiness import export_readiness_summary
 from app.outreach_board import query_outreach_pipeline_board
 from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
+from app.parcel_deal_context import revenue_hint_for_parcel
 from app.parcel_scored_list import COMBINED, ParcelSortProfile, query_parcels_scored_list
 from app.pilot_scope import pilot_scope_summary
+from app.rate_comp_seed import seed_king_county_parking_rate_comps
 from app.schemas import (
     CeleryTaskIdResponse,
     CeleryTaskStatusResponse,
@@ -47,6 +49,7 @@ from app.schemas import (
     PilotCountyScopeRow,
     PilotScopeResponse,
     QualifiedMinScores,
+    RateCompSeedResponse,
     ScoringSummaryResponse,
     SiteWatchdogCheckRead,
     SiteWatchdogStatusResponse,
@@ -212,6 +215,7 @@ def scoring_summary(db: Session = Depends(get_db)) -> ScoringSummaryResponse:
 @router.get("/pipeline/outreach-board", response_model=OutreachPipelineBoardResponse)
 def outreach_pipeline_board(
     limit: int = Query(default=100, ge=1, le=2000),
+    revenue_hints: int = Query(default=25, ge=0, le=100),
     db: Session = Depends(get_db),
 ) -> OutreachPipelineBoardResponse:
     """Qualified parcels (latest entitlement ≥ pilot floor) with workflow + outreach brief snapshot."""
@@ -219,6 +223,17 @@ def outreach_pipeline_board(
     pilot = load_pilot_config(settings.pilot_config_path)
     floor = float(pilot.scoring.qualified_min_score)
     raw = query_outreach_pipeline_board(db, qualified_min_entitlement=floor, limit=limit)
+    hint_cap = min(revenue_hints, len(raw))
+    revenue_by_parcel: dict[str, dict[str, float | bool | None]] = {}
+    if hint_cap > 0:
+        for r in raw[:hint_cap]:
+            parcel = db.get(Parcel, r.parcel_id)
+            if parcel is not None:
+                revenue_by_parcel[str(r.parcel_id)] = revenue_hint_for_parcel(
+                    db,
+                    parcel,
+                    pilot=pilot,
+                )
     rows = [
         OutreachPipelineRow(
             parcel_id=str(r.parcel_id),
@@ -234,6 +249,10 @@ def outreach_pipeline_board(
             has_outreach_brief=r.has_outreach_brief,
             pending_approval_count=r.pending_approval_count,
             pipeline_stage=r.pipeline_stage,
+            monthly_gross_usd=revenue_by_parcel.get(str(r.parcel_id), {}).get("monthly_gross_usd"),
+            revenue_available=bool(
+                revenue_by_parcel.get(str(r.parcel_id), {}).get("revenue_available"),
+            ),
         )
         for r in raw
     ]
@@ -242,6 +261,16 @@ def outreach_pipeline_board(
         row_count=len(rows),
         rows=rows,
     )
+
+
+@router.post("/rate-comps/seed-king-pilot", response_model=RateCompSeedResponse)
+def seed_king_pilot_rate_comps(
+    replace_existing: bool = False,
+    db: Session = Depends(get_db),
+) -> RateCompSeedResponse:
+    """Load Puget Sound parking rate benchmarks into ``parking_rate_comps`` (idempotent)."""
+    raw = seed_king_county_parking_rate_comps(db, replace_existing=replace_existing)
+    return RateCompSeedResponse(**raw)
 
 
 @router.get("/pipeline/deal-progress", response_model=DealProgressBoardResponse)

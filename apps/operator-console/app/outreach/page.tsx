@@ -25,6 +25,8 @@ type Row = {
   has_outreach_brief: boolean;
   pending_approval_count: number;
   pipeline_stage: string;
+  monthly_gross_usd: number | null;
+  revenue_available: boolean;
 };
 
 type Board = {
@@ -51,6 +53,13 @@ function matchesQuickFilter(row: Row, filter: QuickFilter): boolean {
     default:
       return true;
   }
+}
+
+function formatMonthlyGross(usd: number | null | undefined): string {
+  if (usd == null) return "—";
+  if (usd >= 1_000_000) return `$${(usd / 1_000_000).toFixed(1)}M/mo`;
+  if (usd >= 1_000) return `$${Math.round(usd / 1_000)}k/mo`;
+  return `$${Math.round(usd)}/mo`;
 }
 
 function sortRows(rows: Row[], sort: SortKey): Row[] {
@@ -242,6 +251,7 @@ export default function OutreachPipelinePage() {
                 <tr>
                   <th>Parcel</th>
                   <th>Score</th>
+                  <th>Est. gross</th>
                   <th>Status</th>
                   <th>Updated</th>
                   <th>Actions</th>
@@ -267,6 +277,16 @@ export default function OutreachPipelinePage() {
                         <div className="muted cell-sub">
                           id {r.identification_score != null ? r.identification_score.toFixed(0) : "—"}
                         </div>
+                      </td>
+                      <td className="muted">
+                        {r.revenue_available ? (
+                          <>
+                            <div>{formatMonthlyGross(r.monthly_gross_usd)}</div>
+                            <div className="cell-sub">illustrative</div>
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td>
                         <div className="status-line">

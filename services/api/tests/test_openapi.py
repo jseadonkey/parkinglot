@@ -48,6 +48,7 @@ def test_openapi_lists_required_paths_and_response_models() -> None:
             "/internal/pipeline/enqueue-incomplete",
             "/internal/pipeline/enqueue-priority",
             "/internal/pipeline/outreach-board",
+            "/internal/rate-comps/seed-king-pilot",
             "/internal/pipeline/deal-progress",
             "/internal/parcels/scored-list",
             "/parcels/{parcel_id}/workflow-runs",

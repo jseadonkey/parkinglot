@@ -165,6 +165,30 @@ def nearby_qualified_parcels(
     return rows
 
 
+def revenue_hint_for_parcel(
+    db: Session,
+    parcel: Parcel,
+    *,
+    pilot: PilotConfig | None = None,
+) -> dict[str, float | bool | None]:
+    """Lightweight gross-revenue hint for list views (top parcels only)."""
+    settings = get_settings()
+    cfg = pilot or load_pilot_config(settings.pilot_config_path)
+    centroid = parcel_centroid_lat_lon(parcel)
+    if centroid is None:
+        return {"revenue_available": False, "monthly_gross_usd": None}
+    lat, lon = centroid
+    comps = rate_comps_for_parcel(db, lat=lat, lon=lon, pilot=cfg)
+    est = estimate_parking_revenue(lot_sqft=parcel.lot_sqft, comps=comps)
+    if not est.get("available"):
+        return {"revenue_available": False, "monthly_gross_usd": None}
+    monthly = est.get("monthly_gross_usd")
+    return {
+        "revenue_available": True,
+        "monthly_gross_usd": float(monthly) if monthly is not None else None,
+    }
+
+
 def build_parcel_deal_context(db: Session, parcel_id: uuid.UUID) -> dict[str, Any]:
     parcel = db.get(Parcel, parcel_id)
     if parcel is None:

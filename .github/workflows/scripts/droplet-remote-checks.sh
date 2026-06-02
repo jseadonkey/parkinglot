@@ -813,6 +813,30 @@ PY
       echo "INTERNAL_API_KEY not set"
     fi
     ;;
+  seed-king-rate-comps)
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
+    echo "=== seed King County parking rate comps ==="
+    docker compose "${ARGS[@]}" exec -T api python - <<'PY'
+from app.db.session import SessionLocal
+from app.rate_comp_seed import seed_king_county_parking_rate_comps
+
+db = SessionLocal()
+try:
+    result = seed_king_county_parking_rate_comps(db)
+    print("seed_king_rate_comps", result)
+finally:
+    db.close()
+PY
+    ;;
+  enqueue-priority-now)
+    echo "=== POST /internal/pipeline/enqueue-priority?limit=75 ==="
+    if [ -n "$KEY" ]; then
+      _internal_api_post "/internal/pipeline/enqueue-priority?limit=75" || echo "enqueue-priority failed"
+    else
+      echo "INTERNAL_API_KEY not set"
+    fi
+    ;;
   fix-hourly-slack-reports)
     echo "=== set hourly Slack digest + site watchdog in deploy/.env ==="
     python3 - <<'PY'
