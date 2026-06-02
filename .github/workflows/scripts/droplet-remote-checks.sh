@@ -454,6 +454,14 @@ PY
       echo "INTERNAL_API_KEY not set — skipping export-readiness"
     fi
     echo ""
+    echo "=== scoring-summary (funnel counts) ==="
+    if [ -n "$KEY" ]; then
+      curl -fsSk --connect-timeout 15 --max-time 60 \
+        "$BASE/internal/stats/scoring-summary" -H "X-Internal-Key: $KEY" || echo "scoring-summary failed"
+    else
+      echo "INTERNAL_API_KEY not set — skipping scoring-summary"
+    fi
+    echo ""
     echo "=== worker parking (active/reserved) ==="
     docker compose "${ARGS[@]}" exec -T worker celery -A app.celery_app inspect active -d parking@ 2>/dev/null | head -40 || true
     echo ""
