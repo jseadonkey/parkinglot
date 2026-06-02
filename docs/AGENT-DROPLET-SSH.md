@@ -32,7 +32,7 @@ Host *
 
 Host parkinglot parking-droplet
   HostName 209.38.142.108
-  User cursor
+  User root
 
 Host mobile-home-parks
   HostName OTHER_PROJECT_IP
