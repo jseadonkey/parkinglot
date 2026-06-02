@@ -904,9 +904,6 @@ PY
     echo "=== git pull (scripts + zoning rules on Droplet) ==="
     git pull --ff-only 2>/dev/null || true
 
-    echo "=== ensure host shapely for overlay build ==="
-    python3 -c "import shapely" 2>/dev/null || pip3 install -q shapely
-
     export PYTHONPATH="${ROOT}/services/ingestion${PYTHONPATH:+:$PYTHONPATH}"
 
     echo "=== fetch Baltimore City parcels (20k cap) ==="
@@ -914,17 +911,38 @@ PY
     echo "=== fetch Baltimore City zoning districts ==="
     python3 scripts/fetch_baltimore_zoning_districts.py -o "$ZONING"
 
-    echo "=== spatial join (host python + parking_ingestion) ==="
-    python3 scripts/build_baltimore_zoning_overlay.py \
-      --parcels "$PARCELS" --zoning "$ZONING" -o "$OVERLAY"
+    echo "=== spatial join (API/worker image + mounted ingestion package) ==="
+    if ! docker compose -f "$COMPOSE_REL" --env-file deploy/.env ps -q api 2>/dev/null | grep -q .; then
+      echo "FAIL: api container not running — cannot build overlay with shapely" >&2
+      exit 1
+    fi
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env run --rm --no-deps \
+      -v "${ROOT}/services/ingestion:/ingestion-mount:ro" \
+      -v "${ROOT}/scripts:/scripts-mount:ro" \
+      -v "${ROOT}/data:/app/data" \
+      -e "PYTHONPATH=/ingestion-mount" \
+      worker \
+      python3 /scripts-mount/build_baltimore_zoning_overlay.py \
+        --parcels "/app/${PARCELS}" \
+        --zoning "/app/${ZONING}" \
+        -o "/app/${OVERLAY}"
 
     if [ ! -f "$OVERLAY" ]; then
       echo "FAIL: overlay not found at $OVERLAY" >&2
       exit 1
     fi
 
-    echo "=== validate overlay (dry-run) ==="
-    PHASE_B_OVERLAY_PATH="$OVERLAY" python3 scripts/validate_phase_b_overlay.py "$OVERLAY" || true
+    echo "=== validate overlay (dry-run, in container) ==="
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env run --rm --no-deps \
+      -v "${ROOT}/services/ingestion:/ingestion-mount:ro" \
+      -v "${ROOT}/services/api:/api-mount:ro" \
+      -v "${ROOT}/packages/core:/core-mount:ro" \
+      -v "${ROOT}/scripts:/scripts-mount:ro" \
+      -v "${ROOT}/config:/app/config:ro" \
+      -v "${ROOT}/data:/app/data:ro" \
+      -e "PYTHONPATH=/ingestion-mount:/api-mount:/core-mount" \
+      worker \
+      python3 /scripts-mount/validate_phase_b_overlay.py "/app/${OVERLAY}" || true
 
     if [ -n "$KEY" ]; then
       echo "=== POST merge-geojson-attributes ==="

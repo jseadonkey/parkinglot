@@ -9,7 +9,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "services" / "ingestion"))
+_ingest = ROOT / "services" / "ingestion"
+if _ingest.is_dir():
+    sys.path.insert(0, str(_ingest))
 
 from parking_ingestion.baltimore_zoning_overlay import build_zoning_overlay_geojson  # noqa: E402
 
