@@ -15,8 +15,8 @@ help:
 	@echo "  make phase-c-run        - Phase C: readiness + portfolio internal APIs (needs DATABASE_URL; see scripts/execute-phase-c.sh)"
 	@echo "  make local              - docker compose (dev: Postgres, Redis, MinIO, api, worker, UI)"
 	@echo "  make slack-env-local    - merge SLACK_* into .env (needs SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID in env)"
-	@echo "  make droplet-sync       - rsync repo to Droplet (needs DROPLET=ip, optional REMOTE_PATH / SSH_USER)"
-	@echo "  make droplet-rebuild    - SSH: docker compose production up --build (needs DROPLET)"
+	@echo "  make droplet-sync       - rsync to parkinglot Droplet (uses deploy/droplet.target; no raw IP needed)"
+	@echo "  make droplet-rebuild    - SSH rebuild production stack (uses deploy/droplet.target)"
 	@echo "  make droplet-rebuild-postgis - same + on-droplet PostGIS addon (USE_LOCAL_POSTGIS=1)"
 	@echo "  make gh-slack-notify-secret-help - print how to pipe INTERNAL_API_KEY into gh secret set"
 	@echo "  make prod-up            - production compose build on Droplet (needs deploy/.env)"
@@ -131,16 +131,13 @@ slack-env-local:
 	./scripts/set-slack-env-local.sh
 
 droplet-sync:
-	@test -n "$$DROPLET" || (echo "export DROPLET=<ipv4 or hostname>"; exit 1)
-	./scripts/sync-to-droplet.sh
+	@./scripts/sync-to-droplet.sh
 
 droplet-rebuild:
-	@test -n "$$DROPLET" || (echo "export DROPLET=<ipv4 or hostname>"; exit 1)
-	./scripts/remote-rebuild.sh
+	@./scripts/remote-rebuild.sh
 
 droplet-rebuild-postgis:
-	@test -n "$$DROPLET" || (echo "export DROPLET=<ipv4 or hostname>"; exit 1)
-	USE_LOCAL_POSTGIS=1 ./scripts/remote-rebuild.sh
+	@USE_LOCAL_POSTGIS=1 ./scripts/remote-rebuild.sh
 
 gh-slack-notify-secret-help:
 	@echo "Pipe INTERNAL_API_KEY value (key only) on stdin, e.g.:"

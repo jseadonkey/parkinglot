@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-# Rsync repo to a DigitalOcean Droplet (from your laptop). Example:
-#   DROPLET=203.0.113.10 ./scripts/sync-to-droplet.sh
-# Override path if needed:
-#   DROPLET=203.0.113.10 REMOTE_PATH=/opt/parking-acquisition-agents ./scripts/sync-to-droplet.sh
+# Rsync repo to the parkinglot Droplet only (validates deploy/droplet.target).
+#   ./scripts/sync-to-droplet.sh
+#   make droplet-sync
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-: "${DROPLET:?Set DROPLET to the Droplet IPv4 or hostname}"
-REMOTE_PATH="${REMOTE_PATH:-/opt/parking-acquisition-agents}"
-SSH_USER="${SSH_USER:-root}"
+# shellcheck source=lib/droplet-target.sh
+source "$ROOT/scripts/lib/droplet-target.sh"
+assert_droplet_target "$ROOT/scripts/sync-to-droplet.sh" "${DROPLET:-}" "${REMOTE_PATH:-}" "${SSH_USER:-}" || exit 1
 
 echo "Syncing $ROOT -> ${SSH_USER}@${DROPLET}:${REMOTE_PATH}"
 rsync -az --delete \

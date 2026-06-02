@@ -1,0 +1,8 @@
+# Locked Droplet mapping for this repo — deploy scripts refuse wrong IPs/paths.
+# See docs/CURSOR-TWO-PROJECTS.md
+
+project_id=parkinglot
+ssh_host=parkinglot
+ssh_user=root
+allowed_hostname=209.38.142.108
+remote_path=/opt/workspaces/parkinglot

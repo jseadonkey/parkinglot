@@ -1,0 +1,29 @@
+---
+description: Prevent parkinglot deploy/sync to the wrong Droplet (mobile-home-parks or raw IPs)
+alwaysApply: true
+---
+
+# Droplet deploy safety (parkinglot workspace)
+
+This workspace is **parkinglot only**. The mobile-home-parks server is a **different IP** and must never receive this code.
+
+## Allowed
+
+- SSH alias: **`parkinglot`** (`209.38.142.108`, user `root`)
+- Remote path: **`/opt/workspaces/parkinglot`** (see `deploy/droplet.target`)
+- Sync/rebuild: **`make droplet-sync`**, **`./scripts/sync-to-droplet.sh`**, **`./scripts/remote-rebuild.sh`** — they validate `deploy/droplet.target`
+
+## Forbidden
+
+- `DROPLET=134.199.209.177`, `DROPLET=mobile-home-parks`, or any host other than **`parkinglot`** / `209.38.142.108` for this repo
+- Raw `rsync` to an IP without running the assert script in `scripts/lib/droplet-target.sh`
+- Telling the user to paste parkinglot `deploy/.env` or compose onto the mobile-home-parks Droplet
+
+## If deploy fails with “DROPLET MISMATCH”
+
+The user has the right protection. They should use a **second Cursor window** for the other project. See `docs/CURSOR-TWO-PROJECTS.md`.
+
+## Two Cursor windows
+
+- Window 1: this repo + host `parkinglot`
+- Window 2: mobile-home-parks repo + host `mobile-home-parks` (not your job in this workspace)
