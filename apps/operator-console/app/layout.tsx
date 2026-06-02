@@ -20,10 +20,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <span className="nav-sub muted">Operator console</span>
             </div>
             <div className="nav-links">
-              <Link href="/">Overview</Link>
-              <Link href="/outreach" className="nav-primary">
-                Outreach
+              <Link href="/platform" className="nav-primary">
+                Platform
               </Link>
+              <Link href="/">Overview</Link>
+              <Link href="/outreach">Outreach</Link>
               <Link href="/approvals">Approvals</Link>
               <Link href="/deals">Deal progress</Link>
               <Link href="/parcels">Parcels</Link>

@@ -364,6 +364,47 @@ class ScoringSummaryResponse(BaseModel):
     pilot_region: str
 
 
+class PlatformShowcaseCountyRow(BaseModel):
+    county_fips: str
+    county_name: str
+    parcels_in_db: int
+
+
+class PlatformShowcaseTopParcel(BaseModel):
+    parcel_id: str
+    apn: str
+    county_fips: str
+    entitlement_score: float | None
+    strategic_score: float | None
+    identification_score: float | None
+    lot_sqft: float | None
+    zoning_code: str | None
+    has_outreach_brief: bool
+
+
+class PlatformShowcaseResponse(BaseModel):
+    """GET /internal/stats/platform-showcase — partner-facing live platform metrics."""
+
+    generated_at: datetime
+    region_name: str
+    state_name: str
+    primary_metro_label: str | None
+    pilot_county_count: int
+    counties_with_ingested_parcels: int
+    counties_loaded: list[PlatformShowcaseCountyRow]
+    parcels_total: int
+    parcels_prescreen_qualified: int
+    parcels_qualified_entitlement: int
+    parcels_with_full_pipeline_scores: int
+    parcels_with_owner_brief: int
+    parcels_pipeline_backlog: int
+    qualified_floors: QualifiedMinScores
+    pipeline_runs_total: int
+    pipeline_by_stage: dict[str, int]
+    pipeline_by_step: dict[str, int]
+    top_parcels: list[PlatformShowcaseTopParcel]
+
+
 class PilotCountyScopeRow(BaseModel):
     county_fips: str
     county_name: str

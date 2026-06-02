@@ -241,6 +241,18 @@ export default function OverviewPage() {
       </p>
 
       <QuickStartCards />
+
+      <div className="panel partner-banner">
+        <strong>Sharing with partners?</strong>
+        <p className="muted" style={{ margin: "0.35rem 0 0.5rem" }}>
+          The <Link href="/platform">Platform</Link> page showcases live metrics, the three scoring agents, pipeline
+          gates, and sample top deals — designed for external stakeholders.
+        </p>
+        <Link href="/platform" className="btn-link btn-link-primary">
+          Open platform showcase →
+        </Link>
+      </div>
+
       <OperatorGuide />
 
       <h2>Geographic scope</h2>

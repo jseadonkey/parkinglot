@@ -225,6 +225,37 @@ export default function ParcelDetailPage() {
       ) : null}
 
       {parcel ? (
+        <div className="platform-deliverables parcel-deliverables">
+          <div className={`platform-deliverable ${score ? "deliverable-done" : ""}`}>
+            <strong>Atlas score</strong>
+            <p className="muted">{score ? score.total_score.toFixed(1) : "Not yet scored"}</p>
+          </div>
+          <div className={`platform-deliverable ${parcel.owner_outreach_brief ? "deliverable-done" : ""}`}>
+            <strong>Owner brief</strong>
+            <p className="muted">{parcel.owner_outreach_brief ? "Produced" : "Pending enrichment"}</p>
+          </div>
+          <div className={`platform-deliverable ${dealContext?.revenue_estimate.available ? "deliverable-done" : ""}`}>
+            <strong>Revenue model</strong>
+            <p className="muted">
+              {dealContext?.revenue_estimate.available
+                ? `$${dealContext.revenue_estimate.monthly_gross_usd?.toLocaleString()}/mo est.`
+                : "Needs comps + lot size"}
+            </p>
+          </div>
+          <div className={`platform-deliverable ${drafts.length > 0 ? "deliverable-done" : ""}`}>
+            <strong>Outreach drafts</strong>
+            <p className="muted">{drafts.length > 0 ? `${drafts.length} channels` : "After brief + templates"}</p>
+          </div>
+          <div className={`platform-deliverable ${runs.some((r) => r.status === "completed") ? "deliverable-done" : ""}`}>
+            <strong>Pipeline</strong>
+            <p className="muted">
+              {runs.length === 0 ? "Not started" : runs[0]?.status.replaceAll("_", " ") ?? "—"}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {parcel ? (
         <>
           <div className="panel">
             <div className="row">
@@ -482,13 +513,16 @@ export default function ParcelDetailPage() {
             )}
           </div>
 
-          <h2>Owner outreach brief (full JSON)</h2>
+          <h2>Owner outreach brief</h2>
           <p className="muted">
-            Complete structured brief from the pipeline. For agent chat logs, check Slack.
+            Structured output from the enrichment pipeline — owner candidates, contacts, skip trace, and research tier.
           </p>
           <div className="panel">
             {parcel.owner_outreach_brief ? (
-              <pre className="json">{JSON.stringify(parcel.owner_outreach_brief, null, 2)}</pre>
+              <details className="brief-details">
+                <summary>View structured brief (JSON)</summary>
+                <pre className="json">{JSON.stringify(parcel.owner_outreach_brief, null, 2)}</pre>
+              </details>
             ) : (
               <p className="muted">No brief yet — run pipeline / Phase C enrichment.</p>
             )}

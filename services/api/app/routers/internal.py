@@ -21,6 +21,7 @@ from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolio
 from app.parcel_deal_context import revenue_hint_for_parcel
 from app.parcel_scored_list import COMBINED, ParcelSortProfile, query_parcels_scored_list
 from app.pilot_scope import pilot_scope_summary
+from app.platform_showcase import build_platform_showcase
 from app.rate_comp_seed import seed_king_county_parking_rate_comps
 from app.schemas import (
     CeleryTaskIdResponse,
@@ -48,6 +49,7 @@ from app.schemas import (
     PeerParcelSummary,
     PilotCountyScopeRow,
     PilotScopeResponse,
+    PlatformShowcaseResponse,
     QualifiedMinScores,
     RateCompSeedResponse,
     ScoringSummaryResponse,
@@ -210,6 +212,12 @@ def pilot_scope(db: Session = Depends(get_db)) -> PilotScopeResponse:
 def scoring_summary(db: Session = Depends(get_db)) -> ScoringSummaryResponse:
     """Counts parcels and latest scores vs pilot floors (read-only; no Slack)."""
     return ScoringSummaryResponse(**scoring_summary_stats(db))
+
+
+@router.get("/stats/platform-showcase", response_model=PlatformShowcaseResponse)
+def platform_showcase(db: Session = Depends(get_db)) -> PlatformShowcaseResponse:
+    """Live metrics for partner platform page (aggregates scoring, scope, pipeline, top deals)."""
+    return PlatformShowcaseResponse(**build_platform_showcase(db))
 
 
 @router.get("/pipeline/outreach-board", response_model=OutreachPipelineBoardResponse)

@@ -1,0 +1,403 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { bridgeUrl } from "../lib/paths";
+import { countyLine, useCountyNames } from "../lib/useCountyNames";
+
+type Showcase = {
+  generated_at: string;
+  region_name: string;
+  state_name: string;
+  primary_metro_label: string | null;
+  pilot_county_count: number;
+  counties_with_ingested_parcels: number;
+  counties_loaded: Array<{ county_fips: string; county_name: string; parcels_in_db: number }>;
+  parcels_total: number;
+  parcels_prescreen_qualified: number;
+  parcels_qualified_entitlement: number;
+  parcels_with_full_pipeline_scores: number;
+  parcels_with_owner_brief: number;
+  parcels_pipeline_backlog: number;
+  qualified_floors: { entitlement: number; strategic: number; identification: number };
+  pipeline_runs_total: number;
+  pipeline_by_stage: Record<string, number>;
+  pipeline_by_step: Record<string, number>;
+  top_parcels: Array<{
+    parcel_id: string;
+    apn: string;
+    county_fips: string;
+    entitlement_score: number | null;
+    strategic_score: number | null;
+    identification_score: number | null;
+    lot_sqft: number | null;
+    zoning_code: string | null;
+    has_outreach_brief: boolean;
+  }>;
+};
+
+const PIPELINE_STAGES = [
+  {
+    id: "ingest",
+    title: "County GIS ingest",
+    body: "Parcels load from Washington assessor exports and WaTech statewide layers — geometry, APN, zoning, lot size, and demand proximity.",
+  },
+  {
+    id: "cartographer",
+    title: "Cartographer prescreen",
+    body: "Every parcel scored at ingest for surface-parking fit. Low scores never enter expensive enrichment — saving compute for real candidates.",
+  },
+  {
+    id: "atlas",
+    title: "Atlas entitlement",
+    body: "Zoning, lot size, corner lot, and distance to demand POIs. Below the qualified floor → pipeline stops before owner research.",
+  },
+  {
+    id: "beacon",
+    title: "Beacon strategic",
+    body: "Market and strategic fit on parcels Atlas already passed. Both agents must agree before enrichment runs.",
+  },
+  {
+    id: "enrich",
+    title: "Owner enrichment",
+    body: "Assessor roll + licensed skip trace + WA registry lookup + portfolio peers. Produces a structured owner outreach brief.",
+  },
+  {
+    id: "deliver",
+    title: "Deal package",
+    body: "Deal memo, ground-lease contract draft, parking revenue context, and multi-channel outreach copy — email, text, voice, mail.",
+  },
+  {
+    id: "human",
+    title: "Counsel gate",
+    body: "Nothing sends automatically. Memos, contracts, and outbound messages wait in Approvals for human sign-off.",
+  },
+] as const;
+
+const AGENTS = [
+  {
+    codename: "Cartographer",
+    role: "Identification prescreen",
+    evaluates: "Zoning allows surface parking, minimum lot size, corner exposure, distance to hospitals/stadiums/transit demand generators.",
+    when: "Runs on every parcel at GIS ingest — instant triage of ~124k+ King County rows.",
+  },
+  {
+    codename: "Atlas",
+    role: "Entitlement scoring",
+    evaluates: "Legal/planning feasibility — can this lot plausibly operate as paid parking given zoning and geometry?",
+    when: "Full pipeline step 1. Failing score skips Beacon and all owner spend.",
+  },
+  {
+    codename: "Beacon",
+    role: "Strategic scoring",
+    evaluates: "Market attractiveness — demand proximity, strategic weights from pilot config, combined ranking for outreach priority.",
+    when: "Full pipeline step 2, only if Atlas passes the qualified floor.",
+  },
+] as const;
+
+const DELIVERABLES = [
+  {
+    title: "Owner outreach brief",
+    desc: "Ranked contact channels, research tier, skip-trace results, and compliance-aware next steps.",
+  },
+  {
+    title: "Deal memo",
+    desc: "Markdown investment narrative generated from scores, zoning, and market context.",
+  },
+  {
+    title: "Contract draft",
+    desc: "Ground-lease template populated and stored — ready for counsel review.",
+  },
+  {
+    title: "Parking revenue model",
+    desc: "Nearby garage comps + stall estimate → illustrative monthly/annual gross (PostGIS benchmarks).",
+  },
+  {
+    title: "Multi-channel outreach",
+    desc: "Email, SMS, voice script, and certified mail rendered from editable templates + owner data.",
+  },
+  {
+    title: "Portfolio intelligence",
+    desc: "Normalized owner keys surface landlords with multiple qualified lots in one market.",
+  },
+] as const;
+
+const AUTOMATION = [
+  "Celery workers process pipelines 24/7 on the production droplet",
+  "Top entitlement deals enqueued every 2 hours — highest scores first",
+  "Hourly Slack standup digest + site health watchdog",
+  "39 Washington counties configured; statewide WaTech rollout ready when prioritized",
+  "PostGIS spatial queries for rate comps and nearby qualified parcels",
+] as const;
+
+function fmt(n: number): string {
+  return n.toLocaleString();
+}
+
+function fmtScore(v: number | null): string {
+  return v != null ? v.toFixed(0) : "—";
+}
+
+export default function PlatformPage() {
+  const countyLabel = useCountyNames();
+  const [data, setData] = useState<Showcase | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setErr(null);
+      try {
+        const res = await fetch(bridgeUrl("internal/stats/platform-showcase"), { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = (await res.json()) as Showcase;
+        if (!cancelled) setData(json);
+      } catch (e) {
+        if (!cancelled) setErr(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const updated = data?.generated_at
+    ? new Date(data.generated_at).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : null;
+
+  return (
+    <main className="main-wide platform-page">
+      <header className="platform-hero">
+        <p className="platform-eyebrow">Washington parking acquisition</p>
+        <h1>Automated deal intelligence platform</h1>
+        <p className="platform-lead">
+          Three scoring agents, gated enrichment, and full deal packaging — from statewide parcel ingest to
+          counsel-approved outreach. Built for institutional partners who need scale without sacrificing control.
+        </p>
+        {updated ? (
+          <p className="muted platform-updated">Live metrics · updated {updated}</p>
+        ) : loading ? (
+          <p className="muted platform-updated">Loading live metrics…</p>
+        ) : null}
+      </header>
+
+      {err ? <div className="error">{err}</div> : null}
+
+      {data ? (
+        <>
+          <section className="platform-metrics" aria-label="Live platform metrics">
+            <div className="platform-metric">
+              <span className="platform-metric-n">{fmt(data.parcels_total)}</span>
+              <span className="platform-metric-label">Parcels analyzed</span>
+            </div>
+            <div className="platform-metric">
+              <span className="platform-metric-n">{fmt(data.parcels_qualified_entitlement)}</span>
+              <span className="platform-metric-label">Entitlement-qualified</span>
+            </div>
+            <div className="platform-metric">
+              <span className="platform-metric-n">{fmt(data.parcels_with_owner_brief)}</span>
+              <span className="platform-metric-label">Owner briefs produced</span>
+            </div>
+            <div className="platform-metric">
+              <span className="platform-metric-n">{fmt(data.pipeline_runs_total)}</span>
+              <span className="platform-metric-label">Pipeline runs tracked</span>
+            </div>
+            <div className="platform-metric">
+              <span className="platform-metric-n">
+                {data.counties_with_ingested_parcels}/{data.pilot_county_count}
+              </span>
+              <span className="platform-metric-label">WA counties with data</span>
+            </div>
+          </section>
+
+          <section className="panel platform-section">
+            <h2>Geographic scope</h2>
+            <p className="muted">
+              {data.region_name} · {data.state_name}
+              {data.primary_metro_label ? ` · ${data.primary_metro_label}` : ""}. Ingest is configured for{" "}
+              {data.pilot_county_count} counties; data is loaded for {data.counties_with_ingested_parcels} today.
+            </p>
+            {data.counties_loaded.length > 0 ? (
+              <div className="platform-county-chips">
+                {data.counties_loaded.map((c) => (
+                  <span key={c.county_fips} className="badge">
+                    {c.county_name.replace(/ County$/i, "")}: {fmt(c.parcels_in_db)}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </section>
+
+          <section className="platform-section">
+            <h2>End-to-end pipeline</h2>
+            <p className="muted section-lead">
+              Parcels narrow through deterministic gates — we only spend on owner lookup, skip trace, and contract
+              generation when both Atlas and Beacon agree a lot is worth pursuing.
+            </p>
+            <div className="platform-pipeline">
+              {PIPELINE_STAGES.map((stage, i) => (
+                <div key={stage.id} className="platform-pipeline-step">
+                  <div className="platform-pipeline-marker">{i + 1}</div>
+                  <div className="platform-pipeline-body">
+                    <strong>{stage.title}</strong>
+                    <p className="muted">{stage.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="platform-section">
+            <h2>Three scoring agents</h2>
+            <p className="muted section-lead">
+              Named agents in Slack digests and operator views — each runs a YAML-configured scoring engine over
+              parcel attributes (not black-box LLM guesses on zoning).
+            </p>
+            <div className="platform-agents">
+              {AGENTS.map((a) => (
+                <article key={a.codename} className="panel platform-agent-card">
+                  <div className="platform-agent-name">{a.codename}</div>
+                  <div className="platform-agent-role">{a.role}</div>
+                  <p className="muted">{a.evaluates}</p>
+                  <p className="muted platform-agent-when">
+                    <strong>When:</strong> {a.when}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="platform-section">
+            <h2>What the system produces</h2>
+            <div className="platform-deliverables">
+              {DELIVERABLES.map((d) => (
+                <div key={d.title} className="platform-deliverable">
+                  <strong>{d.title}</strong>
+                  <p className="muted">{d.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="panel platform-section">
+            <h2>Pipeline activity (live)</h2>
+            <div className="cols">
+              {Object.entries(data.pipeline_by_stage).map(([stage, n]) => (
+                <div key={stage} className="stat">
+                  <div className="n">{n}</div>
+                  <div className="muted">{stage.replaceAll("_", " ")}</div>
+                </div>
+              ))}
+            </div>
+            {Object.keys(data.pipeline_by_step).length > 0 ? (
+              <>
+                <p className="muted" style={{ marginTop: "1rem" }}>
+                  Currently processing by step:
+                </p>
+                <div className="platform-county-chips">
+                  {Object.entries(data.pipeline_by_step).map(([step, n]) => (
+                    <span key={step} className="badge">
+                      {step.replaceAll("_", " ")}: {n}
+                    </span>
+                  ))}
+                </div>
+              </>
+            ) : null}
+            <p className="muted" style={{ marginTop: "1rem" }}>
+              {fmt(data.parcels_pipeline_backlog)} prescreen-qualified parcels still waiting for full Atlas/Beacon
+              scoring · qualified floors: Cartographer ≥ {data.qualified_floors.identification}, Atlas ≥{" "}
+              {data.qualified_floors.entitlement}
+            </p>
+          </section>
+
+          <section className="platform-section">
+            <h2>Top-ranked deals (sample)</h2>
+            <p className="muted section-lead">
+              Highest entitlement scores in the database right now — open any parcel to see market context, owner
+              research, and outreach drafts.
+            </p>
+            <div className="panel panel-flush">
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th>APN</th>
+                    <th>County</th>
+                    <th>Atlas</th>
+                    <th>Beacon</th>
+                    <th>Cartographer</th>
+                    <th>Lot</th>
+                    <th>Brief</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.top_parcels.map((p) => (
+                    <tr key={p.parcel_id}>
+                      <td>{p.apn}</td>
+                      <td className="muted">{countyLine(countyLabel, p.county_fips)}</td>
+                      <td>
+                        <strong>{fmtScore(p.entitlement_score)}</strong>
+                      </td>
+                      <td>{fmtScore(p.strategic_score)}</td>
+                      <td>{fmtScore(p.identification_score)}</td>
+                      <td className="muted">
+                        {p.lot_sqft != null ? `${Math.round(p.lot_sqft).toLocaleString()} sf` : "—"}
+                      </td>
+                      <td>{p.has_outreach_brief ? "✓" : "—"}</td>
+                      <td>
+                        <Link href={`/parcels/${p.parcel_id}`} className="btn-link">
+                          View deal →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="panel platform-section platform-automation">
+            <h2>Automation &amp; reliability</h2>
+            <ul className="platform-automation-list">
+              {AUTOMATION.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="platform-cta panel">
+            <h2>Explore the live console</h2>
+            <p className="muted">
+              Partners with access can drill into qualified deals, approval queues, and parcel-level enrichment.
+            </p>
+            <div className="platform-cta-links">
+              <Link href="/outreach" className="btn-link btn-link-primary">
+                Outreach pipeline
+              </Link>
+              <Link href="/deals" className="btn-link">
+                Deal progress
+              </Link>
+              <Link href="/parcels" className="btn-link">
+                All parcels
+              </Link>
+              <Link href="/" className="btn-link">
+                Operator overview
+              </Link>
+            </div>
+          </section>
+        </>
+      ) : loading && !err ? (
+        <div className="panel muted">Loading platform showcase…</div>
+      ) : null}
+    </main>
+  );
+}

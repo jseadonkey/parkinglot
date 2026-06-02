@@ -798,3 +798,239 @@ select {
   margin-top: 0.75rem;
   font-size: 0.9rem;
 }
+
+/* —— Partner platform showcase —— */
+
+.platform-page h2 {
+  margin-top: 0;
+  font-size: 1.15rem;
+}
+
+.platform-hero {
+  margin-bottom: 1.5rem;
+  padding: 1.5rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid #2a4060;
+  background: linear-gradient(145deg, #111820 0%, #152238 45%, #111820 100%);
+}
+
+.platform-eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+}
+
+.platform-hero h1 {
+  margin: 0 0 0.65rem;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.2;
+  max-width: 36rem;
+}
+
+.platform-lead {
+  margin: 0;
+  max-width: 42rem;
+  font-size: 1rem;
+  color: #c5d4e8;
+  line-height: 1.55;
+}
+
+.platform-updated {
+  margin: 0.85rem 0 0;
+  font-size: 0.78rem;
+}
+
+.platform-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 1.5rem;
+}
+
+.platform-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #111820;
+}
+
+.platform-metric-n {
+  font-size: 1.45rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+
+.platform-metric-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.platform-section {
+  margin-bottom: 1.75rem;
+}
+
+.section-lead {
+  max-width: 44rem;
+  margin: 0 0 1rem;
+}
+
+.platform-county-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.platform-pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-left: 2px solid #2a4060;
+  margin-left: 0.75rem;
+  padding-left: 0;
+}
+
+.platform-pipeline-step {
+  display: flex;
+  gap: 1rem;
+  padding: 0.85rem 0 0.85rem 1.25rem;
+  position: relative;
+}
+
+.platform-pipeline-step::before {
+  content: "";
+  position: absolute;
+  left: -1.35rem;
+  top: 1.15rem;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px #111820;
+}
+
+.platform-pipeline-marker {
+  display: none;
+}
+
+.platform-pipeline-body strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.platform-pipeline-body p {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.platform-agents {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.75rem;
+}
+
+.platform-agent-card {
+  margin: 0;
+}
+
+.platform-agent-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.platform-agent-role {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+.platform-agent-when {
+  margin-top: 0.65rem;
+  font-size: 0.78rem;
+}
+
+.platform-deliverables {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.65rem;
+}
+
+.platform-deliverable {
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #111820;
+}
+
+.platform-deliverable strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.88rem;
+}
+
+.platform-deliverable p {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.deliverable-done {
+  border-color: #2d5a3d;
+  background: rgba(46, 125, 70, 0.08);
+}
+
+.parcel-deliverables {
+  margin-bottom: 1.25rem;
+}
+
+.platform-automation-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.platform-automation-list li {
+  margin-bottom: 0.35rem;
+}
+
+.platform-cta {
+  text-align: center;
+  border-color: #2a4060;
+  background: linear-gradient(180deg, #152238 0%, #111820 100%);
+}
+
+.platform-cta h2 {
+  margin-top: 0;
+}
+
+.platform-cta-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.partner-banner {
+  margin-bottom: 1.25rem;
+  border-left: 3px solid var(--accent);
+}
+
+.brief-details summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 0.88rem;
+  margin-bottom: 0.5rem;
+}
+
+.brief-details .json {
+  margin-top: 0.5rem;
+}
