@@ -51,6 +51,18 @@ GitHub Actions → **Droplet resources**:
 - `baltimore_ingest_now` — city ingest only (20k cap)
 - Do **not** use county ingest until county is re-enabled in `geo_markets.yaml`
 
+## Zoning (Maryland — Article 32)
+
+Parcel ingest from EGIS sets **APN + county FIPS** only. Entitlement scoring needs a **zoning district** on each row:
+
+1. **Rules file:** `data/zoning/md/baltimore_city_surface_parking_rules.yaml` (merged with WA rules at ingest).
+2. **GIS layer:** [CityView/Zoning_New](https://geodata.baltimorecity.gov/egis/rest/services/CityView/Zoning_New/MapServer/0) — export with `scripts/fetch_baltimore_zoning_districts.py`.
+3. **Phase B:** `scripts/build_baltimore_zoning_overlay.py` → `data/baltimore/baltimore_city_zoning_overlay.geojson` → merge (see `docs/zoning-sources-baltimore.md`). On Droplet: GitHub Action **baltimore_zoning_overlay**.
+4. **Jurisdiction:** `ZONING_JURISDICTION=baltimore_city` or auto-infer from FIPS `24510`.
+5. **Counsel:** Table 10-301 — **CB** (conditional) districts are scored as **not allowed** unless you set `ZONING_ALLOWS_SURFACE_PARKING` on the overlay.
+
+Until Phase B completes, Baltimore parcels score **0** on the zoning weight (`default_when_unknown: false`).
+
 ## Washington pacing
 
 `config/wa_statewide_rollout.yaml` — `min_days_between_counties: 7`, reduced caps. WaTech county list is **WA-only** (FIPS `53*`).

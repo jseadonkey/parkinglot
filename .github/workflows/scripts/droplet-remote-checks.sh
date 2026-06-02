@@ -892,6 +892,54 @@ PY
       echo "INTERNAL_API_KEY not set"
     fi
     ;;
+  baltimore-zoning-overlay)
+    echo "=== Baltimore Phase B: fetch parcels + zoning, build overlay, merge ==="
+    mkdir -p data/baltimore
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    PARCELS="data/baltimore/baltimore_city_parcels.geojson"
+    ZONING="data/baltimore/baltimore_city_zoning_districts.geojson"
+    OVERLAY="data/baltimore/baltimore_city_zoning_overlay.geojson"
+    WORKER_OVERLAY="/app/data/baltimore/baltimore_city_zoning_overlay.geojson"
+
+    echo "=== fetch Baltimore City parcels (20k cap) ==="
+    python3 scripts/fetch_baltimore_city_parcels.py -o "$PARCELS" --max-features 20000
+    echo "=== fetch Baltimore City zoning districts ==="
+    python3 scripts/fetch_baltimore_zoning_districts.py -o "$ZONING"
+
+    echo "=== spatial join (worker container) ==="
+    if docker compose -f "$COMPOSE_REL" --env-file deploy/.env ps -q worker 2>/dev/null | grep -q .; then
+      docker compose -f "$COMPOSE_REL" --env-file deploy/.env exec -T worker \
+        python3 /app/scripts/build_baltimore_zoning_overlay.py \
+          --parcels "/app/${PARCELS}" \
+          --zoning "/app/${ZONING}" \
+          -o "$WORKER_OVERLAY" \
+        || { echo "worker overlay build failed; trying host python3"; python3 scripts/build_baltimore_zoning_overlay.py; }
+    else
+      python3 scripts/build_baltimore_zoning_overlay.py \
+        --parcels "$PARCELS" --zoning "$ZONING" -o "$OVERLAY"
+    fi
+
+    if [ ! -f "$OVERLAY" ]; then
+      echo "FAIL: overlay not found at $OVERLAY" >&2
+      exit 1
+    fi
+
+    echo "=== validate overlay (dry-run) ==="
+    PHASE_B_OVERLAY_PATH="$OVERLAY" python3 scripts/validate_phase_b_overlay.py "$OVERLAY" || true
+
+    if [ -n "$KEY" ]; then
+      echo "=== POST merge-geojson-attributes ==="
+      _internal_api_post_via_container "/internal/ingest/merge-geojson-attributes" \
+        "{\"path\":\"${WORKER_OVERLAY}\",\"refresh_pipeline\":true,\"max_pipeline\":200}" \
+        || _internal_api_post "/internal/ingest/merge-geojson-attributes" \
+          "{\"path\":\"${WORKER_OVERLAY}\",\"refresh_pipeline\":true,\"max_pipeline\":200}" \
+          || echo "merge failed"
+      echo "=== enqueue priority pipeline (Baltimore) ==="
+      _internal_api_post "/internal/pipeline/enqueue-priority?limit=75" || true
+    else
+      echo "INTERNAL_API_KEY not set — overlay built at ${OVERLAY}; merge skipped"
+    fi
+    ;;
   pilot-scope-snapshot)
     echo "=== GET /internal/stats/pilot-scope ==="
     if [ -n "$KEY" ]; then

@@ -1,0 +1,76 @@
+# Baltimore City — principal-use surface parking (Article 32, Table 10-301).
+# NOT LEGAL ADVICE — pilot placeholders until counsel maps every district code from GIS + ordinance.
+# Symbol key in use tables: P = permitted, CB = conditional (BMZA), blank = not listed.
+# Scoring treats CB as not allowed (conservative); overlay may set ZONING_ALLOWS_SURFACE_PARKING explicitly.
+
+version: 1
+default_when_unknown: false
+
+jurisdictions:
+  baltimore_city:
+    ordinance_ref: "https://codes.baltimorecity.gov/us/md/cities/baltimore/code/32/zoning-tables/10-301"
+    source_url: "https://geodata.baltimorecity.gov/egis/rest/services/CityView/Zoning_New/MapServer/0"
+    note: "Parking Lot (Principal Use) row — verify each district with counsel before outreach."
+
+    zones:
+      # Commercial — Table 10-301: Parking Lot (Principal Use) is CB in C-1..C-4; P in C-5 (verify full table).
+      "C-1":
+        allows_surface_parking: false
+        note: "Principal parking lot is CB (BMZA) — not scored as outright permitted."
+      "C-1-VC":
+        allows_surface_parking: false
+        note: "CB for principal parking lot."
+      "C-1-E":
+        allows_surface_parking: false
+        note: "CB for principal parking lot."
+      "C-2":
+        allows_surface_parking: false
+        note: "CB for principal parking lot."
+      "C-3":
+        allows_surface_parking: false
+        note: "CB for principal parking lot."
+      "C-4":
+        allows_surface_parking: false
+        note: "CB for principal parking lot."
+      "C-5":
+        allows_surface_parking: true
+        note: "Table 10-301 shows P for principal parking lot in C-5 — verify § 14-331 standards."
+
+      # Residential — principal surface parking lots generally not permitted by right.
+      "R-1":
+        allows_surface_parking: false
+      "R-1A":
+        allows_surface_parking: false
+      "R-2":
+        allows_surface_parking: false
+      "R-3":
+        allows_surface_parking: false
+      "R-4":
+        allows_surface_parking: false
+      "R-5":
+        allows_surface_parking: false
+      "R-6":
+        allows_surface_parking: false
+      "R-7":
+        allows_surface_parking: false
+      "R-8":
+        allows_surface_parking: false
+      "R-9":
+        allows_surface_parking: false
+      "R-10":
+        allows_surface_parking: false
+
+      # Industrial / mixed — curate with GIS labels from CityView layer.
+      "M-1":
+        allows_surface_parking: false
+        note: "Verify industrial parking principal-use row in Article 32 tables."
+      "M-2":
+        allows_surface_parking: false
+      "M-3":
+        allows_surface_parking: false
+
+      # Office / business districts (examples — add codes as they appear on GIS join).
+      "OB":
+        allows_surface_parking: false
+      "BR":
+        allows_surface_parking: false

@@ -57,6 +57,10 @@ on:
         description: "Ingest Baltimore City only (20k cap; county paused) and enqueue priority pipeline"
         type: boolean
         default: false
+      baltimore_zoning_overlay:
+        description: "Phase B: fetch parcels+zoning, build overlay, merge attributes + priority enqueue"
+        type: boolean
+        default: false
       pilot_scope_snapshot:
         description: "Print pilot-scope JSON (MD + WA county parcel counts)"
         type: boolean
@@ -149,6 +153,8 @@ jobs:
             MODE="prioritize-baltimore-market"
           elif [ "${{ inputs.baltimore_markets_ingest }}" = "true" ]; then
             MODE="baltimore-markets-ingest"
+          elif [ "${{ inputs.baltimore_zoning_overlay }}" = "true" ]; then
+            MODE="baltimore-zoning-overlay"
           elif [ "${{ inputs.pilot_scope_snapshot }}" = "true" ]; then
             MODE="pilot-scope-snapshot"
           elif [ "${{ inputs.baltimore_ingest_now }}" = "true" ]; then

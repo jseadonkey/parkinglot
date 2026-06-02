@@ -4,7 +4,7 @@
 
 ## Environment override
 
-- **`ZONING_RULES_PATH`** — absolute or relative path to a YAML file. When unset, the API/worker uses (in order): explicit **`zoning_rules_path`** from app settings, then **`/app/data/zoning/wa/kent_king_surface_parking_rules.yaml`** inside Docker (compose mounts repo `data/` → `/app/data`), then **`data/zoning/wa/kent_king_surface_parking_rules.yaml`** relative to the process working directory.
+- **`ZONING_RULES_PATH`** — comma-separated YAML paths (optional). When unset, ingest **merges** WA + MD defaults if present: `data/zoning/wa/kent_king_surface_parking_rules.yaml` and `data/zoning/md/baltimore_city_surface_parking_rules.yaml` (Docker: `/app/data/zoning/...`). See `data/zoning/md/README.md` for Baltimore.
 
 ## GeoJSON properties for ingest
 
