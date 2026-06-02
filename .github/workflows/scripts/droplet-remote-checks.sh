@@ -920,13 +920,13 @@ PY
     docker compose -f "$COMPOSE_REL" --env-file deploy/.env run --rm --no-deps \
       -v "${ROOT}/services/ingestion:/ingestion-mount:ro" \
       -v "${ROOT}/scripts:/scripts-mount:ro" \
-      -v "${ROOT}/data:/app/data" \
+      -v "${ROOT}/data:/app/data:ro" \
       -e "PYTHONPATH=/ingestion-mount" \
       worker \
       python3 /scripts-mount/build_baltimore_zoning_overlay.py \
         --parcels "/app/${PARCELS}" \
         --zoning "/app/${ZONING}" \
-        -o "/app/${OVERLAY}"
+        -o - > "${ROOT}/${OVERLAY}"
 
     if [ ! -f "$OVERLAY" ]; then
       echo "FAIL: overlay not found at $OVERLAY" >&2

@@ -57,10 +57,15 @@ def main() -> None:
         zoning_fc,
         zoning_field=args.zoning_field,
     )
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(overlay), encoding="utf-8")
     n = len(overlay.get("features", []))
-    print(f"Wrote {n} overlay features to {args.output}")
+    payload = json.dumps(overlay)
+    if str(args.output) == "-":
+        sys.stdout.write(payload)
+        print(f"Wrote {n} overlay features to stdout", file=sys.stderr)
+    else:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(payload, encoding="utf-8")
+        print(f"Wrote {n} overlay features to {args.output}")
     if n == 0:
         print("warning: no features — check parcel APN fields and zoning coverage", file=sys.stderr)
         raise SystemExit(1)
