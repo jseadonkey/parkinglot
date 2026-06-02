@@ -23,3 +23,10 @@ def put_text_object(key: str, body: str, content_type: str = "text/markdown") ->
     s = get_settings()
     client = get_s3_client()
     client.put_object(Bucket=s.storage_bucket, Key=key, Body=body.encode("utf-8"), ContentType=content_type)
+
+
+def get_text_object(key: str) -> str:
+    s = get_settings()
+    client = get_s3_client()
+    resp = client.get_object(Bucket=s.storage_bucket, Key=key)
+    return resp["Body"].read().decode("utf-8")

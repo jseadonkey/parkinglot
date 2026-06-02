@@ -12,6 +12,7 @@ from app.deal_progress import query_deal_progress_board
 from app.export_readiness import export_readiness_summary
 from app.parcel_scored_list import ENTITLEMENT, query_parcels_scored_list
 from app.pilot_scope import pilot_scope_summary
+from app.platform_samples import build_platform_sample_deliverables
 from app.scoring_summary import scoring_summary_stats
 
 
@@ -68,4 +69,5 @@ def build_platform_showcase(db: Session) -> dict[str, Any]:
         "pipeline_by_stage": dp_summary.by_status,
         "pipeline_by_step": dp_summary.by_step,
         "top_parcels": top_parcels,
+        "sample_deliverables": build_platform_sample_deliverables(db),
     }

@@ -2,8 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { bridgeUrl } from "../lib/paths";
+import { platformShowcaseUrl } from "../lib/paths";
 import { countyLine, useCountyNames } from "../lib/useCountyNames";
+
+type SampleDeliverable = {
+  kind: string;
+  title: string;
+  excerpt: string;
+  parcel_apn: string;
+  redacted: boolean;
+};
 
 type Showcase = {
   generated_at: string;
@@ -34,6 +42,7 @@ type Showcase = {
     zoning_code: string | null;
     has_outreach_brief: boolean;
   }>;
+  sample_deliverables?: SampleDeliverable[];
 };
 
 const PIPELINE_STAGES = [
@@ -130,6 +139,19 @@ const AUTOMATION = [
   "PostGIS spatial queries for rate comps and nearby qualified parcels",
 ] as const;
 
+function sampleKindLabel(kind: string): string {
+  switch (kind) {
+    case "deal_memo":
+      return "Deal memo";
+    case "contract_draft":
+      return "Contract draft";
+    case "outreach_email":
+      return "Outreach email";
+    default:
+      return kind.replaceAll("_", " ");
+  }
+}
+
 function fmt(n: number): string {
   return n.toLocaleString();
 }
@@ -150,7 +172,7 @@ export default function PlatformPage() {
       setLoading(true);
       setErr(null);
       try {
-        const res = await fetch(bridgeUrl("internal/stats/platform-showcase"), { cache: "no-store" });
+        const res = await fetch(platformShowcaseUrl(), { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = (await res.json()) as Showcase;
         if (!cancelled) setData(json);
@@ -177,11 +199,23 @@ export default function PlatformPage() {
   return (
     <main className="main-wide platform-page">
       <header className="platform-hero">
-        <p className="platform-eyebrow">Washington parking acquisition</p>
-        <h1>Automated deal intelligence platform</h1>
+        <div className="platform-hero-top">
+          <div>
+            <p className="platform-eyebrow">Washington parking acquisition</p>
+            <h1>Automated deal intelligence platform</h1>
+          </div>
+          <div className="platform-hero-actions no-print">
+            <button type="button" className="outline" onClick={() => window.print()}>
+              Save as PDF
+            </button>
+          </div>
+        </div>
         <p className="platform-lead">
           Three scoring agents, gated enrichment, and full deal packaging — from statewide parcel ingest to
           counsel-approved outreach. Built for institutional partners who need scale without sacrificing control.
+        </p>
+        <p className="muted platform-share no-print">
+          Shareable link — no login required for this page. Owner contact details in samples are redacted.
         </p>
         {updated ? (
           <p className="muted platform-updated">Live metrics · updated {updated}</p>
@@ -318,6 +352,28 @@ export default function PlatformPage() {
               {data.qualified_floors.entitlement}
             </p>
           </section>
+
+          {data.sample_deliverables && data.sample_deliverables.length > 0 ? (
+            <section className="platform-section">
+              <h2>Sample outputs (from real pipeline runs)</h2>
+              <p className="muted section-lead">
+                Excerpts from production deal memos, contract drafts, and outreach email — contact details redacted
+                for partner sharing. Full artifacts available to authorized operators after counsel review.
+              </p>
+              <div className="platform-samples">
+                {data.sample_deliverables.map((s) => (
+                  <article key={s.kind} className="panel platform-sample-card">
+                    <div className="platform-sample-head">
+                      <span className="badge">{sampleKindLabel(s.kind)}</span>
+                      <span className="muted">APN {s.parcel_apn}</span>
+                    </div>
+                    <h3 className="platform-sample-title">{s.title}</h3>
+                    <pre className="platform-sample-body">{s.excerpt}</pre>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           <section className="platform-section">
             <h2>Top-ranked deals (sample)</h2>

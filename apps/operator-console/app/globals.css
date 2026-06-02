@@ -613,6 +613,15 @@ code.owner-key {
   word-break: break-all;
 }
 
+.portfolio-expand {
+  background: rgba(91, 156, 250, 0.04);
+  padding: 0.75rem 1rem !important;
+}
+
+.portfolio-peer-table {
+  margin: 0;
+}
+
 table.data {
   width: 100%;
   border-collapse: collapse;
@@ -812,6 +821,109 @@ select {
   border-radius: 12px;
   border: 1px solid #2a4060;
   background: linear-gradient(145deg, #111820 0%, #152238 45%, #111820 100%);
+}
+
+.platform-hero-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.65rem;
+}
+
+.platform-hero-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.platform-share {
+  margin: 0.65rem 0 0;
+  font-size: 0.78rem;
+}
+
+.platform-samples {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.platform-sample-card {
+  margin: 0;
+}
+
+.platform-sample-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.platform-sample-title {
+  margin: 0 0 0.65rem;
+  font-size: 1rem;
+}
+
+.platform-sample-body {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  max-height: 320px;
+  overflow: auto;
+  padding: 0.85rem 1rem;
+  background: #0a0e12;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+@media print {
+  nav.nav,
+  .no-print,
+  .platform-cta-links {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+    color: #111;
+  }
+
+  .platform-hero,
+  .panel,
+  .platform-metric,
+  .platform-deliverable,
+  .platform-sample-body {
+    border-color: #ccc;
+    background: #fff;
+  }
+
+  .platform-metric-n,
+  .platform-hero h1,
+  .platform-agent-name {
+    color: #111;
+  }
+
+  .muted {
+    color: #444;
+  }
+
+  main {
+    max-width: none;
+    padding: 0;
+  }
+
+  .platform-sample-body {
+    max-height: none;
+    overflow: visible;
+  }
+
+  a {
+    color: #111;
+    text-decoration: none;
+  }
 }
 
 .platform-eyebrow {

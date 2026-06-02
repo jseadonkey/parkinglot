@@ -35,6 +35,7 @@ def test_build_platform_showcase_shape():
         patch("app.platform_showcase.export_readiness_summary", return_value=export),
         patch("app.platform_showcase.query_deal_progress_board", return_value=(dp_summary, [])),
         patch("app.platform_showcase.query_parcels_scored_list", return_value=[]),
+        patch("app.platform_showcase.build_platform_sample_deliverables", return_value=[]),
     ):
         out = build_platform_showcase(db)
 

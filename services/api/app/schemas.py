@@ -382,6 +382,14 @@ class PlatformShowcaseTopParcel(BaseModel):
     has_outreach_brief: bool
 
 
+class PlatformSampleDeliverable(BaseModel):
+    kind: str
+    title: str
+    excerpt: str
+    parcel_apn: str
+    redacted: bool = True
+
+
 class PlatformShowcaseResponse(BaseModel):
     """GET /internal/stats/platform-showcase — partner-facing live platform metrics."""
 
@@ -403,6 +411,7 @@ class PlatformShowcaseResponse(BaseModel):
     pipeline_by_stage: dict[str, int]
     pipeline_by_step: dict[str, int]
     top_parcels: list[PlatformShowcaseTopParcel]
+    sample_deliverables: list[PlatformSampleDeliverable] = Field(default_factory=list)
 
 
 class PilotCountyScopeRow(BaseModel):
