@@ -187,11 +187,13 @@ def _rationale_line(breakdown: dict[str, Any], *, total: float, floor: float, qu
     lot_sz = float(breakdown.get("lot_size_component") or 0)
     c = float(breakdown.get("corner_component") or 0)
     d = float(breakdown.get("demand_proximity_component") or 0)
+    p = float(breakdown.get("parking_market_component") or 0)
     bits: list[str] = []
     bits.append("zoning" if z > 0 else "no zoning credit")
     bits.append("lot size" if lot_sz > 0 else "lot below min / missing")
     bits.append("corner" if c > 0 else "not corner")
     bits.append("near demand" if d > 0 else "demand distance weak/missing")
+    bits.append(f"parking market +{p:.0f}" if p > 0 else "no parking comp credit")
     notes = breakdown.get("notes") or []
     note_tail = ""
     if notes:

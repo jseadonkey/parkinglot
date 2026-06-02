@@ -2,30 +2,16 @@ from __future__ import annotations
 
 from parking_core.models import ParcelFeature, ScoreBreakdown, ScoreResult
 from parking_core.pilot import ParkingRateCompObservation, PilotConfig
+from parking_core.rate_comps import parking_market_component
 
 
-def _rate_comp_key(comp: ParkingRateCompObservation) -> tuple[str, float, float]:
-    return (comp.name, round(comp.lat, 5), round(comp.lon, 5))
-
-
-def _merge_rate_comp_sequences(
-    primary: list[ParkingRateCompObservation],
-    secondary: list[ParkingRateCompObservation],
-) -> list[ParkingRateCompObservation]:
-    """Merge comp lists; ``primary`` wins on duplicate (name, lat, lon)."""
-    out = list(primary)
-    seen = {_rate_comp_key(c) for c in primary}
-    for comp in secondary:
-        key = _rate_comp_key(comp)
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(comp)
-    return out
-
-
-def score_parcel(feature: ParcelFeature, pilot: PilotConfig) -> ScoreResult:
-    """Deterministic score from parcel features and pilot weights (0–100 scale)."""
+def score_parcel(
+    feature: ParcelFeature,
+    pilot: PilotConfig,
+    *,
+    nearby_rate_comps: list[ParkingRateCompObservation] | None = None,
+) -> ScoreResult:
+    """Deterministic score from parcel features, pilot weights, and optional nearby rate comps."""
     w = pilot.scoring.weights
     notes: list[str] = []
 
@@ -52,17 +38,36 @@ def score_parcel(feature: ParcelFeature, pilot: PilotConfig) -> ScoreResult:
         demand_pts = 0.0
         notes.append("Parcel outside configured demand-generator buffer.")
 
-    total = min(100.0, zoning_pts + lot_pts + corner_pts + demand_pts)
+    comps = nearby_rate_comps or []
+    parking_pts, parking_notes = parking_market_component(comps, pilot)
+    notes.extend(parking_notes)
+
+    total = min(100.0, zoning_pts + lot_pts + corner_pts + demand_pts + parking_pts)
     breakdown = ScoreBreakdown(
         zoning_component=zoning_pts,
         lot_size_component=lot_pts,
         corner_component=corner_pts,
         demand_proximity_component=demand_pts,
+        parking_market_component=parking_pts,
         notes=notes,
     )
-    snapshot = {
+    snapshot: dict = {
         "min_lot_sqft": pilot.scoring.min_lot_sqft,
         "weights": pilot.scoring.weights.model_dump(),
         "buffer_m": pilot.scoring.demand_generator_buffer_m,
     }
+    if comps:
+        max_used = int(getattr(pilot.scoring, "parking_rate_comp_max_used", 8) or 8)
+        used = comps[:max_used]
+        snapshot["parking_rate_comp_count"] = len(used)
+        snapshot["parking_rate_comps_used"] = [
+            {
+                "name": c.name,
+                "hourly_mid_usd": c.hourly_mid_usd,
+                "lat": c.lat,
+                "lon": c.lon,
+                "origin": c.origin,
+            }
+            for c in used
+        ]
     return ScoreResult(total_score=total, breakdown=breakdown, pilot_snapshot=snapshot)

@@ -25,6 +25,7 @@ class ScoreBreakdown(BaseModel):
     lot_size_component: float
     corner_component: float
     demand_proximity_component: float
+    parking_market_component: float = 0.0
     notes: list[str] = Field(default_factory=list)
 
 

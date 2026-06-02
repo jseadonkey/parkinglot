@@ -108,6 +108,7 @@ def test_openapi_lists_required_paths_and_response_models() -> None:
         ("/internal/ingest/merge-geojson-attributes", "post", "CeleryTaskIdResponse"),
         ("/internal/metrics/refresh-demand-distances", "post", "CeleryTaskIdResponse"),
         ("/internal/metrics/refresh-identification-scores", "post", "CeleryTaskIdResponse"),
+        ("/internal/metrics/refresh-rate-comp-scores", "post", "CeleryTaskIdResponse"),
         ("/health", "get", "ServiceStatusResponse"),
         ("/ready", "get", "ServiceStatusResponse"),
         ("/parcels/{parcel_id}/pipeline/run", "post", "ParcelPipelineTaskResponse"),

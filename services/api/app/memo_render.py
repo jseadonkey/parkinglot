@@ -55,6 +55,7 @@ def build_deal_memo_markdown(
             f"- **Lot size component**: {score.breakdown.lot_size_component}",
             f"- **Corner component**: {score.breakdown.corner_component}",
             f"- **Demand proximity component**: {score.breakdown.demand_proximity_component}",
+            f"- **Parking market component**: {score.breakdown.parking_market_component:.1f}",
             "",
             "### Notes",
             "\n".join(f"- {n}" for n in score.breakdown.notes) or "- (none)",

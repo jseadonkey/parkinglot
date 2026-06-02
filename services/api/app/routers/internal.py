@@ -82,6 +82,7 @@ from app.tasks import (
     merge_parcel_attributes_geojson,
     refresh_demand_distances_batch,
     refresh_identification_scores_batch,
+    refresh_pipeline_scores_with_rate_comps_batch,
     site_watchdog_check,
     slack_agent_digest,
     slack_dual_agent_discussion,
@@ -634,6 +635,21 @@ def refresh_identification_scores(
     async_result = refresh_identification_scores_batch.delay(
         limit=limit,
         county_fips=county_fips,
+    )
+    return CeleryTaskIdResponse(task_id=async_result.id)
+
+
+@router.post("/metrics/refresh-rate-comp-scores", response_model=CeleryTaskIdResponse)
+def refresh_rate_comp_scores(
+    limit: int = 500,
+    county_fips: str | None = None,
+    min_entitlement_score: float | None = None,
+) -> CeleryTaskIdResponse:
+    """Recompute Atlas/Beacon scores using multiple nearby paid parking comps (Celery)."""
+    async_result = refresh_pipeline_scores_with_rate_comps_batch.delay(
+        limit=limit,
+        county_fips=county_fips,
+        min_entitlement_score=min_entitlement_score,
     )
     return CeleryTaskIdResponse(task_id=async_result.id)
 

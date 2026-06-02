@@ -70,11 +70,15 @@ scoring:
   min_lot_sqft: 4000
   qualified_min_score: 52
   weights:
-    zoning_permitted_surface_parking: 25
-    lot_size: 20
-    corner_lot: 15
-    near_demand_generator_m: 40
+    zoning_permitted_surface_parking: 22
+    lot_size: 18
+    corner_lot: 13
+    near_demand_generator_m: 35
+    near_paid_parking_comps: 12
   demand_generator_buffer_m: 500
+  parking_rate_comp_radius_m: 2500
+  parking_rate_comp_min_for_full_credit: 2
+  parking_rate_comp_max_used: 8
   demand_generators:
     - name: "Seattle downtown (illustrative)"
       lat: 47.6062

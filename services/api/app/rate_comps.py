@@ -5,7 +5,8 @@ from sqlalchemy import cast, func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import ParkingRateComp
-from parking_core.pilot import ParkingRateCompObservation
+from parking_core.pilot import ParkingRateCompObservation, PilotConfig
+from parking_core.rate_comps import filter_comps_within_radius, merge_rate_comp_sequences
 
 
 def fetch_parking_rate_comps_near(
@@ -14,9 +15,14 @@ def fetch_parking_rate_comps_near(
     lat: float,
     lon: float,
     radius_m: float,
+    limit: int = 8,
 ) -> list[ParkingRateCompObservation]:
-    """Active comps whose point is within ``radius_m`` (meters) of ``(lat, lon)`` using geography."""
+    """Active comps within ``radius_m``, nearest first (up to ``limit``)."""
     pt = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326)
+    dist_m = func.ST_Distance(
+        cast(ParkingRateComp.location, Geography),
+        cast(pt, Geography),
+    ).label("distance_m")
     stmt = (
         select(
             ParkingRateComp.name,
@@ -24,6 +30,7 @@ def fetch_parking_rate_comps_near(
             ParkingRateComp.source_note,
             func.ST_Y(ParkingRateComp.location).label("lat"),
             func.ST_X(ParkingRateComp.location).label("lon"),
+            dist_m,
         )
         .where(ParkingRateComp.active.is_(True))
         .where(
@@ -33,6 +40,8 @@ def fetch_parking_rate_comps_near(
                 radius_m,
             ),
         )
+        .order_by(dist_m)
+        .limit(max(1, limit))
     )
     out: list[ParkingRateCompObservation] = []
     for row in db.execute(stmt):
@@ -47,3 +56,24 @@ def fetch_parking_rate_comps_near(
             ),
         )
     return out
+
+
+def merged_rate_comps_near(
+    db: Session,
+    *,
+    lat: float,
+    lon: float,
+    pilot: PilotConfig,
+) -> list[ParkingRateCompObservation]:
+    """Postgres comps (nearest first) merged with YAML comps within radius."""
+    radius = float(pilot.scoring.parking_rate_comp_radius_m or 2500.0)
+    max_used = int(getattr(pilot.scoring, "parking_rate_comp_max_used", 8) or 8)
+    db_comps = fetch_parking_rate_comps_near(db, lat=lat, lon=lon, radius_m=radius, limit=max_used)
+    yaml_near = filter_comps_within_radius(
+        list(pilot.scoring.parking_rate_comps or []),
+        lat=lat,
+        lon=lon,
+        radius_m=radius,
+    )
+    merged = merge_rate_comp_sequences(db_comps, yaml_near)
+    return merged[:max_used]

@@ -33,6 +33,7 @@ class ScoringWeights(BaseModel):
     lot_size: int = 20
     corner_lot: int = 10
     near_demand_generator_m: int = 30
+    near_paid_parking_comps: int = 0
 
 
 class ParkingRateCompObservation(BaseModel):
@@ -56,6 +57,8 @@ class ScoringConfig(BaseModel):
     # Optional static comps in YAML; merged with DB comps at score time when wired.
     parking_rate_comps: list[ParkingRateCompObservation] = Field(default_factory=list)
     parking_rate_comp_radius_m: float = 2500.0
+    parking_rate_comp_min_for_full_credit: int = 2
+    parking_rate_comp_max_used: int = 8
 
 
 class DataSourcesConfig(BaseModel):

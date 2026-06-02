@@ -69,18 +69,21 @@ scoring:
   # Used as the default floor in GET /parcels?qualified_only=true (override with min_score=).
   qualified_min_score: 55
   weights:
-    zoning_permitted_surface_parking: 40
-    lot_size: 20
-    corner_lot: 10
-    near_demand_generator_m: 30
+    zoning_permitted_surface_parking: 35
+    lot_size: 18
+    corner_lot: 8
+    near_demand_generator_m: 24
+    near_paid_parking_comps: 15
   demand_generator_buffer_m: 400
-  # Lat/lon POIs for “near demand” scoring (meters via great-circle). Replace with your submarkets.
+  parking_rate_comp_radius_m: 2500
+  parking_rate_comp_min_for_full_credit: 2
+  parking_rate_comp_max_used: 8
+  # Lat/lon POIs for “near demand” scoring
   demand_generators:
     - name: "Seattle downtown (illustrative)"
       lat: 47.6062
       lon: -122.3321
-  # Illustrative paid-parking benchmarks (merged with DB ``parking_rate_comps`` at deal-context time).
-  parking_rate_comp_radius_m: 2500
+  # Illustrative paid-parking benchmarks (merged with DB ``parking_rate_comps`` at score + deal-context time).
   parking_rate_comps:
     - name: "Downtown Seattle garage (illustrative)"
       lat: 47.6062

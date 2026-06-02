@@ -69,6 +69,10 @@ on:
         description: "Enqueue up to 75 top-entitlement pipeline jobs now"
         type: boolean
         default: false
+      refresh_rate_comp_scores:
+        description: "Re-score qualified King County parcels with nearby paid parking comps"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -129,6 +133,8 @@ jobs:
             MODE="seed-king-rate-comps"
           elif [ "${{ inputs.enqueue_priority_now }}" = "true" ]; then
             MODE="enqueue-priority-now"
+          elif [ "${{ inputs.refresh_rate_comp_scores }}" = "true" ]; then
+            MODE="refresh-rate-comp-scores"
           fi
           ENQUEUE_LIMIT="${{ inputs.enqueue_limit || '50' }}"
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \

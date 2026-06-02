@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from parking_core.models import ParcelFeature
-from parking_core.pilot import load_pilot_config
+from parking_core.pilot import ParkingRateCompObservation, load_pilot_config
 from parking_enrichment.owner_outreach_agent import build_owner_outreach_brief
 from parking_enrichment.pipeline import enrich_from_parcel_row
 from parking_ingestion.geojson_loader import iter_parcels_from_geojson_dict, load_geojson_path
@@ -58,10 +58,30 @@ def test_sample_geojson_scores_and_qualification(pilot) -> None:
         by_apn[apn] = result.total_score
         qualified[apn] = result.total_score >= floor
 
-    assert by_apn["WA-KING-SAMPLE-001"] == 100.0
+    assert by_apn["WA-KING-SAMPLE-001"] == 85.0
     assert qualified["WA-KING-SAMPLE-001"] is True
     assert by_apn["WA-KING-SAMPLE-002"] == 0.0
     assert qualified["WA-KING-SAMPLE-002"] is False
+
+
+def test_sample_parcel_full_score_with_two_nearby_comps(pilot) -> None:
+    """Two+ paid parking comps within radius add the parking market component (up to cap)."""
+    feat = ParcelFeature(
+        apn="WA-KING-SAMPLE-001",
+        county_fips="53033",
+        lot_sqft=14000.0,
+        zoning_code="Downtown Commercial (example)",
+        zoning_allows_surface_parking=True,
+        is_corner_lot=True,
+        distance_to_nearest_demand_m=180.0,
+    )
+    comps = [
+        ParkingRateCompObservation(name="Garage A", lat=47.6062, lon=-122.3321, hourly_mid_usd=12.0),
+        ParkingRateCompObservation(name="Surface B", lat=47.6253, lon=-122.3222, hourly_mid_usd=9.5),
+    ]
+    result = score_parcel(feat, pilot, nearby_rate_comps=comps)
+    assert result.breakdown.parking_market_component == 15.0
+    assert result.total_score == 100.0
 
 
 def test_sample_enrichment_and_outreach_brief(sample_data: dict) -> None:

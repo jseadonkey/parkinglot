@@ -8,7 +8,7 @@ from typing import Any
 
 from geoalchemy2.elements import WKTElement
 from shapely.geometry import MultiPolygon, Polygon
-from sqlalchemy import and_, delete, exists, func, select
+from sqlalchemy import and_, delete, desc, exists, func, select
 from sqlalchemy.orm import Session
 
 from app.approvals_util import queue_approval
@@ -26,6 +26,7 @@ from app.exploration_campaign import (
 from app.memo_render import build_deal_memo_markdown
 from app.outreach_contacts import sync_contact_points_from_brief
 from app.owner_portfolio import count_qualified_peer_parcels
+from app.parcel_deal_context import parcel_centroid_lat_lon, rate_comps_for_parcel
 from app.pipeline_funnel import (
     entitlement_qualified_floor,
     filter_prescreen_qualified_ids,
@@ -55,8 +56,8 @@ from app.wa_statewide_rollout import (
     next_county_to_ingest,
     parking_queue_depth,
 )
-from parking_core.models import OwnerCandidate, ParcelFeature
-from parking_core.pilot import load_pilot_config
+from parking_core.models import OwnerCandidate, ParcelFeature, ScoreResult
+from parking_core.pilot import PilotConfig, load_pilot_config
 from parking_enrichment.owner_normalize import scoped_owner_key
 from parking_enrichment.owner_outreach_agent import build_owner_outreach_brief
 from parking_enrichment.pipeline import enrich_from_parcel_row
@@ -255,11 +256,8 @@ def _write_slack_digest_audit(
         audit_db.close()
 
 
-def _upsert_identification_score(db: Session, parcel: Parcel) -> None:
-    """Persist ingest-time prescreen score (``identification`` profile)."""
-    settings = get_settings()
-    pilot_id = load_pilot_config(settings.pilot_identification_config_path)
-    feature = ParcelFeature(
+def _parcel_feature(parcel: Parcel) -> ParcelFeature:
+    return ParcelFeature(
         apn=parcel.apn,
         county_fips=parcel.county_fips,
         lot_sqft=parcel.lot_sqft,
@@ -268,7 +266,29 @@ def _upsert_identification_score(db: Session, parcel: Parcel) -> None:
         is_corner_lot=parcel.is_corner_lot,
         distance_to_nearest_demand_m=parcel.distance_to_nearest_demand_m,
     )
-    result = score_parcel(feature, pilot_id)
+
+
+def _score_parcel_with_nearby_comps(
+    db: Session,
+    *,
+    parcel: Parcel,
+    pilot: PilotConfig,
+) -> ScoreResult:
+    """Score using merged DB + YAML paid parking comps when parcel has a footprint centroid."""
+    feature = _parcel_feature(parcel)
+    comps = []
+    centroid = parcel_centroid_lat_lon(parcel)
+    if centroid is not None:
+        lat, lon = centroid
+        comps = rate_comps_for_parcel(db, lat=lat, lon=lon, pilot=pilot)
+    return score_parcel(feature, pilot, nearby_rate_comps=comps)
+
+
+def _upsert_identification_score(db: Session, parcel: Parcel) -> None:
+    """Persist ingest-time prescreen score (``identification`` profile)."""
+    settings = get_settings()
+    pilot_id = load_pilot_config(settings.pilot_identification_config_path)
+    result = score_parcel(_parcel_feature(parcel), pilot_id)
     snap = dict(result.pilot_snapshot or {})
     snap["agent_role"] = "identification_prescreen"
     snap["agent_label"] = "Agent Cartographer"
@@ -416,19 +436,10 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
         pilot_ent = load_pilot_config(settings.pilot_config_path)
         pilot_str = load_pilot_config(settings.pilot_strategic_config_path)
 
-        feature = ParcelFeature(
-            apn=parcel.apn,
-            county_fips=parcel.county_fips,
-            lot_sqft=parcel.lot_sqft,
-            zoning_code=parcel.zoning_code,
-            zoning_allows_surface_parking=parcel.zoning_allows_surface_parking,
-            is_corner_lot=parcel.is_corner_lot,
-            distance_to_nearest_demand_m=parcel.distance_to_nearest_demand_m,
-        )
         floor_ent = entitlement_qualified_floor()
         floor_str = strategic_qualified_floor()
 
-        score = score_parcel(feature, pilot_ent)
+        score = _score_parcel_with_nearby_comps(db, parcel=parcel, pilot=pilot_ent)
         _persist_pipeline_score(db, parcel_id=parcel.id, profile=ENTITLEMENT, result=score)
         db.commit()
 
@@ -451,7 +462,7 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
                 strategic_floor=floor_str,
             )
 
-        score_strategic = score_parcel(feature, pilot_str)
+        score_strategic = _score_parcel_with_nearby_comps(db, parcel=parcel, pilot=pilot_str)
         _persist_pipeline_score(db, parcel_id=parcel.id, profile=STRATEGIC, result=score_strategic)
         db.commit()
 
@@ -1140,6 +1151,87 @@ def refresh_demand_distances_batch(
             detail=f"Refreshed demand distance for *{n}* parcel(s)" + (f" in `{cf}`." if cf else "."),
         )
         return {"updated": n, "county_fips": cf or None, "limit": lim}
+    finally:
+        db.close()
+
+
+@celery.task(name="app.tasks.refresh_pipeline_scores_with_rate_comps_batch")
+def refresh_pipeline_scores_with_rate_comps_batch(
+    limit: int = 500,
+    county_fips: str | None = None,
+    min_entitlement_score: float | None = None,
+) -> dict[str, Any]:
+    """Recompute Atlas/Beacon scores with nearby paid parking comps (footprint required)."""
+    settings = get_settings()
+    pilot_ent = load_pilot_config(settings.pilot_config_path)
+    pilot_str = load_pilot_config(settings.pilot_strategic_config_path)
+    floor = (
+        float(min_entitlement_score)
+        if min_entitlement_score is not None
+        else entitlement_qualified_floor()
+    )
+    lim = min(max(limit, 1), 5000)
+    db = _session()
+    n = 0
+    try:
+        ent_agg = (
+            select(
+                ParcelScore.parcel_id.label("pid"),
+                func.max(ParcelScore.created_at).label("mx"),
+            )
+            .where(ParcelScore.score_profile == ENTITLEMENT)
+            .group_by(ParcelScore.parcel_id)
+            .subquery()
+        )
+        ent = (
+            select(ParcelScore.parcel_id, ParcelScore.total_score.label("ent_score"))
+            .join(
+                ent_agg,
+                and_(
+                    ParcelScore.parcel_id == ent_agg.c.pid,
+                    ParcelScore.created_at == ent_agg.c.mx,
+                ),
+            )
+            .where(
+                ParcelScore.score_profile == ENTITLEMENT,
+                ParcelScore.total_score >= floor,
+            )
+            .subquery()
+        )
+        stmt = (
+            select(Parcel, ent.c.ent_score)
+            .join(ent, Parcel.id == ent.c.parcel_id)
+            .where(Parcel.footprint.isnot(None))
+            .order_by(desc(ent.c.ent_score))
+            .limit(lim)
+        )
+        cf = (county_fips or "").strip()
+        if cf:
+            stmt = stmt.where(Parcel.county_fips == cf)
+        for parcel, _prev in db.execute(stmt):
+            score_ent = _score_parcel_with_nearby_comps(db, parcel=parcel, pilot=pilot_ent)
+            _persist_pipeline_score(db, parcel_id=parcel.id, profile=ENTITLEMENT, result=score_ent)
+            score_str = _score_parcel_with_nearby_comps(db, parcel=parcel, pilot=pilot_str)
+            _persist_pipeline_score(db, parcel_id=parcel.id, profile=STRATEGIC, result=score_str)
+            n += 1
+            if n % 100 == 0:
+                db.commit()
+        db.commit()
+        post_agent_event_to_slack(
+            settings,
+            agent="Atlas (rate-comp score refresh)",
+            detail=(
+                f"Re-scored *{n}* parcel(s) with nearby paid parking comps"
+                + (f" in `{cf}`" if cf else "")
+                + f" (entitlement ≥ *{floor:.0f}*)."
+            ),
+        )
+        return {
+            "updated": n,
+            "county_fips": cf or None,
+            "limit": lim,
+            "min_entitlement_score": floor,
+        }
     finally:
         db.close()
 

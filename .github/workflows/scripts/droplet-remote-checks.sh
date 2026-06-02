@@ -839,6 +839,17 @@ PY
       echo "INTERNAL_API_KEY not set"
     fi
     ;;
+  refresh-rate-comp-scores)
+    LIMIT="${REFRESH_RATE_COMP_LIMIT:-500}"
+    COUNTY="${REFRESH_RATE_COMP_COUNTY:-53033}"
+    echo "=== POST /internal/metrics/refresh-rate-comp-scores?limit=${LIMIT}&county_fips=${COUNTY} ==="
+    if [ -n "$KEY" ]; then
+      _internal_api_post "/internal/metrics/refresh-rate-comp-scores?limit=${LIMIT}&county_fips=${COUNTY}" \
+        || echo "refresh-rate-comp-scores failed"
+    else
+      echo "INTERNAL_API_KEY not set"
+    fi
+    ;;
   fix-hourly-slack-reports)
     echo "=== set hourly Slack digest + site watchdog in deploy/.env ==="
     python3 - <<'PY'

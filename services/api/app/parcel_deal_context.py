@@ -13,10 +13,9 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db.models import Parcel, ParcelScore
-from app.rate_comps import fetch_parking_rate_comps_near
+from app.rate_comps import merged_rate_comps_near
 from app.scoring_profiles import ENTITLEMENT
 from parking_core.pilot import ParkingRateCompObservation, PilotConfig, load_pilot_config
-from parking_scoring.engine import _merge_rate_comp_sequences
 
 
 def parcel_centroid_lat_lon(parcel: Parcel) -> tuple[float, float] | None:
@@ -37,10 +36,7 @@ def rate_comps_for_parcel(
     lon: float,
     pilot: PilotConfig,
 ) -> list[ParkingRateCompObservation]:
-    radius = float(pilot.scoring.parking_rate_comp_radius_m or 2500.0)
-    yaml_comps = list(pilot.scoring.parking_rate_comps or [])
-    db_comps = fetch_parking_rate_comps_near(db, lat=lat, lon=lon, radius_m=radius)
-    return _merge_rate_comp_sequences(db_comps, yaml_comps)
+    return merged_rate_comps_near(db, lat=lat, lon=lon, pilot=pilot)
 
 
 def estimate_parking_revenue(

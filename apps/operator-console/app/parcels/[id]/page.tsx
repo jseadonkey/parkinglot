@@ -40,6 +40,18 @@ type WorkflowRun = {
 type Score = {
   score_profile: string;
   total_score: number;
+  breakdown: {
+    zoning_component?: number;
+    lot_size_component?: number;
+    corner_component?: number;
+    demand_proximity_component?: number;
+    parking_market_component?: number;
+    notes?: string[];
+  };
+  pilot_snapshot?: {
+    parking_rate_comp_count?: number;
+    parking_rate_comps_used?: Array<{ name: string; hourly_mid_usd: number }>;
+  };
   created_at: string;
 };
 
@@ -302,10 +314,41 @@ export default function ParcelDetailPage() {
           <h2>Scores</h2>
           <div className="panel">
             {score ? (
-              <p>
-                Latest <strong>entitlement</strong>: {score.total_score.toFixed(1)}{" "}
-                <span className="muted">({score.created_at?.slice(0, 19)})</span>
-              </p>
+              <>
+                <p>
+                  Latest <strong>entitlement</strong>: {score.total_score.toFixed(1)}{" "}
+                  <span className="muted">({score.created_at?.slice(0, 19)})</span>
+                </p>
+                <div className="row">
+                  <span className="muted">Zoning</span>
+                  <span>{score.breakdown?.zoning_component ?? "—"}</span>
+                </div>
+                <div className="row">
+                  <span className="muted">Lot size</span>
+                  <span>{score.breakdown?.lot_size_component ?? "—"}</span>
+                </div>
+                <div className="row">
+                  <span className="muted">Corner</span>
+                  <span>{score.breakdown?.corner_component ?? "—"}</span>
+                </div>
+                <div className="row">
+                  <span className="muted">Demand proximity</span>
+                  <span>{score.breakdown?.demand_proximity_component ?? "—"}</span>
+                </div>
+                <div className="row">
+                  <span className="muted">Parking market</span>
+                  <span>
+                    {(score.breakdown?.parking_market_component ?? 0).toFixed(1)}
+                    {score.pilot_snapshot?.parking_rate_comp_count != null ? (
+                      <span className="muted">
+                        {" "}
+                        · {score.pilot_snapshot.parking_rate_comp_count} nearby comp
+                        {score.pilot_snapshot.parking_rate_comp_count === 1 ? "" : "s"}
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+              </>
             ) : (
               <p className="muted">{scoreErr ?? "No score loaded."}</p>
             )}
