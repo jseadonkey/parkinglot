@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from parking_core.models import ContactKind, OwnerKind
+from parking_core.models import ContactKind, OwnerKind, VendorLookupSummary
 from parking_enrichment.owner_outreach_agent import build_owner_outreach_brief
 from parking_enrichment.pipeline import enrich_from_parcel_row
 
@@ -43,3 +43,24 @@ def test_build_brief_dedupes_same_email_case_insensitive() -> None:
     )
     emails = [p.value for p in brief.contact_points if p.kind == ContactKind.email]
     assert emails == ["Owner@Example.com", "other@example.com"]
+
+
+def test_build_brief_sets_research_tier_from_vendor_lookup() -> None:
+    props = {"OWNER_NAME": "Example LLC"}
+    owners = enrich_from_parcel_row(props)
+    hit = build_owner_outreach_brief(
+        county_fips="53033",
+        apn="789",
+        raw_properties=props,
+        owners=owners,
+        vendor_lookup=VendorLookupSummary(provider="acme", outcome="hit", contacts=[]),
+    )
+    skipped = build_owner_outreach_brief(
+        county_fips="53033",
+        apn="790",
+        raw_properties=props,
+        owners=owners,
+        vendor_lookup=VendorLookupSummary(provider="acme", outcome="skipped_tier", notes="below floor"),
+    )
+    assert hit.owner_research_tier == "enriched"
+    assert skipped.owner_research_tier == "basic"

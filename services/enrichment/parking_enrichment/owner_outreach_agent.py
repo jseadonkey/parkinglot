@@ -435,10 +435,15 @@ def build_owner_outreach_brief(
             "normalized_owner_key — validate before assuming common control."
         )
 
+    research_tier: str | None = None
+    if vendor_lookup is not None:
+        research_tier = "enriched" if vendor_lookup.outcome == "hit" else "basic"
+
     return OwnerOutreachBrief(
         county_fips=county_fips,
         apn=apn,
         recorded_owner_one_liner=one_liner,
+        owner_research_tier=research_tier,
         contact_points=contact_points,
         mailing_address_guess=_first_of_kind(contact_points, ContactKind.mailing_address),
         situs_address_guess=_first_of_kind(contact_points, ContactKind.situs_address),

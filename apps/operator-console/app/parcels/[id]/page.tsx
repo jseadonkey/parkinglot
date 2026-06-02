@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { bridgeUrl } from "../../../lib/paths";
+import {
+  outcomeBadgeClass,
+  outcomeLabel,
+  parseSkipTraceView,
+  skipTraceRan,
+} from "../../../lib/skipTraceDisplay";
 import { canMutate, useAuth } from "../../../lib/useAuth";
 
 type Parcel = {
@@ -121,6 +127,7 @@ export default function ParcelDetailPage() {
   }, [id]);
 
   const activeDraft = drafts.find((d) => d.channel === draftChannel) ?? drafts[0] ?? null;
+  const skipTrace = useMemo(() => parseSkipTraceView(parcel?.owner_outreach_brief), [parcel?.owner_outreach_brief]);
 
   async function requestApproval(channel: string) {
     if (!allowActions || !id) return;
@@ -224,10 +231,135 @@ export default function ParcelDetailPage() {
             )}
           </div>
 
-          <h2>Owner outreach brief (structured)</h2>
+          <h2>Skip trace &amp; owner lookup</h2>
           <p className="muted">
-            This JSON is what the pipeline recorded for agent-assisted outreach — not a live SMS/email thread. For Atlas /
-            Beacon chat-style logs, check Slack.
+            Licensed vendor skip-trace runs during the enrichment pipeline and is stored on the outreach brief as{" "}
+            <code>vendor_lookup</code>. Assessor-roll contacts come from county ingest only.
+          </p>
+          <div className="panel">
+            {!skipTrace.hasBrief ? (
+              <p className="muted">No outreach brief yet — run the pipeline to record owner research and skip trace.</p>
+            ) : (
+              <>
+                {skipTrace.recordedOwner ? (
+                  <div className="row">
+                    <span className="muted">Recorded owner</span>
+                    <span>{skipTrace.recordedOwner}</span>
+                  </div>
+                ) : null}
+                {skipTrace.researchTier ? (
+                  <div className="row">
+                    <span className="muted">Research tier</span>
+                    <span className="badge">{skipTrace.researchTier}</span>
+                  </div>
+                ) : null}
+                {skipTrace.computedAt ? (
+                  <div className="row">
+                    <span className="muted">Brief computed</span>
+                    <span className="muted">{skipTrace.computedAt.slice(0, 19).replace("T", " ")} UTC</span>
+                  </div>
+                ) : null}
+
+                {skipTrace.vendor ? (
+                  <>
+                    <div className="row">
+                      <span className="muted">Skip trace status</span>
+                      <span>
+                        <span className={`badge ${outcomeBadgeClass(skipTrace.vendor.outcome)}`}>
+                          {skipTraceRan(skipTrace) ? "Completed" : skipTrace.vendor.outcome.replaceAll("_", " ")}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="row">
+                      <span className="muted">Outcome</span>
+                      <span>{outcomeLabel(skipTrace.vendor.outcome)}</span>
+                    </div>
+                    <div className="row">
+                      <span className="muted">Provider</span>
+                      <span>
+                        {skipTrace.vendor.provider}
+                        {skipTrace.vendor.http_status != null ? (
+                          <span className="muted"> · HTTP {skipTrace.vendor.http_status}</span>
+                        ) : null}
+                      </span>
+                    </div>
+                    {skipTrace.vendor.notes ? (
+                      <div className="row">
+                        <span className="muted">Notes</span>
+                        <span>{skipTrace.vendor.notes}</span>
+                      </div>
+                    ) : null}
+                    {skipTrace.vendor.error_detail ? (
+                      <div className="row">
+                        <span className="muted">Error</span>
+                        <span className="error">{skipTrace.vendor.error_detail}</span>
+                      </div>
+                    ) : null}
+
+                    {skipTrace.vendor.contacts.length > 0 ? (
+                      <>
+                        <h3 style={{ marginTop: "1rem", fontSize: "0.95rem" }}>Skip-trace contacts (vendor)</h3>
+                        <table className="data">
+                          <thead>
+                            <tr>
+                              <th>Channel</th>
+                              <th>Value</th>
+                              <th>Label</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {skipTrace.vendor.contacts.map((c, i) => (
+                              <tr key={`${c.channel}-${c.value}-${i}`}>
+                                <td>{c.channel}</td>
+                                <td>{c.value}</td>
+                                <td className="muted">{c.label ?? "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </>
+                    ) : skipTraceRan(skipTrace) ? (
+                      <p className="muted" style={{ marginTop: "0.75rem" }}>
+                        Skip trace completed but the vendor returned no contact rows.
+                      </p>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="muted" style={{ marginTop: "0.5rem" }}>
+                    No <code>vendor_lookup</code> block on this brief — skip trace was not recorded for this parcel.
+                  </p>
+                )}
+
+                {skipTrace.rollContacts.length > 0 ? (
+                  <>
+                    <h3 style={{ marginTop: "1rem", fontSize: "0.95rem" }}>Assessor-roll contacts (ingest)</h3>
+                    <table className="data">
+                      <thead>
+                        <tr>
+                          <th>Kind</th>
+                          <th>Value</th>
+                          <th>Source</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {skipTrace.rollContacts.map((c, i) => (
+                          <tr key={`${c.kind}-${c.value}-${i}`}>
+                            <td>{c.kind}</td>
+                            <td>{c.value}</td>
+                            <td className="muted">{c.source ?? "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                ) : null}
+              </>
+            )}
+          </div>
+
+          <h2>Owner outreach brief (full JSON)</h2>
+          <p className="muted">
+            Complete structured brief from the pipeline. For agent chat logs, check Slack.
           </p>
           <div className="panel">
             {parcel.owner_outreach_brief ? (

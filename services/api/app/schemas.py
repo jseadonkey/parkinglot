@@ -279,6 +279,28 @@ class ScoringSummaryResponse(BaseModel):
     pilot_region: str
 
 
+class PilotCountyScopeRow(BaseModel):
+    county_fips: str
+    county_name: str
+    parcels_in_db: int
+
+
+class PilotScopeResponse(BaseModel):
+    """GET /internal/stats/pilot-scope — geographic pilot boundaries."""
+
+    region_name: str
+    state_fips: str
+    state_name: str
+    primary_metro_cbsa: str | None
+    primary_metro_label: str | None
+    pilot_county_count: int
+    counties_with_ingested_parcels: int
+    parcels_in_pilot_counties: int
+    min_lot_sqft: float
+    qualified_min_score: QualifiedMinScores
+    counties: list[PilotCountyScopeRow]
+
+
 class IngestSampleQueuedResponse(BaseModel):
     """Bundled sample GeoJSON — ingest Celery task queued."""
 

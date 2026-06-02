@@ -16,6 +16,7 @@ from app.db.session import get_db
 from app.deal_progress import query_deal_progress_board
 from app.deps_internal import require_internal_key
 from app.export_readiness import export_readiness_summary
+from app.pilot_scope import pilot_scope_summary
 from app.outreach_board import query_outreach_pipeline_board
 from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
 from app.parcel_scored_list import COMBINED, ParcelSortProfile, query_parcels_scored_list
@@ -43,6 +44,9 @@ from app.schemas import (
     ParcelScoredListResponse,
     ParcelScoredListRow,
     PeerParcelSummary,
+    PilotCountyScopeRow,
+    PilotScopeResponse,
+    QualifiedMinScores,
     ScoringSummaryResponse,
     SlackAgentDiscussionMessagePreview,
     SlackAgentDiscussionPreviewResponse,
@@ -146,6 +150,19 @@ def export_readiness(db: Session = Depends(get_db)) -> ExportReadinessResponse:
     """Null/gap counts for CSV columns and score rows — run before stakeholder exports."""
     raw = export_readiness_summary(db)
     return ExportReadinessResponse(**raw)
+
+
+@router.get("/stats/pilot-scope", response_model=PilotScopeResponse)
+def pilot_scope(db: Session = Depends(get_db)) -> PilotScopeResponse:
+    """Pilot region, in-scope counties, and ingested parcel counts per county."""
+    raw = pilot_scope_summary(db)
+    counties = [PilotCountyScopeRow(**row) for row in raw.pop("counties")]
+    floors = raw.pop("qualified_min_score")
+    return PilotScopeResponse(
+        **raw,
+        qualified_min_score=QualifiedMinScores(**floors),
+        counties=counties,
+    )
 
 
 @router.get("/stats/scoring-summary", response_model=ScoringSummaryResponse)
