@@ -48,8 +48,11 @@ county_fips_priority:
 # Cap WaTech download per run (null = full county). Use a number only for experiments.
 watech_max_features: null
 
+# Wait at least this many days after the last WA county ingest before starting another.
+min_days_between_counties: 7
+
 # After ingest, auto-run pipeline on at most this many parcels (keeps load gradual).
-max_auto_pipeline: 30
+max_auto_pipeline: 15
 
 # Skip starting a new county if parking Celery queue is deeper than this.
-max_parking_queue_depth: 600
+max_parking_queue_depth: 400

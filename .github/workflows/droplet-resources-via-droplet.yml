@@ -45,8 +45,16 @@ on:
         description: "Enable daily WaTech ingest for next empty WA county + restart worker/beat"
         type: boolean
         default: false
+      prioritize_baltimore_market:
+        description: "Baltimore-first: geo_markets.yaml, priority pipeline on, pause WA statewide + kickstart city ingest"
+        type: boolean
+        default: false
+      baltimore_ingest_now:
+        description: "POST /internal/ingest/baltimore-city on the Droplet now"
+        type: boolean
+        default: false
       enable_slow_statewide_expansion:
-        description: "Enable 1 county/day statewide ingest AND keep priority pipeline (recommended)"
+        description: "WA statewide ingest ~1 county/7d + priority pipeline (secondary to Baltimore)"
         type: boolean
         default: false
       wa_rollout_now:
@@ -129,6 +137,10 @@ jobs:
             MODE="fix-hourly-slack-reports"
           elif [ "${{ inputs.enable_wa_statewide_rollout }}" = "true" ]; then
             MODE="enable-wa-statewide-rollout"
+          elif [ "${{ inputs.prioritize_baltimore_market }}" = "true" ]; then
+            MODE="prioritize-baltimore-market"
+          elif [ "${{ inputs.baltimore_ingest_now }}" = "true" ]; then
+            MODE="baltimore-ingest-now"
           elif [ "${{ inputs.enable_slow_statewide_expansion }}" = "true" ]; then
             MODE="enable-slow-statewide-expansion"
           elif [ "${{ inputs.wa_rollout_now }}" = "true" ]; then

@@ -100,6 +100,7 @@ def test_openapi_lists_required_paths_and_response_models() -> None:
         ("/internal/ingest/sample", "post", "IngestSampleQueuedResponse"),
         ("/internal/ingest/geojson-upload", "post", "IngestGeojsonUploadQueuedResponse"),
         ("/internal/ingest/geojson-server-path", "post", "IngestGeojsonPathQueuedResponse"),
+        ("/internal/ingest/baltimore-city", "post", "WaTechCountyQueuedResponse"),
         ("/internal/ingest/watech-county", "post", "WaTechCountyQueuedResponse"),
         ("/internal/ingest/wa-rollout-status", "get", "WaRolloutStatusResponse"),
         ("/internal/ingest/wa-rollout-now", "post", "CeleryTaskIdResponse"),

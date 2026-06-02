@@ -1,0 +1,17 @@
+# Geographic priorities — Baltimore first; Washington statewide ingest stays slow/secondary.
+# Loaded by app.geo_markets (see GEO_MARKETS_CONFIG_PATH).
+
+primary_market:
+  name: "Baltimore, Maryland"
+  state_fips: "24"
+  primary_metro_cbsa: "12580" # Baltimore-Columbia-Towson, MD
+  # Pipeline enqueue and operator UI treat these counties as top priority.
+  priority_county_fips:
+    - "24510" # Baltimore City
+    - "24005" # Baltimore County
+
+# WaTech ingest pacing (also mirrored in config/wa_statewide_rollout.yaml).
+wa_statewide_rollout:
+  min_days_between_counties: 7
+  max_auto_pipeline: 15
+  max_parking_queue_depth: 400

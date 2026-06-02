@@ -3,10 +3,12 @@
 crs: EPSG:4326
 
 region:
-  name: "Washington — statewide pilot"
+  name: "Baltimore MD (priority) + Washington statewide"
   state_fips: "53"
-  # All 39 Washington counties (ANSI place FIPS). Ingest skips parcels outside this list.
+  # Baltimore metro first in pipeline priority; then all 39 Washington counties.
   county_fips:
+    - "24510" # Baltimore City, MD
+    - "24005" # Baltimore County, MD
     - "53001" # Adams
     - "53003" # Asotin
     - "53005" # Benton
@@ -80,11 +82,19 @@ scoring:
   parking_rate_comp_max_used: 8
   # Lat/lon POIs for “near demand” scoring
   demand_generators:
+    - name: "Inner Harbor / downtown Baltimore (illustrative)"
+      lat: 39.2851
+      lon: -76.6105
     - name: "Seattle downtown (illustrative)"
       lat: 47.6062
       lon: -122.3321
   # Illustrative paid-parking benchmarks (merged with DB ``parking_rate_comps`` at score + deal-context time).
   parking_rate_comps:
+    - name: "Downtown Baltimore garage (illustrative)"
+      lat: 39.2904
+      lon: -76.6122
+      hourly_mid_usd: 11.0
+      source_note: "Pilot placeholder — Baltimore priority market"
     - name: "Downtown Seattle garage (illustrative)"
       lat: 47.6062
       lon: -122.3321

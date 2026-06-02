@@ -33,6 +33,7 @@ from app.schemas import (
     EnqueueUnscoredResponse,
     ExportReadinessResponse,
     FullSlackUpdateResponse,
+    IngestBaltimoreCityRequest,
     IngestGeojsonPathQueuedResponse,
     IngestGeojsonServerPathRequest,
     IngestGeojsonUploadQueuedResponse,
@@ -77,6 +78,7 @@ from app.tasks import (
     enqueue_incomplete_pipeline_jobs,
     enqueue_priority_qualified_pipeline_jobs,
     enqueue_unscored_pipeline_jobs,
+    fetch_baltimore_city_and_ingest,
     fetch_watech_county_and_ingest,
     ingest_geojson_path,
     merge_parcel_attributes_geojson,
@@ -523,6 +525,17 @@ def ingest_geojson_server_path(body: IngestGeojsonServerPathRequest) -> IngestGe
         auto_run_pipeline=body.auto_run_pipeline,
         max_auto_pipeline=body.max_auto_pipeline,
     )
+
+
+@router.post("/ingest/baltimore-city", response_model=WaTechCountyQueuedResponse)
+def ingest_baltimore_city(body: IngestBaltimoreCityRequest) -> WaTechCountyQueuedResponse:
+    """Fetch Baltimore City EGIS parcel polygons; enqueue download+ingest on the worker."""
+    async_result = fetch_baltimore_city_and_ingest.delay(
+        max_features=body.max_features,
+        auto_run_pipeline=body.auto_run_pipeline,
+        max_auto_pipeline=body.max_auto_pipeline,
+    )
+    return WaTechCountyQueuedResponse(fetch_task_id=async_result.id)
 
 
 @router.post("/ingest/watech-county", response_model=WaTechCountyQueuedResponse)

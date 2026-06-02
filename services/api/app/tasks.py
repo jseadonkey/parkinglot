@@ -8,7 +8,7 @@ from typing import Any
 
 from geoalchemy2.elements import WKTElement
 from shapely.geometry import MultiPolygon, Polygon
-from sqlalchemy import and_, delete, desc, exists, func, select
+from sqlalchemy import and_, case, delete, desc, exists, func, select
 from sqlalchemy.orm import Session
 
 from app.approvals_util import queue_approval
@@ -23,6 +23,7 @@ from app.exploration_campaign import (
     counties_for_exploration_day,
     load_campaign_config,
 )
+from app.geo_markets import priority_county_fips, wa_rollout_pacing
 from app.memo_render import build_deal_memo_markdown
 from app.outreach_contacts import sync_contact_points_from_brief
 from app.owner_portfolio import count_qualified_peer_parcels
@@ -128,12 +129,17 @@ def enqueue_priority_qualified_pipeline_jobs(limit: int = 75) -> dict[str, Any]:
             )
             .subquery()
         )
+        pri_counties = priority_county_fips()
+        order_cols = [ent.c.ent_score.desc(), ident.c.id_score.desc()]
+        if pri_counties:
+            geo_first = case((Parcel.county_fips.in_(pri_counties), 0), else_=1)
+            order_cols = [geo_first, *order_cols]
         stmt = (
             select(Parcel.id)
             .join(ident, Parcel.id == ident.c.parcel_id)
             .join(ent, Parcel.id == ent.c.parcel_id)
             .where(needs_pipeline_scoring())
-            .order_by(ent.c.ent_score.desc(), ident.c.id_score.desc())
+            .order_by(*order_cols)
             .limit(cap)
         )
         ids = [str(i) for i in db.scalars(stmt)]
@@ -145,6 +151,7 @@ def enqueue_priority_qualified_pipeline_jobs(limit: int = 75) -> dict[str, Any]:
             "mode": "priority_qualified_entitlement_ge_floor",
             "prescreen_floor": floor_i,
             "entitlement_floor": floor_ent,
+            "priority_county_fips": pri_counties,
         }
     finally:
         db.close()
@@ -722,7 +729,9 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
         return {"skipped": True, "reason": "wa_statewide_rollout_disabled"}
 
     rollout = load_rollout_config(settings.wa_statewide_rollout_config_path)
-    max_queue = int(rollout.get("max_parking_queue_depth") or 800)
+    pacing = wa_rollout_pacing()
+    max_queue = int(rollout.get("max_parking_queue_depth") or pacing["max_parking_queue_depth"])
+    min_days = int(rollout.get("min_days_between_counties") or pacing["min_days_between_counties"])
     queue_depth = parking_queue_depth(settings.redis_url)
     if queue_depth > max_queue:
         logger.info(
@@ -739,6 +748,28 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
 
     db = _session()
     try:
+        if min_days > 0:
+            from app.db.models import AuditLog
+
+            last = db.execute(
+                select(AuditLog)
+                .where(AuditLog.action == "wa_statewide_county_ingest")
+                .order_by(AuditLog.created_at.desc())
+                .limit(1)
+            ).scalar_one_or_none()
+            if last is not None and last.created_at is not None:
+                created = last.created_at
+                if created.tzinfo is None:
+                    created = created.replace(tzinfo=UTC)
+                age_days = (datetime.now(UTC) - created).total_seconds() / 86400.0
+                if age_days < float(min_days):
+                    return {
+                        "skipped": True,
+                        "reason": "wa_rollout_cooldown",
+                        "min_days_between_counties": min_days,
+                        "days_since_last_county_ingest": round(age_days, 2),
+                    }
+
         county = next_county_to_ingest(
             db,
             config=rollout,
@@ -754,13 +785,23 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
         else:
             max_features = int(max_feat)
 
-        max_pipe = int(rollout.get("max_auto_pipeline") or 40)
+        max_pipe = int(rollout.get("max_auto_pipeline") or pacing["max_auto_pipeline"])
+        write_audit(
+            db,
+            actor="celery:wa_statewide_rollout",
+            action="wa_statewide_county_ingest",
+            entity_type="county_fips",
+            entity_id=county,
+            meta={"max_auto_pipeline": max_pipe, "parking_queue_depth": queue_depth},
+        )
+        db.commit()
         post_agent_event_to_slack(
             settings,
             agent="Statewide ingest",
             detail=(
                 f"Starting WaTech ingest for county `{county}` "
-                f"(pipeline cap {max_pipe}/parcel batch; queue depth {queue_depth})."
+                f"(pipeline cap {max_pipe}/parcel batch; queue depth {queue_depth}; "
+                f"next county after {min_days}d cooldown)."
             ),
         )
         ar = fetch_watech_county_and_ingest.delay(
@@ -779,6 +820,42 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
         }
     finally:
         db.close()
+
+
+@celery.task(name="app.tasks.fetch_baltimore_city_and_ingest")
+def fetch_baltimore_city_and_ingest(
+    max_features: int | None = 5000,
+    auto_run_pipeline: bool = True,
+    max_auto_pipeline: int = 100,
+) -> dict[str, Any]:
+    """Download Baltimore City EGIS parcels; write temp GeoJSON; enqueue ``ingest_geojson_path``."""
+    import json
+    import tempfile
+
+    from parking_ingestion.baltimore_parcels import BALTIMORE_CITY_COUNTY_FIPS, fetch_baltimore_city_geojson
+
+    collection = fetch_baltimore_city_geojson(max_features=max_features)
+    nfeat = len(collection.get("features", []))
+    if nfeat == 0:
+        return {"skipped": True, "reason": "no_features", "county_fips": BALTIMORE_CITY_COUNTY_FIPS}
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".geojson", delete=False) as tmp:
+        json.dump(collection, tmp)
+        path = tmp.name
+
+    ar = ingest_geojson_path.delay(
+        path,
+        default_county_fips=BALTIMORE_CITY_COUNTY_FIPS,
+        delete_after=True,
+        auto_run_pipeline=auto_run_pipeline,
+        max_auto_pipeline=max_auto_pipeline,
+    )
+    return {
+        "county_fips": BALTIMORE_CITY_COUNTY_FIPS,
+        "features": nfeat,
+        "ingest_task_id": ar.id,
+        "geojson_path": path,
+    }
 
 
 @celery.task(name="app.tasks.fetch_watech_county_and_ingest")

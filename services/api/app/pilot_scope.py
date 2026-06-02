@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db.models import Parcel
+from app.geo_markets import primary_market_summary, priority_county_fips
 from parking_core.pilot import load_pilot_config
 
 # ANSI county FIPS → display name (Washington state = 53).
@@ -56,11 +57,20 @@ WA_COUNTY_NAMES: dict[str, str] = {
 
 CBSA_LABELS: dict[str, str] = {
     "42660": "Seattle-Tacoma-Bellevue, WA",
+    "12580": "Baltimore-Columbia-Towson, MD",
 }
 
 STATE_FIPS_NAMES: dict[str, str] = {
     "53": "Washington",
+    "24": "Maryland",
 }
+
+MD_COUNTY_NAMES: dict[str, str] = {
+    "24510": "Baltimore City",
+    "24005": "Baltimore County",
+}
+
+COUNTY_DISPLAY_NAMES: dict[str, str] = {**WA_COUNTY_NAMES, **MD_COUNTY_NAMES}
 
 
 def pilot_scope_summary(db: Session) -> dict[str, Any]:
@@ -82,11 +92,13 @@ def pilot_scope_summary(db: Session) -> dict[str, Any]:
     ):
         counts_by_fips[str(fips)] = int(cnt or 0)
 
+    pri = set(priority_county_fips())
     counties = [
         {
             "county_fips": fips,
-            "county_name": WA_COUNTY_NAMES.get(fips, fips),
+            "county_name": COUNTY_DISPLAY_NAMES.get(fips, fips),
             "parcels_in_db": counts_by_fips.get(fips, 0),
+            "priority_market": fips in pri,
         }
         for fips in pilot_fips
     ]
@@ -94,10 +106,17 @@ def pilot_scope_summary(db: Session) -> dict[str, Any]:
     total_in_scope = sum(c["parcels_in_db"] for c in counties)
 
     cbsa = (region.primary_metro_cbsa or "").strip() or None
+    primary = primary_market_summary()
+    pri_fips = primary["priority_county_fips"]
+    parcels_priority = sum(counts_by_fips.get(f, 0) for f in pri_fips)
     return {
         "region_name": region.name,
         "state_fips": state_fips,
         "state_name": STATE_FIPS_NAMES.get(state_fips, state_fips or "Unknown"),
+        "primary_market_name": primary["name"],
+        "primary_market_state_fips": primary["state_fips"],
+        "priority_county_fips": pri_fips,
+        "parcels_in_priority_counties": parcels_priority,
         "primary_metro_cbsa": cbsa,
         "primary_metro_label": CBSA_LABELS.get(cbsa or "", cbsa),
         "pilot_county_count": len(pilot_fips),

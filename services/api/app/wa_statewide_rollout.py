@@ -22,11 +22,14 @@ def load_rollout_config(path: str | Path) -> dict[str, Any]:
 
 
 def county_priority_list(config: dict[str, Any], *, pilot_config_path: str) -> list[str]:
+    """WA-only counties for WaTech ingest (state FIPS 53 — excludes Baltimore MD)."""
     raw = config.get("county_fips_priority")
     if isinstance(raw, list) and raw:
-        return [str(f).strip() for f in raw if str(f).strip()]
-    pilot = load_pilot_config(pilot_config_path)
-    return sorted(str(f).strip() for f in (pilot.region.county_fips or []) if str(f).strip())
+        fips_list = [str(f).strip() for f in raw if str(f).strip()]
+    else:
+        pilot = load_pilot_config(pilot_config_path)
+        fips_list = sorted(str(f).strip() for f in (pilot.region.county_fips or []) if str(f).strip())
+    return [f for f in fips_list if f.startswith("53")]
 
 
 def parcel_counts_by_county(db: Session, county_fips: list[str]) -> dict[str, int]:

@@ -1,11 +1,11 @@
-/** Static pilot geography from config/pilot.yaml — shown instantly while counts load. */
+/** Static pilot geography — shown instantly while counts load (Baltimore-first). */
 
 export const PILOT_SCOPE_DEFAULTS = {
-  region_name: "Washington — statewide pilot",
-  state_fips: "53",
-  state_name: "Washington",
-  primary_metro_label: "Seattle-Tacoma-Bellevue, WA",
-  pilot_county_count: 39,
+  region_name: "Baltimore + Washington pilot",
+  state_fips: "24",
+  state_name: "Maryland",
+  primary_metro_label: "Baltimore-Columbia-Towson, MD",
+  pilot_county_count: 41,
   min_lot_sqft: 5000,
   qualified_min_entitlement: 55,
 } as const;

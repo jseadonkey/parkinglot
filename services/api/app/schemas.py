@@ -125,6 +125,19 @@ class WorkflowRunRead(BaseModel):
     updated_at: datetime
 
 
+class IngestBaltimoreCityRequest(BaseModel):
+    """Fetch Baltimore City EGIS parcels (Maryland), then enqueue ingest (Celery worker)."""
+
+    max_features: int | None = Field(
+        default=5000,
+        ge=1,
+        le=750000,
+        description="Cap returned parcels per job.",
+    )
+    auto_run_pipeline: bool = True
+    max_auto_pipeline: int = Field(default=100, ge=1, le=5000)
+
+
 class IngestWatechCountyRequest(BaseModel):
     """Fetch WaTech statewide ArcGIS parcels for one county, then enqueue ingest (Celery worker)."""
 
@@ -418,6 +431,7 @@ class PilotCountyScopeRow(BaseModel):
     county_fips: str
     county_name: str
     parcels_in_db: int
+    priority_market: bool = False
 
 
 class PilotScopeResponse(BaseModel):
@@ -426,6 +440,10 @@ class PilotScopeResponse(BaseModel):
     region_name: str
     state_fips: str
     state_name: str
+    primary_market_name: str = "Baltimore, Maryland"
+    primary_market_state_fips: str = "24"
+    priority_county_fips: list[str] = Field(default_factory=list)
+    parcels_in_priority_counties: int = 0
     primary_metro_cbsa: str | None
     primary_metro_label: str | None
     pilot_county_count: int

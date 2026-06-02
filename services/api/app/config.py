@@ -312,6 +312,13 @@ class Settings(BaseSettings):
             "wa_statewide_rollout_config_path",
         ),
     )
+    geo_markets_config_path: str = Field(
+        default="/app/config/geo_markets.yaml",
+        validation_alias=AliasChoices(
+            "GEO_MARKETS_CONFIG_PATH",
+            "geo_markets_config_path",
+        ),
+    )
     wa_statewide_rollout_crontab_hour: int = Field(
         default=7,
         ge=0,

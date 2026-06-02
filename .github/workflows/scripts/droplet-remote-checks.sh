@@ -70,13 +70,14 @@ PY
 
 _internal_api_post() {
   local path="$1"
+  local payload="${2:-{}}"
   local body=""
   if [ -n "$KEY" ]; then
     body="$(curl -sSk --connect-timeout 15 --max-time 60 -X POST "${BASE}${path}" \
-      -H "Content-Type: application/json" -H "X-Internal-Key: $KEY" -d '{}' 2>/dev/null || true)"
+      -H "Content-Type: application/json" -H "X-Internal-Key: $KEY" -d "$payload" 2>/dev/null || true)"
   else
     body="$(curl -sSk --connect-timeout 15 --max-time 60 -X POST "${BASE}${path}" \
-      -H "Content-Type: application/json" -d '{}' 2>/dev/null || true)"
+      -H "Content-Type: application/json" -d "$payload" 2>/dev/null || true)"
   fi
   if [ -n "$body" ]; then
     printf '%s' "$body"
@@ -87,17 +88,19 @@ _internal_api_post() {
   if ! docker compose -f "$compose_rel" --env-file deploy/.env ps -q api 2>/dev/null | grep -q .; then
     return 0
   fi
-  docker compose -f "$compose_rel" --env-file deploy/.env exec -T -e "API_PATH=$path" api python - <<'PY'
+  docker compose -f "$compose_rel" --env-file deploy/.env exec -T \
+    -e "API_PATH=$path" -e "API_PAYLOAD=$payload" api python - <<'PY'
 import os
 import urllib.error
 import urllib.request
 
 path = os.environ["API_PATH"]
+payload = (os.environ.get("API_PAYLOAD") or "{}").encode("utf-8")
 headers = {"Accept": "application/json", "Content-Type": "application/json"}
 key = (os.environ.get("INTERNAL_API_KEY") or "").strip()
 if key:
     headers["X-Internal-Key"] = key
-req = urllib.request.Request(f"http://127.0.0.1:8000{path}", data=b"{}", method="POST", headers=headers)
+req = urllib.request.Request(f"http://127.0.0.1:8000{path}", data=payload, method="POST", headers=headers)
 try:
     with urllib.request.urlopen(req, timeout=60) as resp:
         print(resp.read().decode())
@@ -797,8 +800,8 @@ PY
     echo "=== recreate worker + beat ==="
     docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps api worker beat
     ;;
-  enable-slow-statewide-expansion)
-    echo "=== enable slow statewide expansion (1 county/day + keep priority pipeline) ==="
+  prioritize-baltimore-market)
+    echo "=== prioritize Baltimore MD (pause WA statewide; priority pipeline on) ==="
     python3 - <<'PY'
 import pathlib
 
@@ -807,6 +810,70 @@ if not path.is_file():
     raise SystemExit("deploy/.env missing")
 
 updates = {
+    "GEO_MARKETS_CONFIG_PATH": "/app/config/geo_markets.yaml",
+    "WA_STATEWIDE_ROLLOUT_ENABLED": "false",
+    "SCHEDULED_PRIORITY_PIPELINE_ENABLED": "true",
+    "SCHEDULED_PRIORITY_PIPELINE_LIMIT": "75",
+    "SCHEDULED_PRIORITY_PIPELINE_CRONTAB_HOUR": "*/2",
+    "SCHEDULED_PRIORITY_PIPELINE_CRONTAB_MINUTE": "20",
+}
+lines = path.read_text(encoding="utf-8").splitlines()
+keys = set(updates)
+out: list[str] = []
+seen: set[str] = set()
+for line in lines:
+    if not line or line.lstrip().startswith("#") or "=" not in line:
+        out.append(line)
+        continue
+    key = line.split("=", 1)[0].strip()
+    if key in keys:
+        out.append(f"{key}={updates[key]}")
+        seen.add(key)
+    else:
+        out.append(line)
+missing = [k for k in keys if k not in seen]
+if missing:
+    if out and out[-1].strip():
+        out.append("")
+    out.append("# Baltimore-first market — WA statewide ingest paused")
+    for key in sorted(missing):
+        out.append(f"{key}={updates[key]}")
+path.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
+for key, val in sorted(updates.items()):
+    print(f"Set {key}={val}")
+PY
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps api worker beat
+    if [ -n "$KEY" ]; then
+      echo "=== POST /internal/ingest/baltimore-city (kickstart city parcels) ==="
+      _internal_api_post "/internal/ingest/baltimore-city" \
+        '{"max_features":5000,"auto_run_pipeline":true,"max_auto_pipeline":100}' \
+        || echo "baltimore-city ingest skipped or failed"
+      echo "=== POST /internal/pipeline/enqueue-priority?limit=75 ==="
+      _internal_api_post "/internal/pipeline/enqueue-priority?limit=75" || true
+    fi
+    ;;
+  baltimore-ingest-now)
+    echo "=== POST /internal/ingest/baltimore-city ==="
+    if [ -n "$KEY" ]; then
+      _internal_api_post "/internal/ingest/baltimore-city" \
+        '{"max_features":5000,"auto_run_pipeline":true,"max_auto_pipeline":100}' \
+        || echo "baltimore-city ingest failed"
+    else
+      echo "INTERNAL_API_KEY not set"
+    fi
+    ;;
+  enable-slow-statewide-expansion)
+    echo "=== enable slow statewide expansion (7d/county + keep priority pipeline) ==="
+    python3 - <<'PY'
+import pathlib
+
+path = pathlib.Path("deploy/.env")
+if not path.is_file():
+    raise SystemExit("deploy/.env missing")
+
+updates = {
+    "GEO_MARKETS_CONFIG_PATH": "/app/config/geo_markets.yaml",
     "WA_STATEWIDE_ROLLOUT_ENABLED": "true",
     "WA_STATEWIDE_ROLLOUT_CONFIG_PATH": "/app/config/wa_statewide_rollout.yaml",
     "WA_STATEWIDE_ROLLOUT_CRONTAB_HOUR": "7",
