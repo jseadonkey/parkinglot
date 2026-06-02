@@ -858,6 +858,42 @@ def fetch_baltimore_city_and_ingest(
     }
 
 
+@celery.task(name="app.tasks.fetch_baltimore_county_and_ingest")
+def fetch_baltimore_county_and_ingest(
+    max_features: int | None = 5000,
+    auto_run_pipeline: bool = True,
+    max_auto_pipeline: int = 100,
+) -> dict[str, Any]:
+    """Download Baltimore County tax parcels; write temp GeoJSON; enqueue ``ingest_geojson_path``."""
+    import json
+    import tempfile
+
+    from parking_ingestion.baltimore_parcels import BALTIMORE_COUNTY_COUNTY_FIPS, fetch_baltimore_county_geojson
+
+    collection = fetch_baltimore_county_geojson(max_features=max_features)
+    nfeat = len(collection.get("features", []))
+    if nfeat == 0:
+        return {"skipped": True, "reason": "no_features", "county_fips": BALTIMORE_COUNTY_COUNTY_FIPS}
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".geojson", delete=False) as tmp:
+        json.dump(collection, tmp)
+        path = tmp.name
+
+    ar = ingest_geojson_path.delay(
+        path,
+        default_county_fips=BALTIMORE_COUNTY_COUNTY_FIPS,
+        delete_after=True,
+        auto_run_pipeline=auto_run_pipeline,
+        max_auto_pipeline=max_auto_pipeline,
+    )
+    return {
+        "county_fips": BALTIMORE_COUNTY_COUNTY_FIPS,
+        "features": nfeat,
+        "ingest_task_id": ar.id,
+        "geojson_path": path,
+    }
+
+
 @celery.task(name="app.tasks.fetch_watech_county_and_ingest")
 def fetch_watech_county_and_ingest(
     county_fips: str,

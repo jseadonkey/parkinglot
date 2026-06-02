@@ -53,6 +53,14 @@ on:
         description: "POST /internal/ingest/baltimore-city on the Droplet now"
         type: boolean
         default: false
+      baltimore_markets_ingest:
+        description: "Ingest Baltimore City + County (20k each) and enqueue priority pipeline"
+        type: boolean
+        default: false
+      pilot_scope_snapshot:
+        description: "Print pilot-scope JSON (MD + WA county parcel counts)"
+        type: boolean
+        default: false
       enable_slow_statewide_expansion:
         description: "WA statewide ingest ~1 county/7d + priority pipeline (secondary to Baltimore)"
         type: boolean
@@ -139,6 +147,10 @@ jobs:
             MODE="enable-wa-statewide-rollout"
           elif [ "${{ inputs.prioritize_baltimore_market }}" = "true" ]; then
             MODE="prioritize-baltimore-market"
+          elif [ "${{ inputs.baltimore_markets_ingest }}" = "true" ]; then
+            MODE="baltimore-markets-ingest"
+          elif [ "${{ inputs.pilot_scope_snapshot }}" = "true" ]; then
+            MODE="pilot-scope-snapshot"
           elif [ "${{ inputs.baltimore_ingest_now }}" = "true" ]; then
             MODE="baltimore-ingest-now"
           elif [ "${{ inputs.enable_slow_statewide_expansion }}" = "true" ]; then

@@ -865,8 +865,11 @@ PY
     if [ -n "$KEY" ]; then
       echo "=== POST /internal/ingest/baltimore-city (kickstart city parcels) ==="
       _internal_api_post "/internal/ingest/baltimore-city" \
-        '{"max_features":5000,"auto_run_pipeline":true,"max_auto_pipeline":100}' \
+        '{"max_features":20000,"auto_run_pipeline":true,"max_auto_pipeline":100}' \
         || echo "baltimore-city ingest skipped or failed"
+      _internal_api_post "/internal/ingest/baltimore-county" \
+        '{"max_features":20000,"auto_run_pipeline":true,"max_auto_pipeline":100}' \
+        || echo "baltimore-county ingest skipped or failed"
       echo "=== POST /internal/pipeline/enqueue-priority?limit=75 ==="
       _internal_api_post "/internal/pipeline/enqueue-priority?limit=75" || true
     fi
@@ -875,8 +878,31 @@ PY
     echo "=== POST /internal/ingest/baltimore-city ==="
     if [ -n "$KEY" ]; then
       _internal_api_post "/internal/ingest/baltimore-city" \
-        '{"max_features":5000,"auto_run_pipeline":true,"max_auto_pipeline":100}' \
+        '{"max_features":20000,"auto_run_pipeline":true,"max_auto_pipeline":100}' \
         || echo "baltimore-city ingest failed"
+    else
+      echo "INTERNAL_API_KEY not set"
+    fi
+    ;;
+  baltimore-markets-ingest)
+    echo "=== POST Baltimore City + County ingest (20k cap each) ==="
+    if [ -n "$KEY" ]; then
+      _internal_api_post "/internal/ingest/baltimore-city" \
+        '{"max_features":20000,"auto_run_pipeline":true,"max_auto_pipeline":100}'
+      _internal_api_post "/internal/ingest/baltimore-county" \
+        '{"max_features":20000,"auto_run_pipeline":true,"max_auto_pipeline":100}'
+      _internal_api_post "/internal/pipeline/enqueue-priority?limit=75" || true
+    else
+      echo "INTERNAL_API_KEY not set"
+    fi
+    ;;
+  pilot-scope-snapshot)
+    echo "=== GET /internal/stats/pilot-scope ==="
+    if [ -n "$KEY" ]; then
+      _internal_api_get "/internal/stats/pilot-scope" || echo "pilot-scope failed"
+    else
+      echo "INTERNAL_API_KEY not set"
+    fi
     else
       echo "INTERNAL_API_KEY not set"
     fi

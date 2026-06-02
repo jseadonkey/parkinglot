@@ -138,6 +138,19 @@ class IngestBaltimoreCityRequest(BaseModel):
     max_auto_pipeline: int = Field(default=100, ge=1, le=5000)
 
 
+class IngestBaltimoreCountyRequest(BaseModel):
+    """Fetch Baltimore County tax parcels (Maryland), then enqueue ingest (Celery worker)."""
+
+    max_features: int | None = Field(
+        default=5000,
+        ge=1,
+        le=750000,
+        description="Cap returned parcels per job.",
+    )
+    auto_run_pipeline: bool = True
+    max_auto_pipeline: int = Field(default=100, ge=1, le=5000)
+
+
 class IngestWatechCountyRequest(BaseModel):
     """Fetch WaTech statewide ArcGIS parcels for one county, then enqueue ingest (Celery worker)."""
 

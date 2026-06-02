@@ -6,10 +6,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import desc, inspect, literal, select
+from sqlalchemy import case, desc, inspect, literal, select
 from sqlalchemy.orm import Session
 
 from app.db.models import ApprovalRequest, Parcel, ParcelScore, WorkflowRun
+from app.geo_markets import priority_county_fips
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION
 from parking_workflows.state import WorkflowStatus
 
@@ -90,27 +91,36 @@ def query_outreach_pipeline_board(
     *,
     qualified_min_entitlement: float,
     limit: int,
+    county_fips: str | None = None,
+    state_fips: str | None = None,
 ) -> list[OutreachPipelineRowData]:
     """Parcels whose latest **entitlement** score meets the pilot floor, with latest workflow + counts."""
     cap = min(max(limit, 1), 2000)
+    cf = (county_fips or "").strip()
+    st = (state_fips or "").strip()
+    pri = priority_county_fips()
     ent_sub = _latest_score_subq(Parcel.id, ENTITLEMENT)
     id_sub = _latest_score_subq(Parcel.id, IDENTIFICATION)
     has_brief_col = _parcels_have_outreach_brief_column(db)
     brief_col = Parcel.owner_outreach_brief if has_brief_col else literal(None).label("owner_outreach_brief")
 
-    stmt = (
-        select(
-            Parcel.id,
-            Parcel.apn,
-            Parcel.county_fips,
-            brief_col,
-            ent_sub.label("ent_score"),
-            id_sub.label("id_score"),
-        )
-        .where(ent_sub >= qualified_min_entitlement)
-        .order_by(desc(ent_sub), desc(Parcel.created_at))
-        .limit(cap)
-    )
+    stmt = select(
+        Parcel.id,
+        Parcel.apn,
+        Parcel.county_fips,
+        brief_col,
+        ent_sub.label("ent_score"),
+        id_sub.label("id_score"),
+    ).where(ent_sub >= qualified_min_entitlement)
+    if cf:
+        stmt = stmt.where(Parcel.county_fips == cf)
+    elif st:
+        stmt = stmt.where(Parcel.county_fips.startswith(st))
+    order_cols = [desc(ent_sub), desc(Parcel.created_at)]
+    if pri:
+        geo_first = case((Parcel.county_fips.in_(pri), 0), else_=1)
+        order_cols = [geo_first, *order_cols]
+    stmt = stmt.order_by(*order_cols).limit(cap)
     qrows = list(db.execute(stmt).all())
     if not qrows:
         return []

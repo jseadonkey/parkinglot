@@ -34,9 +34,17 @@ class DealProgressSummary:
     by_step: dict[str, int]
 
 
-def query_deal_progress_board(db: Session, *, limit: int) -> tuple[DealProgressSummary, list[DealProgressRowData]]:
+def query_deal_progress_board(
+    db: Session,
+    *,
+    limit: int,
+    county_fips: str | None = None,
+    state_fips: str | None = None,
+) -> tuple[DealProgressSummary, list[DealProgressRowData]]:
     """One row per parcel — latest workflow run only (not every historical run)."""
     cap = min(max(limit, 1), 2000)
+    cf = (county_fips or "").strip()
+    st = (state_fips or "").strip()
     # Fetch recent runs, keep newest per parcel until we have enough distinct parcels.
     scan_cap = min(cap * 4, 8000)
     wr_all = list(
@@ -72,11 +80,17 @@ def query_deal_progress_board(db: Session, *, limit: int) -> tuple[DealProgressS
         if wr.status in (WorkflowStatus.running.value, WorkflowStatus.pending.value) and wr.current_step:
             by_step[wr.current_step] = by_step.get(wr.current_step, 0) + 1
         parcel = parcels.get(pid)
+        if parcel is None:
+            continue
+        if cf and parcel.county_fips != cf:
+            continue
+        if st and not str(parcel.county_fips).startswith(st):
+            continue
         rows.append(
             DealProgressRowData(
                 parcel_id=pid,
-                apn=parcel.apn if parcel else str(pid)[:8],
-                county_fips=parcel.county_fips if parcel else "",
+                apn=parcel.apn,
+                county_fips=parcel.county_fips,
                 workflow_run_id=wr.id,
                 workflow_status=wr.status,
                 workflow_step=wr.current_step,

@@ -11,7 +11,9 @@ import {
   stageBadgeClass,
   statusLabel,
 } from "../../lib/dealProgress";
+import { MarketFilters } from "../../components/MarketFilters";
 import { countyLine, useCountyNames } from "../../lib/useCountyNames";
+import { marketFilterParams, usePilotScope } from "../../lib/usePilotScope";
 
 type Row = {
   parcel_id: string;
@@ -97,17 +99,23 @@ function ProgressBar({ row }: { row: Row }) {
 
 export default function DealsPage() {
   const countyLabel = useCountyNames();
+  const { scope, priorityFips } = usePilotScope();
   const [board, setBoard] = useState<Board | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
+  const [stateFips, setStateFips] = useState("");
+  const [countyFips, setCountyFips] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
     setErr(null);
     try {
-      const res = await fetch(bridgeUrl("internal/pipeline/deal-progress?limit=500"), {
+      const geo = marketFilterParams(stateFips, countyFips);
+      const qs = new URLSearchParams({ limit: "500" });
+      geo.forEach((v, k) => qs.set(k, v));
+      const res = await fetch(bridgeUrl(`internal/pipeline/deal-progress?${qs}`), {
         cache: "no-store",
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -121,7 +129,7 @@ export default function DealsPage() {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [stateFips, countyFips]);
 
   const summary = board?.summary;
   const filtered = useMemo(() => {
@@ -208,15 +216,25 @@ export default function DealsPage() {
             </button>
           ))}
         </div>
-        <label className="toolbar-field">
-          <span className="muted">Search APN</span>
-          <input
-            type="search"
-            placeholder="e.g. 033-0006800036"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+        <div className="toolbar-row">
+          <MarketFilters
+            stateFips={stateFips}
+            countyFips={countyFips}
+            counties={scope?.counties ?? []}
+            priorityFips={priorityFips}
+            onStateChange={setStateFips}
+            onCountyChange={setCountyFips}
           />
-        </label>
+          <label className="toolbar-field">
+            <span className="muted">Search APN</span>
+            <input
+              type="search"
+              placeholder="e.g. 033-0006800036"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+        </div>
       </div>
 
       {board ? (

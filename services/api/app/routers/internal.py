@@ -34,6 +34,7 @@ from app.schemas import (
     ExportReadinessResponse,
     FullSlackUpdateResponse,
     IngestBaltimoreCityRequest,
+    IngestBaltimoreCountyRequest,
     IngestGeojsonPathQueuedResponse,
     IngestGeojsonServerPathRequest,
     IngestGeojsonUploadQueuedResponse,
@@ -79,6 +80,7 @@ from app.tasks import (
     enqueue_priority_qualified_pipeline_jobs,
     enqueue_unscored_pipeline_jobs,
     fetch_baltimore_city_and_ingest,
+    fetch_baltimore_county_and_ingest,
     fetch_watech_county_and_ingest,
     ingest_geojson_path,
     merge_parcel_attributes_geojson,
@@ -227,13 +229,21 @@ def platform_showcase(db: Session = Depends(get_db)) -> PlatformShowcaseResponse
 def outreach_pipeline_board(
     limit: int = Query(default=100, ge=1, le=2000),
     revenue_hints: int = Query(default=25, ge=0, le=100),
+    county_fips: str | None = Query(default=None, min_length=5, max_length=5),
+    state_fips: str | None = Query(default=None, min_length=2, max_length=2),
     db: Session = Depends(get_db),
 ) -> OutreachPipelineBoardResponse:
     """Qualified parcels (latest entitlement ≥ pilot floor) with workflow + outreach brief snapshot."""
     settings = get_settings()
     pilot = load_pilot_config(settings.pilot_config_path)
     floor = float(pilot.scoring.qualified_min_score)
-    raw = query_outreach_pipeline_board(db, qualified_min_entitlement=floor, limit=limit)
+    raw = query_outreach_pipeline_board(
+        db,
+        qualified_min_entitlement=floor,
+        limit=limit,
+        county_fips=county_fips,
+        state_fips=state_fips,
+    )
     hint_cap = min(revenue_hints, len(raw))
     revenue_by_parcel: dict[str, dict[str, float | bool | None]] = {}
     if hint_cap > 0:
@@ -287,10 +297,17 @@ def seed_king_pilot_rate_comps(
 @router.get("/pipeline/deal-progress", response_model=DealProgressBoardResponse)
 def deal_progress_board(
     limit: int = Query(default=200, ge=1, le=2000),
+    county_fips: str | None = Query(default=None, min_length=5, max_length=5),
+    state_fips: str | None = Query(default=None, min_length=2, max_length=2),
     db: Session = Depends(get_db),
 ) -> DealProgressBoardResponse:
     """Latest workflow run per parcel — avoids duplicate runs from batch re-triggers."""
-    summary, raw = query_deal_progress_board(db, limit=limit)
+    summary, raw = query_deal_progress_board(
+        db,
+        limit=limit,
+        county_fips=county_fips,
+        state_fips=state_fips,
+    )
     rows = [
         DealProgressRow(
             parcel_id=str(r.parcel_id),
@@ -539,6 +556,17 @@ def ingest_geojson_server_path(body: IngestGeojsonServerPathRequest) -> IngestGe
 def ingest_baltimore_city(body: IngestBaltimoreCityRequest) -> WaTechCountyQueuedResponse:
     """Fetch Baltimore City EGIS parcel polygons; enqueue download+ingest on the worker."""
     async_result = fetch_baltimore_city_and_ingest.delay(
+        max_features=body.max_features,
+        auto_run_pipeline=body.auto_run_pipeline,
+        max_auto_pipeline=body.max_auto_pipeline,
+    )
+    return WaTechCountyQueuedResponse(fetch_task_id=async_result.id)
+
+
+@router.post("/ingest/baltimore-county", response_model=WaTechCountyQueuedResponse)
+def ingest_baltimore_county(body: IngestBaltimoreCountyRequest) -> WaTechCountyQueuedResponse:
+    """Fetch Baltimore County tax parcel polygons; enqueue download+ingest on the worker."""
+    async_result = fetch_baltimore_county_and_ingest.delay(
         max_features=body.max_features,
         auto_run_pipeline=body.auto_run_pipeline,
         max_auto_pipeline=body.max_auto_pipeline,

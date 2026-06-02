@@ -11,23 +11,28 @@ Washington statewide WaTech ingest is intentionally **slow** (7-day county coold
 
 Config: `config/geo_markets.yaml`, `config/pilot_baltimore.yaml`, and Baltimore rows in `config/pilot.yaml`.
 
-## Parcel source
+## Parcel sources
 
-Baltimore City publishes parcels on EGIS ArcGIS:
+| Jurisdiction | Source | Layer |
+|--------------|--------|-------|
+| Baltimore City | EGIS ArcGIS | `Parcel_Information/Parcel/FeatureServer/0` |
+| Baltimore County | County GIS | `Property/Property/MapServer/1` |
 
-- Layer: `Parcel_Information/Parcel/FeatureServer/0`
-- Fetcher: `services/ingestion/parking_ingestion/baltimore_parcels.py`
+Fetcher: `services/ingestion/parking_ingestion/baltimore_parcels.py`
 
 ## Ingest (production API)
 
-Queue a worker job (requires internal auth):
+Queue worker jobs (requires internal auth):
 
 ```http
 POST /internal/ingest/baltimore-city
+POST /internal/ingest/baltimore-county
 Content-Type: application/json
 
-{"max_features": 5000, "auto_run_pipeline": true, "max_auto_pipeline": 100}
+{"max_features": 20000, "auto_run_pipeline": true, "max_auto_pipeline": 100}
 ```
+
+GitHub Actions → **Droplet resources** → `baltimore_markets_ingest` runs both plus priority pipeline enqueue.
 
 Or upload / server-path GeoJSON with `default_county_fips=24510`.
 

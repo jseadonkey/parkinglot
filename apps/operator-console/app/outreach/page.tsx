@@ -10,7 +10,9 @@ import {
   statusDetail,
   statusHeadline,
 } from "../../lib/outreachLabels";
+import { MarketFilters } from "../../components/MarketFilters";
 import { countyLine, useCountyNames } from "../../lib/useCountyNames";
+import { marketFilterParams, usePilotScope } from "../../lib/usePilotScope";
 
 type Row = {
   parcel_id: string;
@@ -81,9 +83,12 @@ function sortRows(rows: Row[], sort: SortKey): Row[] {
 
 export default function OutreachPipelinePage() {
   const countyLabel = useCountyNames();
+  const { scope, priorityFips } = usePilotScope();
   const [board, setBoard] = useState<Board | null>(null);
   const [loading, setLoading] = useState(true);
   const [limit, setLimit] = useState(100);
+  const [stateFips, setStateFips] = useState("24");
+  const [countyFips, setCountyFips] = useState("");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("action");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("score");
@@ -93,7 +98,10 @@ export default function OutreachPipelinePage() {
     setErr(null);
     setLoading(true);
     try {
-      const res = await fetch(bridgeUrl(`internal/pipeline/outreach-board?limit=${limit}`), {
+      const geo = marketFilterParams(stateFips, countyFips);
+      const qs = new URLSearchParams({ limit: String(limit) });
+      geo.forEach((v, k) => qs.set(k, v));
+      const res = await fetch(bridgeUrl(`internal/pipeline/outreach-board?${qs}`), {
         cache: "no-store",
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -108,7 +116,7 @@ export default function OutreachPipelinePage() {
 
   useEffect(() => {
     void loadBoard();
-  }, [limit]);
+  }, [limit, stateFips, countyFips]);
 
   const stats = useMemo(() => {
     const rows = board?.rows ?? [];
@@ -146,6 +154,10 @@ export default function OutreachPipelinePage() {
 
   return (
     <div className="page-content main-wide">
+      <p className="muted" style={{ marginTop: 0 }}>
+        Qualified deals for outreach. Defaults to <strong>Maryland</strong> while Baltimore loads; switch state to see
+        Washington inventory.
+      </p>
       <div className="page-actions">
         <button type="button" className="outline" onClick={() => void loadBoard()} disabled={loading}>
           {loading ? "Loading…" : "Refresh"}
@@ -189,6 +201,14 @@ export default function OutreachPipelinePage() {
         </div>
 
         <div className="toolbar-row">
+          <MarketFilters
+            stateFips={stateFips}
+            countyFips={countyFips}
+            counties={scope?.counties ?? []}
+            priorityFips={priorityFips}
+            onStateChange={setStateFips}
+            onCountyChange={setCountyFips}
+          />
           <label className="toolbar-field">
             <span className="muted">Search APN</span>
             <input
