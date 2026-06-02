@@ -51,6 +51,23 @@ Choose **compose file**:
 
 The job rsyncs the repo (excluding `deploy/.env`) then runs `docker compose ... up -d --build` (and **pull** first when using the GHCR compose file). Your secrets on the server stay on the server.
 
+## CI failures → Cursor Cloud Agent (laptop can be off)
+
+GitHub failure emails do **not** reach a local Cursor chat. For automatic fixes while your Mac is closed, use a **Cursor Automation** with **Cloud** compute (not Local).
+
+**One-time setup**
+
+1. **Cursor → Automations** — create or save **Fix CI failures on parkinglot (cloud)**:
+   - **Trigger:** GitHub → CI checks completed → repo `jseadonkey/parkinglot`
+   - **Compute:** **Cloud**
+   - **Tools:** open/update PRs, manage check runs
+2. **[Cloud Agents dashboard](https://cursor.com/dashboard?tab=cloud-agents)** — enable Cloud Agents; add an environment for this repo (install uses [`.cursor/environment.json`](../.cursor/environment.json)).
+3. **Connect GitHub** — Cursor GitHub App with read/write on the repo.
+
+**What the agent should do:** read failing job logs, apply a minimal fix, run `bash scripts/run-api-tests.sh` (or targeted pytest), open a PR. Pilot config paths match CI (`PILOT_*_CONFIG_PATH` in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)).
+
+CI failure → Slack was removed on purpose; operational Slack stays on digests and site watchdog only ([SLACK.md](SLACK.md)).
+
 ## Optional: pre-built API image
 
 See [GHCR-DEPLOY.md](GHCR-DEPLOY.md) and [`.github/workflows/container-images.yml`](../.github/workflows/container-images.yml). Use `deploy/docker-compose.production.ghcr.yml` plus `API_IMAGE` in `deploy/.env` for pulls instead of builds on the Droplet.
