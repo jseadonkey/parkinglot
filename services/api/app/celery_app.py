@@ -107,6 +107,20 @@ if _s.exploration_campaign_enabled:
         _s.exploration_campaign_crontab_minute,
     )
 
+if _s.wa_statewide_rollout_enabled:
+    beat_schedule["wa-statewide-rollout-daily"] = {
+        "task": "app.tasks.wa_statewide_rollout_tick",
+        "schedule": crontab(
+            minute=_s.wa_statewide_rollout_crontab_minute,
+            hour=_s.wa_statewide_rollout_crontab_hour,
+        ),
+    }
+    logger.info(
+        "Beat: WA statewide rollout (one county/day) at %02d:%02d UTC",
+        _s.wa_statewide_rollout_crontab_hour,
+        _s.wa_statewide_rollout_crontab_minute,
+    )
+
 if _s.scheduled_enqueue_unscored_enabled:
     beat_schedule["enqueue-unscored-pipelines"] = {
         "task": "app.tasks.enqueue_unscored_pipelines_scheduled",

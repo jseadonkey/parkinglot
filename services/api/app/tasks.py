@@ -50,6 +50,11 @@ from app.slack_digest import (
     post_text_to_slack,
 )
 from app.storage import put_text_object
+from app.wa_statewide_rollout import (
+    load_rollout_config,
+    next_county_to_ingest,
+    parking_queue_depth,
+)
 from parking_core.models import OwnerCandidate, ParcelFeature
 from parking_core.pilot import load_pilot_config
 from parking_enrichment.owner_normalize import scoped_owner_key
@@ -594,6 +599,73 @@ def exploration_campaign_tick() -> dict[str, Any]:
         "ingests_enqueued": enqueued,
         "missing_geojson_counties": missing,
     }
+
+
+@celery.task(name="app.tasks.wa_statewide_rollout_tick")
+def wa_statewide_rollout_tick() -> dict[str, Any]:
+    """Daily: ingest the next WA county (zero rows in DB) from WaTech when the parking queue is not overloaded."""
+    settings = get_settings()
+    if not settings.wa_statewide_rollout_enabled:
+        return {"skipped": True, "reason": "wa_statewide_rollout_disabled"}
+
+    rollout = load_rollout_config(settings.wa_statewide_rollout_config_path)
+    max_queue = int(rollout.get("max_parking_queue_depth") or 800)
+    queue_depth = parking_queue_depth(settings.redis_url)
+    if queue_depth > max_queue:
+        logger.info(
+            "wa_statewide_rollout_tick: parking queue=%s > max=%s — deferring new county ingest",
+            queue_depth,
+            max_queue,
+        )
+        return {
+            "skipped": True,
+            "reason": "parking_queue_busy",
+            "parking_queue_depth": queue_depth,
+            "max_parking_queue_depth": max_queue,
+        }
+
+    db = _session()
+    try:
+        county = next_county_to_ingest(
+            db,
+            config=rollout,
+            pilot_config_path=settings.pilot_config_path,
+        )
+        if county is None:
+            return {"skipped": True, "reason": "all_priority_counties_have_parcels"}
+
+        max_feat = rollout.get("watech_max_features")
+        max_features: int | None
+        if max_feat is None or max_feat == "":
+            max_features = None
+        else:
+            max_features = int(max_feat)
+
+        max_pipe = int(rollout.get("max_auto_pipeline") or 40)
+        post_agent_event_to_slack(
+            settings,
+            agent="Statewide ingest",
+            detail=(
+                f"Starting WaTech ingest for county `{county}` "
+                f"(pipeline cap {max_pipe}/parcel batch; queue depth {queue_depth})."
+            ),
+        )
+        ar = fetch_watech_county_and_ingest.delay(
+            county,
+            max_features=max_features,
+            auto_run_pipeline=True,
+            max_auto_pipeline=max_pipe,
+        )
+        return {
+            "skipped": False,
+            "county_fips": county,
+            "fetch_task_id": ar.id,
+            "max_features": max_features,
+            "max_auto_pipeline": max_pipe,
+            "parking_queue_depth": queue_depth,
+        }
+    finally:
+        db.close()
 
 
 @celery.task(name="app.tasks.fetch_watech_county_and_ingest")

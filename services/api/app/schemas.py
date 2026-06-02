@@ -149,6 +149,23 @@ class WaTechCountyQueuedResponse(BaseModel):
     fetch_task_id: str
 
 
+class WaRolloutCountyRow(BaseModel):
+    county_fips: str
+    parcels_in_db: int
+
+
+class WaRolloutStatusResponse(BaseModel):
+    """GET /internal/ingest/wa-rollout-status — slow statewide county ingest progress."""
+
+    rollout_enabled: bool
+    next_county_fips: str | None
+    counties_in_priority_list: int
+    counties_with_parcels: int
+    counties_remaining: int
+    parking_queue_depth: int | None = None
+    counties: list[WaRolloutCountyRow]
+
+
 class EnqueueUnscoredResponse(BaseModel):
     """Parcels missing entitlement score — pipelines enqueued directly (not a nested Celery task id)."""
 

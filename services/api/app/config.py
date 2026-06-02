@@ -297,6 +297,40 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Slow WA statewide ingest: one new county per day via WaTech when parking queue is light.
+    wa_statewide_rollout_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "WA_STATEWIDE_ROLLOUT_ENABLED",
+            "wa_statewide_rollout_enabled",
+        ),
+    )
+    wa_statewide_rollout_config_path: str = Field(
+        default="/app/config/wa_statewide_rollout.yaml",
+        validation_alias=AliasChoices(
+            "WA_STATEWIDE_ROLLOUT_CONFIG_PATH",
+            "wa_statewide_rollout_config_path",
+        ),
+    )
+    wa_statewide_rollout_crontab_hour: int = Field(
+        default=7,
+        ge=0,
+        le=23,
+        validation_alias=AliasChoices(
+            "WA_STATEWIDE_ROLLOUT_CRONTAB_HOUR",
+            "wa_statewide_rollout_crontab_hour",
+        ),
+    )
+    wa_statewide_rollout_crontab_minute: int = Field(
+        default=15,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "WA_STATEWIDE_ROLLOUT_CRONTAB_MINUTE",
+            "wa_statewide_rollout_crontab_minute",
+        ),
+    )
+
     # Optional licensed vendor webhook for owner/contact enrichment (POST JSON from pipeline).
     owner_vendor_lookup_enabled: bool = Field(
         default=False,

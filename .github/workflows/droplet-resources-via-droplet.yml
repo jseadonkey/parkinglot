@@ -41,6 +41,18 @@ on:
         description: "Hourly pipeline digest + site watchdog Slack (env + restart beat/worker-slack)"
         type: boolean
         default: false
+      enable_wa_statewide_rollout:
+        description: "Enable daily WaTech ingest for next empty WA county + restart worker/beat"
+        type: boolean
+        default: false
+      wa_rollout_now:
+        description: "Enqueue next county WaTech ingest now (requires rollout enabled on droplet)"
+        type: boolean
+        default: false
+      wa_rollout_status:
+        description: "Print statewide county ingest progress JSON"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -87,6 +99,12 @@ jobs:
             MODE="sync-slack-channels"
           elif [ "${{ inputs.fix_hourly_slack_reports }}" = "true" ]; then
             MODE="fix-hourly-slack-reports"
+          elif [ "${{ inputs.enable_wa_statewide_rollout }}" = "true" ]; then
+            MODE="enable-wa-statewide-rollout"
+          elif [ "${{ inputs.wa_rollout_now }}" = "true" ]; then
+            MODE="wa-rollout-now"
+          elif [ "${{ inputs.wa_rollout_status }}" = "true" ]; then
+            MODE="wa-rollout-status"
           fi
           ENQUEUE_LIMIT="${{ inputs.enqueue_limit || '50' }}"
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \

@@ -695,6 +695,66 @@ report = build_report(checks, runner="github-ssh")
 print("WATCHDOG_JSON=" + json.dumps(report))
 PY
     ;;
+  enable-wa-statewide-rollout)
+    echo "=== enable WA statewide rollout (one county/day via WaTech) ==="
+    python3 - <<'PY'
+import pathlib
+
+path = pathlib.Path("deploy/.env")
+if not path.is_file():
+    raise SystemExit("deploy/.env missing")
+
+updates = {
+    "WA_STATEWIDE_ROLLOUT_ENABLED": "true",
+    "WA_STATEWIDE_ROLLOUT_CONFIG_PATH": "/app/config/wa_statewide_rollout.yaml",
+    "WA_STATEWIDE_ROLLOUT_CRONTAB_HOUR": "7",
+    "WA_STATEWIDE_ROLLOUT_CRONTAB_MINUTE": "15",
+}
+lines = path.read_text(encoding="utf-8").splitlines()
+keys = set(updates)
+out: list[str] = []
+seen: set[str] = set()
+for line in lines:
+    if not line or line.lstrip().startswith("#") or "=" not in line:
+        out.append(line)
+        continue
+    key = line.split("=", 1)[0].strip()
+    if key in keys:
+        out.append(f"{key}={updates[key]}")
+        seen.add(key)
+    else:
+        out.append(line)
+missing = [k for k in keys if k not in seen]
+if missing:
+    if out and out[-1].strip():
+        out.append("")
+    out.append("# WA statewide rollout — one new county per day (config/wa_statewide_rollout.yaml)")
+    for key in sorted(missing):
+        out.append(f"{key}={updates[key]}")
+path.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
+for key, val in sorted(updates.items()):
+    print(f"Set {key}={val}")
+PY
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    echo "=== recreate worker + beat ==="
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps worker beat
+    ;;
+  wa-rollout-status)
+    echo "=== GET /internal/ingest/wa-rollout-status ==="
+    if [ -n "$KEY" ]; then
+      _internal_api_get "/internal/ingest/wa-rollout-status" || echo "wa-rollout-status failed"
+    else
+      echo "INTERNAL_API_KEY not set"
+    fi
+    ;;
+  wa-rollout-now)
+    echo "=== POST /internal/ingest/wa-rollout-now (enqueue next county) ==="
+    if [ -n "$KEY" ]; then
+      _internal_api_post "/internal/ingest/wa-rollout-now" || echo "wa-rollout-now failed"
+    else
+      echo "INTERNAL_API_KEY not set"
+    fi
+    ;;
   fix-hourly-slack-reports)
     echo "=== set hourly Slack digest + site watchdog in deploy/.env ==="
     python3 - <<'PY'

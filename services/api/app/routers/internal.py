@@ -57,6 +57,8 @@ from app.schemas import (
     SlackLastDigestResponse,
     SlackTestMessagePostResponse,
     SlackTestMessageRequest,
+    WaRolloutCountyRow,
+    WaRolloutStatusResponse,
     WaTechCountyQueuedResponse,
 )
 from app.scoring_summary import scoring_summary_stats
@@ -78,6 +80,14 @@ from app.tasks import (
     slack_agent_digest,
     slack_dual_agent_discussion,
     slack_qualified_parcels_report,
+    wa_statewide_rollout_tick,
+)
+from app.wa_statewide_rollout import (
+    county_priority_list,
+    load_rollout_config,
+    next_county_to_ingest,
+    parcel_counts_by_county,
+    parking_queue_depth,
 )
 from parking_core.pilot import load_pilot_config
 
@@ -486,6 +496,42 @@ def ingest_watech_county(body: IngestWatechCountyRequest) -> WaTechCountyQueuedR
         max_auto_pipeline=body.max_auto_pipeline,
     )
     return WaTechCountyQueuedResponse(fetch_task_id=async_result.id)
+
+
+@router.get("/ingest/wa-rollout-status", response_model=WaRolloutStatusResponse)
+def wa_rollout_status(db: Session = Depends(get_db)) -> WaRolloutStatusResponse:
+    """Progress for slow statewide WaTech ingest (one county per day when enabled)."""
+    settings = get_settings()
+    rollout = load_rollout_config(settings.wa_statewide_rollout_config_path)
+    priority = county_priority_list(rollout, pilot_config_path=settings.pilot_config_path)
+    counts = parcel_counts_by_county(db, priority)
+    with_data = sum(1 for f in priority if counts.get(f, 0) > 0)
+    next_fips = next_county_to_ingest(db, config=rollout, pilot_config_path=settings.pilot_config_path)
+    q_depth: int | None = None
+    try:
+        q_depth = parking_queue_depth(settings.redis_url)
+    except Exception:
+        q_depth = None
+    rows = [
+        WaRolloutCountyRow(county_fips=fips, parcels_in_db=counts.get(fips, 0))
+        for fips in priority
+    ]
+    return WaRolloutStatusResponse(
+        rollout_enabled=settings.wa_statewide_rollout_enabled,
+        next_county_fips=next_fips,
+        counties_in_priority_list=len(priority),
+        counties_with_parcels=with_data,
+        counties_remaining=len(priority) - with_data,
+        parking_queue_depth=q_depth,
+        counties=rows,
+    )
+
+
+@router.post("/ingest/wa-rollout-now", response_model=CeleryTaskIdResponse)
+def wa_rollout_now() -> CeleryTaskIdResponse:
+    """Enqueue the next county ingest immediately (same logic as daily Beat)."""
+    async_result = wa_statewide_rollout_tick.delay()
+    return CeleryTaskIdResponse(task_id=async_result.id)
 
 
 @router.post("/pipeline/enqueue-unscored", response_model=EnqueueUnscoredResponse)
