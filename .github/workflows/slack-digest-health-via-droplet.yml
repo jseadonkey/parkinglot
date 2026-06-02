@@ -53,14 +53,15 @@ jobs:
             "cd $(printf '%q' "$REMOTE_PATH") && bash -s -- last-digest")"
 
           export MAX_H="$MAX_H"
-          echo "$PAYLOAD" | python3 <<'PY'
+          export PAYLOAD
+          python3 <<'PY'
           import json
           import os
           import sys
           from datetime import datetime, timedelta, timezone
 
           max_h = float(os.environ["MAX_H"])
-          raw = sys.stdin.read().strip()
+          raw = (os.environ.get("PAYLOAD") or "").strip()
           if not raw:
               print("FAIL: empty response from GET /internal/slack/last-digest (curl or SSH failed).")
               sys.exit(1)
