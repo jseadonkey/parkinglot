@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { readApiServerUrl } from "../../../../lib/apiServerUrl";
+import { cacheKey, isStatsCachePath, readBridgeCache, writeBridgeCache } from "../../../../lib/bridgeGetCache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,8 +36,22 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   }
 
   const baseClean = readApiServerUrl();
-  const qs = req.nextUrl.search;
-  const url = `${baseClean}/${subpath}${qs}`;
+  const qs = req.nextUrl.searchParams.toString();
+  const url = `${baseClean}/${subpath}${qs ? `?${qs}` : ""}`;
+  const statsCacheKey = method === "GET" && isStatsCachePath(subpath) ? cacheKey(subpath, qs) : null;
+
+  if (statsCacheKey) {
+    const cached = readBridgeCache(statsCacheKey);
+    if (cached) {
+      return new NextResponse(cached.body, {
+        status: cached.status,
+        headers: {
+          "Content-Type": "application/json",
+          "X-Bridge-Cache": "HIT",
+        },
+      });
+    }
+  }
 
   const headers: Record<string, string> = { Accept: "application/json" };
   if (isInternalPath(subpath) && internalKey) {
@@ -61,9 +76,15 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     );
   }
   const body = await res.text();
+  if (statsCacheKey && res.ok) {
+    writeBridgeCache(statsCacheKey, res.status, body);
+  }
   return new NextResponse(body, {
     status: res.status,
-    headers: { "Content-Type": res.headers.get("Content-Type") || "application/json" },
+    headers: {
+      "Content-Type": res.headers.get("Content-Type") || "application/json",
+      ...(statsCacheKey ? { "X-Bridge-Cache": "MISS" } : {}),
+    },
   });
 }
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { bridgeUrl } from "../lib/paths";
+import { PILOT_SCOPE_DEFAULTS } from "../lib/pilotScopeDefaults";
 
 type QualifiedMinScores = {
   entitlement: number;
@@ -77,40 +78,92 @@ function funnelWidthPct(count: number, base: number): number {
   return Math.max(8, Math.round((count / base) * 100));
 }
 
+async function fetchJson(path: string): Promise<unknown> {
+  const res = await fetch(bridgeUrl(path), { cache: "no-store" });
+  if (!res.ok) throw new Error(`${path} ${res.status}`);
+  return res.json();
+}
+
 export default function OverviewPage() {
   const [readiness, setReadiness] = useState<unknown>(null);
   const [summary, setSummary] = useState<unknown>(null);
   const [scope, setScope] = useState<unknown>(null);
+  const [scopeLoading, setScopeLoading] = useState(true);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [readinessLoading, setReadinessLoading] = useState(false);
+  const [scopeErr, setScopeErr] = useState<string | null>(null);
+  const [summaryErr, setSummaryErr] = useState<string | null>(null);
+  const [readinessErr, setReadinessErr] = useState<string | null>(null);
   const [showAllCounties, setShowAllCounties] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [exportDetailsOpen, setExportDetailsOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      setErr(null);
-      try {
-        const [rScope, rSummary, rReady] = await Promise.all([
-          fetch(bridgeUrl("internal/stats/pilot-scope"), { cache: "no-store" }),
-          fetch(bridgeUrl("internal/stats/scoring-summary"), { cache: "no-store" }),
-          fetch(bridgeUrl("internal/stats/export-readiness"), { cache: "no-store" }),
-        ]);
-        if (!rScope.ok) throw new Error(`pilot-scope ${rScope.status}`);
-        if (!rSummary.ok) throw new Error(`scoring-summary ${rSummary.status}`);
-        if (!rReady.ok) throw new Error(`export-readiness ${rReady.status}`);
-        const [jScope, jSummary, jReady] = await Promise.all([rScope.json(), rSummary.json(), rReady.json()]);
-        if (!cancelled) {
-          setScope(jScope);
-          setSummary(jSummary);
-          setReadiness(jReady);
-        }
-      } catch (e) {
-        if (!cancelled) setErr(e instanceof Error ? e.message : String(e));
-      }
-    })();
+    setScopeLoading(true);
+    setScopeErr(null);
+    fetchJson("internal/stats/pilot-scope")
+      .then((data) => {
+        if (!cancelled) setScope(data);
+      })
+      .catch((e) => {
+        if (!cancelled) setScopeErr(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setScopeLoading(false);
+      });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSummaryLoading(true);
+    setSummaryErr(null);
+    fetchJson("internal/stats/scoring-summary")
+      .then((data) => {
+        if (!cancelled) setSummary(data);
+      })
+      .catch((e) => {
+        if (!cancelled) setSummaryErr(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setSummaryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!exportDetailsOpen || readiness !== null || readinessLoading) return;
+    let cancelled = false;
+    setReadinessLoading(true);
+    setReadinessErr(null);
+    fetchJson("internal/stats/export-readiness")
+      .then((data) => {
+        if (!cancelled) setReadiness(data);
+      })
+      .catch((e) => {
+        if (!cancelled) setReadinessErr(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setReadinessLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [exportDetailsOpen, readiness, readinessLoading]);
+
+  const scopeView = isPilotScope(scope) ? scope : null;
+  const regionName = scopeView?.region_name ?? PILOT_SCOPE_DEFAULTS.region_name;
+  const stateName = scopeView?.state_name ?? PILOT_SCOPE_DEFAULTS.state_name;
+  const stateFips = scopeView?.state_fips ?? PILOT_SCOPE_DEFAULTS.state_fips;
+  const countyCount = scopeView?.pilot_county_count ?? PILOT_SCOPE_DEFAULTS.pilot_county_count;
+  const metroLabel = scopeView?.primary_metro_label ?? PILOT_SCOPE_DEFAULTS.primary_metro_label;
+  const minLot = scopeView?.min_lot_sqft ?? PILOT_SCOPE_DEFAULTS.min_lot_sqft;
+  const qualFloor =
+    scopeView?.qualified_min_score.entitlement ?? PILOT_SCOPE_DEFAULTS.qualified_min_entitlement;
 
   const funnelSteps = useMemo((): FunnelStep[] => {
     if (!isScoringSummary(summary)) return [];
@@ -151,19 +204,23 @@ export default function OverviewPage() {
       {
         key: "brief",
         label: "Owner outreach brief",
-        detail: "Deep enrichment: owners, registry stub, vendor lookup, contact points, memo + contract draft.",
+        detail: ready
+          ? "Deep enrichment: owners, registry stub, vendor lookup, contact points, memo + contract draft."
+          : "Deep enrichment counts load when you expand Export readiness below.",
         count: withBrief,
       },
     ];
   }, [summary, readiness]);
 
   const countiesToShow = useMemo(() => {
-    if (!isPilotScope(scope)) return [];
-    const sorted = [...scope.counties].sort((a, b) => b.parcels_in_db - a.parcels_in_db || a.county_name.localeCompare(b.county_name));
+    if (!scopeView) return [];
+    const sorted = [...scopeView.counties].sort(
+      (a, b) => b.parcels_in_db - a.parcels_in_db || a.county_name.localeCompare(b.county_name),
+    );
     if (showAllCounties) return sorted;
     const withData = sorted.filter((c) => c.parcels_in_db > 0);
     return withData.length > 0 ? withData : sorted.slice(0, 8);
-  }, [scope, showAllCounties]);
+  }, [scopeView, showAllCounties]);
 
   const funnelBase = funnelSteps[0]?.count ?? 0;
 
@@ -174,68 +231,76 @@ export default function OverviewPage() {
         Pilot scope, scoring totals, and how parcels narrow from statewide ingest to qualified outreach candidates.
       </p>
 
-      {err ? <div className="error">{err}</div> : null}
-
       <h2>Geographic scope</h2>
-      {isPilotScope(scope) ? (
-        <div className="panel scope-panel">
-          <div className="scope-headline">
-            <div>
-              <div className="scope-region">{scope.region_name}</div>
-              <p className="muted scope-sub">
-                {scope.state_name} (FIPS {scope.state_fips}) · {scope.pilot_county_count} counties in pilot config
-                {scope.primary_metro_label ? (
-                  <>
-                    {" "}
-                    · Primary metro: <strong>{scope.primary_metro_label}</strong>
-                  </>
-                ) : null}
-              </p>
-            </div>
-            <div className="scope-badges">
-              <span className="badge">Min lot {scope.min_lot_sqft.toLocaleString()} sqft</span>
-              <span className="badge">
-                Qualified floor {scope.qualified_min_score.entitlement} (entitlement)
-              </span>
-            </div>
+      <div className="panel scope-panel">
+        <div className="scope-headline">
+          <div>
+            <div className="scope-region">{regionName}</div>
+            <p className="muted scope-sub">
+              {stateName} (FIPS {stateFips}) · {countyCount} counties in pilot config · Primary metro:{" "}
+              <strong>{metroLabel}</strong>
+            </p>
           </div>
-
-          <p className="muted scope-note">
-            Ingest skips parcels outside the county FIPS list in <code>config/pilot.yaml</code>. We have loaded parcels
-            in <strong>{scope.counties_with_ingested_parcels}</strong> of {scope.pilot_county_count} pilot counties (
-            {scope.parcels_in_pilot_counties.toLocaleString()} rows in DB).
-          </p>
-
-          <table className="data scope-county-table">
-            <thead>
-              <tr>
-                <th>County</th>
-                <th>FIPS</th>
-                <th>Parcels in DB</th>
-              </tr>
-            </thead>
-            <tbody>
-              {countiesToShow.map((c) => (
-                <tr key={c.county_fips}>
-                  <td>{c.county_name}</td>
-                  <td className="muted">{c.county_fips}</td>
-                  <td>{c.parcels_in_db.toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {isPilotScope(scope) && scope.counties.length > countiesToShow.length ? (
-            <button type="button" className="outline scope-toggle" onClick={() => setShowAllCounties((v) => !v)}>
-              {showAllCounties ? "Show counties with data only" : `Show all ${scope.pilot_county_count} pilot counties`}
-            </button>
-          ) : null}
+          <div className="scope-badges">
+            <span className="badge">Min lot {minLot.toLocaleString()} sqft</span>
+            <span className="badge">Qualified floor {qualFloor} (entitlement)</span>
+          </div>
         </div>
-      ) : (
-        !err && <p className="muted">Loading geographic scope…</p>
-      )}
+
+        <p className="muted scope-note">
+          Ingest skips parcels outside the county FIPS list in <code>config/pilot.yaml</code>.
+          {scopeView ? (
+            <>
+              {" "}
+              We have loaded parcels in <strong>{scopeView.counties_with_ingested_parcels}</strong> of{" "}
+              {scopeView.pilot_county_count} pilot counties ({scopeView.parcels_in_pilot_counties.toLocaleString()}{" "}
+              rows in DB).
+            </>
+          ) : scopeLoading ? (
+            <> Parcel counts by county are loading…</>
+          ) : null}
+        </p>
+
+        {scopeErr ? <div className="error">{scopeErr}</div> : null}
+
+        {scopeView ? (
+          <>
+            <table className="data scope-county-table">
+              <thead>
+                <tr>
+                  <th>County</th>
+                  <th>FIPS</th>
+                  <th>Parcels in DB</th>
+                </tr>
+              </thead>
+              <tbody>
+                {countiesToShow.map((c) => (
+                  <tr key={c.county_fips}>
+                    <td>{c.county_name}</td>
+                    <td className="muted">{c.county_fips}</td>
+                    <td>{c.parcels_in_db.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {scopeView.counties.length > countiesToShow.length ? (
+              <button type="button" className="outline scope-toggle" onClick={() => setShowAllCounties((v) => !v)}>
+                {showAllCounties ? "Show counties with data only" : `Show all ${scopeView.pilot_county_count} pilot counties`}
+              </button>
+            ) : null}
+          </>
+        ) : scopeLoading ? (
+          <div className="scope-loading panel-inset" aria-busy="true">
+            <p className="muted" style={{ margin: 0 }}>
+              Loading parcel counts by county…
+            </p>
+          </div>
+        ) : null}
+      </div>
 
       <h2>Scoring totals</h2>
+      {summaryErr ? <div className="error">{summaryErr}</div> : null}
       <div className="cols" style={{ marginTop: "0.5rem" }}>
         {isScoringSummary(summary) ? (
           <>
@@ -256,9 +321,9 @@ export default function OverviewPage() {
               <div className="n">{formatCount(summary.qualified_count_entitlement)}</div>
             </div>
           </>
-        ) : (
-          !err && <p className="muted">Loading scoring summary…</p>
-        )}
+        ) : summaryLoading ? (
+          <p className="muted">Loading scoring totals…</p>
+        ) : null}
       </div>
 
       <h2>Outreach candidates</h2>
@@ -315,13 +380,23 @@ export default function OverviewPage() {
             </ul>
           </div>
         </div>
-      ) : (
-        !err && <p className="muted">Loading funnel…</p>
-      )}
+      ) : summaryLoading ? (
+        <p className="muted">Loading funnel…</p>
+      ) : null}
 
-      <details className="panel export-readiness-details">
+      <details
+        className="panel export-readiness-details"
+        onToggle={(e) => setExportDetailsOpen((e.target as HTMLDetailsElement).open)}
+      >
         <summary className="export-readiness-summary">Export readiness (technical JSON)</summary>
-        {readiness ? <pre className="json">{JSON.stringify(readiness, null, 2)}</pre> : !err ? <p className="muted">Loading…</p> : null}
+        {readinessErr ? <div className="error">{readinessErr}</div> : null}
+        {readiness ? (
+          <pre className="json">{JSON.stringify(readiness, null, 2)}</pre>
+        ) : readinessLoading ? (
+          <p className="muted">Loading export readiness…</p>
+        ) : exportDetailsOpen ? null : (
+          <p className="muted">Open to load gap diagnostics (skipped on initial page load).</p>
+        )}
       </details>
     </main>
   );
