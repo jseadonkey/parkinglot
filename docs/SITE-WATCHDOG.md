@@ -13,8 +13,10 @@ This is **not** the Slack pipeline digest (`slack_agent_digest`), which reports 
 | Operator UI `/operator` | Droplet Celery + GitHub Actions (external) |
 | Postgres `SELECT 1` | Droplet Celery |
 | Redis ping + parking queue depth | Droplet Celery |
-| Root disk usage | GitHub Actions (SSH) |
-| Docker compose container health | GitHub Actions (SSH) |
+| Root disk usage | GitHub Actions (SSH host `df`, not inside API container) |
+| Docker compose container health | GitHub Actions (SSH host `docker compose ps`, not inside API container) |
+
+**Note:** A `compose_health` detail of `No such file or directory: 'docker'` meant the old check ran inside the API container (fixed in `droplet-remote-checks.sh`). **`disk_root` at ≥90% is a real ops issue** — free space on the Droplet (see below).
 
 ## Schedules (UTC)
 
@@ -59,6 +61,15 @@ curl -sS https://api.vspecialist.com/internal/watchdog/status \
 
 # GitHub Actions → workflow "Site watchdog" → Run workflow
 ```
+
+## Droplet disk full (`disk_root` ≥90%)
+
+The root volume is small (~48G on many DO droplets). Large GeoJSON under `data/baltimore/` and Docker images/layers fill it quickly.
+
+1. **GitHub Actions → Droplet resources** — enable **`relieve_load`** (pause enqueue + purge backlog) if the Celery queue is huge.
+2. Same workflow or SSH: run **`scripts/remote/droplet-cleanup-isolate.sh`** on the Droplet (prune Docker, trim old images).
+3. Remove or compress stale files under `data/` (Baltimore parcel/zoning exports are safe to delete after merge).
+4. If the volume was resized in DigitalOcean: **Droplet resources → `grow_disk`** (runs `growpart` + `resize2fs`).
 
 ## Related docs
 

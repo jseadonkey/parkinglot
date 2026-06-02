@@ -663,31 +663,50 @@ PY
   site-watchdog-server)
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
     ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
-    export COMPOSE_REL
     echo "=== site watchdog server checks (JSON on last line) ==="
-    docker compose "${ARGS[@]}" exec -T -e COMPOSE_REL api python - <<'PY'
+    # Disk + compose run on the SSH host (docker CLI is not available inside the api container).
+    CONTAINER_CHECKS="$(
+      docker compose "${ARGS[@]}" exec -T api python - <<'PY' 2>/dev/null || true
 import json
-import os
-import subprocess
+from dataclasses import asdict
 
 from app.config import get_settings
 from app.db.session import SessionLocal
-from app.site_watchdog import WatchdogCheck, build_report, run_server_checks
+from app.site_watchdog import run_server_checks
 
-checks: list[WatchdogCheck] = []
 db = SessionLocal()
 try:
-    checks.extend(run_server_checks(db, get_settings(), source="github-ssh"))
+    checks = run_server_checks(db, get_settings(), source="github-ssh")
 finally:
     db.close()
+print(json.dumps([asdict(c) for c in checks]))
+PY
+    )"
+    export COMPOSE_REL
+    export CONTAINER_CHECKS
+    WATCHDOG_JSON="$(
+      python3 <<'PY'
+import json
+import os
+import subprocess
+from datetime import UTC, datetime
+
+checks: list[dict] = []
 
 try:
     line = subprocess.check_output(["df", "-h", "/"], text=True).strip().splitlines()[-1]
     parts = line.split()
-    use_pct = int(parts[4].rstrip("%")) if len(parts) >= 5 else 0
-    checks.append(WatchdogCheck("disk_root", use_pct < 90, line, source="github-ssh"))
+    use_pct = int(parts[4].rstrip("%")) if len(parts) >= 5 else 100
+    checks.append(
+        {
+            "name": "disk_root",
+            "ok": use_pct < 90,
+            "detail": line,
+            "source": "github-ssh",
+        }
+    )
 except Exception as exc:
-    checks.append(WatchdogCheck("disk_root", False, str(exc)[:200], source="github-ssh"))
+    checks.append({"name": "disk_root", "ok": False, "detail": str(exc)[:200], "source": "github-ssh"})
 
 unhealthy: list[str] = []
 try:
@@ -695,26 +714,41 @@ try:
     out = subprocess.check_output(
         ["docker", "compose", "-f", rel, "--env-file", "deploy/.env", "ps", "--format", "{{.Name}}:{{.Health}}"],
         text=True,
-        cwd="/opt/workspaces/parkinglot" if os.path.isdir("/opt/workspaces/parkinglot") else os.getcwd(),
     )
     for row in out.splitlines():
         h = row.split(":")[-1].lower() if ":" in row else ""
         if h and h not in ("healthy", ""):
             unhealthy.append(row.strip())
     checks.append(
-        WatchdogCheck(
-            "compose_health",
-            len(unhealthy) == 0,
-            "ok" if not unhealthy else "; ".join(unhealthy[:8]),
-            source="github-ssh",
-        )
+        {
+            "name": "compose_health",
+            "ok": len(unhealthy) == 0,
+            "detail": "ok" if not unhealthy else "; ".join(unhealthy[:8]),
+            "source": "github-ssh",
+        }
     )
 except Exception as exc:
-    checks.append(WatchdogCheck("compose_health", False, str(exc)[:200], source="github-ssh"))
+    checks.append({"name": "compose_health", "ok": False, "detail": str(exc)[:200], "source": "github-ssh"})
 
-report = build_report(checks, runner="github-ssh")
-print("WATCHDOG_JSON=" + json.dumps(report))
+container = (os.environ.get("CONTAINER_CHECKS") or "").strip()
+if container:
+    checks.extend(json.loads(container))
+
+failures = [c for c in checks if not c.get("ok")]
+print(
+    json.dumps(
+        {
+            "checked_at": datetime.now(tz=UTC).isoformat(),
+            "runner": "github-ssh",
+            "ok": len(failures) == 0,
+            "failure_count": len(failures),
+            "checks": checks,
+        }
+    )
+)
 PY
+    )"
+    echo "WATCHDOG_JSON=${WATCHDOG_JSON}"
     ;;
   pause-wa-statewide-rollout)
     echo "=== pause WA statewide rollout (prioritize top parcels) ==="
