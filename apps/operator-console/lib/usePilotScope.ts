@@ -47,7 +47,7 @@ export function usePilotScope(): {
     };
   }, []);
 
-  const priorityFips = new Set(scope?.priority_county_fips ?? ["24510", "24005"]);
+  const priorityFips = new Set(scope?.priority_county_fips ?? ["24510"]);
   return { scope, loading, priorityFips };
 }
 

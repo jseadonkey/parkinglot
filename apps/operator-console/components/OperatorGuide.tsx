@@ -3,7 +3,7 @@ import Link from "next/link";
 const STEPS = [
   {
     title: "Parcels load from county GIS",
-    body: "Baltimore City and County load from Maryland EGIS; Washington counties load from assessor exports and WaTech. King County has the largest WA footprint today; Baltimore is the active priority market.",
+    body: "Baltimore City loads from Maryland EGIS (Baltimore County is paused for now). Washington counties load from assessor exports and WaTech. King County has the largest WA footprint today; Baltimore City is the active priority market.",
   },
   {
     title: "Prescreen narrows the field",

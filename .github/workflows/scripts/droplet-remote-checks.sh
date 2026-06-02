@@ -867,9 +867,7 @@ PY
       _internal_api_post "/internal/ingest/baltimore-city" \
         '{"max_features":20000,"auto_run_pipeline":true,"max_auto_pipeline":100}' \
         || echo "baltimore-city ingest skipped or failed"
-      _internal_api_post "/internal/ingest/baltimore-county" \
-        '{"max_features":20000,"auto_run_pipeline":true,"max_auto_pipeline":100}' \
-        || echo "baltimore-county ingest skipped or failed"
+      echo "=== (Baltimore County ingest paused — city only) ==="
       echo "=== POST /internal/pipeline/enqueue-priority?limit=75 ==="
       _internal_api_post "/internal/pipeline/enqueue-priority?limit=75" || true
     fi
@@ -885,11 +883,9 @@ PY
     fi
     ;;
   baltimore-markets-ingest)
-    echo "=== POST Baltimore City + County ingest (20k cap each) ==="
+    echo "=== POST Baltimore City ingest only (20k cap; county paused) ==="
     if [ -n "$KEY" ]; then
       _internal_api_post "/internal/ingest/baltimore-city" \
-        '{"max_features":20000,"auto_run_pipeline":true,"max_auto_pipeline":100}'
-      _internal_api_post "/internal/ingest/baltimore-county" \
         '{"max_features":20000,"auto_run_pipeline":true,"max_auto_pipeline":100}'
       _internal_api_post "/internal/pipeline/enqueue-priority?limit=75" || true
     else

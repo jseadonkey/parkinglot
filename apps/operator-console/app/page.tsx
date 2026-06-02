@@ -290,7 +290,7 @@ export default function OverviewPage() {
             </p>
           </div>
           <div className="scope-badges">
-            <span className="badge badge-priority">Priority: Baltimore City + County</span>
+            <span className="badge badge-priority">Priority: Baltimore City</span>
             <span className="badge">Min lot {minLot.toLocaleString()} sqft</span>
             <span className="badge">Qualified floor {qualFloor} (entitlement)</span>
           </div>

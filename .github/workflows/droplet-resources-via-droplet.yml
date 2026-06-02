@@ -54,7 +54,7 @@ on:
         type: boolean
         default: false
       baltimore_markets_ingest:
-        description: "Ingest Baltimore City + County (20k each) and enqueue priority pipeline"
+        description: "Ingest Baltimore City only (20k cap; county paused) and enqueue priority pipeline"
         type: boolean
         default: false
       pilot_scope_snapshot:
