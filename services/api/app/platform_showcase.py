@@ -45,7 +45,12 @@ def build_platform_showcase(db: Session) -> dict[str, Any]:
         )
 
     counties_loaded = [
-        {"county_fips": c["county_fips"], "county_name": c["county_name"], "parcels_in_db": c["parcels_in_db"]}
+        {
+            "county_fips": c["county_fips"],
+            "county_name": c["county_name"],
+            "parcels_in_db": c["parcels_in_db"],
+            "priority_market": c.get("priority_market", False),
+        }
         for c in scope["counties"]
         if c["parcels_in_db"] > 0
     ]
@@ -54,6 +59,11 @@ def build_platform_showcase(db: Session) -> dict[str, Any]:
         "generated_at": datetime.now(UTC),
         "region_name": scope["region_name"],
         "state_name": scope["state_name"],
+        "states_in_scope": scope.get("states_in_scope") or [],
+        "primary_market_name": scope.get("primary_market_name", "Baltimore, Maryland"),
+        "primary_market_state_fips": scope.get("primary_market_state_fips", "24"),
+        "priority_county_fips": scope.get("priority_county_fips") or [],
+        "parcels_in_priority_counties": scope.get("parcels_in_priority_counties", 0),
         "primary_metro_label": scope.get("primary_metro_label"),
         "pilot_county_count": scope["pilot_county_count"],
         "counties_with_ingested_parcels": scope["counties_with_ingested_parcels"],

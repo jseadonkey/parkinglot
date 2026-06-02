@@ -103,7 +103,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="app-shell">
       <header className="app-topbar">
         <Link href="/outreach" className="app-brand">
-          <span className="app-brand-title">WA parking</span>
+          <span className="app-brand-title">Parking acquisition</span>
           <span className="app-brand-sub muted">Operator console</span>
         </Link>
         <AuthToolbar />

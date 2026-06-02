@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { OperatorGuide, QuickStartCards } from "../components/OperatorGuide";
 import { bridgeUrl } from "../lib/paths";
+import { formatStatesLabel } from "../lib/marketScope";
 import { PILOT_SCOPE_DEFAULTS } from "../lib/pilotScopeDefaults";
 
 type QualifiedMinScores = {
@@ -34,12 +35,24 @@ type PilotCounty = {
   county_fips: string;
   county_name: string;
   parcels_in_db: number;
+  priority_market?: boolean;
+};
+
+type StateScope = {
+  state_fips: string;
+  state_name: string;
+  county_count: number;
 };
 
 type PilotScope = {
   region_name: string;
   state_fips: string;
   state_name: string;
+  states_in_scope?: StateScope[];
+  primary_market_name?: string;
+  primary_market_state_fips?: string;
+  priority_county_fips?: string[];
+  parcels_in_priority_counties?: number;
   primary_metro_cbsa: string | null;
   primary_metro_label: string | null;
   pilot_county_count: number;
@@ -158,8 +171,14 @@ export default function OverviewPage() {
 
   const scopeView = isPilotScope(scope) ? scope : null;
   const regionName = scopeView?.region_name ?? PILOT_SCOPE_DEFAULTS.region_name;
-  const stateName = scopeView?.state_name ?? PILOT_SCOPE_DEFAULTS.state_name;
-  const stateFips = scopeView?.state_fips ?? PILOT_SCOPE_DEFAULTS.state_fips;
+  const statesLabel =
+    scopeView?.states_in_scope && scopeView.states_in_scope.length > 0
+      ? formatStatesLabel(scopeView.states_in_scope)
+      : (scopeView?.state_name ?? PILOT_SCOPE_DEFAULTS.state_name);
+  const primaryMarket = scopeView?.primary_market_name ?? PILOT_SCOPE_DEFAULTS.primary_market_name;
+  const priorityFips = new Set(
+    scopeView?.priority_county_fips ?? [...PILOT_SCOPE_DEFAULTS.priority_county_fips],
+  );
   const countyCount = scopeView?.pilot_county_count ?? PILOT_SCOPE_DEFAULTS.pilot_county_count;
   const metroLabel = scopeView?.primary_metro_label ?? PILOT_SCOPE_DEFAULTS.primary_metro_label;
   const minLot = scopeView?.min_lot_sqft ?? PILOT_SCOPE_DEFAULTS.min_lot_sqft;
@@ -179,7 +198,7 @@ export default function OverviewPage() {
         key: "ingested",
         label: "Parcels ingested",
         detail:
-          "Only APNs we have loaded from county GIS exports (or WaTech pulls) — not every parcel in Washington.",
+          "Only APNs loaded from county GIS (Baltimore EGIS, Washington assessor/WaTech) — not every parcel in configured markets.",
         count: summary.total_parcels,
       },
       {
@@ -216,7 +235,10 @@ export default function OverviewPage() {
   const countiesToShow = useMemo(() => {
     if (!scopeView) return [];
     const sorted = [...scopeView.counties].sort(
-      (a, b) => b.parcels_in_db - a.parcels_in_db || a.county_name.localeCompare(b.county_name),
+      (a, b) =>
+        (b.priority_market ? 1 : 0) - (a.priority_market ? 1 : 0) ||
+        b.parcels_in_db - a.parcels_in_db ||
+        a.county_name.localeCompare(b.county_name),
     );
     if (showAllCounties) return sorted;
     const withData = sorted.filter((c) => c.parcels_in_db > 0);
@@ -257,25 +279,40 @@ export default function OverviewPage() {
           <div>
             <div className="scope-region">{regionName}</div>
             <p className="muted scope-sub">
-              {stateName} (FIPS {stateFips}) · <strong>{countyCount} counties allowed in config</strong> (not all
-              loaded yet) · Primary metro: <strong>{metroLabel}</strong>
+              <strong>{statesLabel}</strong> · <strong>{countyCount} counties</strong> in config (not all loaded) ·
+              Priority market: <strong>{primaryMarket}</strong>
+              {metroLabel ? (
+                <>
+                  {" "}
+                  · Metro: <strong>{metroLabel}</strong>
+                </>
+              ) : null}
             </p>
           </div>
           <div className="scope-badges">
+            <span className="badge badge-priority">Priority: Baltimore City + County</span>
             <span className="badge">Min lot {minLot.toLocaleString()} sqft</span>
             <span className="badge">Qualified floor {qualFloor} (entitlement)</span>
           </div>
         </div>
 
         <p className="muted scope-note">
-          <strong>Config scope</strong> — ingest may load any of the {countyCount} county FIPS codes in{" "}
-          <code>config/pilot.yaml</code>; parcels outside that list are skipped.
+          <strong>Config scope</strong> — ingest loads county GIS for Baltimore (EGIS) and Washington (WaTech/assessor);
+          any of the {countyCount} FIPS in <code>config/pilot.yaml</code> + <code>config/geo_markets.yaml</code>. Parcels
+          outside that list are skipped. Washington statewide ingest is paced; Baltimore is prioritized in the pipeline.
           {scopeView ? (
             <>
               {" "}
               <strong>Data loaded</strong> —{" "}
               <strong>{scopeView.parcels_in_pilot_counties.toLocaleString()}</strong> parcel rows in{" "}
               <strong>{scopeView.counties_with_ingested_parcels}</strong> of {scopeView.pilot_county_count} counties
+              {scopeView.parcels_in_priority_counties != null && scopeView.parcels_in_priority_counties > 0 ? (
+                <>
+                  {" "}
+                  (<strong>{scopeView.parcels_in_priority_counties.toLocaleString()}</strong> in priority Maryland
+                  counties)
+                </>
+              ) : null}
               {countiesWithData.length > 0 ? (
                 <>
                   :{" "}
@@ -303,14 +340,25 @@ export default function OverviewPage() {
                 <tr>
                   <th>County</th>
                   <th>FIPS</th>
+                  <th>Market</th>
                   <th>Parcels in DB</th>
                 </tr>
               </thead>
               <tbody>
                 {countiesToShow.map((c) => (
-                  <tr key={c.county_fips}>
+                  <tr
+                    key={c.county_fips}
+                    className={c.priority_market || priorityFips.has(c.county_fips) ? "scope-priority-row" : undefined}
+                  >
                     <td>{c.county_name}</td>
                     <td className="muted">{c.county_fips}</td>
+                    <td>
+                      {c.priority_market || priorityFips.has(c.county_fips) ? (
+                        <span className="badge badge-priority">Priority</span>
+                      ) : (
+                        <span className="muted">WA pilot</span>
+                      )}
+                    </td>
                     <td>{c.parcels_in_db.toLocaleString()}</td>
                   </tr>
                 ))}
@@ -369,8 +417,8 @@ export default function OverviewPage() {
 
       <h2>Data funnel</h2>
       <p className="muted">
-        We do <strong>not</strong> pull owner enrichment, deal memos, or contracts on every APN in Washington. Parcels
-        narrow through ingest boundaries, lightweight prescreening, and optional full pipeline runs.
+        We do <strong>not</strong> pull owner enrichment, deal memos, or contracts on every ingested APN. Parcels narrow
+        through market boundaries, prescreening, and selective full pipeline runs (Baltimore counties first in the queue).
       </p>
 
       {funnelSteps.length > 0 ? (
@@ -409,8 +457,8 @@ export default function OverviewPage() {
                 owner enrichment, outreach brief, memo, contract draft.
               </li>
               <li>
-                <strong>Operator views</strong> — outreach and deal boards focus on entitlement-qualified parcels, not
-                the full statewide inventory.
+                <strong>Operator views</strong> — outreach and deal boards focus on entitlement-qualified parcels, not the
+                full multi-county inventory.
               </li>
             </ul>
           </div>

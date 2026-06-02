@@ -45,7 +45,7 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         href: "/",
         label: "Overview",
-        purpose: "Pilot scope, scoring totals, and how parcels narrow through the funnel.",
+        purpose: "Multi-state pilot scope (Baltimore + Washington), scoring totals, and data funnel.",
       },
     ],
   },
@@ -61,7 +61,7 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         href: "/parcels",
         label: "Parcels",
-        purpose: "All ingested lots with Atlas, Beacon, and Cartographer scores.",
+        purpose: "Scored inventory — filter by state or county (Maryland and Washington).",
       },
       {
         href: "/owners",

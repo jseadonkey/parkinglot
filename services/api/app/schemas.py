@@ -381,6 +381,7 @@ class PlatformShowcaseCountyRow(BaseModel):
     county_fips: str
     county_name: str
     parcels_in_db: int
+    priority_market: bool = False
 
 
 class PlatformShowcaseTopParcel(BaseModel):
@@ -409,6 +410,11 @@ class PlatformShowcaseResponse(BaseModel):
     generated_at: datetime
     region_name: str
     state_name: str
+    states_in_scope: list[StateScopeRow] = Field(default_factory=list)
+    primary_market_name: str = "Baltimore, Maryland"
+    primary_market_state_fips: str = "24"
+    priority_county_fips: list[str] = Field(default_factory=list)
+    parcels_in_priority_counties: int = 0
     primary_metro_label: str | None
     pilot_county_count: int
     counties_with_ingested_parcels: int
@@ -434,12 +440,19 @@ class PilotCountyScopeRow(BaseModel):
     priority_market: bool = False
 
 
+class StateScopeRow(BaseModel):
+    state_fips: str
+    state_name: str
+    county_count: int
+
+
 class PilotScopeResponse(BaseModel):
     """GET /internal/stats/pilot-scope — geographic pilot boundaries."""
 
     region_name: str
     state_fips: str
     state_name: str
+    states_in_scope: list[StateScopeRow] = Field(default_factory=list)
     primary_market_name: str = "Baltimore, Maryland"
     primary_market_state_fips: str = "24"
     priority_county_fips: list[str] = Field(default_factory=list)

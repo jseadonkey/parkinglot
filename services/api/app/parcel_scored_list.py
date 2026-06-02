@@ -70,9 +70,13 @@ def query_parcels_scored_list(
     *,
     limit: int,
     sort: ParcelSortProfile = COMBINED,
+    county_fips: str | None = None,
+    state_fips: str | None = None,
 ) -> list[ParcelScoredRowData]:
     """All parcels with latest score per profile, ordered by ``sort`` (null scores last)."""
     cap = min(max(limit, 1), 2000)
+    cf = (county_fips or "").strip()
+    st = (state_fips or "").strip()
     ent_sub = _latest_score_subq(Parcel.id, ENTITLEMENT)
     str_sub = _latest_score_subq(Parcel.id, STRATEGIC)
     id_sub = _latest_score_subq(Parcel.id, IDENTIFICATION)
@@ -86,21 +90,22 @@ def query_parcels_scored_list(
     elif sort == IDENTIFICATION:
         sort_col = id_sub
 
-    stmt = (
-        select(
-            Parcel.id,
-            Parcel.apn,
-            Parcel.county_fips,
-            Parcel.zoning_code,
-            Parcel.lot_sqft,
-            Parcel.created_at,
-            ent_sub.label("ent_score"),
-            str_sub.label("str_score"),
-            id_sub.label("id_score"),
-        )
-        .order_by(nulls_last(desc(sort_col)), desc(Parcel.created_at))
-        .limit(cap)
+    stmt = select(
+        Parcel.id,
+        Parcel.apn,
+        Parcel.county_fips,
+        Parcel.zoning_code,
+        Parcel.lot_sqft,
+        Parcel.created_at,
+        ent_sub.label("ent_score"),
+        str_sub.label("str_score"),
+        id_sub.label("id_score"),
     )
+    if cf:
+        stmt = stmt.where(Parcel.county_fips == cf)
+    elif st:
+        stmt = stmt.where(Parcel.county_fips.startswith(st))
+    stmt = stmt.order_by(nulls_last(desc(sort_col)), desc(Parcel.created_at)).limit(cap)
     out: list[ParcelScoredRowData] = []
     for r in db.execute(stmt).all():
         pid, apn, cfips, zoning, sqft, created, ent_f, str_f, id_f = r

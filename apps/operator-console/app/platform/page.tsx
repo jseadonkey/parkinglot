@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { platformShowcaseUrl } from "../../lib/paths";
+import { formatStatesLabel } from "../../lib/marketScope";
 import { countyLine, useCountyNames } from "../../lib/useCountyNames";
 
 type SampleDeliverable = {
@@ -13,14 +14,25 @@ type SampleDeliverable = {
   redacted: boolean;
 };
 
+type StateScope = { state_fips: string; state_name: string; county_count: number };
+
 type Showcase = {
   generated_at: string;
   region_name: string;
   state_name: string;
+  states_in_scope?: StateScope[];
+  primary_market_name?: string;
+  priority_county_fips?: string[];
+  parcels_in_priority_counties?: number;
   primary_metro_label: string | null;
   pilot_county_count: number;
   counties_with_ingested_parcels: number;
-  counties_loaded: Array<{ county_fips: string; county_name: string; parcels_in_db: number }>;
+  counties_loaded: Array<{
+    county_fips: string;
+    county_name: string;
+    parcels_in_db: number;
+    priority_market?: boolean;
+  }>;
   parcels_total: number;
   parcels_prescreen_qualified: number;
   parcels_qualified_entitlement: number;
@@ -49,7 +61,7 @@ const PIPELINE_STAGES = [
   {
     id: "ingest",
     title: "County GIS ingest",
-    body: "Parcels load from Washington assessor exports and WaTech statewide layers — geometry, APN, zoning, lot size, and demand proximity.",
+    body: "Parcels load from county GIS — Baltimore City EGIS (Maryland) and Washington assessor / WaTech layers — geometry, APN, zoning, lot size, and demand proximity.",
   },
   {
     id: "cartographer",
@@ -69,7 +81,7 @@ const PIPELINE_STAGES = [
   {
     id: "enrich",
     title: "Owner enrichment",
-    body: "Assessor roll + licensed skip trace + WA registry lookup + portfolio peers. Produces a structured owner outreach brief.",
+    body: "Assessor roll + licensed skip trace + state registry lookup + portfolio peers. Produces a structured owner outreach brief.",
   },
   {
     id: "deliver",
@@ -88,7 +100,7 @@ const AGENTS = [
     codename: "Cartographer",
     role: "Identification prescreen",
     evaluates: "Zoning allows surface parking, minimum lot size, corner exposure, distance to hospitals/stadiums/transit demand generators.",
-    when: "Runs on every parcel at GIS ingest — instant triage of ~124k+ King County rows.",
+    when: "Runs on every parcel at GIS ingest — instant triage across loaded counties (King WA, Baltimore MD, and growing).",
   },
   {
     codename: "Atlas",
@@ -135,7 +147,7 @@ const AUTOMATION = [
   "Celery workers process pipelines 24/7 on the production droplet",
   "Top entitlement deals enqueued every 2 hours — highest scores first",
   "Hourly Slack standup digest + site health watchdog",
-  "39 Washington counties configured; statewide WaTech rollout ready when prioritized",
+  "41 counties across Maryland + Washington; Baltimore prioritized, WA statewide ingest paced",
   "PostGIS spatial queries for rate comps and nearby qualified parcels",
 ] as const;
 
@@ -201,7 +213,7 @@ export default function PlatformPage() {
       <header className="platform-hero">
         <div className="platform-hero-top">
           <div>
-            <p className="platform-eyebrow">Washington parking acquisition</p>
+            <p className="platform-eyebrow">Multi-state parking acquisition</p>
             <h1>Automated deal intelligence platform</h1>
           </div>
           <div className="platform-hero-actions no-print">
@@ -211,7 +223,7 @@ export default function PlatformPage() {
           </div>
         </div>
         <p className="platform-lead">
-          Three scoring agents, gated enrichment, and full deal packaging — from statewide parcel ingest to
+          Three scoring agents, gated enrichment, and full deal packaging — from multi-market parcel ingest to
           counsel-approved outreach. Built for institutional partners who need scale without sacrificing control.
         </p>
         <p className="muted platform-share no-print">
@@ -249,22 +261,33 @@ export default function PlatformPage() {
               <span className="platform-metric-n">
                 {data.counties_with_ingested_parcels}/{data.pilot_county_count}
               </span>
-              <span className="platform-metric-label">WA counties with data</span>
+              <span className="platform-metric-label">Counties with data</span>
             </div>
           </section>
 
           <section className="panel platform-section">
             <h2>Geographic scope</h2>
             <p className="muted">
-              {data.region_name} · {data.state_name}
+              {data.region_name} ·{" "}
+              {data.states_in_scope && data.states_in_scope.length > 0
+                ? formatStatesLabel(data.states_in_scope)
+                : data.state_name}
+              {data.primary_market_name ? ` · Priority: ${data.primary_market_name}` : ""}
               {data.primary_metro_label ? ` · ${data.primary_metro_label}` : ""}. Ingest is configured for{" "}
-              {data.pilot_county_count} counties; data is loaded for {data.counties_with_ingested_parcels} today.
+              {data.pilot_county_count} counties; data is loaded for {data.counties_with_ingested_parcels} today
+              {data.parcels_in_priority_counties != null && data.parcels_in_priority_counties > 0
+                ? ` (${fmt(data.parcels_in_priority_counties)} in priority Maryland counties)`
+                : ""}
+              .
             </p>
             {data.counties_loaded.length > 0 ? (
               <div className="platform-county-chips">
                 {data.counties_loaded.map((c) => (
-                  <span key={c.county_fips} className="badge">
-                    {c.county_name.replace(/ County$/i, "")}: {fmt(c.parcels_in_db)}
+                  <span
+                    key={c.county_fips}
+                    className={c.priority_market ? "badge badge-priority" : "badge"}
+                  >
+                    {countyLine(countyLabel, c.county_fips)}: {fmt(c.parcels_in_db)}
                   </span>
                 ))}
               </div>

@@ -14,12 +14,27 @@ def test_build_platform_showcase_shape():
         "qualified_min_score": {"entitlement": 55.0, "strategic": 50.0, "identification": 45.0},
     }
     scope = {
-        "region_name": "WA pilot",
-        "state_name": "Washington",
+        "region_name": "Baltimore MD (priority) + Washington statewide",
+        "state_name": "Maryland + Washington",
+        "states_in_scope": [
+            {"state_fips": "24", "state_name": "Maryland", "county_count": 2},
+            {"state_fips": "53", "state_name": "Washington", "county_count": 39},
+        ],
+        "primary_market_name": "Baltimore, Maryland",
+        "primary_market_state_fips": "24",
+        "priority_county_fips": ["24510", "24005"],
+        "parcels_in_priority_counties": 0,
         "primary_metro_label": "Seattle",
-        "pilot_county_count": 39,
+        "pilot_county_count": 41,
         "counties_with_ingested_parcels": 1,
-        "counties": [{"county_fips": "53033", "county_name": "King County", "parcels_in_db": 100}],
+        "counties": [
+            {
+                "county_fips": "53033",
+                "county_name": "King County",
+                "parcels_in_db": 100,
+                "priority_market": False,
+            },
+        ],
     }
     export = {
         "parcel_row_total": 100,

@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Parking — operator console",
-  description: "Washington parking acquisition — browse parcels, track deals, approve outreach",
+  description: "Multi-state parking acquisition — Baltimore and Washington pilot markets",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

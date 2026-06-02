@@ -3,7 +3,7 @@ import Link from "next/link";
 const STEPS = [
   {
     title: "Parcels load from county GIS",
-    body: "We ingest assessor polygons and attributes for Washington pilot counties. Today most rows are King County; 38 other counties are configured but not all loaded yet.",
+    body: "Baltimore City and County load from Maryland EGIS; Washington counties load from assessor exports and WaTech. King County has the largest WA footprint today; Baltimore is the active priority market.",
   },
   {
     title: "Prescreen narrows the field",
@@ -24,8 +24,8 @@ export function OperatorGuide() {
     <section className="panel guide-panel" aria-labelledby="guide-heading">
       <h2 id="guide-heading">How the process works</h2>
       <p className="muted guide-intro">
-        The console tracks parking-lot acquisition candidates in Washington. Automated agents do research and
-        drafting; you review and approve before outreach.
+        The console tracks parking-lot acquisition candidates across configured pilot markets (Maryland priority,
+        Washington secondary). Automated agents do research and drafting; you review and approve before outreach.
       </p>
       <ol className="guide-steps">
         {STEPS.map((step, i) => (
@@ -52,7 +52,7 @@ export function OperatorGuide() {
             <Link href="/deals">Deal progress</Link> — every parcel with a pipeline run and step-by-step status
           </li>
           <li>
-            <Link href="/parcels">Parcels</Link> — browse scored inventory; open any APN for full detail
+            <Link href="/parcels">Parcels</Link> — browse scored inventory by state or county; open any APN for detail
           </li>
         </ul>
       </div>

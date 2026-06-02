@@ -73,6 +73,23 @@ MD_COUNTY_NAMES: dict[str, str] = {
 COUNTY_DISPLAY_NAMES: dict[str, str] = {**WA_COUNTY_NAMES, **MD_COUNTY_NAMES}
 
 
+def states_in_scope_from_fips(pilot_fips: list[str]) -> list[dict[str, Any]]:
+    """Unique states represented in pilot county FIPS list."""
+    by_state: dict[str, int] = {}
+    for fips in pilot_fips:
+        st = fips[:2] if len(fips) >= 2 else ""
+        if st:
+            by_state[st] = by_state.get(st, 0) + 1
+    return [
+        {
+            "state_fips": st,
+            "state_name": STATE_FIPS_NAMES.get(st, st),
+            "county_count": cnt,
+        }
+        for st, cnt in sorted(by_state.items())
+    ]
+
+
 def pilot_scope_summary(db: Session) -> dict[str, Any]:
     """Region config from pilot YAML plus parcel counts per in-scope county."""
     settings = get_settings()
@@ -109,10 +126,18 @@ def pilot_scope_summary(db: Session) -> dict[str, Any]:
     primary = primary_market_summary()
     pri_fips = primary["priority_county_fips"]
     parcels_priority = sum(counts_by_fips.get(f, 0) for f in pri_fips)
+    states = states_in_scope_from_fips(pilot_fips)
+    if len(states) > 1:
+        scope_states_label = " + ".join(s["state_name"] for s in states)
+    elif states:
+        scope_states_label = states[0]["state_name"]
+    else:
+        scope_states_label = STATE_FIPS_NAMES.get(state_fips, state_fips or "Unknown")
     return {
         "region_name": region.name,
         "state_fips": state_fips,
-        "state_name": STATE_FIPS_NAMES.get(state_fips, state_fips or "Unknown"),
+        "state_name": scope_states_label,
+        "states_in_scope": states,
         "primary_market_name": primary["name"],
         "primary_market_state_fips": primary["state_fips"],
         "priority_county_fips": pri_fips,

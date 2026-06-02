@@ -321,10 +321,18 @@ def deal_progress_board(
 def parcels_scored_list(
     limit: int = Query(default=100, ge=1, le=2000),
     sort: ParcelSortProfile = Query(default=COMBINED),
+    county_fips: str | None = Query(default=None, min_length=5, max_length=5),
+    state_fips: str | None = Query(default=None, min_length=2, max_length=2),
     db: Session = Depends(get_db),
 ) -> ParcelScoredListResponse:
     """All parcels with latest entitlement / strategic / identification scores (operator table)."""
-    raw = query_parcels_scored_list(db, limit=limit, sort=sort)
+    raw = query_parcels_scored_list(
+        db,
+        limit=limit,
+        sort=sort,
+        county_fips=county_fips,
+        state_fips=state_fips,
+    )
     rows = [
         ParcelScoredListRow(
             parcel_id=str(r.parcel_id),

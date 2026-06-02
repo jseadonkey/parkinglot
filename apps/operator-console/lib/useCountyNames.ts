@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 
+import { stateAbbr } from "./marketScope";
 import { bridgeUrl } from "./paths";
 
 const FALLBACK: Record<string, string> = {
+  "24510": "Baltimore City",
+  "24005": "Baltimore",
   "53033": "King",
 };
 
@@ -23,7 +26,7 @@ export function useCountyNames(): (fips: string) => string {
         if (cancelled || !data.counties) return;
         const next: Record<string, string> = { ...FALLBACK };
         for (const c of data.counties) {
-          const short = c.county_name.replace(/ County$/i, "");
+          const short = c.county_name.replace(/ County$/i, "").replace(/ City$/i, " City");
           next[c.county_fips] = short;
         }
         setMap(next);
@@ -41,5 +44,7 @@ export function useCountyNames(): (fips: string) => string {
 
 export function countyLine(label: (fips: string) => string, fips: string): string {
   const name = label(fips);
-  return name === fips ? fips : `${name} Co · ${fips}`;
+  const st = stateAbbr(fips);
+  if (name === fips) return st ? `${st} · ${fips}` : fips;
+  return st ? `${name}, ${st} · ${fips}` : `${name} · ${fips}`;
 }

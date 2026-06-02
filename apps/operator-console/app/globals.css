@@ -910,6 +910,16 @@ pre.json {
   border: 1px solid var(--border);
 }
 
+.badge-priority {
+  background: #1a2f4a;
+  border-color: #3d6ea8;
+  color: #b8d4f0;
+}
+
+.scope-priority-row td:first-child {
+  font-weight: 600;
+}
+
 .cols {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));

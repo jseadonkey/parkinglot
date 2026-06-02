@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { STATE_NAMES } from "../../lib/marketScope";
 import { bridgeUrl } from "../../lib/paths";
 import { countyLine, useCountyNames } from "../../lib/useCountyNames";
 
@@ -27,6 +28,8 @@ type ScoredList = {
   rows: ParcelRow[];
 };
 
+type PilotCounty = { county_fips: string; county_name: string; priority_market?: boolean };
+
 function fmtScore(v: number | null): string {
   return v != null ? v.toFixed(1) : "—";
 }
@@ -35,23 +38,45 @@ export default function ParcelsPage() {
   const countyLabel = useCountyNames();
   const [limit, setLimit] = useState(100);
   const [sort, setSort] = useState<SortProfile>("combined");
+  const [stateFips, setStateFips] = useState("");
+  const [countyFips, setCountyFips] = useState("");
+  const [counties, setCounties] = useState<PilotCounty[]>([]);
   const [rows, setRows] = useState<ParcelRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(bridgeUrl("internal/stats/pilot-scope"), { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { counties?: PilotCounty[] };
+        if (!cancelled && data.counties) setCounties(data.counties);
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const countyOptions = counties.filter((c) => !stateFips || c.county_fips.startsWith(stateFips));
 
   const load = useCallback(async () => {
     setErr(null);
     try {
-      const res = await fetch(
-        bridgeUrl(`internal/parcels/scored-list?limit=${limit}&sort=${sort}`),
-        { cache: "no-store" },
-      );
+      const params = new URLSearchParams({ limit: String(limit), sort });
+      if (countyFips) params.set("county_fips", countyFips);
+      else if (stateFips) params.set("state_fips", stateFips);
+      const res = await fetch(bridgeUrl(`internal/parcels/scored-list?${params}`), { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as ScoredList;
       setRows(data.rows);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     }
-  }, [limit, sort]);
+  }, [limit, sort, stateFips, countyFips]);
 
   useEffect(() => {
     void load();
@@ -59,7 +84,48 @@ export default function ParcelsPage() {
 
   return (
     <div className="page-content">
+      <p className="muted" style={{ marginTop: 0 }}>
+        Scored parcels across pilot markets. Filter by state or county; Baltimore (MD) counties are listed first in the
+        scope table on Overview.
+      </p>
       <div className="panel" style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
+        <label className="muted">
+          State{" "}
+          <select
+            value={stateFips}
+            onChange={(e) => {
+              setStateFips(e.target.value);
+              setCountyFips("");
+            }}
+          >
+            <option value="">All states</option>
+            <option value="24">{STATE_NAMES["24"]} (MD)</option>
+            <option value="53">{STATE_NAMES["53"]} (WA)</option>
+          </select>
+        </label>
+        <label className="muted">
+          County{" "}
+          <select
+            value={countyFips}
+            onChange={(e) => setCountyFips(e.target.value)}
+            disabled={countyOptions.length === 0}
+          >
+            <option value="">All counties{stateFips ? " in state" : ""}</option>
+            {countyOptions
+              .slice()
+              .sort(
+                (a, b) =>
+                  (b.priority_market ? 1 : 0) - (a.priority_market ? 1 : 0) ||
+                  a.county_name.localeCompare(b.county_name),
+              )
+              .map((c) => (
+                <option key={c.county_fips} value={c.county_fips}>
+                  {c.county_name}
+                  {c.priority_market ? " ★" : ""} ({c.county_fips})
+                </option>
+              ))}
+          </select>
+        </label>
         <label className="muted">
           Sort by{" "}
           <select value={sort} onChange={(e) => setSort(e.target.value as SortProfile)}>
@@ -121,7 +187,7 @@ export default function ParcelsPage() {
             ))}
           </tbody>
         </table>
-        {rows.length === 0 && !err ? <p className="muted">No parcels returned.</p> : null}
+        {rows.length === 0 ? <p className="muted">No parcels match this filter.</p> : null}
       </div>
     </div>
   );
