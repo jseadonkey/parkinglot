@@ -59,6 +59,20 @@ jobs:
             | tee "$LOG"
           grep '^WATCHDOG_JSON=' "$LOG" | sed 's/^WATCHDOG_JSON=//' > scripts/site-watchdog/server-checks.json || echo '{"ok":false,"checks":[],"runner":"github-ssh","failure_count":1}' > scripts/site-watchdog/server-checks.json
 
+      - name: Ops remediation (Baltimore gaps + worker health)
+        if: always()
+        continue-on-error: true
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && bash -s -- ops-remediation-run-now" || true
+
       - name: Auto disk maintenance when root disk unhealthy
         if: always()
         continue-on-error: true

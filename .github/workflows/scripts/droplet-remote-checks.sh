@@ -1148,6 +1148,75 @@ finally:
     db.close()
 PY
     ;;
+  ops-remediation-status)
+    echo "=== GET /internal/ops/status ==="
+    if [ -n "$KEY" ]; then
+      _internal_api_get "/internal/ops/status" || echo "ops/status failed"
+    else
+      echo "INTERNAL_API_KEY not set"
+    fi
+    ;;
+  ops-remediation-run-now)
+    echo "=== POST /internal/ops/run-now (diagnose + auto-fix) ==="
+    if [ -n "$KEY" ]; then
+      _internal_api_post "/internal/ops/run-now" || echo "ops/run-now failed"
+      echo "=== GET /internal/ops/status (after enqueue) ==="
+      sleep 5
+      _internal_api_get "/internal/ops/status" || true
+    else
+      echo "INTERNAL_API_KEY not set"
+    fi
+    ;;
+  enable-ops-remediation)
+    echo "=== enable ops remediation loop in deploy/.env ==="
+    python3 - <<'PY'
+import pathlib
+
+path = pathlib.Path("deploy/.env")
+if not path.is_file():
+    raise SystemExit("deploy/.env missing")
+
+updates = {
+    "OPS_REMEDIATION_ENABLED": "true",
+    "OPS_REMEDIATION_AUTO_FIX": "true",
+    "OPS_REMEDIATION_PRIORITY_COUNTY_FIPS": "24510",
+    "OPS_REMEDIATION_COOLDOWN_SEC": "3600",
+    "OPS_REMEDIATION_POI_BATCH_LIMIT": "50",
+    "OPS_REMEDIATION_CRONTAB_HOUR": "*/2",
+    "OPS_REMEDIATION_CRONTAB_MINUTE": "15",
+}
+lines = path.read_text(encoding="utf-8").splitlines()
+keys = set(updates)
+out: list[str] = []
+seen: set[str] = set()
+for line in lines:
+    if not line or line.lstrip().startswith("#") or "=" not in line:
+        out.append(line)
+        continue
+    key = line.split("=", 1)[0].strip()
+    if key in keys:
+        out.append(f"{key}={updates[key]}")
+        seen.add(key)
+    else:
+        out.append(line)
+missing = [k for k in keys if k not in seen]
+if missing:
+    if out and out[-1].strip():
+        out.append("")
+    out.append("# Ops remediation — Baltimore gaps + worker health (enable-ops-remediation)")
+    for key in sorted(missing):
+        out.append(f"{key}={updates[key]}")
+path.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
+for key, val in sorted(updates.items()):
+    print(f"Set {key}={val}")
+PY
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps api worker worker-slack beat
+    if [ -n "$KEY" ]; then
+      echo "=== kickstart ops loop ==="
+      _internal_api_post "/internal/ops/run-now" || true
+    fi
+    ;;
   refresh-baltimore-revenue-signals)
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
     ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
