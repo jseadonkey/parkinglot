@@ -54,10 +54,16 @@ class ParkingRevenueEstimateRead(BaseModel):
     hourly_rate_min_usd: float | None = None
     hourly_rate_max_usd: float | None = None
     comp_count: int | None = None
+    monthly_gross_raw_usd: float | None = None
     monthly_gross_usd: float | None = None
     monthly_gross_low_usd: float | None = None
     monthly_gross_high_usd: float | None = None
     annual_gross_usd: float | None = None
+    market_confidence: float | None = None
+    market_confidence_tier: str | None = None
+    strong_comp_count: int | None = None
+    nearest_comp_distance_m: float | None = None
+    market_evidence_notes: list[str] | None = None
     assumptions: dict[str, float | bool] | None = None
 
 
@@ -312,6 +318,11 @@ class ParcelRevenueSummaryRead(BaseModel):
     comp_count: int | None = None
     nearest_comp_name: str | None = None
     nearest_comp_distance_m: float | None = None
+    market_confidence: float | None = None
+    market_confidence_tier: str | None = None
+    strong_comp_count: int | None = None
+    monthly_gross_raw_usd: float | None = None
+    market_evidence_notes: list[str] | None = None
 
 
 class OutreachPipelineRow(BaseModel):

@@ -56,9 +56,23 @@ def test_parking_market_component_zero_without_comps() -> None:
 
 def test_parking_market_component_partial_with_one_comp() -> None:
     pilot = _pilot_with_parking_weight()
-    comp = ParkingRateCompObservation(name="Garage", lat=47.6, lon=-122.3, hourly_mid_usd=12.0)
+    comp = ParkingRateCompObservation(name="Garage", lat=47.6, lon=-122.3, hourly_mid_usd=12.0, distance_m=200.0)
     pts, _ = parking_market_component([comp], pilot)
     assert pts == 7.5
+
+
+def test_parking_market_component_one_distant_comp_heavily_discounted() -> None:
+    pilot = _pilot_with_parking_weight()
+    comp = ParkingRateCompObservation(
+        name="Far lot",
+        lat=47.62,
+        lon=-122.34,
+        hourly_mid_usd=12.0,
+        distance_m=2200.0,
+    )
+    pts, notes = parking_market_component([comp], pilot)
+    assert pts < 4.0
+    assert any("distance" in n.lower() for n in notes)
 
 
 def test_parking_market_component_full_with_two_comps() -> None:

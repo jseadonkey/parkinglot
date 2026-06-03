@@ -161,6 +161,11 @@ def revenue_summary_for_parcel(
         "comp_count": None,
         "nearest_comp_name": None,
         "nearest_comp_distance_m": None,
+        "market_confidence": None,
+        "market_confidence_tier": None,
+        "strong_comp_count": None,
+        "monthly_gross_raw_usd": None,
+        "market_evidence_notes": None,
     }
     centroid = parcel_centroid_lat_lon(parcel)
     if centroid is None:
@@ -199,8 +204,17 @@ def revenue_summary_for_parcel(
         "comp_count": int(est["comp_count"]) if est.get("comp_count") is not None else None,
         "nearest_comp_name": str(top["name"]) if top else None,
         "nearest_comp_distance_m": (
-            float(top["distance_m"]) if top and top.get("distance_m") is not None else None
+            float(top["distance_m"])
+            if top and top.get("distance_m") is not None
+            else est.get("nearest_comp_distance_m")
         ),
+        "market_confidence": float(est["market_confidence"]) if est.get("market_confidence") is not None else None,
+        "market_confidence_tier": str(est.get("market_confidence_tier") or ""),
+        "strong_comp_count": int(est["strong_comp_count"]) if est.get("strong_comp_count") is not None else None,
+        "monthly_gross_raw_usd": (
+            float(est["monthly_gross_raw_usd"]) if est.get("monthly_gross_raw_usd") is not None else None
+        ),
+        "market_evidence_notes": list(est.get("market_evidence_notes") or []),
     }
 
 

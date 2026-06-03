@@ -6,7 +6,7 @@ import statistics
 from typing import Any, Literal
 
 from parking_core.pilot import ParkingRateCompObservation
-from parking_core.rate_comps import haversine_m
+from parking_core.rate_comps import distance_comp_weight, haversine_m
 
 FacilityType = Literal["surface", "garage", "mixed", "unknown"]
 
@@ -64,12 +64,6 @@ def effective_hourly_for_surface(hourly_mid_usd: float, facility_type: FacilityT
     if facility_type == "mixed":
         return hourly_mid_usd * 0.94
     return hourly_mid_usd
-
-
-def distance_comp_weight(distance_m: float, *, scale_m: float = 450.0) -> float:
-    """Smooth inverse-distance weight; ~50% at ``scale_m``."""
-    d = max(0.0, float(distance_m))
-    return 1.0 / (1.0 + (d / scale_m) ** 2)
 
 
 def estimate_surface_stalls(
@@ -147,6 +141,78 @@ def weighted_hourly_rate(enriched: list[dict[str, Any]]) -> float | None:
     return sum(float(row["effective_hourly_usd"]) * float(row["comp_weight"]) for row in enriched) / total_w
 
 
+def market_evidence_confidence(
+    enriched: list[dict[str, Any]],
+    *,
+    strong_distance_m: float = 750.0,
+    min_strong_comps: int = 2,
+) -> dict[str, Any]:
+    """How much to trust revenue from comp coverage (0–1). Penalizes few/distant comps."""
+    n = len(enriched)
+    if n == 0:
+        return {
+            "factor": 0.0,
+            "tier": "none",
+            "strong_comp_count": 0,
+            "nearest_comp_distance_m": None,
+            "notes": ["No paid parking comps within search radius."],
+        }
+
+    nearest_d = float(enriched[0]["distance_m"])
+    strong = [
+        row
+        for row in enriched
+        if float(row["distance_m"]) <= strong_distance_m and float(row["comp_weight"]) >= 0.2
+    ]
+    strong_n = len(strong)
+
+    if strong_n >= min_strong_comps:
+        count_f = 1.0
+    elif strong_n == 1:
+        count_f = 0.62
+    elif n == 1:
+        count_f = 0.42
+    else:
+        count_f = 0.52
+
+    dist_f = distance_comp_weight(nearest_d, scale_m=500.0)
+    if n == 1:
+        dist_f = max(0.22, min(1.0, dist_f * 1.35))
+    else:
+        dist_f = max(0.45, dist_f)
+
+    factor = max(0.2, min(1.0, count_f * dist_f))
+    if strong_n >= min_strong_comps and nearest_d <= 500.0:
+        tier = "high"
+    elif factor >= 0.72:
+        tier = "moderate"
+    elif factor >= 0.45:
+        tier = "low"
+    else:
+        tier = "very_low"
+
+    notes: list[str] = []
+    if n == 1:
+        notes.append(
+            f"Only 1 paid parking comp within radius (~{nearest_d:.0f} m away) — revenue discounted.",
+        )
+    elif strong_n < min_strong_comps:
+        notes.append(
+            f"Only {strong_n} comp(s) within {strong_distance_m:.0f} m — "
+            f"need {min_strong_comps}+ for full market confidence.",
+        )
+    if nearest_d > strong_distance_m:
+        notes.append(f"Nearest comp is ~{nearest_d:.0f} m — weak local rate evidence.")
+
+    return {
+        "factor": round(factor, 3),
+        "tier": tier,
+        "strong_comp_count": strong_n,
+        "nearest_comp_distance_m": round(nearest_d, 1),
+        "notes": notes,
+    }
+
+
 def estimate_parking_revenue(
     *,
     lot_sqft: float | None,
@@ -189,9 +255,15 @@ def estimate_parking_revenue(
     def _monthly(stalls: int, hourly: float) -> float:
         return stalls * hourly * hours_per_day * days_per_month * occupancy
 
-    monthly_mid = _monthly(stalls_mid, hourly_used)
-    monthly_low = _monthly(stalls_low, hourly_used * 0.95)
-    monthly_high = _monthly(stalls_high, hourly_used * 1.05)
+    monthly_raw = _monthly(stalls_mid, hourly_used)
+
+    confidence = market_evidence_confidence(enriched)
+    conf_f = float(confidence["factor"])
+    spread = 1.35 if confidence["tier"] in ("very_low", "low") else 1.12
+
+    monthly_mid = monthly_raw * conf_f
+    monthly_low = monthly_raw * conf_f * (0.72 if conf_f < 0.75 else 0.88)
+    monthly_high = monthly_raw * min(1.08, conf_f * spread)
 
     primary_comps = [row for row in enriched if row["comp_weight"] >= 0.15][:6]
 
@@ -210,15 +282,22 @@ def estimate_parking_revenue(
         "comp_count": len(comps),
         "comps_weighted": enriched,
         "primary_comps": primary_comps,
+        "monthly_gross_raw_usd": round(monthly_raw, 0),
         "monthly_gross_usd": round(monthly_mid, 0),
         "monthly_gross_low_usd": round(monthly_low, 0),
         "monthly_gross_high_usd": round(monthly_high, 0),
         "annual_gross_usd": round(monthly_mid * 12, 0),
+        "market_confidence": conf_f,
+        "market_confidence_tier": confidence["tier"],
+        "strong_comp_count": confidence["strong_comp_count"],
+        "nearest_comp_distance_m": confidence["nearest_comp_distance_m"],
+        "market_evidence_notes": confidence["notes"],
         "assumptions": {
             "hours_per_day": hours_per_day,
             "days_per_month": days_per_month,
             "occupancy": occupancy,
             "distance_scale_m": distance_scale_m,
             "is_corner_lot": is_corner_lot,
+            "market_confidence_factor": conf_f,
         },
     }

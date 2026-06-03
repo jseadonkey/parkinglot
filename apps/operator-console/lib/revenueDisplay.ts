@@ -17,7 +17,23 @@ export type ParcelRevenueSummary = {
   hourly_rate_weighted_usd?: number | null;
   comp_count?: number | null;
   nearest_comp_distance_m?: number | null;
+  market_confidence?: number | null;
+  market_confidence_tier?: string | null;
+  monthly_gross_raw_usd?: number | null;
+  market_evidence_notes?: string[] | null;
 };
+
+const TIER_LABELS: Record<string, string> = {
+  high: "High confidence",
+  moderate: "Moderate confidence",
+  low: "Low confidence",
+  very_low: "Very low confidence",
+};
+
+export function marketConfidenceLabel(tier: string | null | undefined): string {
+  if (!tier) return "";
+  return TIER_LABELS[tier] ?? tier;
+}
 
 export function formatStallRange(rev: ParcelRevenueSummary | null | undefined): string {
   if (!rev?.revenue_available) return "—";

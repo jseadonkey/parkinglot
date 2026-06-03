@@ -12,6 +12,7 @@ import {
   skipTraceRan,
 } from "../../../lib/skipTraceDisplay";
 import { countyLine, useCountyNames } from "../../../lib/useCountyNames";
+import { marketConfidenceLabel } from "../../../lib/revenueDisplay";
 import { tierBadgeClass, tierLabel, symbolHint } from "../../../lib/zoningEntitlement";
 import { canMutate, useAuth } from "../../../lib/useAuth";
 
@@ -84,6 +85,11 @@ type DealContext = {
     layout_efficiency?: number;
     usable_sqft?: number;
     comp_count?: number;
+    market_confidence?: number;
+    market_confidence_tier?: string;
+    monthly_gross_raw_usd?: number;
+    nearest_comp_distance_m?: number;
+    market_evidence_notes?: string[];
     reason?: string;
   };
   nearby_qualified_parcels: Array<{
@@ -425,7 +431,31 @@ export default function ParcelDetailPage() {
                         <span> (median ${dealContext.revenue_estimate.hourly_rate_median_usd}/hr)</span>
                       ) : null}{" "}
                       · {dealContext.revenue_estimate.comp_count} comps within {dealContext.rate_comp_radius_m}m
+                      {dealContext.revenue_estimate.nearest_comp_distance_m != null
+                        ? ` (nearest ~${Math.round(dealContext.revenue_estimate.nearest_comp_distance_m)} m)`
+                        : ""}
                     </p>
+                    {dealContext.revenue_estimate.market_confidence_tier &&
+                    dealContext.revenue_estimate.market_confidence_tier !== "high" ? (
+                      <p className="muted" style={{ marginTop: "0.5rem" }}>
+                        <strong>{marketConfidenceLabel(dealContext.revenue_estimate.market_confidence_tier)}</strong>
+                        {dealContext.revenue_estimate.market_confidence != null
+                          ? ` (${Math.round(dealContext.revenue_estimate.market_confidence * 100)}% of unadjusted estimate)`
+                          : ""}
+                        {dealContext.revenue_estimate.monthly_gross_raw_usd != null &&
+                        dealContext.revenue_estimate.monthly_gross_raw_usd !==
+                          dealContext.revenue_estimate.monthly_gross_usd ? (
+                          <span>
+                            {" "}
+                            — before discount would be $
+                            {dealContext.revenue_estimate.monthly_gross_raw_usd.toLocaleString()}/mo
+                          </span>
+                        ) : null}
+                        {dealContext.revenue_estimate.market_evidence_notes?.length ? (
+                          <span> — {dealContext.revenue_estimate.market_evidence_notes.join(" ")}</span>
+                        ) : null}
+                      </p>
+                    ) : null}
                   </>
                 ) : (
                   <p className="muted">

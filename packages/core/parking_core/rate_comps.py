@@ -17,6 +17,12 @@ def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * r * math.asin(math.sqrt(a))
 
 
+def distance_comp_weight(distance_m: float, *, scale_m: float = 450.0) -> float:
+    """Smooth inverse-distance weight; ~50% at ``scale_m``."""
+    d = max(0.0, float(distance_m))
+    return 1.0 / (1.0 + (d / scale_m) ** 2)
+
+
 def rate_comp_key(comp: ParkingRateCompObservation) -> tuple[str, float, float]:
     return (comp.name, round(comp.lat, 5), round(comp.lon, 5))
 
@@ -54,6 +60,38 @@ def filter_comps_within_radius(
     return [c.model_copy(update={"distance_m": d}) for d, c in within]
 
 
+def _nearest_comp_distance_m(comps: list[ParkingRateCompObservation]) -> float | None:
+    distances = [float(c.distance_m) for c in comps if c.distance_m is not None]
+    return min(distances) if distances else None
+
+
+def _distance_market_multiplier(
+    comps: list[ParkingRateCompObservation],
+    *,
+    strong_distance_m: float = 750.0,
+) -> tuple[float, str | None]:
+    """Reduce market score when comps are sparse or far (aligns with revenue confidence)."""
+    n = len(comps)
+    if n == 0:
+        return 0.0, None
+    nearest = _nearest_comp_distance_m(comps)
+    if nearest is None:
+        return 1.0, None
+    strong = sum(
+        1
+        for c in comps
+        if c.distance_m is not None and float(c.distance_m) <= strong_distance_m
+    )
+    dist_mult = max(0.25, min(1.0, distance_comp_weight(nearest, scale_m=500.0) * (1.25 if n == 1 else 1.0)))
+    if strong >= 2 and nearest <= 500.0:
+        return 1.0, None
+    if n == 1:
+        return dist_mult, f"nearest comp ~{nearest:.0f} m — distance haircut on market score."
+    if nearest > strong_distance_m:
+        return max(0.55, dist_mult), f"nearest comp ~{nearest:.0f} m — weak local market evidence."
+    return max(0.75, dist_mult), None
+
+
 def parking_market_component(
     comps: list[ParkingRateCompObservation],
     pilot: PilotConfig,
@@ -74,20 +112,25 @@ def parking_market_component(
 
     rates = [float(c.hourly_mid_usd) for c in used]
     median_rate = float(statistics.median(rates))
+    dist_mult, dist_note = _distance_market_multiplier(used)
 
     if n == 1:
-        pts = weight * 0.5
+        pts = weight * 0.5 * dist_mult
         notes = [
             f"1 nearby paid parking comp ({used[0].name}, ${median_rate:.2f}/hr); "
             f"need {min_full}+ comps for full market credit.",
         ]
+        if dist_note:
+            notes.append(dist_note)
         return pts, notes
 
     fraction = min(1.0, n / max(min_full, 1))
-    pts = weight * fraction
+    pts = weight * fraction * dist_mult
     preview = ", ".join(f"{c.name} (${c.hourly_mid_usd:.0f}/hr)" for c in used[:4])
     extra = f"; +{n - 4} more" if n > 4 else ""
     notes = [
         f"{n} nearby paid parking comps — {preview}{extra}; median ${median_rate:.2f}/hr.",
     ]
+    if dist_note:
+        notes.append(dist_note)
     return pts, notes

@@ -253,6 +253,11 @@ def _revenue_summary_read(raw: dict[str, float | bool | int | str | None]) -> Pa
         comp_count=raw.get("comp_count"),  # type: ignore[arg-type]
         nearest_comp_name=raw.get("nearest_comp_name"),  # type: ignore[arg-type]
         nearest_comp_distance_m=raw.get("nearest_comp_distance_m"),  # type: ignore[arg-type]
+        market_confidence=raw.get("market_confidence"),  # type: ignore[arg-type]
+        market_confidence_tier=raw.get("market_confidence_tier"),  # type: ignore[arg-type]
+        strong_comp_count=raw.get("strong_comp_count"),  # type: ignore[arg-type]
+        monthly_gross_raw_usd=raw.get("monthly_gross_raw_usd"),  # type: ignore[arg-type]
+        market_evidence_notes=raw.get("market_evidence_notes"),  # type: ignore[arg-type]
     )
 
 

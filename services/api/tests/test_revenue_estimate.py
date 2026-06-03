@@ -72,5 +72,31 @@ def test_enrich_rate_comps_includes_distance_and_similarity() -> None:
     assert rows[0]["similarity"] == 0.55
 
 
+def test_single_distant_comp_discounts_revenue() -> None:
+    comps = [
+        ParkingRateCompObservation(
+            name="Distant lot",
+            lat=39.31,
+            lon=-76.63,
+            hourly_mid_usd=11.0,
+            distance_m=2000.0,
+        ),
+    ]
+    out = estimate_parking_revenue(
+        lot_sqft=30_133,
+        comps=comps,
+        lat=39.2904,
+        lon=-76.6122,
+        is_corner_lot=False,
+    )
+    assert out["available"] is True
+    raw = float(out["monthly_gross_raw_usd"])
+    adj = float(out["monthly_gross_usd"])
+    assert out["market_confidence_tier"] in ("very_low", "low")
+    assert float(out["market_confidence"]) <= 0.45
+    assert adj < raw * 0.55
+    assert out["comp_count"] == 1
+
+
 def test_estimate_parking_revenue_missing_inputs() -> None:
     assert estimate_parking_revenue(lot_sqft=None, comps=[]).get("available") is False
