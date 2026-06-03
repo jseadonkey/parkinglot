@@ -6,6 +6,9 @@ from typing import Any
 
 import yaml
 
+# Repo root (…/services/ingestion/parking_ingestion/zoning_rules.py → parents[3]).
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
 # County FIPS → zoning_rules.yaml jurisdiction key (ingest when overlay omits ZONING_JURISDICTION).
 COUNTY_FIPS_TO_ZONING_JURISDICTION: dict[str, str] = {
     "24510": "baltimore_city",
@@ -82,6 +85,8 @@ def zoning_rules_search_paths(explicit: Path | None = None) -> list[Path]:
     for candidate in (
         Path("/app/data/zoning/wa/kent_king_surface_parking_rules.yaml"),
         Path("/app/data/zoning/md/baltimore_city_surface_parking_rules.yaml"),
+        _REPO_ROOT / "data/zoning/wa/kent_king_surface_parking_rules.yaml",
+        _REPO_ROOT / "data/zoning/md/baltimore_city_surface_parking_rules.yaml",
         Path.cwd() / "data/zoning/wa/kent_king_surface_parking_rules.yaml",
         Path.cwd() / "data/zoning/md/baltimore_city_surface_parking_rules.yaml",
     ):

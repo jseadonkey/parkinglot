@@ -70,14 +70,14 @@ def _fetch_arcgis_parcels_geojson(
             props = feat.setdefault("properties", {})
             if not str(props.get("COUNTY_FIPS", "")).strip():
                 props["COUNTY_FIPS"] = county_fips
-            if not str(props.get("APN", "")).strip():
-                pin = ""
-                for field in pin_fields:
-                    pin = str(props.get(field) or "").strip()
-                    if pin:
-                        break
+            pin = ""
+            for field in pin_fields:
+                pin = str(props.get(field) or "").strip()
                 if pin:
-                    props["APN"] = f"{apn_prefix}{pin}"
+                    break
+            if pin:
+                # Always normalize from pin_fields (PARCELNUM alone is not unique in City layer).
+                props["APN"] = f"{apn_prefix}{pin}"
 
         features.extend(batch)
         if len(batch) < batch_limit:
@@ -104,7 +104,7 @@ def fetch_baltimore_city_geojson(
         page_size=page_size,
         max_features=max_features,
         sleep_sec=sleep_sec,
-        pin_fields=("PARCELNUM", "BLOCKLOT", "TAXPIN"),
+        pin_fields=("PIN", "BLOCKLOT", "PARCELNUM", "TAXPIN"),
     )
 
 
