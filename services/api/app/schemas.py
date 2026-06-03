@@ -17,159 +17,61 @@ class ParcelRead(BaseModel):
     lot_sqft: float | None
     zoning_code: str | None
     zoning_allows_surface_parking: bool
+    zoning_principal_use_symbol: str | None = None
+    zoning_entitlement_tier: str | None = None
     is_corner_lot: bool
     distance_to_nearest_demand_m: float | None
-    distance_to_nearest_comp_parking_m: float | None = None
-    nearest_parking_comp: dict[str, Any] | None = None
     owner_outreach_brief: dict[str, Any] | None = None
     created_at: datetime
 
 
-class OwnerCandidateRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    display_name: str
-    kind: str
-    confidence: float
-    source: str
-    normalized_owner_key: str | None = None
-    created_at: datetime
+class RateCompRead(BaseModel):
+    name: str
+    lat: float
+    lon: float
+    hourly_mid_usd: float
+    source_note: str | None = None
+    origin: str = "pilot"
 
 
-class DealMemoRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    parcel_id: uuid.UUID
-    title: str
-    body_md: str
-    open_questions: list[Any] | None = None
-    created_at: datetime
-
-
-class ContractDraftRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    parcel_id: uuid.UUID
-    s3_key: str
-    version: int
-    created_at: datetime
-
-
-class ParcelQualificationRead(BaseModel):
-    meets_entitlement_floor: bool
-    meets_strategic_floor: bool
-    dual_qualified: bool
-    qualified_min_entitlement: float
-    qualified_min_strategic: float
-    latest_entitlement_score: float | None = None
-    latest_strategic_score: float | None = None
-
-
-class OwnerContactRead(BaseModel):
-    channel: str
-    value: str
-    label: str | None = None
-    source: str | None = None
-    verified: bool = False
-    confidence: float | None = None
-
-
-class OwnerFieldCandidateRead(BaseModel):
-    value: str
-    source: str | None = None
-    label: str | None = None
-    confidence: float | None = None
-
-
-class OwnerPersonRead(BaseModel):
-    name: str | None = None
-    role: str | None = None
-    address: str | None = None
-    phone: str | None = None
-    email: str | None = None
-    source: str | None = None
-
-
-class SkipTraceSummaryRead(BaseModel):
-    provider: str | None = None
-    outcome: str | None = None
-    matched_person: str | None = None
-    notes: str | None = None
-    contacts: list[OwnerContactRead] = Field(default_factory=list)
-
-
-class OwnerRecordRead(BaseModel):
-    """Taxpayer / owner of record from county assessor enrichment (when loaded)."""
-
-    taxpayer_name: str | None = None
-    taxpayer_attn: str | None = None
-    mailing_address: str | None = None
-    situs_address: str | None = None
-    name_candidates: list[OwnerFieldCandidateRead] = Field(default_factory=list)
-    mailing_address_candidates: list[OwnerFieldCandidateRead] = Field(default_factory=list)
-    situs_address_candidates: list[OwnerFieldCandidateRead] = Field(default_factory=list)
-    appraised_land: float | None = None
-    appraised_improvements: float | None = None
-    property_type: str | None = None
-    erealproperty_url: str | None = None
-    data_source: str | None = None
-    enriched_at: str | None = None
-    owner_kind: str | None = None
-    is_entity: bool = False
-    enrichment_status: str | None = None
-    sos_search_url: str | None = None
-    registered_agent: str | None = None
-    registered_agent_address: str | None = None
-    principal_address: str | None = None
-    underlying_persons: list[OwnerPersonRead] = Field(default_factory=list)
-    contacts: list[OwnerContactRead] = Field(default_factory=list)
-    enrichment_gaps: list[str] = Field(default_factory=list)
-    next_steps: list[str] = Field(default_factory=list)
-    owner_research_tier: str | None = None
-    skip_trace: SkipTraceSummaryRead | None = None
-
-
-class ParcelDetailRead(BaseModel):
-    """GET /parcels/{id}/detail — full operator view of one parcel."""
-
-    id: uuid.UUID
+class NearbyQualifiedParcelRead(BaseModel):
+    parcel_id: str
     apn: str
     county_fips: str
     lot_sqft: float | None
-    zoning_code: str | None
-    zoning_allows_surface_parking: bool
-    is_corner_lot: bool
-    distance_to_nearest_demand_m: float | None
-    distance_to_nearest_comp_parking_m: float | None = None
-    nearest_parking_comp: dict[str, Any] | None = None
-    pilot_in_scope: bool
-    has_footprint: bool
-    centroid_lat: float | None = None
-    centroid_lon: float | None = None
-    owner_outreach_brief: dict[str, Any] | None = None
-    raw_properties: dict[str, Any] | None = None
-    assessor_summary: dict[str, str] = Field(default_factory=dict)
-    created_at: datetime
-    pilot_region: str
-    qualification: ParcelQualificationRead
-    scores: list[ParcelScoreRead] = Field(default_factory=list)
-    owners: list[OwnerCandidateRead] = Field(default_factory=list)
-    memos: list[DealMemoRead] = Field(default_factory=list)
-    contract_drafts: list[ContractDraftRead] = Field(default_factory=list)
-    approvals: list[ApprovalRead] = Field(default_factory=list)
-    workflow_runs: list[WorkflowRunRead] = Field(default_factory=list)
-    owner_record: OwnerRecordRead = Field(default_factory=OwnerRecordRead)
+    zoning_code: str | None = None
+    entitlement_score: float
+    distance_m: float | None = None
 
 
-class ParcelListRead(ParcelRead):
-    """Parcel row for list endpoints — latest score per profile when available."""
+class ParkingRevenueEstimateRead(BaseModel):
+    available: bool
+    reason: str | None = None
+    stalls_estimated: int | None = None
+    hourly_rate_median_usd: float | None = None
+    hourly_rate_min_usd: float | None = None
+    hourly_rate_max_usd: float | None = None
+    comp_count: int | None = None
+    monthly_gross_usd: float | None = None
+    annual_gross_usd: float | None = None
+    assumptions: dict[str, float] | None = None
 
-    latest_identification_score: float | None = None
-    latest_entitlement_score: float | None = None
-    latest_strategic_score: float | None = None
+
+class ParcelDealContextResponse(BaseModel):
+    """GET /parcels/{id}/deal-context — nearby comps and illustrative revenue for top deals."""
+
+    found: bool
+    parcel_id: str | None = None
+    apn: str | None = None
+    county_fips: str | None = None
+    lot_sqft: float | None = None
+    centroid: dict[str, float] | None = None
+    entitlement_score: float | None = None
+    qualified_floor: float | None = None
+    rate_comp_radius_m: float | None = None
+    rate_comps: list[RateCompRead] = Field(default_factory=list)
+    revenue_estimate: ParkingRevenueEstimateRead | None = None
+    nearby_qualified_parcels: list[NearbyQualifiedParcelRead] = Field(default_factory=list)
 
 
 class ParcelScoreRead(BaseModel):
@@ -223,6 +125,32 @@ class WorkflowRunRead(BaseModel):
     error: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class IngestBaltimoreCityRequest(BaseModel):
+    """Fetch Baltimore City EGIS parcels (Maryland), then enqueue ingest (Celery worker)."""
+
+    max_features: int | None = Field(
+        default=5000,
+        ge=1,
+        le=750000,
+        description="Cap returned parcels per job.",
+    )
+    auto_run_pipeline: bool = True
+    max_auto_pipeline: int = Field(default=100, ge=1, le=5000)
+
+
+class IngestBaltimoreCountyRequest(BaseModel):
+    """Fetch Baltimore County tax parcels (Maryland), then enqueue ingest (Celery worker)."""
+
+    max_features: int | None = Field(
+        default=5000,
+        ge=1,
+        le=750000,
+        description="Cap returned parcels per job.",
+    )
+    auto_run_pipeline: bool = True
+    max_auto_pipeline: int = Field(default=100, ge=1, le=5000)
 
 
 class IngestWatechCountyRequest(BaseModel):
@@ -298,6 +226,23 @@ class WaTechCountyQueuedResponse(BaseModel):
     fetch_task_id: str
 
 
+class WaRolloutCountyRow(BaseModel):
+    county_fips: str
+    parcels_in_db: int
+
+
+class WaRolloutStatusResponse(BaseModel):
+    """GET /internal/ingest/wa-rollout-status — slow statewide county ingest progress."""
+
+    rollout_enabled: bool
+    next_county_fips: str | None
+    counties_in_priority_list: int
+    counties_with_parcels: int
+    counties_remaining: int
+    parking_queue_depth: int | None = None
+    counties: list[WaRolloutCountyRow]
+
+
 class EnqueueUnscoredResponse(BaseModel):
     """Parcels missing entitlement score — pipelines enqueued directly (not a nested Celery task id)."""
 
@@ -306,11 +251,16 @@ class EnqueueUnscoredResponse(BaseModel):
 
 
 class EnqueueIncompleteResponse(BaseModel):
-    """Parcels missing entitlement or strategic score — pipelines enqueued directly."""
+    """Prescreen-qualified parcels missing entitlement or strategic — pipelines enqueued directly."""
 
     enqueued: int
     parcel_ids: list[str]
-    mode: str = Field(description="missing_entitlement_or_strategic")
+    mode: str = Field(description="prescreen_qualified_missing_entitlement_or_strategic")
+    prescreen_floor: float | None = None
+
+
+class PrescreenGapStat(GapStat):
+    floor: float = Field(description="Identification prescreen qualified_min_score from pilot_identification.yaml")
 
 
 class ExportReadinessResponse(BaseModel):
@@ -325,6 +275,10 @@ class ExportReadinessResponse(BaseModel):
     parcels_missing_score_entitlement: GapStat
     parcels_missing_score_strategic: GapStat
     parcels_missing_entitlement_or_strategic: GapStat
+    parcels_prescreen_qualified: PrescreenGapStat
+    parcels_pipeline_funnel_backlog: PrescreenGapStat
+    parcels_ruled_out_by_prescreen: PrescreenGapStat
+    parcels_ruled_out_at_atlas: PrescreenGapStat
     parcels_missing_owner_outreach_brief: GapStat
     recommended_next_steps: list[str]
 
@@ -336,7 +290,6 @@ class OutreachPipelineRow(BaseModel):
     apn: str
     county_fips: str
     entitlement_score: float | None
-    strategic_score: float | None
     identification_score: float | None
     workflow_run_id: str | None
     workflow_status: str | None
@@ -344,50 +297,78 @@ class OutreachPipelineRow(BaseModel):
     workflow_error: str | None
     workflow_updated_at: datetime | None
     has_outreach_brief: bool
-    owner_research_tier: str | None = None
     pending_approval_count: int
     pipeline_stage: str
+    monthly_gross_usd: float | None = None
+    revenue_available: bool = False
+
+
+class RateCompSeedResponse(BaseModel):
+    inserted: int
+    updated: int
+    skipped: int
+    total_seed_rows: int
+    replace_existing: bool
 
 
 class OutreachPipelineBoardResponse(BaseModel):
-    """GET /internal/pipeline/outreach-board — dual-qualified lots for owner outreach."""
+    """GET /internal/pipeline/outreach-board — qualified lots worth tracking for owner outreach."""
 
     qualified_min_entitlement_score: float
-    qualified_min_strategic_score: float
     row_count: int
     rows: list[OutreachPipelineRow]
 
 
+class DealProgressSummary(BaseModel):
+    total_parcels: int
+    by_status: dict[str, int]
+    by_step: dict[str, int]
+
+
 class DealProgressRow(BaseModel):
-    """One in-scope parcel with operator-friendly deal stage (latest workflow run)."""
+    parcel_id: str
+    apn: str
+    county_fips: str
+    workflow_run_id: str
+    workflow_status: str
+    workflow_step: str | None
+    workflow_error: str | None
+    workflow_updated_at: datetime | None
+    pending_approval_count: int
+    pipeline_stage: str
+
+
+class DealProgressBoardResponse(BaseModel):
+    """GET /internal/pipeline/deal-progress — latest workflow state per parcel."""
+
+    summary: DealProgressSummary
+    row_count: int
+    rows: list[DealProgressRow]
+
+
+class ParcelScoredListRow(BaseModel):
+    """One parcel with latest entitlement, strategic, and identification scores."""
 
     parcel_id: str
     apn: str
     county_fips: str
+    zoning_code: str | None
+    lot_sqft: float | None
+    zoning_principal_use_symbol: str | None = None
+    zoning_entitlement_tier: str | None = None
     entitlement_score: float | None
     strategic_score: float | None
     identification_score: float | None
-    deal_stage: str
-    deal_stage_label: str
-    workflow_run_id: str | None
-    workflow_status: str | None
-    workflow_step: str | None
-    workflow_error: str | None
-    workflow_updated_at: datetime | None
-    owner_research_tier: str | None = None
-    pending_approval_count: int
-    has_approved_memo: bool
-    has_approved_contract: bool
+    combined_score: float | None
+    created_at: datetime
 
 
-class DealProgressBoardResponse(BaseModel):
-    """GET /internal/pipeline/deal-progress — deal stages for operator console."""
+class ParcelScoredListResponse(BaseModel):
+    """GET /internal/parcels/scored-list — operator parcel table sorted by score."""
 
-    qualified_min_entitlement_score: float
-    qualified_min_strategic_score: float
-    stage_counts: dict[str, int]
+    sort: str
     row_count: int
-    rows: list[DealProgressRow]
+    rows: list[ParcelScoredListRow]
 
 
 class QualifiedMinScores(BaseModel):
@@ -413,58 +394,109 @@ class ScoringSummaryResponse(BaseModel):
     pilot_region: str
 
 
-class IngestStatusResponse(BaseModel):
-    """GET /internal/stats/ingest-status — bulk load + scoring backlog for operator UI."""
-
-    ingest_active: bool
-    active_ingest_task_id: str | None = None
-    active_ingest_path: str | None = None
-    candidate_geojson_path: str
-    candidate_feature_count: int | None = None
-    parcels_total_db: int
-    parcels_in_scope_db: int
-    parcels_with_entitlement_score: int
-    phase: str
-    headline: str
-    detail: str
+class PlatformShowcaseCountyRow(BaseModel):
+    county_fips: str
+    county_name: str
+    parcels_in_db: int
+    priority_market: bool = False
 
 
-class WorkflowFailureGroup(BaseModel):
-    """One bucket of failed runs sharing step + error text."""
-
-    current_step: str
-    error_signature: str
-    error_example: str
-    count: int
-    last_updated: datetime | None
-    sample_parcel_ids: list[str]
-    sample_run_ids: list[str]
-
-
-class StorageProbeResponse(BaseModel):
-    """Spaces/S3 bucket check (no secrets)."""
-
-    configured: bool
-    endpoint: str | None
-    bucket: str | None
-    region: str | None
-    reachable: bool
-    error: str | None
-    fix_hint: str | None
+class PlatformShowcaseTopParcel(BaseModel):
+    parcel_id: str
+    apn: str
+    county_fips: str
+    entitlement_score: float | None
+    strategic_score: float | None
+    identification_score: float | None
+    lot_sqft: float | None
+    zoning_code: str | None
+    has_outreach_brief: bool
 
 
-class WorkflowFailuresResponse(BaseModel):
-    """GET /internal/stats/workflow-failures — all failed enrich/pipeline runs (not UI-capped)."""
+class PlatformSampleDeliverable(BaseModel):
+    kind: str
+    title: str
+    excerpt: str
+    parcel_apn: str
+    redacted: bool = True
 
-    total_runs: int
-    failed_count: int
-    blocked_count: int
-    with_error_count: int
-    ui_list_cap: int
-    ui_note: str
-    failed_by_step: dict[str, int]
-    failure_groups: list[WorkflowFailureGroup]
-    storage: StorageProbeResponse
+
+class PlatformShowcaseResponse(BaseModel):
+    """GET /internal/stats/platform-showcase — partner-facing live platform metrics."""
+
+    generated_at: datetime
+    region_name: str
+    state_name: str
+    states_in_scope: list[StateScopeRow] = Field(default_factory=list)
+    primary_market_name: str = "Baltimore, Maryland"
+    primary_market_state_fips: str = "24"
+    priority_county_fips: list[str] = Field(default_factory=list)
+    parcels_in_priority_counties: int = 0
+    primary_metro_label: str | None
+    pilot_county_count: int
+    counties_with_ingested_parcels: int
+    counties_loaded: list[PlatformShowcaseCountyRow]
+    parcels_total: int
+    parcels_prescreen_qualified: int
+    parcels_qualified_entitlement: int
+    parcels_with_full_pipeline_scores: int
+    parcels_with_owner_brief: int
+    parcels_pipeline_backlog: int
+    qualified_floors: QualifiedMinScores
+    pipeline_runs_total: int
+    pipeline_by_stage: dict[str, int]
+    pipeline_by_step: dict[str, int]
+    top_parcels: list[PlatformShowcaseTopParcel]
+    sample_deliverables: list[PlatformSampleDeliverable] = Field(default_factory=list)
+
+
+class PilotCountyScopeRow(BaseModel):
+    county_fips: str
+    county_name: str
+    parcels_in_db: int
+    priority_market: bool = False
+
+
+class StateScopeRow(BaseModel):
+    state_fips: str
+    state_name: str
+    county_count: int
+
+
+class PilotScopeResponse(BaseModel):
+    """GET /internal/stats/pilot-scope — geographic pilot boundaries."""
+
+    region_name: str
+    state_fips: str
+    state_name: str
+    states_in_scope: list[StateScopeRow] = Field(default_factory=list)
+    primary_market_name: str = "Baltimore, Maryland"
+    primary_market_state_fips: str = "24"
+    priority_county_fips: list[str] = Field(default_factory=list)
+    parcels_in_priority_counties: int = 0
+    primary_metro_cbsa: str | None
+    primary_metro_label: str | None
+    pilot_county_count: int
+    counties_with_ingested_parcels: int
+    parcels_in_pilot_counties: int
+    min_lot_sqft: float
+    qualified_min_score: QualifiedMinScores
+    counties: list[PilotCountyScopeRow]
+
+
+class BaltimoreZoningTierZoneRow(BaseModel):
+    zoning_code: str
+    parcel_count: int
+
+
+class BaltimoreZoningTiersResponse(BaseModel):
+    """GET /internal/stats/baltimore-zoning-tiers — MD principal-use parking tiers in Postgres."""
+
+    county_fips: str
+    total_parcels: int
+    tiers: dict[str, int]
+    top_permitted_zones: list[BaltimoreZoningTierZoneRow]
+    rules_path: str
 
 
 class IngestSampleQueuedResponse(BaseModel):
@@ -535,6 +567,14 @@ class SlackTestMessagePostResponse(BaseModel):
     channel: str | None = None
 
 
+class SlackLastDigestResponse(BaseModel):
+    """GET /internal/slack/last-digest — last successful scheduled/manual digest audit row."""
+
+    found: bool
+    created_at: str | None = None
+    meta: dict[str, Any] | None = None
+
+
 class SlackConfigStatusResponse(BaseModel):
     """GET /internal/slack/status — booleans only (no secrets)."""
 
@@ -544,6 +584,45 @@ class SlackConfigStatusResponse(BaseModel):
     slack_dual_agent_configured: bool
     has_agent_discussion_channel_id: bool
     slack_agent_event_updates_enabled: bool
+
+
+class LobConfigStatusResponse(BaseModel):
+    """GET /internal/lob/status — booleans only (no secrets)."""
+
+    lob_configured: bool
+    has_api_key: bool
+    has_from_address: bool
+    lob_send_enabled: bool
+    lob_test_mode: bool | None = None
+    lob_mail_extra_service: str = "certified"
+
+
+class LobVerifyResponse(BaseModel):
+    """POST /internal/lob/verify — Lob API credential check."""
+
+    ok: bool
+    lob_configured: bool
+    lob_test_mode: bool | None = None
+    detail: str | None = None
+
+
+class SiteWatchdogCheckRead(BaseModel):
+    name: str
+    ok: bool
+    detail: str
+    latency_ms: float | None = None
+    source: str = "droplet"
+
+
+class SiteWatchdogStatusResponse(BaseModel):
+    """GET /internal/watchdog/status — last check persisted in Redis."""
+
+    found: bool
+    ok: bool | None = None
+    checked_at: str | None = None
+    runner: str | None = None
+    failure_count: int | None = None
+    checks: list[SiteWatchdogCheckRead] = Field(default_factory=list)
 
 
 class CeleryTaskStatusResponse(BaseModel):
@@ -610,6 +689,108 @@ class MergeGeojsonAttributesRequest(BaseModel):
             msg = "path cannot contain parent directory segments"
             raise ValueError(msg)
         return v
+
+
+class OwnerContactPointRead(BaseModel):
+    id: uuid.UUID
+    kind: str
+    value: str
+    source: str
+    label: str | None = None
+    confidence: float
+    created_at: datetime
+
+
+class OutreachAttemptRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    parcel_id: uuid.UUID
+    contact_point_id: uuid.UUID | None
+    channel: str
+    target_kind: str
+    target_value: str
+    result: str
+    result_detail: str | None
+    attempted_by: str
+    attempted_at: datetime
+    approval_request_id: uuid.UUID | None
+    meta: dict[str, Any] | None
+    created_at: datetime
+
+
+class ParcelOutreachRead(BaseModel):
+    brief: dict[str, Any]
+    contact_points: list[OwnerContactPointRead]
+    attempts: list[OutreachAttemptRead]
+
+
+class OutreachAttemptCreate(BaseModel):
+    channel: str = Field(min_length=1, max_length=32)
+    target_kind: str = Field(min_length=1, max_length=32)
+    target_value: str = Field(min_length=1, max_length=4000)
+    attempted_by: str = Field(min_length=1, max_length=256)
+    result: str = Field(default="attempted", min_length=1, max_length=64)
+    result_detail: str | None = Field(default=None, max_length=4000)
+    contact_point_id: uuid.UUID | None = None
+    approval_request_id: uuid.UUID | None = None
+
+
+class OwnerContactPointCreate(BaseModel):
+    kind: str = Field(min_length=1, max_length=32)
+    value: str = Field(min_length=1, max_length=4000)
+    source: str = Field(default="manual", min_length=1, max_length=128)
+    label: str | None = Field(default=None, max_length=256)
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+
+
+class OutreachTemplateRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    slug: str
+    name: str
+    channel: str
+    subject: str | None
+    body: str
+    updated_by: str | None
+    updated_at: datetime
+
+
+class OutreachTemplateUpdate(BaseModel):
+    body: str = Field(min_length=1, max_length=50000)
+    subject: str | None = Field(default=None, max_length=512)
+    updated_by: str = Field(min_length=1, max_length=256)
+
+
+class OutreachTemplatePreview(BaseModel):
+    slug: str
+    subject: str | None = None
+    body: str
+    sample_context: dict[str, Any] = Field(default_factory=dict)
+
+
+class OutreachTemplateMeta(BaseModel):
+    placeholders: list[str]
+
+
+class ParcelOutreachDraftRead(BaseModel):
+    channel: str
+    template_slug: str
+    to_name: str | None = None
+    to_email: str | None = None
+    to_phone: str | None = None
+    to_mailing_address: str | None = None
+    from_name: str
+    from_company: str | None = None
+    from_email: str | None = None
+    from_phone: str | None = None
+    subject: str | None = None
+    body: str
+    has_recipient: bool = False
+
+
+class OutreachApprovalRequest(BaseModel):
+    requested_by: str = Field(min_length=1, max_length=256)
 
 
 class SlackTestMessageRequest(BaseModel):

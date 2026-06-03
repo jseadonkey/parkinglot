@@ -7,51 +7,19 @@ import yaml
 from pydantic import BaseModel, Field
 
 
-class InScopeConfig(BaseModel):
-    """Kent city + King unincorporated only — excludes other King County incorporated places."""
-
-    kent_city_boundary_geojson: str = "data/boundaries/wa/kent_city_census_places.geojson"
-    excluded_incorporated_places_geojson: str = (
-        "data/boundaries/wa/king_county_incorporated_excluding_kent.geojson"
-    )
-
-
 class RegionConfig(BaseModel):
     name: str
     state_fips: str
     county_fips: list[str] = Field(default_factory=list)
     primary_metro_cbsa: str | None = None
-    in_scope: InScopeConfig | None = None
-
-
-class OperationsConfig(BaseModel):
-    """What we acquire and operate — guides zoning interpretation, scoring, and outreach."""
-
-    site_use: str = "standalone_unmanned_parking_lot"
-    lease_model: str = "master_lease"
-    summary: str = (
-        "Master-lease land for standalone, unmanned surface parking only "
-        "(no attendants, no valet, no garages we staff)."
-    )
-    partial_lot_note: str = (
-        "A site may still qualify if the owner developed part of the lot (e.g. a building on one half) "
-        "while a suitable undeveloped portion remains for unmanned parking — subject to zoning and counsel review."
-    )
-    excluded: list[str] = Field(
-        default_factory=lambda: [
-            "accessory parking serving another tenant's building as the only use",
-            "attended or valet parking operations",
-            "structured garages requiring staffing",
-            "mixed-use development where parking is not the primary ground lease",
-        ]
-    )
 
 
 class DealConfig(BaseModel):
     primary_structure: str
     allowed_structures: list[str] = Field(default_factory=list)
     templates_require_legal_review: bool = True
-    operations: OperationsConfig = Field(default_factory=OperationsConfig)
+    # Pilot: skip human queue for internal deal memos (contract_send still requires approval).
+    auto_approve_deal_memo_publish: bool = False
 
 
 class ComplianceConfig(BaseModel):
@@ -62,20 +30,22 @@ class ComplianceConfig(BaseModel):
 
 class ScoringWeights(BaseModel):
     zoning_permitted_surface_parking: int = 40
+    zoning_conditional_surface_parking: int = 0
     lot_size: int = 20
     corner_lot: int = 10
     near_demand_generator_m: int = 30
-    near_parking_comp_m: int = 0
+    near_paid_parking_comps: int = 0
 
 
-class ParkingCompMarketConfig(BaseModel):
-    """Curated paid-parking comps — distance + rate for market-demand scoring."""
+class ParkingRateCompObservation(BaseModel):
+    """Benchmark paid-parking rate near a parcel (pilot YAML and/or Postgres ``parking_rate_comps``)."""
 
-    enabled: bool = False
-    comps_path: str = "data/pilot/kent_king_parking_comps.yaml"
-    buffer_m: int = 800
-    min_rate_usd_per_day: float = 6.0
-    premium_rate_usd_per_day: float = 15.0
+    name: str
+    lat: float
+    lon: float
+    hourly_mid_usd: float
+    source_note: str | None = None
+    origin: str = "pilot"
 
 
 class ScoringConfig(BaseModel):
@@ -83,8 +53,13 @@ class ScoringConfig(BaseModel):
     weights: ScoringWeights = Field(default_factory=ScoringWeights)
     demand_generator_buffer_m: int = 400
     demand_generators: list[dict[str, Any]] = Field(default_factory=list)
-    parking_comp_market: ParkingCompMarketConfig = Field(default_factory=ParkingCompMarketConfig)
+    # Latest score at or above this value is treated as a "qualified" lot for listing filters.
     qualified_min_score: float = 55.0
+    # Optional static comps in YAML; merged with DB comps at score time when wired.
+    parking_rate_comps: list[ParkingRateCompObservation] = Field(default_factory=list)
+    parking_rate_comp_radius_m: float = 2500.0
+    parking_rate_comp_min_for_full_credit: int = 2
+    parking_rate_comp_max_used: int = 8
 
 
 class DataSourcesConfig(BaseModel):

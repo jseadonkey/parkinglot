@@ -1,0 +1,242 @@
+# Baltimore City — principal-use surface parking (Article 32, Table rows for
+# "Parking Lot (Principal Use)"). NOT LEGAL ADVICE — counsel must confirm before outreach.
+#
+# Symbol key (§ 1-205): P = permitted by right; CB = conditional (BMZA); CO = council
+# ordinance; blank / absent = not allowed as principal use.
+#
+# Scoring (`allows_surface_parking: true`) applies ONLY to P districts (Tier 1).
+# CB and CO zones are false here; use overlay ZONING_ALLOWS_SURFACE_PARKING when counsel
+# approves a specific parcel or BMZA/CO path. See docs/zoning-sources-baltimore.md.
+
+version: 1
+default_when_unknown: false
+
+jurisdictions:
+  baltimore_city:
+    ordinance_ref: "https://codes.baltimorecity.gov/us/md/cities/baltimore/code/32/zoning-tables"
+    use_standards_ref: "https://codes.baltimorecity.gov/us/md/cities/baltimore/code/32/14-331"
+    source_url: "https://geodata.baltimorecity.gov/egis/rest/services/CityView/Zoning_New/MapServer/0"
+    note: >
+      Business model targets paid surface parking as a principal use (Table 10-301 / 11-301 /
+      12-xxx). Accessory parking only (e.g. OS district) is not scored as allowed.
+
+    zones:
+      # --- Tier 1: P (permitted by right) — full zoning score credit ---
+      # Table 10-301 commercial
+      "C-3":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "Table 10-301 — principal parking lot permitted."
+      "C-4":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "Table 10-301 — principal parking lot permitted."
+
+      # Table 11-301 industrial
+      "OIC":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "Office-Industrial Commercial — Table 11-301 P."
+      "BSC":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "Business Service Center — Table 11-301 P."
+      "I-1":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "Light industrial — Table 11-301 P; strong acquisition target."
+      "I-2":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "General industrial — Table 11-301 P."
+      "MI":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "Maritime industrial — Table 11-301 P."
+
+      # Table 12-501 educational campus / 12-601 hospital campus
+      "EC-1":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "Table 12-501 P — campus district; primary area must remain educational."
+      "EC-2":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "Table 12-501 P — campus district; primary area must remain educational."
+      "H":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "Hospital campus — Table 12-601 P."
+
+      # Table 12-1302 Port Covington
+      "PC-1":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "Port Covington — Table 12-1302 P."
+      "PC-2":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "Port Covington — Table 12-1302 P."
+      "PC-3":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "Port Covington — Table 12-1302 P."
+      "PC-4":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "Port Covington — Table 12-1302 P."
+
+      # C-5 subdistricts (Table 10-301 C-5 subdistrict row — planning dept table)
+      "C-5-TO":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "C-5 Transit-Oriented subdistrict — P for principal parking lot."
+      "C-5-HS":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "C-5 Howard Street subdistrict — P for principal parking lot."
+
+      # --- Tier 2: CB (BMZA conditional) — not scored unless overlay override ---
+      "C-1":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Table 10-301 — BMZA conditional; viable with entitlement risk."
+      "C-1-VC":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Table 10-301 CB."
+      "C-1-E":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Table 10-301 CB."
+      "C-2":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Table 10-301 CB."
+      "IMU-2":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Industrial mixed-use — Table 11-301 CB."
+      "OR-1":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Office-Residential — Table 12-301 CB (GIS label OR-1)."
+      "OR-2":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Office-Residential — Table 12-301 CB."
+      "TOD-1":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Table 12-402 CB; principal lots max 1 acre (§ 12-504)."
+      "TOD-2":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Table 12-402 CB; max 1 acre."
+      "TOD-3":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Table 12-402 CB; max 1 acre."
+      "TOD-4":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Table 12-402 CB; max 1 acre."
+      "C-5-DC":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "C-5 Downtown Core — CB for principal parking lot."
+      "C-5-IH":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "C-5 Inner Harbor — CB."
+      "C-5-DE":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "C-5 Downtown Entertainment — CB."
+      "C-5-HT":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "C-5 Historic/Traditional — CB."
+
+      # --- Tier 3: CO (Mayor & City Council ordinance) — deprioritize ---
+      "C-5":
+        allows_surface_parking: false
+        principal_use_symbol: CO
+        note: "Table 10-301 — downtown C-5 base is CO, not P; many existing lots are grandfathered by ordinance."
+      "C-5-G":
+        allows_surface_parking: false
+        principal_use_symbol: CO
+        note: "C-5 G gateway subdistrict — CO."
+      "IMU-1":
+        allows_surface_parking: false
+        principal_use_symbol: CO
+        note: "Table 11-301 CO."
+      "R-5":
+        allows_surface_parking: false
+        principal_use_symbol: CO
+        note: "Table 9-301 — rowhouse/multi-family; CO only (rare for acquisitions)."
+      "R-6":
+        allows_surface_parking: false
+        principal_use_symbol: CO
+      "R-7":
+        allows_surface_parking: false
+        principal_use_symbol: CO
+      "R-8":
+        allows_surface_parking: false
+        principal_use_symbol: CO
+      "R-9":
+        allows_surface_parking: false
+        principal_use_symbol: CO
+      "R-10":
+        allows_surface_parking: false
+        principal_use_symbol: CO
+
+      # --- Tier 4: not listed (principal parking lot absent from use table) ---
+      "R-1":
+        allows_surface_parking: false
+        principal_use_symbol: NOT_LISTED
+        note: "Table 8-301 — principal parking lot not listed."
+      "R-1-A":
+        allows_surface_parking: false
+        principal_use_symbol: NOT_LISTED
+        note: "GIS may use R-1-A; maps to R-1A in code."
+      "R-1A":
+        allows_surface_parking: false
+        principal_use_symbol: NOT_LISTED
+      "R-1-B":
+        allows_surface_parking: false
+        principal_use_symbol: NOT_LISTED
+      "R-1B":
+        allows_surface_parking: false
+        principal_use_symbol: NOT_LISTED
+      "R-1-C":
+        allows_surface_parking: false
+        principal_use_symbol: NOT_LISTED
+      "R-1C":
+        allows_surface_parking: false
+        principal_use_symbol: NOT_LISTED
+      "R-1-D":
+        allows_surface_parking: false
+        principal_use_symbol: NOT_LISTED
+      "R-1D":
+        allows_surface_parking: false
+        principal_use_symbol: NOT_LISTED
+      "R-1-E":
+        allows_surface_parking: false
+        principal_use_symbol: NOT_LISTED
+      "R-1E":
+        allows_surface_parking: false
+        principal_use_symbol: NOT_LISTED
+      "R-2":
+        allows_surface_parking: false
+        principal_use_symbol: NOT_LISTED
+      "R-3":
+        allows_surface_parking: false
+        principal_use_symbol: NOT_LISTED
+      "R-4":
+        allows_surface_parking: false
+        principal_use_symbol: NOT_LISTED
+      "OS":
+        allows_surface_parking: false
+        principal_use_symbol: ACCESSORY_ONLY
+        note: "Table 7-202 — accessory parking CO only; no principal parking lot row."

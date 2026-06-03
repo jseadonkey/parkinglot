@@ -1,0 +1,196 @@
+# Print CPU, memory, disk, and docker stats from the production Droplet.
+
+name: Droplet resources (via Droplet)
+
+on:
+  workflow_dispatch:
+    inputs:
+      grow_disk:
+        description: "Grow root filesystem after a DigitalOcean volume resize"
+        type: boolean
+        default: false
+      disk_maintenance:
+        description: "Routine Docker prune + remove Baltimore staging GeoJSON when overlay exists"
+        type: boolean
+        default: false
+      relieve_load:
+        description: "Pause auto-enqueue and purge parking Celery backlog"
+        type: boolean
+        default: false
+      probe_outreach_drafts:
+        description: "Probe parcel outreach drafts endpoint and DB tables"
+        type: boolean
+        default: false
+      enable_enqueue:
+        description: "Re-enable scheduled incomplete-pipeline enqueue (safe default limit 50)"
+        type: boolean
+        default: false
+      enqueue_limit:
+        description: "Parcels per scheduled enqueue run (when enable_enqueue is true)"
+        type: string
+        default: "50"
+      probe_pipeline_velocity:
+        description: "Report enqueue settings, queue depth, and export-readiness backlog"
+        type: boolean
+        default: false
+      fix_watchdog_env:
+        description: "Set SITE_WATCHDOG_UI_BASE_URL in deploy/.env and restart worker-slack + beat"
+        type: boolean
+        default: false
+      sync_slack_channels:
+        description: "Point watchdog + agent-discussion channels at SLACK_DIGEST_CHANNEL_ID"
+        type: boolean
+        default: false
+      fix_hourly_slack_reports:
+        description: "Hourly pipeline digest + site watchdog Slack (env + restart beat/worker-slack)"
+        type: boolean
+        default: false
+      enable_wa_statewide_rollout:
+        description: "Enable daily WaTech ingest for next empty WA county + restart worker/beat"
+        type: boolean
+        default: false
+      prioritize_baltimore_market:
+        description: "Baltimore-first: geo_markets.yaml, priority pipeline on, pause WA statewide + kickstart city ingest"
+        type: boolean
+        default: false
+      baltimore_ingest_now:
+        description: "POST /internal/ingest/baltimore-city on the Droplet now"
+        type: boolean
+        default: false
+      baltimore_markets_ingest:
+        description: "Ingest Baltimore City only (20k cap; county paused) and enqueue priority pipeline"
+        type: boolean
+        default: false
+      baltimore_zoning_overlay:
+        description: "Phase B: fetch parcels+zoning, build overlay, merge attributes + priority enqueue"
+        type: boolean
+        default: false
+      baltimore_rescore_zoning:
+        description: "Merge existing Baltimore overlay + refresh entitlement scores (no GIS fetch)"
+        type: boolean
+        default: false
+      pilot_scope_snapshot:
+        description: "Print pilot-scope JSON (MD + WA county parcel counts)"
+        type: boolean
+        default: false
+      enable_slow_statewide_expansion:
+        description: "WA statewide ingest ~1 county/7d + priority pipeline (secondary to Baltimore)"
+        type: boolean
+        default: false
+      wa_rollout_now:
+        description: "Enqueue next county WaTech ingest now (requires rollout enabled on droplet)"
+        type: boolean
+        default: false
+      wa_rollout_status:
+        description: "Print statewide county ingest progress JSON"
+        type: boolean
+        default: false
+      enable_priority_pipeline:
+        description: "Pause statewide rollout; enqueue top entitlement parcels every 2h"
+        type: boolean
+        default: false
+      pause_wa_statewide_rollout:
+        description: "Set WA_STATEWIDE_ROLLOUT_ENABLED=false and restart worker/beat"
+        type: boolean
+        default: false
+      seed_king_rate_comps:
+        description: "Load Puget Sound parking rate benchmarks into parking_rate_comps"
+        type: boolean
+        default: false
+      enqueue_priority_now:
+        description: "Enqueue up to 75 top-entitlement pipeline jobs now"
+        type: boolean
+        default: false
+      refresh_rate_comp_scores:
+        description: "Re-score qualified King County parcels with nearby paid parking comps"
+        type: boolean
+        default: false
+      corner_lot_stats:
+        description: "Print Postgres counts for is_corner_lot (diagnose IS_CORNER overlay)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: CPU, RAM, disk, docker stats
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          MODE="resources"
+          if [ "${{ inputs.grow_disk }}" = "true" ]; then
+            MODE="disk-grow"
+          elif [ "${{ inputs.disk_maintenance }}" = "true" ]; then
+            MODE="disk-maintenance"
+          elif [ "${{ inputs.relieve_load }}" = "true" ]; then
+            MODE="relieve-load"
+          elif [ "${{ inputs.probe_outreach_drafts }}" = "true" ]; then
+            MODE="outreach-drafts"
+          elif [ "${{ inputs.enable_enqueue }}" = "true" ]; then
+            MODE="enable-enqueue"
+          elif [ "${{ inputs.probe_pipeline_velocity }}" = "true" ]; then
+            MODE="pipeline-velocity"
+          elif [ "${{ inputs.fix_watchdog_env }}" = "true" ]; then
+            MODE="fix-watchdog-env"
+          elif [ "${{ inputs.sync_slack_channels }}" = "true" ]; then
+            MODE="sync-slack-channels"
+          elif [ "${{ inputs.fix_hourly_slack_reports }}" = "true" ]; then
+            MODE="fix-hourly-slack-reports"
+          elif [ "${{ inputs.enable_wa_statewide_rollout }}" = "true" ]; then
+            MODE="enable-wa-statewide-rollout"
+          elif [ "${{ inputs.prioritize_baltimore_market }}" = "true" ]; then
+            MODE="prioritize-baltimore-market"
+          elif [ "${{ inputs.baltimore_markets_ingest }}" = "true" ]; then
+            MODE="baltimore-markets-ingest"
+          elif [ "${{ inputs.baltimore_zoning_overlay }}" = "true" ]; then
+            MODE="baltimore-zoning-overlay"
+          elif [ "${{ inputs.baltimore_rescore_zoning }}" = "true" ]; then
+            MODE="baltimore-rescore-zoning"
+          elif [ "${{ inputs.pilot_scope_snapshot }}" = "true" ]; then
+            MODE="pilot-scope-snapshot"
+          elif [ "${{ inputs.baltimore_ingest_now }}" = "true" ]; then
+            MODE="baltimore-ingest-now"
+          elif [ "${{ inputs.enable_slow_statewide_expansion }}" = "true" ]; then
+            MODE="enable-slow-statewide-expansion"
+          elif [ "${{ inputs.wa_rollout_now }}" = "true" ]; then
+            MODE="wa-rollout-now"
+          elif [ "${{ inputs.wa_rollout_status }}" = "true" ]; then
+            MODE="wa-rollout-status"
+          elif [ "${{ inputs.enable_priority_pipeline }}" = "true" ]; then
+            MODE="enable-priority-pipeline"
+          elif [ "${{ inputs.pause_wa_statewide_rollout }}" = "true" ]; then
+            MODE="pause-wa-statewide-rollout"
+          elif [ "${{ inputs.seed_king_rate_comps }}" = "true" ]; then
+            MODE="seed-king-rate-comps"
+          elif [ "${{ inputs.enqueue_priority_now }}" = "true" ]; then
+            MODE="enqueue-priority-now"
+          elif [ "${{ inputs.refresh_rate_comp_scores }}" = "true" ]; then
+            MODE="refresh-rate-comp-scores"
+          elif [ "${{ inputs.corner_lot_stats }}" = "true" ]; then
+            MODE="corner-lot-stats"
+          fi
+          ENQUEUE_LIMIT="${{ inputs.enqueue_limit || '50' }}"
+          cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && ENQUEUE_LIMIT=$(printf '%q' "$ENQUEUE_LIMIT") bash -s -- ${MODE} deploy/docker-compose.production.ghcr.yml"

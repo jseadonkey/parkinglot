@@ -2,63 +2,158 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ScoringMethodologyPanel } from "../../components/ScoringMethodologyPanel";
+
+import { STATE_NAMES } from "../../lib/marketScope";
+import { bridgeUrl } from "../../lib/paths";
+import { tierBadgeClass, tierLabel } from "../../lib/zoningEntitlement";
+import { countyLine, useCountyNames } from "../../lib/useCountyNames";
+
+type SortProfile = "combined" | "entitlement" | "strategic" | "identification";
 
 type ParcelRow = {
-  id: string;
+  parcel_id: string;
   apn: string;
   county_fips: string;
   zoning_code: string | null;
+  zoning_principal_use_symbol: string | null;
+  zoning_entitlement_tier: string | null;
   lot_sqft: number | null;
-  latest_identification_score: number | null;
-  latest_entitlement_score: number | null;
-  latest_strategic_score: number | null;
+  entitlement_score: number | null;
+  strategic_score: number | null;
+  identification_score: number | null;
+  combined_score: number | null;
   created_at: string;
 };
 
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+type ScoredList = {
+  sort: SortProfile;
+  row_count: number;
+  rows: ParcelRow[];
+};
 
-function formatScore(v: number | null | undefined): string {
-  if (v == null || Number.isNaN(v)) return "—";
-  return v.toFixed(1);
+type PilotCounty = { county_fips: string; county_name: string; priority_market?: boolean };
+
+function fmtScore(v: number | null): string {
+  return v != null ? v.toFixed(1) : "—";
 }
 
 export default function ParcelsPage() {
-  const [limit, setLimit] = useState(50);
+  const countyLabel = useCountyNames();
+  const [limit, setLimit] = useState(100);
+  const [sort, setSort] = useState<SortProfile>("combined");
+  const [stateFips, setStateFips] = useState("");
+  const [countyFips, setCountyFips] = useState("");
+  const [zoningTier, setZoningTier] = useState("");
+  const [counties, setCounties] = useState<PilotCounty[]>([]);
   const [rows, setRows] = useState<ParcelRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(bridgeUrl("internal/stats/pilot-scope"), { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { counties?: PilotCounty[] };
+        if (!cancelled && data.counties) setCounties(data.counties);
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const countyOptions = counties.filter((c) => !stateFips || c.county_fips.startsWith(stateFips));
 
   const load = useCallback(async () => {
     setErr(null);
     try {
-      const res = await fetch(`${apiBase}/parcels?limit=${limit}&sort=score`, { cache: "no-store" });
+      const params = new URLSearchParams({ limit: String(limit), sort });
+      if (countyFips) params.set("county_fips", countyFips);
+      else if (stateFips) params.set("state_fips", stateFips);
+      if (zoningTier) params.set("zoning_tier", zoningTier);
+      const res = await fetch(bridgeUrl(`internal/parcels/scored-list?${params}`), { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as ParcelRow[];
-      setRows(data);
+      const data = (await res.json()) as ScoredList;
+      setRows(data.rows);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     }
-  }, [limit]);
+  }, [limit, sort, stateFips, countyFips, zoningTier]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   return (
-    <main>
-      <h1>Parcels</h1>
-      <p className="muted">
-        In-scope parcels sorted by <strong>Atlas entitlement</strong> score (highest first). All three agent scores
-        are shown per row.
+    <div className="page-content">
+      <p className="muted" style={{ marginTop: 0 }}>
+        Scored parcels across pilot markets. Filter by state or county; Baltimore (MD) counties are listed first in the
+        scope table on Overview.
       </p>
-
-      <ScoringMethodologyPanel variant="compact" />
-
       <div className="panel" style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
         <label className="muted">
-          Limit{" "}
+          State{" "}
+          <select
+            value={stateFips}
+            onChange={(e) => {
+              setStateFips(e.target.value);
+              setCountyFips("");
+            }}
+          >
+            <option value="">All states</option>
+            <option value="24">{STATE_NAMES["24"]} (MD)</option>
+            <option value="53">{STATE_NAMES["53"]} (WA)</option>
+          </select>
+        </label>
+        <label className="muted">
+          County{" "}
+          <select
+            value={countyFips}
+            onChange={(e) => setCountyFips(e.target.value)}
+            disabled={countyOptions.length === 0}
+          >
+            <option value="">All counties{stateFips ? " in state" : ""}</option>
+            {countyOptions
+              .slice()
+              .sort(
+                (a, b) =>
+                  (b.priority_market ? 1 : 0) - (a.priority_market ? 1 : 0) ||
+                  a.county_name.localeCompare(b.county_name),
+              )
+              .map((c) => (
+                <option key={c.county_fips} value={c.county_fips}>
+                  {c.county_name}
+                  {c.priority_market ? " ★" : ""} ({c.county_fips})
+                </option>
+              ))}
+          </select>
+        </label>
+        <label className="muted">
+          Zoning tier{" "}
+          <select value={zoningTier} onChange={(e) => setZoningTier(e.target.value)}>
+            <option value="">All tiers</option>
+            <option value="permitted">Permitted (P)</option>
+            <option value="conditional">Conditional (BMZA)</option>
+            <option value="council">Council ordinance</option>
+            <option value="excluded">Not allowed</option>
+          </select>
+        </label>
+        <label className="muted">
+          Sort by{" "}
+          <select value={sort} onChange={(e) => setSort(e.target.value as SortProfile)}>
+            <option value="combined">Combined (avg of agents)</option>
+            <option value="entitlement">Entitlement (Atlas)</option>
+            <option value="strategic">Strategic (Beacon)</option>
+            <option value="identification">Identification (Cartographer)</option>
+          </select>
+        </label>
+        <label className="muted">
+          Max rows{" "}
           <select value={limit} onChange={(e) => setLimit(Number(e.target.value))}>
-            {[25, 50, 100, 200].map((n) => (
+            {[25, 50, 100, 200, 500].map((n) => (
               <option key={n} value={n}>
                 {n}
               </option>
@@ -76,49 +171,47 @@ export default function ParcelsPage() {
         <table className="data">
           <thead>
             <tr>
-              <th>
-                Identification prescreen
-                <br />
-                <span className="muted">Cartographer</span>
-              </th>
-              <th>
-                Entitlement score
-                <br />
-                <span className="muted">Atlas</span>
-              </th>
-              <th>
-                Strategic score
-                <br />
-                <span className="muted">Beacon</span>
-              </th>
+              <th>Combined</th>
+              <th>Entitlement</th>
+              <th>Strategic</th>
+              <th>Identification</th>
               <th>APN</th>
-              <th>County FIPS</th>
+              <th>County</th>
               <th>Zoning</th>
+              <th>Zoning tier</th>
               <th>Lot sqft</th>
-              <th>Created</th>
               <th />
             </tr>
           </thead>
           <tbody>
             {rows.map((p) => (
-              <tr key={p.id}>
-                <td>{formatScore(p.latest_identification_score)}</td>
-                <td>{formatScore(p.latest_entitlement_score)}</td>
-                <td>{formatScore(p.latest_strategic_score)}</td>
-                <td>{p.apn}</td>
-                <td>{p.county_fips}</td>
-                <td>{p.zoning_code ?? "—"}</td>
-                <td>{p.lot_sqft != null ? Math.round(p.lot_sqft) : "—"}</td>
-                <td className="muted">{p.created_at?.slice(0, 19) ?? ""}</td>
+              <tr key={p.parcel_id}>
                 <td>
-                  <Link href={`/parcels/${p.id}`}>Detail →</Link>
+                  <strong>{fmtScore(p.combined_score)}</strong>
+                </td>
+                <td>{fmtScore(p.entitlement_score)}</td>
+                <td>{fmtScore(p.strategic_score)}</td>
+                <td>{fmtScore(p.identification_score)}</td>
+                <td>{p.apn}</td>
+                <td>{countyLine(countyLabel, p.county_fips)}</td>
+                <td>{p.zoning_code ?? "—"}</td>
+                <td>
+                  {p.zoning_entitlement_tier ? (
+                    <span className={tierBadgeClass(p.zoning_entitlement_tier)}>{tierLabel(p.zoning_entitlement_tier)}</span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td>{p.lot_sqft != null ? Math.round(p.lot_sqft).toLocaleString() : "—"}</td>
+                <td>
+                  <Link href={`/parcels/${p.parcel_id}`}>Detail →</Link>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {rows.length === 0 && !err ? <p className="muted">No parcels returned.</p> : null}
+        {rows.length === 0 ? <p className="muted">No parcels match this filter.</p> : null}
       </div>
-    </main>
+    </div>
   );
 }

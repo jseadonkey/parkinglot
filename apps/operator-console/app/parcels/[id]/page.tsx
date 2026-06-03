@@ -2,73 +2,37 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { DetailRow } from "../../../components/DetailRow";
-import { FieldLabel } from "../../../components/FieldLabel";
-import { OwnerRecordPanel, type OwnerRecord } from "../../../components/OwnerRecordPanel";
+import { useEffect, useMemo, useState } from "react";
+
+import { bridgeUrl } from "../../../lib/paths";
 import {
-  FIELD_HELP,
-  demandProximityNote,
-  formatCompRate,
-  formatDistanceMeters,
-  parkingCompNote,
-  zoningDetailHint,
-} from "../../../lib/parcelFieldHelp";
-import { SCORE_PROFILE_BY_ID, type ScoreProfileId } from "../../../lib/scoringMethodology";
+  outcomeBadgeClass,
+  outcomeLabel,
+  parseSkipTraceView,
+  skipTraceRan,
+} from "../../../lib/skipTraceDisplay";
+import { countyLine, useCountyNames } from "../../../lib/useCountyNames";
+import { tierBadgeClass, tierLabel, symbolHint } from "../../../lib/zoningEntitlement";
+import { canMutate, useAuth } from "../../../lib/useAuth";
 
-type ScoreBreakdown = {
-  zoning_component?: number;
-  lot_size_component?: number;
-  corner_component?: number;
-  demand_proximity_component?: number;
-  notes?: string[];
-};
-
-type Score = {
+type Parcel = {
   id: string;
-  score_profile: string;
-  total_score: number;
-  breakdown: ScoreBreakdown;
-  pilot_snapshot: Record<string, unknown> | null;
-  created_at: string;
-};
-
-type Owner = {
-  id: string;
-  display_name: string;
-  kind: string;
-  confidence: number;
-  source: string;
-  normalized_owner_key: string | null;
-  created_at: string;
-};
-
-type Memo = {
-  id: string;
-  title: string;
-  body_md: string;
-  open_questions: unknown[] | null;
-  created_at: string;
-};
-
-type Contract = {
-  id: string;
-  s3_key: string;
-  version: number;
-  created_at: string;
-};
-
-type Approval = {
-  id: string;
-  type: string;
-  status: string;
-  payload: Record<string, unknown>;
-  approved_by: string | null;
+  apn: string;
+  county_fips: string;
+  lot_sqft: number | null;
+  zoning_code: string | null;
+  zoning_allows_surface_parking: boolean;
+  zoning_principal_use_symbol: string | null;
+  zoning_entitlement_tier: string | null;
+  is_corner_lot: boolean;
+  distance_to_nearest_demand_m: number | null;
+  owner_outreach_brief: Record<string, unknown> | null;
   created_at: string;
 };
 
 type WorkflowRun = {
   id: string;
+  parcel_id: string;
   status: string;
   current_step: string | null;
   error: string | null;
@@ -76,291 +40,88 @@ type WorkflowRun = {
   updated_at: string;
 };
 
-type Qualification = {
-  meets_entitlement_floor: boolean;
-  meets_strategic_floor: boolean;
-  dual_qualified: boolean;
-  qualified_min_entitlement: number;
-  qualified_min_strategic: number;
-  latest_entitlement_score: number | null;
-  latest_strategic_score: number | null;
-};
-
-type ParcelDetail = {
-  id: string;
-  apn: string;
-  county_fips: string;
-  lot_sqft: number | null;
-  zoning_code: string | null;
-  zoning_allows_surface_parking: boolean;
-  is_corner_lot: boolean;
-  distance_to_nearest_demand_m: number | null;
-  distance_to_nearest_comp_parking_m: number | null;
-  nearest_parking_comp: {
-    id?: string;
-    name?: string;
-    kind?: string;
-    rate_usd_per_day?: number;
-    rate_usd_per_hour?: number;
-    distance_m?: number;
-    notes?: string;
-  } | null;
-  pilot_in_scope: boolean;
-  has_footprint: boolean;
-  centroid_lat: number | null;
-  centroid_lon: number | null;
-  owner_outreach_brief: Record<string, unknown> | null;
-  raw_properties: Record<string, unknown> | null;
-  assessor_summary: Record<string, string>;
+type Score = {
+  score_profile: string;
+  total_score: number;
+  breakdown: {
+    zoning_component?: number;
+    lot_size_component?: number;
+    corner_component?: number;
+    demand_proximity_component?: number;
+    parking_market_component?: number;
+    notes?: string[];
+  };
+  pilot_snapshot?: {
+    parking_rate_comp_count?: number;
+    parking_rate_comps_used?: Array<{ name: string; hourly_mid_usd: number }>;
+  };
   created_at: string;
-  pilot_region: string;
-  qualification: Qualification;
-  scores: Score[];
-  owners: Owner[];
-  memos: Memo[];
-  contract_drafts: Contract[];
-  approvals: Approval[];
-  workflow_runs: WorkflowRun[];
-  owner_record: OwnerRecord;
 };
 
-const SCORE_META: Record<string, { label: string; floor: number; help: string }> = {
-  entitlement: {
-    label: SCORE_PROFILE_BY_ID.entitlement.title,
-    floor: SCORE_PROFILE_BY_ID.entitlement.floor,
-    help: FIELD_HELP.entitlementScore,
-  },
-  strategic: {
-    label: SCORE_PROFILE_BY_ID.strategic.title,
-    floor: SCORE_PROFILE_BY_ID.strategic.floor,
-    help: FIELD_HELP.strategicScore,
-  },
-  identification: {
-    label: SCORE_PROFILE_BY_ID.identification.title,
-    floor: SCORE_PROFILE_BY_ID.identification.floor,
-    help: FIELD_HELP.identificationScore,
-  },
+type DealContext = {
+  rate_comps: Array<{
+    name: string;
+    hourly_mid_usd: number;
+    origin: string;
+    source_note: string | null;
+  }>;
+  revenue_estimate: {
+    available: boolean;
+    monthly_gross_usd?: number;
+    annual_gross_usd?: number;
+    hourly_rate_median_usd?: number;
+    stalls_estimated?: number;
+    comp_count?: number;
+    reason?: string;
+  };
+  nearby_qualified_parcels: Array<{
+    parcel_id: string;
+    apn: string;
+    entitlement_score: number;
+    distance_m: number | null;
+    lot_sqft: number | null;
+  }>;
+  rate_comp_radius_m: number;
 };
 
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+type OutreachDraft = {
+  channel: string;
+  template_slug: string;
+  to_name: string | null;
+  to_email: string | null;
+  to_phone: string | null;
+  to_mailing_address: string | null;
+  subject: string | null;
+  body: string;
+  has_recipient: boolean;
+};
 
-function scoreByProfile(scores: Score[], profile: string): Score | undefined {
-  return scores.find((s) => s.score_profile === profile);
-}
-
-function scoreIncompleteNote(profile: string, score: Score | undefined): string | null {
-  if (!score) return null;
-  const info = SCORE_PROFILE_BY_ID[profile as ScoreProfileId];
-  if (!info?.incompleteWhen) return null;
-  const snap = score.pilot_snapshot ?? {};
-  const source = typeof snap.demand_signal_source === "string" ? snap.demand_signal_source : null;
-  if (profile === "identification") return info.incompleteWhen;
-  if (profile === "strategic" && (source === "poi" || source === "none" || score.breakdown?.demand_proximity_component === 0)) {
-    return info.incompleteWhen;
-  }
-  return null;
-}
-
-function ScoreCard({ profile, score }: { profile: string; score: Score | undefined }) {
-  const meta = SCORE_META[profile] ?? { label: profile, floor: 0, help: "" };
-  const profileInfo = SCORE_PROFILE_BY_ID[profile as ScoreProfileId];
-  const b = score?.breakdown ?? {};
-  const meets = score != null && score.total_score >= meta.floor;
-  const incompleteNote = scoreIncompleteNote(profile, score);
-  return (
-    <div className="score-card">
-      <div className="score-head">
-        <FieldLabel label={meta.label} help={meta.help} />
-        <span>
-          {score ? (
-            <>
-              <strong>{score.total_score.toFixed(1)}</strong>
-              <span className="muted" style={{ marginLeft: "0.35rem" }}>
-                / {meta.floor} floor
-              </span>
-              <span className="badge" style={{ marginLeft: "0.45rem" }}>
-                {profile === "identification" ? "prescreen" : meets ? "meets floor" : "below floor"}
-              </span>
-            </>
-          ) : (
-            <span className="muted">not scored</span>
-          )}
-        </span>
-      </div>
-      {profileInfo ? (
-        <p className="muted" style={{ margin: "0.35rem 0 0", fontSize: "0.78rem" }}>
-          {profileInfo.agentLabel} · {profileInfo.whenComputed}
-        </p>
-      ) : null}
-      {score ? (
-        <>
-          <p className="muted" style={{ margin: "0.35rem 0 0", fontSize: "0.78rem" }}>
-            {score.created_at?.slice(0, 19)} UTC
-          </p>
-          <ul className="score-breakdown">
-            <li>Zoning: {b.zoning_component ?? 0}</li>
-            <li>Lot size: {b.lot_size_component ?? 0}</li>
-            <li>Corner: {b.corner_component ?? 0}</li>
-            <li>Market / demand proximity: {b.demand_proximity_component ?? 0}</li>
-          </ul>
-          {Array.isArray(b.notes) && b.notes.length > 0 ? (
-            <ul className="score-breakdown">
-              {b.notes.map((n) => (
-                <li key={n}>{n}</li>
-              ))}
-            </ul>
-          ) : null}
-          {incompleteNote ? <p className="score-incomplete-note">{incompleteNote}</p> : null}
-          {score.pilot_snapshot ? (
-            <details className="muted" style={{ marginTop: "0.35rem", fontSize: "0.75rem" }}>
-              <summary>Pilot snapshot</summary>
-              <pre className="json" style={{ maxHeight: 160 }}>
-                {JSON.stringify(score.pilot_snapshot, null, 2)}
-              </pre>
-            </details>
-          ) : null}
-        </>
-      ) : profileInfo ? (
-        <p className="muted" style={{ marginTop: "0.5rem", fontSize: "0.78rem" }}>
-          {profile === "entitlement" || profile === "strategic"
-            ? "Runs when the scoring pipeline processes this parcel."
-            : profileInfo.whenComputed}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function OutreachBriefPanel({ brief }: { brief: Record<string, unknown> }) {
-  const tier = typeof brief.owner_research_tier === "string" ? brief.owner_research_tier : null;
-  const oneLiner = typeof brief.recorded_owner_one_liner === "string" ? brief.recorded_owner_one_liner : null;
-  const steps = Array.isArray(brief.steps) ? brief.steps : [];
-  const gaps = Array.isArray(brief.data_gaps) ? (brief.data_gaps as string[]) : [];
-  const checklist = Array.isArray(brief.manual_research_checklist)
-    ? (brief.manual_research_checklist as string[])
-    : [];
-  const vendor =
-    brief.vendor_lookup && typeof brief.vendor_lookup === "object"
-      ? (brief.vendor_lookup as Record<string, unknown>)
-      : null;
-  const skipContacts =
-    vendor?.outcome === "hit" && Array.isArray(vendor.contacts)
-      ? (vendor.contacts as Array<Record<string, unknown>>)
-      : [];
-  const skipPhones = skipContacts.filter((c) => c.channel === "phone");
-  const skipEmails = skipContacts.filter((c) => c.channel === "email");
-  const hasSkipTrace = skipPhones.length > 0 || skipEmails.length > 0;
-  const matchedPerson =
-    typeof vendor?.matched_person_name === "string"
-      ? vendor.matched_person_name
-      : typeof vendor?.notes === "string" && vendor.notes.includes("Matched person:")
-        ? vendor.notes.replace(/.*Matched person:\s*/i, "").split(".")[0]?.trim()
-        : null;
-
-  return (
-    <div className="panel">
-      {tier ? (
-        <p>
-          <FieldLabel label="Owner research tier" help={FIELD_HELP.ownerTier} />:{" "}
-          <span className="badge">{tier}</span>
-        </p>
-      ) : null}
-      {oneLiner ? (
-        <p>
-          <strong>Recorded owner:</strong> {oneLiner}
-        </p>
-      ) : null}
-      {typeof brief.mailing_address_guess === "string" && brief.mailing_address_guess ? (
-        <p className="muted">Mailing: {brief.mailing_address_guess}</p>
-      ) : null}
-      {hasSkipTrace ? (
-        <>
-          <h3 style={{ fontSize: "0.9rem", margin: "0.75rem 0 0.35rem" }}>Skip trace (BatchData)</h3>
-          {matchedPerson ? (
-            <p className="muted">
-              Matched person: <strong>{matchedPerson}</strong>
-            </p>
-          ) : null}
-          <ul className="score-breakdown">
-            {skipPhones.map((c, i) => (
-              <li key={`brief-st-p-${String(c.value)}-${i}`}>
-                Phone (skip trace): <strong>{String(c.value)}</strong>
-              </li>
-            ))}
-            {skipEmails.map((c, i) => (
-              <li key={`brief-st-e-${String(c.value)}-${i}`}>
-                Email (skip trace): <strong>{String(c.value)}</strong>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-      {!hasSkipTrace && typeof brief.phone_guess === "string" && brief.phone_guess ? (
-        <p className="muted">Phone (roll): {brief.phone_guess}</p>
-      ) : null}
-      {!hasSkipTrace && typeof brief.email_guess === "string" && brief.email_guess ? (
-        <p className="muted">Email (roll): {brief.email_guess}</p>
-      ) : null}
-      {typeof brief.normalized_owner_key === "string" && brief.normalized_owner_key ? (
-        <p className="muted">Owner key: {brief.normalized_owner_key}</p>
-      ) : null}
-      {typeof brief.same_owner_qualified_other_count === "number" && brief.same_owner_qualified_other_count > 0 ? (
-        <p className="muted">
-          Portfolio peers (same owner key, qualified): {brief.same_owner_qualified_other_count}
-        </p>
-      ) : null}
-      {steps.length > 0 ? (
-        <>
-          <h3 style={{ fontSize: "0.9rem", margin: "0.75rem 0 0.35rem" }}>Suggested outreach steps</h3>
-          <ol className="score-breakdown" style={{ paddingLeft: "1.2rem" }}>
-            {steps.map((step, i) => {
-              if (!step || typeof step !== "object") return null;
-              const s = step as Record<string, unknown>;
-              const title = typeof s.title === "string" ? s.title : `Step ${i + 1}`;
-              const instruction = typeof s.instruction === "string" ? s.instruction : "";
-              return (
-                <li key={`${title}-${i}`}>
-                  <strong>{title}</strong>
-                  {instruction ? ` — ${instruction}` : ""}
-                </li>
-              );
-            })}
-          </ol>
-        </>
-      ) : null}
-      {gaps.length > 0 ? (
-        <>
-          <h3 style={{ fontSize: "0.9rem", margin: "0.75rem 0 0.35rem" }}>Data gaps</h3>
-          <ul className="score-breakdown">
-            {gaps.map((g) => (
-              <li key={g}>{g}</li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-      {checklist.length > 0 ? (
-        <>
-          <h3 style={{ fontSize: "0.9rem", margin: "0.75rem 0 0.35rem" }}>Manual research checklist</h3>
-          <ul className="score-breakdown">
-            {checklist.map((c) => (
-              <li key={c}>{c}</li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-      <details style={{ marginTop: "0.75rem" }}>
-        <summary className="muted">Full brief JSON</summary>
-        <pre className="json">{JSON.stringify(brief, null, 2)}</pre>
-      </details>
-    </div>
-  );
-}
+const DRAFT_LABELS: Record<string, string> = {
+  email: "Email",
+  sms: "Text",
+  phone: "Voice",
+  certified_mail: "Mail",
+};
 
 export default function ParcelDetailPage() {
+  const auth = useAuth();
+  const countyLabel = useCountyNames();
+  const allowActions = canMutate(auth);
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
-  const [detail, setDetail] = useState<ParcelDetail | null>(null);
+  const [parcel, setParcel] = useState<Parcel | null>(null);
+  const [runs, setRuns] = useState<WorkflowRun[]>([]);
+  const [score, setScore] = useState<Score | null>(null);
+  const [scoreErr, setScoreErr] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<OutreachDraft[]>([]);
+  const [draftErr, setDraftErr] = useState<string | null>(null);
+  const [draftChannel, setDraftChannel] = useState("email");
+  const [requestActor, setRequestActor] = useState("operator@example.com");
+  const [approvalMsg, setApprovalMsg] = useState<string | null>(null);
+  const [requesting, setRequesting] = useState(false);
+  const [dealContext, setDealContext] = useState<DealContext | null>(null);
+  const [dealErr, setDealErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -368,10 +129,46 @@ export default function ParcelDetailPage() {
     (async () => {
       setErr(null);
       try {
-        const res = await fetch(`${apiBase}/parcels/${id}/detail`, { cache: "no-store" });
-        if (!res.ok) throw new Error(`parcel detail ${res.status}`);
-        const data = (await res.json()) as ParcelDetail;
-        if (!cancelled) setDetail(data);
+        const [rp, rr] = await Promise.all([
+          fetch(bridgeUrl(`parcels/${id}`), { cache: "no-store" }),
+          fetch(bridgeUrl(`parcels/${id}/workflow-runs?limit=20`), { cache: "no-store" }),
+        ]);
+        if (!rp.ok) throw new Error(`parcel ${rp.status}`);
+        if (!rr.ok) throw new Error(`workflow-runs ${rr.status}`);
+        const p = (await rp.json()) as Parcel;
+        const w = (await rr.json()) as WorkflowRun[];
+        if (!cancelled) {
+          setParcel(p);
+          setRuns(w);
+        }
+        const rs = await fetch(bridgeUrl(`parcels/${id}/score?profile=entitlement`), { cache: "no-store" });
+        if (rs.ok) {
+          const s = (await rs.json()) as Score;
+          if (!cancelled) setScore(s);
+        } else {
+          if (!cancelled) setScoreErr(`No entitlement score (${rs.status})`);
+        }
+        const dc = await fetch(bridgeUrl(`parcels/${id}/deal-context`), { cache: "no-store" });
+        if (dc.ok) {
+          const ctx = (await dc.json()) as DealContext;
+          if (!cancelled) setDealContext(ctx);
+        } else if (!cancelled) {
+          setDealErr(`Deal context unavailable (${dc.status})`);
+        }
+        if (p.owner_outreach_brief) {
+          const rd = await fetch(bridgeUrl(`parcels/${id}/outreach/drafts`), { cache: "no-store" });
+          if (rd.ok) {
+            const d = (await rd.json()) as OutreachDraft[];
+            if (!cancelled) {
+              setDrafts(d);
+              if (d.length > 0) {
+                setDraftChannel((prev) => (d.some((x) => x.channel === prev) ? prev : d[0].channel));
+              }
+            }
+          } else if (!cancelled) {
+            setDraftErr(`Message drafts unavailable (${rd.status})`);
+          }
+        }
       } catch (e) {
         if (!cancelled) setErr(e instanceof Error ? e.message : String(e));
       }
@@ -381,274 +178,268 @@ export default function ParcelDetailPage() {
     };
   }, [id]);
 
-  const parcel = detail;
-  const q = parcel?.qualification;
-  const zoningHint = parcel
-    ? zoningDetailHint(parcel.zoning_code, parcel.zoning_allows_surface_parking)
-    : null;
-  const demandHint = parcel ? demandProximityNote(parcel.distance_to_nearest_demand_m) : null;
-  const compHint = parcel
-    ? parkingCompNote(parcel.distance_to_nearest_comp_parking_m, parcel.nearest_parking_comp)
-    : null;
-  const assessorLink = parcel?.assessor_summary["County assessor link"];
+  const activeDraft = drafts.find((d) => d.channel === draftChannel) ?? drafts[0] ?? null;
+  const skipTrace = useMemo(() => parseSkipTraceView(parcel?.owner_outreach_brief), [parcel?.owner_outreach_brief]);
+  const latestRun = runs[0] ?? null;
+
+  const nextStepHint = useMemo(() => {
+    if (!parcel) return null;
+    if (!latestRun) return "No pipeline run yet — top-scoring qualified parcels are enqueued automatically every few hours.";
+    if (latestRun.status === "failed") return "Pipeline failed — check the error below or retry from ops.";
+    if (latestRun.status === "running") return `Processing: ${latestRun.current_step?.replaceAll("_", " ") ?? "in progress"}…`;
+    if (!parcel.owner_outreach_brief) return "Pipeline running or brief not ready — owner enrichment may still be in progress.";
+    if (drafts.length === 0) return "Brief ready — message drafts will appear when templates and contacts are available.";
+    return "Review message drafts below, then request counsel approval before anything is sent.";
+  }, [parcel, latestRun, drafts.length]);
+
+  async function requestApproval(channel: string) {
+    if (!allowActions || !id) return;
+    setApprovalMsg(null);
+    setRequesting(true);
+    try {
+      const res = await fetch(bridgeUrl(`parcels/${id}/outreach/drafts/${channel}/request-approval`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requested_by: requestActor }),
+      });
+      if (res.status === 409) {
+        setApprovalMsg("Already pending approval for this channel — check Approvals.");
+        return;
+      }
+      if (!res.ok) {
+        const detail = await res.text();
+        setApprovalMsg(`Request failed (${res.status}): ${detail}`);
+        return;
+      }
+      setApprovalMsg("Sent to approvals queue for counsel review.");
+    } finally {
+      setRequesting(false);
+    }
+  }
 
   return (
-    <main>
-      <p className="muted">
-        <Link href="/parcels">← Parcels</Link>
-      </p>
-      <h1>{parcel ? parcel.apn : "Parcel"}</h1>
-      <p className="muted">Hover the ? next to any label for a plain-language definition.</p>
+    <div className="page-content">
+      <header className="app-page-meta" style={{ marginBottom: "1rem" }}>
+        <nav className="breadcrumbs" aria-label="Breadcrumb">
+          <span className="breadcrumb-item">
+            <Link href="/">Home</Link>
+          </span>
+          <span className="breadcrumb-item">
+            <span className="breadcrumb-sep">›</span>
+            <Link href="/parcels">Parcels</Link>
+          </span>
+          <span className="breadcrumb-item">
+            <span className="breadcrumb-sep">›</span>
+            <span aria-current="page">{parcel?.apn ?? "Parcel"}</span>
+          </span>
+        </nav>
+        <h1 className="app-page-title">{parcel ? parcel.apn : "Parcel detail"}</h1>
+        <p className="app-page-purpose muted">
+          Scores, parking market context, owner research, workflow, and outreach drafts — then{" "}
+          <Link href="/approvals">Approvals</Link> before anything sends.
+        </p>
+      </header>
 
       {err ? <div className="error">{err}</div> : null}
 
-      {parcel && q ? (
-        <>
-          <div
-            className={`status-banner ${q.dual_qualified ? "status-banner--scoring" : parcel.pilot_in_scope ? "status-banner--ingesting" : "status-banner--warning"}`}
-            role="status"
-          >
-            <strong>
-              {q.dual_qualified
-                ? "Dual-qualified for deal memo / outreach"
-                : parcel.pilot_in_scope
-                  ? "In pilot scope — below qualification floors"
-                  : "Out of pilot scope"}
-            </strong>
-            <p style={{ margin: 0 }}>
-              {parcel.pilot_region} · Entitlement{" "}
-              {q.latest_entitlement_score != null ? q.latest_entitlement_score.toFixed(1) : "—"} (floor{" "}
-              {q.qualified_min_entitlement}) · Strategic{" "}
-              {q.latest_strategic_score != null ? q.latest_strategic_score.toFixed(1) : "—"} (floor{" "}
-              {q.qualified_min_strategic})
+      {parcel && nextStepHint ? (
+        <div className="panel panel-inset next-step-panel">
+          <strong>What happens next</strong>
+          <p className="muted" style={{ margin: "0.35rem 0 0" }}>
+            {nextStepHint}
+          </p>
+        </div>
+      ) : null}
+
+      {parcel ? (
+        <div className="platform-deliverables parcel-deliverables">
+          <div className={`platform-deliverable ${score ? "deliverable-done" : ""}`}>
+            <strong>Atlas score</strong>
+            <p className="muted">{score ? score.total_score.toFixed(1) : "Not yet scored"}</p>
+          </div>
+          <div className={`platform-deliverable ${parcel.owner_outreach_brief ? "deliverable-done" : ""}`}>
+            <strong>Owner brief</strong>
+            <p className="muted">{parcel.owner_outreach_brief ? "Produced" : "Pending enrichment"}</p>
+          </div>
+          <div className={`platform-deliverable ${dealContext?.revenue_estimate.available ? "deliverable-done" : ""}`}>
+            <strong>Revenue model</strong>
+            <p className="muted">
+              {dealContext?.revenue_estimate.available
+                ? `$${dealContext.revenue_estimate.monthly_gross_usd?.toLocaleString()}/mo est.`
+                : "Needs comps + lot size"}
             </p>
           </div>
-
-          <h2>Location & zoning</h2>
-          <div className="panel">
-            <DetailRow label="Parcel ID" help="Internal database UUID." value={<span className="badge">{parcel.id}</span>} />
-            <DetailRow label="APN" help={FIELD_HELP.apn} value={parcel.apn} />
-            <DetailRow
-              label="County"
-              help={FIELD_HELP.countyFips}
-              value={parcel.county_fips === "53033" ? "53033 (King County)" : parcel.county_fips}
-            />
-            <DetailRow
-              label="Pilot in scope"
-              help={FIELD_HELP.pilotInScope}
-              value={<span className="badge">{parcel.pilot_in_scope ? "yes" : "no"}</span>}
-            />
-            <DetailRow
-              label="Zoning code"
-              help={FIELD_HELP.zoning}
-              value={parcel.zoning_code ?? "—"}
-              hint={zoningHint}
-            />
-            <DetailRow
-              label="Lot size"
-              help={FIELD_HELP.lotSqft}
-              value={parcel.lot_sqft != null ? `${Math.round(parcel.lot_sqft).toLocaleString()} sqft` : "—"}
-            />
-            <DetailRow
-              label="Demand distance (POI)"
-              help={FIELD_HELP.demandDistance}
-              value={formatDistanceMeters(parcel.distance_to_nearest_demand_m)}
-              hint={demandHint}
-            />
-            <DetailRow
-              label="Nearest parking comp"
-              help={FIELD_HELP.parkingComp}
-              value={
-                parcel.nearest_parking_comp?.name
-                  ? `${parcel.nearest_parking_comp.name} · ${formatDistanceMeters(parcel.distance_to_nearest_comp_parking_m)} · ${formatCompRate(parcel.nearest_parking_comp)}`
-                  : formatDistanceMeters(parcel.distance_to_nearest_comp_parking_m)
-              }
-              hint={compHint}
-            />
-            <DetailRow label="Corner lot" help={FIELD_HELP.cornerLot} value={parcel.is_corner_lot ? "Yes" : "No"} />
-            <DetailRow
-              label="Surface parking allowed"
-              help={FIELD_HELP.surfaceParking}
-              value={
-                <span className="badge">{parcel.zoning_allows_surface_parking ? "yes (rules file)" : "no / unknown"}</span>
-              }
-            />
-            <DetailRow
-              label="Footprint / centroid"
-              help="Parcel polygon stored for scope and distance; centroid is map center."
-              value={
-                parcel.has_footprint && parcel.centroid_lat != null && parcel.centroid_lon != null
-                  ? `${parcel.centroid_lat.toFixed(5)}, ${parcel.centroid_lon.toFixed(5)}`
-                  : parcel.has_footprint
-                    ? "yes (centroid unavailable)"
-                    : "no geometry"
-              }
-            />
-            <DetailRow label="Ingested at" help="When this row was first written to the database." value={parcel.created_at.slice(0, 19)} />
+          <div className={`platform-deliverable ${drafts.length > 0 ? "deliverable-done" : ""}`}>
+            <strong>Outreach drafts</strong>
+            <p className="muted">{drafts.length > 0 ? `${drafts.length} channels` : "After brief + templates"}</p>
           </div>
+          <div className={`platform-deliverable ${runs.some((r) => r.status === "completed") ? "deliverable-done" : ""}`}>
+            <strong>Pipeline</strong>
+            <p className="muted">
+              {runs.length === 0 ? "Not started" : runs[0]?.status.replaceAll("_", " ") ?? "—"}
+            </p>
+          </div>
+        </div>
+      ) : null}
 
-          {Object.keys(parcel.assessor_summary).length > 0 ? (
-            <>
-              <h2>Assessor roll (from ingest)</h2>
-              <div className="panel">
-                {Object.entries(parcel.assessor_summary).map(([label, value]) => (
-                  <DetailRow
-                    key={label}
-                    label={label}
-                    help="Field from county assessor / WaTech parcel layer at ingest time."
-                    value={
-                      label === "County assessor link" && value.startsWith("http") ? (
-                        <a href={value} target="_blank" rel="noreferrer">
-                          Open in county portal
-                        </a>
-                      ) : (
-                        value
-                      )
-                    }
-                  />
-                ))}
+      {parcel ? (
+        <>
+          <div className="panel">
+            <div className="row">
+              <div>
+                <strong>{parcel.apn}</strong>
+                <span className="muted" style={{ marginLeft: "0.5rem" }}>
+                  {countyLine(countyLabel, parcel.county_fips)}
+                </span>
               </div>
-            </>
-          ) : null}
+              <span className="badge">{parcel.id}</span>
+            </div>
+            <div className="row">
+              <span className="muted">Zoning</span>
+              <span>
+                {parcel.zoning_code ?? "—"}
+                {parcel.zoning_entitlement_tier ? (
+                  <span className={tierBadgeClass(parcel.zoning_entitlement_tier)} style={{ marginLeft: "0.5rem" }}>
+                    {tierLabel(parcel.zoning_entitlement_tier)}
+                  </span>
+                ) : null}
+              </span>
+            </div>
+            {parcel.zoning_principal_use_symbol ? (
+              <div className="row">
+                <span className="muted">Entitlement</span>
+                <span className="muted">{symbolHint(parcel.zoning_principal_use_symbol)}</span>
+              </div>
+            ) : null}
+            <div className="row">
+              <span className="muted">Lot sqft</span>
+              <span>{parcel.lot_sqft != null ? Math.round(parcel.lot_sqft) : "—"}</span>
+            </div>
+            <div className="row">
+              <span className="muted">Demand distance (m)</span>
+              <span>{parcel.distance_to_nearest_demand_m?.toFixed?.(1) ?? "—"}</span>
+            </div>
+            <div className="row">
+              <span className="muted">Corner / zoning parking</span>
+              <span>
+                corner={String(parcel.is_corner_lot)} · surface_ok={String(parcel.zoning_allows_surface_parking)}
+              </span>
+            </div>
+          </div>
 
           <h2>Scores</h2>
-          <p className="muted">
-            Three independent 0–100 profiles. Only <strong>Atlas + Beacon</strong> together gate deal memos and
-            outreach. Cartographer prescreen runs at ingest and may omit parking comp points until pipeline gates pass.
-          </p>
-          <div className="panel score-grid">
-            {(["entitlement", "strategic", "identification"] as const).map((p) => (
-              <ScoreCard key={p} profile={p} score={scoreByProfile(parcel.scores, p)} />
-            ))}
-          </div>
-
-          <h2>Owners (enrichment)</h2>
           <div className="panel">
-            {parcel.owners.length === 0 ? (
-              <p className="muted">No owner candidates — run pipeline or check assessor roll fields.</p>
-            ) : (
-              <table className="data">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Kind</th>
-                    <th>Confidence</th>
-                    <th>Source</th>
-                    <th>Owner key</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {parcel.owners.map((o) => (
-                    <tr key={o.id}>
-                      <td>{o.display_name}</td>
-                      <td>{o.kind}</td>
-                      <td>{o.confidence.toFixed(2)}</td>
-                      <td className="muted">{o.source}</td>
-                      <td className="muted">{o.normalized_owner_key ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          <h2>Owner outreach brief</h2>
-          {parcel.owner_outreach_brief ? (
-            <OutreachBriefPanel brief={parcel.owner_outreach_brief} />
-          ) : (
-            <div className="panel">
-              <p className="muted">No brief yet — run pipeline / Phase C enrichment.</p>
-            </div>
-          )}
-
-          <h2>Deal memos</h2>
-          <div className="panel">
-            {parcel.memos.length === 0 ? (
-              <p className="muted">No deal memos — generated when entitlement and strategic scores both meet pilot floors.</p>
-            ) : (
-              parcel.memos.map((m) => (
-                <div key={m.id} style={{ marginBottom: "1rem" }}>
-                  <strong>{m.title}</strong>
-                  <span className="muted" style={{ marginLeft: "0.5rem" }}>
-                    {m.created_at.slice(0, 19)}
-                  </span>
-                  <pre className="json" style={{ maxHeight: 320, marginTop: "0.5rem" }}>
-                    {m.body_md}
-                  </pre>
-                  {Array.isArray(m.open_questions) && m.open_questions.length > 0 ? (
-                    <ul className="score-breakdown">
-                      {(m.open_questions as string[]).map((oq) => (
-                        <li key={oq}>{oq}</li>
-                      ))}
-                    </ul>
-                  ) : null}
+            {score ? (
+              <>
+                <p>
+                  Latest <strong>entitlement</strong>: {score.total_score.toFixed(1)}{" "}
+                  <span className="muted">({score.created_at?.slice(0, 19)})</span>
+                </p>
+                <div className="row">
+                  <span className="muted">Zoning</span>
+                  <span>{score.breakdown?.zoning_component ?? "—"}</span>
                 </div>
-              ))
-            )}
-          </div>
-
-          <h2>Approvals</h2>
-          <div className="panel">
-            {parcel.approvals.length === 0 ? (
-              <p className="muted">No approval requests for this parcel.</p>
+                <div className="row">
+                  <span className="muted">Lot size</span>
+                  <span>{score.breakdown?.lot_size_component ?? "—"}</span>
+                </div>
+                <div className="row">
+                  <span className="muted">Corner</span>
+                  <span>{score.breakdown?.corner_component ?? "—"}</span>
+                </div>
+                <div className="row">
+                  <span className="muted">Demand proximity</span>
+                  <span>{score.breakdown?.demand_proximity_component ?? "—"}</span>
+                </div>
+                <div className="row">
+                  <span className="muted">Parking market</span>
+                  <span>
+                    {(score.breakdown?.parking_market_component ?? 0).toFixed(1)}
+                    {score.pilot_snapshot?.parking_rate_comp_count != null ? (
+                      <span className="muted">
+                        {" "}
+                        · {score.pilot_snapshot.parking_rate_comp_count} nearby comp
+                        {score.pilot_snapshot.parking_rate_comp_count === 1 ? "" : "s"}
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+              </>
             ) : (
-              <table className="data">
-                <thead>
-                  <tr>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th>Approved by</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {parcel.approvals.map((a) => (
-                    <tr key={a.id}>
-                      <td>{a.type}</td>
-                      <td>
-                        <span className="badge">{a.status}</span>
-                      </td>
-                      <td className="muted">{a.created_at.slice(0, 19)}</td>
-                      <td className="muted">{a.approved_by ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <p className="muted">{scoreErr ?? "No score loaded."}</p>
             )}
           </div>
 
-          <h2>Contract drafts</h2>
+          <h2>Parking market context</h2>
+          <p className="muted">
+            Illustrative revenue from nearby paid parking comps and estimated stall count — not a formal pro forma.
+          </p>
           <div className="panel">
-            {parcel.contract_drafts.length === 0 ? (
-              <p className="muted">No contract drafts stored for this parcel.</p>
+            {dealErr ? <p className="muted">{dealErr}</p> : null}
+            {dealContext ? (
+              <>
+                {dealContext.revenue_estimate.available ? (
+                  <p>
+                    Illustrative gross revenue:{" "}
+                    <strong>${dealContext.revenue_estimate.monthly_gross_usd?.toLocaleString()}/mo</strong> (
+                    ${dealContext.revenue_estimate.annual_gross_usd?.toLocaleString()}/yr) — median comp $
+                    {dealContext.revenue_estimate.hourly_rate_median_usd}/hr, ~
+                    {dealContext.revenue_estimate.stalls_estimated} stalls (
+                    {dealContext.revenue_estimate.comp_count} comps within {dealContext.rate_comp_radius_m}m)
+                  </p>
+                ) : (
+                  <p className="muted">
+                    Revenue estimate unavailable ({dealContext.revenue_estimate.reason ?? "add rate comps"}).
+                  </p>
+                )}
+                {dealContext.rate_comps.length > 0 ? (
+                  <ul className="muted" style={{ marginBottom: "0.75rem" }}>
+                    {dealContext.rate_comps.slice(0, 6).map((c) => (
+                      <li key={c.name}>
+                        {c.name}: ${c.hourly_mid_usd}/hr ({c.origin})
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                <strong>Nearby qualified parcels</strong>
+                {dealContext.nearby_qualified_parcels.length === 0 ? (
+                  <p className="muted">None within radius (or missing footprint).</p>
+                ) : (
+                  <table className="data">
+                    <thead>
+                      <tr>
+                        <th>APN</th>
+                        <th>Score</th>
+                        <th>Distance</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dealContext.nearby_qualified_parcels.map((n) => (
+                        <tr key={n.parcel_id}>
+                          <td>{n.apn}</td>
+                          <td>{n.entitlement_score.toFixed(1)}</td>
+                          <td>{n.distance_m != null ? `${n.distance_m} m` : "—"}</td>
+                          <td>
+                            <Link href={`/parcels/${n.parcel_id}`}>Open</Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </>
             ) : (
-              <table className="data">
-                <thead>
-                  <tr>
-                    <th>Version</th>
-                    <th>Storage key</th>
-                    <th>Created</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {parcel.contract_drafts.map((c) => (
-                    <tr key={c.id}>
-                      <td>{c.version}</td>
-                      <td className="muted">{c.s3_key}</td>
-                      <td className="muted">{c.created_at.slice(0, 19)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <p className="muted">Loading market context…</p>
             )}
           </div>
 
-          <h2>Workflow runs</h2>
+          <h2>Deal / workflow</h2>
           <div className="panel">
-            {parcel.workflow_runs.length === 0 ? (
+            {runs.length === 0 ? (
               <p className="muted">No workflow runs yet.</p>
             ) : (
-              parcel.workflow_runs.map((r) => (
+              runs.map((r) => (
                 <div key={r.id} className="row">
                   <div>
                     <span className="badge">{r.status}</span>
@@ -667,31 +458,221 @@ export default function ParcelDetailPage() {
             )}
           </div>
 
-          {assessorLink && assessorLink.startsWith("http") ? (
-            <p className="muted">
-              <a href={assessorLink} target="_blank" rel="noreferrer">
-                View on King County eReal Property →
-              </a>
-            </p>
-          ) : null}
+          <h2>Skip trace &amp; owner lookup</h2>
+          <p className="muted">
+            Licensed vendor skip-trace runs during the enrichment pipeline and is stored on the outreach brief as{" "}
+            <code>vendor_lookup</code>. Assessor-roll contacts come from county ingest only.
+          </p>
+          <div className="panel">
+            {!skipTrace.hasBrief ? (
+              <p className="muted">No outreach brief yet — run the pipeline to record owner research and skip trace.</p>
+            ) : (
+              <>
+                {skipTrace.recordedOwner ? (
+                  <div className="row">
+                    <span className="muted">Recorded owner</span>
+                    <span>{skipTrace.recordedOwner}</span>
+                  </div>
+                ) : null}
+                {skipTrace.researchTier ? (
+                  <div className="row">
+                    <span className="muted">Research tier</span>
+                    <span className="badge">{skipTrace.researchTier}</span>
+                  </div>
+                ) : null}
+                {skipTrace.computedAt ? (
+                  <div className="row">
+                    <span className="muted">Brief computed</span>
+                    <span className="muted">{skipTrace.computedAt.slice(0, 19).replace("T", " ")} UTC</span>
+                  </div>
+                ) : null}
 
-          {parcel.raw_properties && Object.keys(parcel.raw_properties).length > 0 ? (
-            <>
-              <h2>Raw ingest properties</h2>
-              <div className="panel">
-                <details>
-                  <summary className="muted">Full assessor / WaTech JSON from ingest</summary>
-                  <pre className="json">{JSON.stringify(parcel.raw_properties, null, 2)}</pre>
-                </details>
+                {skipTrace.vendor ? (
+                  <>
+                    <div className="row">
+                      <span className="muted">Skip trace status</span>
+                      <span>
+                        <span className={`badge ${outcomeBadgeClass(skipTrace.vendor.outcome)}`}>
+                          {skipTraceRan(skipTrace) ? "Completed" : skipTrace.vendor.outcome.replaceAll("_", " ")}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="row">
+                      <span className="muted">Outcome</span>
+                      <span>{outcomeLabel(skipTrace.vendor.outcome)}</span>
+                    </div>
+                    <div className="row">
+                      <span className="muted">Provider</span>
+                      <span>
+                        {skipTrace.vendor.provider}
+                        {skipTrace.vendor.http_status != null ? (
+                          <span className="muted"> · HTTP {skipTrace.vendor.http_status}</span>
+                        ) : null}
+                      </span>
+                    </div>
+                    {skipTrace.vendor.notes ? (
+                      <div className="row">
+                        <span className="muted">Notes</span>
+                        <span>{skipTrace.vendor.notes}</span>
+                      </div>
+                    ) : null}
+                    {skipTrace.vendor.error_detail ? (
+                      <div className="row">
+                        <span className="muted">Error</span>
+                        <span className="error">{skipTrace.vendor.error_detail}</span>
+                      </div>
+                    ) : null}
+
+                    {skipTrace.vendor.contacts.length > 0 ? (
+                      <>
+                        <h3 style={{ marginTop: "1rem", fontSize: "0.95rem" }}>Skip-trace contacts (vendor)</h3>
+                        <table className="data">
+                          <thead>
+                            <tr>
+                              <th>Channel</th>
+                              <th>Value</th>
+                              <th>Label</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {skipTrace.vendor.contacts.map((c, i) => (
+                              <tr key={`${c.channel}-${c.value}-${i}`}>
+                                <td>{c.channel}</td>
+                                <td>{c.value}</td>
+                                <td className="muted">{c.label ?? "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </>
+                    ) : skipTraceRan(skipTrace) ? (
+                      <p className="muted" style={{ marginTop: "0.75rem" }}>
+                        Skip trace completed but the vendor returned no contact rows.
+                      </p>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="muted" style={{ marginTop: "0.5rem" }}>
+                    No <code>vendor_lookup</code> block on this brief — skip trace was not recorded for this parcel.
+                  </p>
+                )}
+
+                {skipTrace.rollContacts.length > 0 ? (
+                  <>
+                    <h3 style={{ marginTop: "1rem", fontSize: "0.95rem" }}>Assessor-roll contacts (ingest)</h3>
+                    <table className="data">
+                      <thead>
+                        <tr>
+                          <th>Kind</th>
+                          <th>Value</th>
+                          <th>Source</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {skipTrace.rollContacts.map((c, i) => (
+                          <tr key={`${c.kind}-${c.value}-${i}`}>
+                            <td>{c.kind}</td>
+                            <td>{c.value}</td>
+                            <td className="muted">{c.source ?? "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                ) : null}
+              </>
+            )}
+          </div>
+
+          <h2>Owner outreach brief</h2>
+          <p className="muted">
+            Structured output from the enrichment pipeline — owner candidates, contacts, skip trace, and research tier.
+          </p>
+          <div className="panel">
+            {parcel.owner_outreach_brief ? (
+              <details className="brief-details">
+                <summary>View structured brief (JSON)</summary>
+                <pre className="json">{JSON.stringify(parcel.owner_outreach_brief, null, 2)}</pre>
+              </details>
+            ) : (
+              <p className="muted">No brief yet — run pipeline / Phase C enrichment.</p>
+            )}
+          </div>
+
+          <h2>Message drafts</h2>
+          <p className="muted">
+            Rendered from admin templates using this parcel&apos;s owner data.{" "}
+            <Link href="/templates">Edit default templates</Link>
+          </p>
+          {draftErr ? <div className="error">{draftErr}</div> : null}
+          {drafts.length > 0 && activeDraft ? (
+            <div className="panel">
+              <div className="template-tabs" role="tablist" aria-label="Outreach channels">
+                {drafts.map((d) => (
+                  <button
+                    key={d.channel}
+                    type="button"
+                    role="tab"
+                    aria-selected={d.channel === draftChannel}
+                    className={d.channel === draftChannel ? "template-tab-pill active" : "template-tab-pill"}
+                    onClick={() => setDraftChannel(d.channel)}
+                  >
+                    {DRAFT_LABELS[d.channel] ?? d.channel}
+                    {!d.has_recipient ? " · no recipient" : ""}
+                  </button>
+                ))}
               </div>
-            </>
+              <div className="muted" style={{ marginTop: "0.85rem", fontSize: "0.85rem" }}>
+                {activeDraft.to_email ? (
+                  <div>
+                    To: {activeDraft.to_name ?? "—"} &lt;{activeDraft.to_email}&gt;
+                  </div>
+                ) : null}
+                {activeDraft.to_phone ? <div>To phone: {activeDraft.to_phone}</div> : null}
+                {activeDraft.to_mailing_address ? <div>To mail: {activeDraft.to_mailing_address}</div> : null}
+                {!activeDraft.has_recipient ? (
+                  <div>No {DRAFT_LABELS[activeDraft.channel]?.toLowerCase() ?? activeDraft.channel} on file for this parcel.</div>
+                ) : null}
+              </div>
+              {activeDraft.subject ? (
+                <div style={{ marginTop: "0.75rem" }}>
+                  <span className="muted">Subject: </span>
+                  {activeDraft.subject}
+                </div>
+              ) : null}
+              <pre className="preview-body">{activeDraft.body}</pre>
+              {allowActions && activeDraft.has_recipient ? (
+                <div className="toolbar-row" style={{ marginTop: "1rem" }}>
+                  <label className="toolbar-field">
+                    <span className="muted">Request as</span>
+                    <input
+                      value={requestActor}
+                      onChange={(e) => setRequestActor(e.target.value)}
+                      placeholder="name@company.com"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={requesting}
+                    onClick={() => void requestApproval(activeDraft.channel)}
+                  >
+                    {requesting ? "Submitting…" : "Request approval to send"}
+                  </button>
+                  <Link href="/approvals" className="btn-link">
+                    View approvals
+                  </Link>
+                </div>
+              ) : null}
+              {approvalMsg ? <div className={approvalMsg.startsWith("Sent") ? "success" : "error"}>{approvalMsg}</div> : null}
+            </div>
+          ) : parcel.owner_outreach_brief && !draftErr ? (
+            <p className="muted">Loading message drafts…</p>
           ) : null}
-
-          <OwnerRecordPanel record={parcel.owner_record} />
         </>
       ) : !err ? (
         <p className="muted">Loading…</p>
       ) : null}
-    </main>
+    </div>
   );
 }

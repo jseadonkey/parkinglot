@@ -1,0 +1,66 @@
+# Baltimore metro — entitlement / Atlas scoring profile (Maryland).
+# Use with PILOT_CONFIG_PATH when operating only in MD; combined pilot.yaml includes MD + WA counties.
+
+crs: EPSG:4326
+
+region:
+  name: "Baltimore, Maryland — priority market"
+  state_fips: "24"
+  county_fips:
+    - "24510" # Baltimore City
+    - "24005" # Baltimore County
+  primary_metro_cbsa: "12580"
+
+deal:
+  primary_structure: ground_lease
+  allowed_structures:
+    - ground_lease
+    - purchase_option
+  templates_require_legal_review: true
+  auto_approve_deal_memo_publish: true
+
+compliance:
+  allowed_outreach_channels: []
+  require_human_approval_for:
+    - outbound_message
+    - contract_send
+    - contract_execute
+  tcpa_can_spam_review_required: true
+
+scoring:
+  min_lot_sqft: 5000
+  qualified_min_score: 55
+  weights:
+    zoning_permitted_surface_parking: 35
+    zoning_conditional_surface_parking: 12
+    lot_size: 18
+    corner_lot: 8
+    near_demand_generator_m: 24
+    near_paid_parking_comps: 15
+  demand_generator_buffer_m: 450
+  parking_rate_comp_radius_m: 2500
+  parking_rate_comp_min_for_full_credit: 2
+  parking_rate_comp_max_used: 8
+  demand_generators:
+    - name: "Inner Harbor / downtown Baltimore (illustrative)"
+      lat: 39.2851
+      lon: -76.6105
+    - name: "Harbor East (illustrative)"
+      lat: 39.2838
+      lon: -76.6005
+  parking_rate_comps:
+    - name: "Downtown Baltimore garage (illustrative)"
+      lat: 39.2904
+      lon: -76.6122
+      hourly_mid_usd: 11.0
+      source_note: "Pilot placeholder — seed verified comps in DB"
+    - name: "Fells Point surface (illustrative)"
+      lat: 39.2820
+      lon: -76.5920
+      hourly_mid_usd: 8.5
+      source_note: "Pilot placeholder"
+
+data_sources:
+  parcel_vendor: "Baltimore City EGIS + Baltimore County GIS — see docs/BALTIMORE-PILOT.md"
+  zoning_vendor: "Baltimore City CityView/Zoning_New + data/zoning/md/baltimore_city_surface_parking_rules.yaml — see docs/zoning-sources-baltimore.md"
+  poi_source: "illustrative POIs in pilot YAML until vendor feed"

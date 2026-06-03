@@ -15,11 +15,11 @@ class ParcelFeature(BaseModel):
     lot_sqft: float | None = None
     zoning_code: str | None = None
     zoning_allows_surface_parking: bool = False
+    zoning_principal_use_symbol: str | None = None
+    zoning_entitlement_tier: str | None = None
     is_corner_lot: bool = False
     distance_to_nearest_demand_m: float | None = None
-    distance_to_nearest_comp_parking_m: float | None = None
-    nearest_comp_rate_usd_per_day: float | None = None
-    nearest_comp_name: str | None = None
+    raw_properties: dict[str, Any] | None = None
 
 
 class ScoreBreakdown(BaseModel):
@@ -27,6 +27,7 @@ class ScoreBreakdown(BaseModel):
     lot_size_component: float
     corner_component: float
     demand_proximity_component: float
+    parking_market_component: float = 0.0
     notes: list[str] = Field(default_factory=list)
 
 
@@ -50,6 +51,13 @@ class OwnerCandidate(BaseModel):
     raw: dict[str, Any] = Field(default_factory=dict)
 
 
+class ContactKind(StrEnum):
+    email = "email"
+    phone = "phone"
+    mailing_address = "mailing_address"
+    situs_address = "situs_address"
+
+
 class OutreachChannel(StrEnum):
     """How we might reach the owner or their representative."""
 
@@ -61,6 +69,47 @@ class OutreachChannel(StrEnum):
     vendor_research = "vendor_research"
 
 
+class OutreachResult(StrEnum):
+    attempted = "attempted"
+    sent = "sent"
+    delivered = "delivered"
+    opened = "opened"
+    bounced = "bounced"
+    no_answer = "no_answer"
+    voicemail = "voicemail"
+    wrong_number = "wrong_number"
+    disconnected = "disconnected"
+    replied_interested = "replied_interested"
+    replied_not_interested = "replied_not_interested"
+    returned_mail = "returned_mail"
+    not_deliverable = "not_deliverable"
+    meeting_scheduled = "meeting_scheduled"
+    unknown = "unknown"
+
+
+class OwnerContactPoint(BaseModel):
+    kind: ContactKind
+    value: str
+    source: str = "assessor_roll"
+    label: str | None = None
+    confidence: float = Field(ge=0.0, le=1.0, default=0.5)
+    id: str | None = None
+
+
+class OutreachAttemptRead(BaseModel):
+    id: str
+    parcel_id: str
+    contact_point_id: str | None = None
+    channel: OutreachChannel
+    target_kind: ContactKind
+    target_value: str
+    result: OutreachResult = OutreachResult.attempted
+    result_detail: str | None = None
+    attempted_by: str
+    attempted_at: datetime
+    approval_request_id: str | None = None
+
+
 class OutreachStep(BaseModel):
     """One prioritized outreach move (human or system may execute)."""
 
@@ -70,12 +119,6 @@ class OutreachStep(BaseModel):
     instruction: str
     confidence: float = Field(ge=0.0, le=1.0)
     requires_human: bool = False
-
-
-class RegistryPrincipal(BaseModel):
-    name: str | None = None
-    role: str | None = None
-    address: str | None = None
 
 
 class RegistryLookupSummary(BaseModel):
@@ -90,7 +133,6 @@ class RegistryLookupSummary(BaseModel):
         "error",
         "skipped_not_wa",
         "skipped_not_entity",
-        "skipped_disabled",
         "manual_url_only",
     ]
     http_status: int | None = None
@@ -101,9 +143,7 @@ class RegistryLookupSummary(BaseModel):
     detail_url: str | None = None
     error_detail: str | None = None
     registered_agent_line: str | None = None
-    registered_agent_address: str | None = None
     principal_address_line: str | None = None
-    principals: list[RegistryPrincipal] = Field(default_factory=list)
     detail_http_status: int | None = None
     detail_fetch_error: str | None = None
     notes: str | None = Field(default=None, description="Human-readable context (not from registry payload).")
@@ -124,10 +164,6 @@ class VendorLookupSummary(BaseModel):
     notes: str | None = None
     contacts: list[VendorContactHint] = Field(default_factory=list)
     error_detail: str | None = None
-    matched_person_name: str | None = Field(
-        default=None,
-        description="Person name returned by skip-trace when available (BatchData V3).",
-    )
 
 
 class OwnerOutreachBrief(BaseModel):
@@ -136,17 +172,15 @@ class OwnerOutreachBrief(BaseModel):
     Deterministic v1 rules; swap in vendor / LLM enrichment later without changing the shape.
     """
 
-    schema_version: str = "3"
+    schema_version: str = "2"
     county_fips: str
     apn: str
-    owner_research_tier: Literal["basic", "standard", "deep"] = Field(
-        default="standard",
-        description=(
-            "basic = assessor roll only; standard = SOS + portfolio when dual-qualified; "
-            "deep = standard + vendor webhook when enabled."
-        ),
-    )
     recorded_owner_one_liner: str
+    owner_research_tier: str | None = Field(
+        default=None,
+        description="basic | enriched — whether vendor webhook enrichment ran for this parcel.",
+    )
+    contact_points: list[OwnerContactPoint] = Field(default_factory=list)
     mailing_address_guess: str | None = None
     situs_address_guess: str | None = None
     phone_guess: str | None = None
@@ -183,7 +217,31 @@ class OwnerOutreachBrief(BaseModel):
 
 class OutboundMessageChannel(StrEnum):
     email = "email"
+    sms = "sms"
     certified_mail = "certified_mail"
+    phone = "phone"
+
+
+class OutreachTemplateSlug(StrEnum):
+    certified_mail_letter = "certified_mail_letter"
+    phone_call_script = "phone_call_script"
+    email_outreach = "email_outreach"
+    sms_outreach = "sms_outreach"
+
+
+OUTREACH_TEMPLATE_PLACEHOLDERS: list[str] = [
+    "owner_name",
+    "mailing_address",
+    "situs_address",
+    "apn",
+    "county_fips",
+    "lot_sqft",
+    "region_name",
+    "sender_name",
+    "sender_company",
+    "sender_email",
+    "sender_phone",
+]
 
 
 class OutboundMessageDraft(BaseModel):

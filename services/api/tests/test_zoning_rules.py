@@ -4,12 +4,15 @@ from pathlib import Path
 
 from parking_ingestion.geojson_loader import iter_parcels_from_geojson_dict
 from parking_ingestion.zoning_rules import (
+    infer_zoning_jurisdiction,
+    load_effective_zoning_rules,
     load_zoning_rules,
-    lookup_zone_entry,
+    merge_zoning_rules,
     normalize_zone_code,
     resolve_surface_parking,
-    zone_lookup_candidates,
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def test_normalize_zone_code() -> None:
@@ -31,22 +34,11 @@ def test_resolve_zone_lookup() -> None:
                 "zones": {
                     "C-1": {"allows_surface_parking": True, "note": "t"},
                 }
-            },
-            "king_unincorporated": {
-                "zones": {
-                    "CB": {"allows_surface_parking": True, "note": "community business"},
-                }
-            },
+            }
         },
     }
     assert resolve_surface_parking("c-1", "kent_city", None, rules) is True
     assert resolve_surface_parking("UNKNOWN", "kent_city", None, rules) is False
-    assert resolve_surface_parking("CB-SO", "king_unincorporated", None, rules) is True
-
-
-def test_zone_suffix_fallback_candidates() -> None:
-    assert zone_lookup_candidates("R-6-P-SO") == ["R-6-P-SO", "R-6-P", "R-6"]
-    assert zone_lookup_candidates("GC-MU") == ["GC-MU"]
 
 
 def test_load_zoning_rules_missing_returns_safe_default(tmp_path: Path) -> None:
@@ -115,3 +107,58 @@ jurisdictions:
     }
     attrs, _ = list(iter_parcels_from_geojson_dict(fc, rules_path=rules_yaml))[0]
     assert attrs["zoning_allows_surface_parking"] is False
+
+
+def test_infer_zoning_jurisdiction_baltimore_city() -> None:
+    assert infer_zoning_jurisdiction("24510", None) == "baltimore_city"
+    assert infer_zoning_jurisdiction("24510", "custom") == "custom"
+    assert infer_zoning_jurisdiction("53033", None) is None
+
+
+def test_merge_zoning_rules_combines_jurisdictions() -> None:
+    wa = {"default_when_unknown": False, "jurisdictions": {"kent_city": {"zones": {"GC": True}}}}
+    md = {"default_when_unknown": False, "jurisdictions": {"baltimore_city": {"zones": {"C-5": True}}}}
+    merged = merge_zoning_rules(wa, md)
+    assert "kent_city" in merged["jurisdictions"]
+    assert "baltimore_city" in merged["jurisdictions"]
+
+
+def test_load_effective_zoning_rules_includes_baltimore(tmp_path: Path) -> None:
+    rules = load_effective_zoning_rules()
+    bc = REPO_ROOT / "data/zoning/md/baltimore_city_surface_parking_rules.yaml"
+    if bc.is_file():
+        assert "baltimore_city" in (rules.get("jurisdictions") or {})
+        assert resolve_surface_parking("C-3", "baltimore_city", None, rules) is True
+        assert resolve_surface_parking("C-5", "baltimore_city", None, rules) is False
+        assert resolve_surface_parking("I-1", "baltimore_city", None, rules) is True
+        assert resolve_surface_parking("C-1", "baltimore_city", None, rules) is False
+
+
+def test_loader_baltimore_jurisdiction_inferred_from_fips(tmp_path: Path) -> None:
+    rules_yaml = tmp_path / "md.yaml"
+    rules_yaml.write_text(
+        """version: 1
+default_when_unknown: false
+jurisdictions:
+  baltimore_city:
+    zones:
+      "C-3":
+        allows_surface_parking: true
+"""
+    )
+    fc = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]},
+                "properties": {
+                    "PIN": "BC-001",
+                    "COUNTY_FIPS": "24510",
+                    "ZONING": "C-3",
+                },
+            }
+        ],
+    }
+    attrs, _ = list(iter_parcels_from_geojson_dict(fc, rules_path=rules_yaml))[0]
+    assert attrs["zoning_allows_surface_parking"] is True

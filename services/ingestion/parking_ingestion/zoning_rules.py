@@ -6,40 +6,22 @@ from typing import Any
 
 import yaml
 
+# County FIPS → zoning_rules.yaml jurisdiction key (ingest when overlay omits ZONING_JURISDICTION).
+COUNTY_FIPS_TO_ZONING_JURISDICTION: dict[str, str] = {
+    "24510": "baltimore_city",
+}
+
 
 def normalize_zone_code(code: str | None) -> str:
     return (code or "").strip().upper()
 
 
-# King County CURRZONE overlay suffixes (longest match first in lookup).
-_ZONE_SUFFIX_FALLBACKS = ("-P-SO", "-SO", "-P", "-DPA")
-
-
-def zone_lookup_candidates(zoning_code: str | None) -> list[str]:
-    """Exact zone first, then progressively shorter base codes for overlay suffixes."""
-    z_norm = normalize_zone_code(zoning_code)
-    if not z_norm:
-        return []
-    candidates = [z_norm]
-    for suffix in _ZONE_SUFFIX_FALLBACKS:
-        if z_norm.endswith(suffix):
-            base = z_norm[: -len(suffix)]
-            if base and base not in candidates:
-                candidates.append(base)
-    return candidates
-
-
-def lookup_zone_entry(zones: dict[str, Any], zoning_code: str | None) -> Any | None:
-    if not isinstance(zones, dict):
-        return None
-    for candidate in zone_lookup_candidates(zoning_code):
-        entry = zones.get(candidate)
-        if entry is not None:
-            return entry
-    raw = (zoning_code or "").strip()
-    if raw:
-        return zones.get(raw)
-    return None
+def infer_zoning_jurisdiction(county_fips: str, explicit_jurisdiction: str | None) -> str | None:
+    """Default jurisdiction from county when spatial join did not set ZONING_JURISDICTION."""
+    if explicit_jurisdiction is not None and str(explicit_jurisdiction).strip():
+        return str(explicit_jurisdiction).strip()
+    cf = (county_fips or "").strip()
+    return COUNTY_FIPS_TO_ZONING_JURISDICTION.get(cf)
 
 
 def load_zoning_rules(path: Path | None) -> dict[str, Any]:
@@ -53,25 +35,159 @@ def load_zoning_rules(path: Path | None) -> dict[str, Any]:
     return data
 
 
-def effective_zoning_rules_path(explicit: Path | None = None) -> Path | None:
-    """Resolve which rules file to use: explicit path, then env, then Docker mount, then cwd default."""
+def merge_zoning_rules(base: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]:
+    """Merge jurisdiction blocks; later paths override zone entries for the same jurisdiction."""
+    out: dict[str, Any] = {
+        "default_when_unknown": bool(base.get("default_when_unknown", False))
+        or bool(extra.get("default_when_unknown", False)),
+        "jurisdictions": dict(base.get("jurisdictions") or {}),
+    }
+    for jkey, jblock in (extra.get("jurisdictions") or {}).items():
+        if not isinstance(jblock, dict):
+            continue
+        existing = out["jurisdictions"].get(jkey)
+        if not isinstance(existing, dict):
+            out["jurisdictions"][jkey] = dict(jblock)
+            continue
+        merged_block = dict(existing)
+        ez = existing.get("zones") if isinstance(existing.get("zones"), dict) else {}
+        nz = jblock.get("zones") if isinstance(jblock.get("zones"), dict) else {}
+        merged_block["zones"] = {**ez, **nz}
+        for k in ("source_url", "ordinance_ref", "note"):
+            if jblock.get(k):
+                merged_block[k] = jblock[k]
+        out["jurisdictions"][jkey] = merged_block
+    return out
+
+
+def zoning_rules_search_paths(explicit: Path | None = None) -> list[Path]:
+    """Paths to merge (explicit, env comma-list, then WA + MD defaults)."""
+    seen: set[str] = set()
+    paths: list[Path] = []
+
+    def add(p: Path) -> None:
+        key = str(p.resolve()) if p.is_file() else str(p)
+        if p.is_file() and key not in seen:
+            seen.add(key)
+            paths.append(p)
+
     if explicit is not None:
-        return explicit if explicit.is_file() else None
+        add(explicit)
 
     env = (os.environ.get("ZONING_RULES_PATH") or "").strip()
     if env:
-        p = Path(env)
-        return p if p.is_file() else None
+        for part in env.split(","):
+            add(Path(part.strip()))
 
-    docker = Path("/app/data/zoning/wa/kent_king_surface_parking_rules.yaml")
-    if docker.is_file():
-        return docker
+    for candidate in (
+        Path("/app/data/zoning/wa/kent_king_surface_parking_rules.yaml"),
+        Path("/app/data/zoning/md/baltimore_city_surface_parking_rules.yaml"),
+        Path.cwd() / "data/zoning/wa/kent_king_surface_parking_rules.yaml",
+        Path.cwd() / "data/zoning/md/baltimore_city_surface_parking_rules.yaml",
+    ):
+        add(candidate)
 
-    local = Path.cwd() / "data/zoning/wa/kent_king_surface_parking_rules.yaml"
-    if local.is_file():
-        return local
+    return paths
 
+
+def load_effective_zoning_rules(explicit: Path | None = None) -> dict[str, Any]:
+    """Load and merge all applicable zoning rule files (multi-state)."""
+    merged: dict[str, Any] = {"default_when_unknown": False, "jurisdictions": {}}
+    found = False
+    for p in zoning_rules_search_paths(explicit):
+        merged = merge_zoning_rules(merged, load_zoning_rules(p))
+        found = True
+    if not found:
+        return {"default_when_unknown": False, "jurisdictions": {}}
+    return merged
+
+
+def effective_zoning_rules_path(explicit: Path | None = None) -> Path | None:
+    """First resolved rules file (legacy); prefer ``load_effective_zoning_rules`` for ingest."""
+    paths = zoning_rules_search_paths(explicit)
+    return paths[0] if paths else None
+
+
+def _zone_entry(
+    zoning_code: str | None,
+    jurisdiction_key: str | None,
+    rules: dict[str, Any],
+) -> dict[str, Any] | bool | None:
+    jk = (jurisdiction_key or "").strip().lower()
+    if not jk or zoning_code is None or str(zoning_code).strip() == "":
+        return None
+
+    z_norm = normalize_zone_code(str(zoning_code))
+    jurisdictions = rules.get("jurisdictions") or {}
+    block = jurisdictions.get(jk)
+    if not isinstance(block, dict):
+        return None
+
+    zones = block.get("zones") or {}
+    if not isinstance(zones, dict):
+        return None
+
+    entry = zones.get(z_norm)
+    if entry is None:
+        entry = zones.get(str(zoning_code).strip())
+    return entry
+
+
+def resolve_principal_use_symbol(
+    zoning_code: str | None,
+    jurisdiction_key: str | None,
+    rules: dict[str, Any],
+) -> str | None:
+    """Article 32 Table symbol for principal parking lot: P, CB, CO, NOT_LISTED, ACCESSORY_ONLY."""
+    entry = _zone_entry(zoning_code, jurisdiction_key, rules)
+    if entry is None:
+        return None
+    if isinstance(entry, bool):
+        return "P" if entry else "NOT_LISTED"
+    if isinstance(entry, dict):
+        sym = entry.get("principal_use_symbol")
+        if sym is not None and str(sym).strip():
+            return str(sym).strip().upper()
+        if entry.get("allows_surface_parking"):
+            return "P"
+        return "NOT_LISTED"
     return None
+
+
+def zoning_entitlement_tier(symbol: str | None) -> str:
+    """Operator-facing bucket for acquisition funnel."""
+    s = (symbol or "").strip().upper()
+    if s == "P":
+        return "permitted"
+    if s == "CB":
+        return "conditional"
+    if s == "CO":
+        return "council"
+    if s in ("NOT_LISTED", "ACCESSORY_ONLY"):
+        return "excluded"
+    return "unknown"
+
+
+def zone_codes_for_tier(
+    jurisdiction_key: str,
+    tier: str,
+    rules: dict[str, Any],
+) -> set[str]:
+    """Zone labels matching ``zoning_entitlement_tier`` (for SQL filters)."""
+    jk = jurisdiction_key.strip().lower()
+    block = (rules.get("jurisdictions") or {}).get(jk)
+    if not isinstance(block, dict):
+        return set()
+    zones = block.get("zones") or {}
+    if not isinstance(zones, dict):
+        return set()
+    want = tier.strip().lower()
+    out: set[str] = set()
+    for code, _entry in zones.items():
+        sym = resolve_principal_use_symbol(str(code), jk, rules)
+        if zoning_entitlement_tier(sym) == want:
+            out.add(normalize_zone_code(str(code)))
+    return out
 
 
 def resolve_surface_parking(
@@ -85,17 +201,7 @@ def resolve_surface_parking(
         return bool(explicit_override)
 
     default = bool(rules.get("default_when_unknown", False))
-    jk = (jurisdiction_key or "").strip().lower()
-    if not jk or zoning_code is None or str(zoning_code).strip() == "":
-        return default
-
-    jurisdictions = rules.get("jurisdictions") or {}
-    block = jurisdictions.get(jk)
-    if not isinstance(block, dict):
-        return default
-
-    zones = block.get("zones") or {}
-    entry = lookup_zone_entry(zones if isinstance(zones, dict) else {}, str(zoning_code))
+    entry = _zone_entry(zoning_code, jurisdiction_key, rules)
     if entry is None:
         return default
 

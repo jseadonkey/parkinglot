@@ -1,40 +1,62 @@
-# King County — Kent pilot (Kent city + unincorporated King County)
+# Multi-state pilot — Baltimore MD (priority) + Washington statewide
 # CRS for stored geometries (PostGIS).
 crs: EPSG:4326
 
 region:
-  name: "King County — Kent pilot"
+  name: "Baltimore MD (priority) + Washington statewide"
   state_fips: "53"
-  # King County only — no statewide ingest until pilot is proven here.
+  # Baltimore metro first in pipeline priority; then all 39 Washington counties.
   county_fips:
+    - "24510" # Baltimore City, MD
+    - "24005" # Baltimore County, MD
+    - "53001" # Adams
+    - "53003" # Asotin
+    - "53005" # Benton
+    - "53007" # Chelan
+    - "53009" # Clallam
+    - "53011" # Clark
+    - "53013" # Columbia
+    - "53015" # Cowlitz
+    - "53017" # Douglas
+    - "53019" # Ferry
+    - "53021" # Franklin
+    - "53023" # Garfield
+    - "53025" # Grant
+    - "53027" # Grays Harbor
+    - "53029" # Island
+    - "53031" # Jefferson
     - "53033" # King
+    - "53035" # Kitsap
+    - "53037" # Kittitas
+    - "53039" # Klickitat
+    - "53041" # Lewis
+    - "53043" # Lincoln
+    - "53045" # Mason
+    - "53047" # Okanogan
+    - "53049" # Pacific
+    - "53051" # Pend Oreille
+    - "53053" # Pierce
+    - "53055" # San Juan
+    - "53057" # Skagit
+    - "53059" # Skamania
+    - "53061" # Snohomish
+    - "53063" # Spokane
+    - "53065" # Stevens
+    - "53067" # Thurston
+    - "53069" # Wahkiakum
+    - "53071" # Walla Walla
+    - "53073" # Whatcom
+    - "53075" # Whitman
+    - "53077" # Yakima
   primary_metro_cbsa: "42660" # Seattle-Tacoma-Bellevue, WA
-  in_scope:
-    kent_city_boundary_geojson: data/boundaries/wa/kent_city_census_places.geojson
-    excluded_incorporated_places_geojson: data/boundaries/wa/king_county_incorporated_excluding_kent.geojson
 
 deal:
-  primary_structure: master_lease
+  primary_structure: ground_lease
   allowed_structures:
-    - master_lease
     - ground_lease
+    - purchase_option
   templates_require_legal_review: true
-  operations:
-    site_use: standalone_unmanned_parking_lot
-    lease_model: master_lease
-    summary: >
-      Master-lease land for standalone, unmanned surface parking only — no attendants,
-      no valet, no staffed garages. We operate pay-by-app or similar unmanned surface lots.
-    partial_lot_note: >
-      A site may still qualify if the owner developed part of the lot (e.g. building on
-      one half) while a suitable undeveloped portion remains for unmanned parking — subject
-      to zoning, access, and counsel review. The building-value prescreen (≤70% of assessed
-      total) is a roll-data proxy for "room left on the lot," not a site visit.
-    excluded:
-      - accessory parking only (serving another building as the sole use)
-      - attended or valet parking
-      - structured parking garages we would staff
-      - mixed-use projects where parking is not the primary master-lease use
+  auto_approve_deal_memo_publish: true
 
 compliance:
   allowed_outreach_channels: []
@@ -49,28 +71,43 @@ scoring:
   # Used as the default floor in GET /parcels?qualified_only=true (override with min_score=).
   qualified_min_score: 55
   weights:
-    zoning_permitted_surface_parking: 40
-    lot_size: 20
-    corner_lot: 10
-    near_demand_generator_m: 30
-    near_parking_comp_m: 0
+    zoning_permitted_surface_parking: 35
+    zoning_conditional_surface_parking: 12
+    lot_size: 18
+    corner_lot: 8
+    near_demand_generator_m: 24
+    near_paid_parking_comps: 15
   demand_generator_buffer_m: 400
-  parking_comp_market:
-    enabled: false
-    comps_path: data/pilot/kent_king_parking_comps.yaml
-    buffer_m: 800
-    min_rate_usd_per_day: 6.0
-    premium_rate_usd_per_day: 15.0
-  # Kent / south King submarket POIs (centroid → great-circle meters).
+  parking_rate_comp_radius_m: 2500
+  parking_rate_comp_min_for_full_credit: 2
+  parking_rate_comp_max_used: 8
+  # Lat/lon POIs for “near demand” scoring
   demand_generators:
-    - name: "Kent Station (illustrative)"
-      lat: 47.3854
-      lon: -122.2399
-    - name: "Aurora corridor — Federal Way border (illustrative)"
-      lat: 47.35
-      lon: -122.31
+    - name: "Inner Harbor / downtown Baltimore (illustrative)"
+      lat: 39.2851
+      lon: -76.6105
+    - name: "Seattle downtown (illustrative)"
+      lat: 47.6062
+      lon: -122.3321
+  # Illustrative paid-parking benchmarks (merged with DB ``parking_rate_comps`` at score + deal-context time).
+  parking_rate_comps:
+    - name: "Downtown Baltimore garage (illustrative)"
+      lat: 39.2904
+      lon: -76.6122
+      hourly_mid_usd: 11.0
+      source_note: "Pilot placeholder — Baltimore priority market"
+    - name: "Downtown Seattle garage (illustrative)"
+      lat: 47.6062
+      lon: -122.3321
+      hourly_mid_usd: 12.0
+      source_note: "Pilot placeholder — replace with verified comps in DB or vendor feed"
+    - name: "Capitol Hill surface (illustrative)"
+      lat: 47.6253
+      lon: -122.3222
+      hourly_mid_usd: 9.5
+      source_note: "Pilot placeholder"
 
 data_sources:
-  parcel_vendor: "King County — see docs/washington-data.md"
+  parcel_vendor: "TBD — see docs/washington-data.md"
   zoning_vendor: "docs/zoning-sources-kent.md + data/zoning/wa/kent_king_surface_parking_rules.yaml"
   poi_source: "osm_or_commercial_tbd"

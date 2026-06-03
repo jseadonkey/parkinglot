@@ -9,9 +9,11 @@ from shapely.geometry import shape
 from shapely.geometry.base import BaseGeometry
 
 from parking_ingestion.zoning_rules import (
-    effective_zoning_rules_path,
-    load_zoning_rules,
+    infer_zoning_jurisdiction,
+    load_effective_zoning_rules,
+    resolve_principal_use_symbol,
     resolve_surface_parking,
+    zoning_entitlement_tier,
 )
 
 
@@ -64,12 +66,10 @@ def iter_parcels_from_geojson_dict(
 ) -> Iterator[tuple[dict[str, Any], BaseGeometry]]:
     """Yield (attributes dict, shapely geometry) for each polygon feature.
 
-    ``rules_path``: optional path to ``kent_king_surface_parking_rules.yaml``. When ``None``,
-    resolves via ``effective_zoning_rules_path`` (env ``ZONING_RULES_PATH``, then
-    ``/app/data/zoning/wa/...``, then ``cwd/data/zoning/wa/...``).
+    ``rules_path``: optional single YAML path; when ``None``, merges WA + MD rule files
+    (see ``ZONING_RULES_PATH`` and ``data/zoning/{wa,md}/``).
     """
-    eff_rules_path = effective_zoning_rules_path(rules_path)
-    rules = load_zoning_rules(eff_rules_path)
+    rules = load_effective_zoning_rules(rules_path)
 
     ftype = data.get("type")
     if ftype == "FeatureCollection":
@@ -97,6 +97,10 @@ def iter_parcels_from_geojson_dict(
                 "parcel_nbr",
                 "PARCEL_NUM",
                 "parcel_num",
+                "PARCELNUM",
+                "parcelnum",
+                "TAXPIN",
+                "taxpin",
                 "ORIG_PARCEL_ID",
                 "orig_parcel_id",
                 "TaxParcelID",
@@ -105,9 +109,23 @@ def iter_parcels_from_geojson_dict(
             )
         ).strip()
         county = str(_prop(props, "COUNTY_FIPS", "county_fips", "COUNTYFP", "COUNTY_FIP", default="")).strip()
-        zoning_code = _prop(props, "ZONING", "zoning_code", "ZONE", "zone", "ZONING_CLASS", "ZONING_CODE")
+        zoning_code = _prop(
+            props,
+            "ZONING",
+            "Zoning",
+            "zoning_code",
+            "ZONE",
+            "zone",
+            "ZONING_CLASS",
+            "ZONING_CODE",
+            "DISTRICT",
+            "ZONING_DESC",
+            "ZN_CODE",
+            "ZONECLASS",
+            "GIS_LU_CODE",
+        )
         juris = _prop(props, "ZONING_JURISDICTION", "zoning_jurisdiction")
-        juris_s = str(juris).strip() if juris is not None else None
+        juris_s = infer_zoning_jurisdiction(county, str(juris).strip() if juris is not None else None)
 
         explicit_sp = _explicit_surface_parking(props)
         zoning_ok = resolve_surface_parking(
@@ -116,6 +134,15 @@ def iter_parcels_from_geojson_dict(
             explicit_sp,
             rules,
         )
+        use_symbol = resolve_principal_use_symbol(
+            str(zoning_code) if zoning_code is not None else None,
+            juris_s,
+            rules,
+        )
+        entitlement_tier = zoning_entitlement_tier(use_symbol)
+        if use_symbol:
+            props["zoning_principal_use_symbol"] = use_symbol
+        props["zoning_entitlement_tier"] = entitlement_tier
 
         attrs = {
             "apn": apn,
@@ -123,6 +150,8 @@ def iter_parcels_from_geojson_dict(
             "lot_sqft": _lot_sqft_from_props(props),
             "zoning_code": zoning_code,
             "zoning_allows_surface_parking": zoning_ok,
+            "zoning_principal_use_symbol": use_symbol,
+            "zoning_entitlement_tier": entitlement_tier,
             "is_corner_lot": bool(_prop(props, "IS_CORNER", "is_corner", default=False)),
             "distance_to_nearest_demand_m": _prop(props, "DIST_DEMAND_M", "distance_to_nearest_demand_m"),
             "raw_properties": props,

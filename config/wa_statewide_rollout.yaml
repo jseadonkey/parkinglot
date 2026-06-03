@@ -1,0 +1,58 @@
+# Slow statewide parcel ingest: one county per day (WaTech), Puget Sound first.
+# See docs/WA_STATEWIDE_ROLLOUT.md and Beat task app.tasks.wa_statewide_rollout_tick.
+#
+# Run together with SCHEDULED_PRIORITY_PIPELINE_* so top King/Puget parcels still get
+# enrichment first while new counties load (~1/day).
+
+# Counties with zero parcel rows in DB are ingested in this order (King first — skipped once loaded).
+county_fips_priority:
+  - "53033" # King
+  - "53053" # Pierce
+  - "53061" # Snohomish
+  - "53035" # Kitsap
+  - "53067" # Thurston
+  - "53057" # Skagit
+  - "53029" # Island
+  - "53011" # Clark
+  - "53063" # Spokane
+  - "53005" # Benton
+  - "53077" # Yakima
+  - "53007" # Chelan
+  - "53009" # Clallam
+  - "53015" # Cowlitz
+  - "53021" # Franklin
+  - "53025" # Grant
+  - "53027" # Grays Harbor
+  - "53037" # Kittitas
+  - "53039" # Klickitat
+  - "53041" # Lewis
+  - "53045" # Mason
+  - "53047" # Okanogan
+  - "53049" # Pacific
+  - "53051" # Pend Oreille
+  - "53055" # San Juan
+  - "53059" # Skamania
+  - "53065" # Stevens
+  - "53069" # Wahkiakum
+  - "53071" # Walla Walla
+  - "53073" # Whatcom
+  - "53001" # Adams
+  - "53003" # Asotin
+  - "53013" # Columbia
+  - "53017" # Douglas
+  - "53019" # Ferry
+  - "53023" # Garfield
+  - "53043" # Lincoln
+  - "53075" # Whitman
+
+# Cap WaTech download per run (null = full county). Use a number only for experiments.
+watech_max_features: null
+
+# Wait at least this many days after the last WA county ingest before starting another.
+min_days_between_counties: 7
+
+# After ingest, auto-run pipeline on at most this many parcels (keeps load gradual).
+max_auto_pipeline: 15
+
+# Skip starting a new county if parking Celery queue is deeper than this.
+max_parking_queue_depth: 400

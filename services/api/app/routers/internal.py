@@ -5,60 +5,77 @@ from tempfile import NamedTemporaryFile
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.baltimore_zoning_stats import baltimore_zoning_tiers_summary
 from app.celery_app import celery
 from app.config import get_settings
-from app.db.models import Parcel
+from app.db.models import AuditLog, Parcel
+from app.db.schema_compat import column_exists
 from app.db.session import get_db
+from app.deal_progress import query_deal_progress_board
 from app.deps_internal import require_internal_key
 from app.export_readiness import export_readiness_summary
-from app.ingest_status import build_ingest_status_snapshot
-from app.pilot_scope_filter import parcel_in_scope_clause
-from app.deal_progress_board import query_deal_progress_board
+from app.lob_client import lob_status_payload, verify_lob_api_key
 from app.outreach_board import query_outreach_pipeline_board
 from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
-from app.storage_probe import probe_storage_bucket
-from app.workflow_failures import workflow_failure_summary
+from app.parcel_deal_context import revenue_hint_for_parcel
+from app.parcel_scored_list import COMBINED, ParcelSortProfile, query_parcels_scored_list
+from app.pilot_scope import pilot_scope_summary
+from app.platform_showcase import build_platform_showcase
+from app.rate_comp_seed import seed_king_county_parking_rate_comps
 from app.schemas import (
+    BaltimoreZoningTiersResponse,
+    BaltimoreZoningTierZoneRow,
     CeleryTaskIdResponse,
     CeleryTaskStatusResponse,
     DealProgressBoardResponse,
     DealProgressRow,
+    DealProgressSummary,
     EnqueueIncompleteResponse,
     EnqueueUnscoredResponse,
     ExportReadinessResponse,
     FullSlackUpdateResponse,
+    IngestBaltimoreCityRequest,
+    IngestBaltimoreCountyRequest,
     IngestGeojsonPathQueuedResponse,
     IngestGeojsonServerPathRequest,
     IngestGeojsonUploadQueuedResponse,
     IngestSampleQueuedResponse,
-    IngestStatusResponse,
     IngestWatechCountyRequest,
+    LobConfigStatusResponse,
+    LobVerifyResponse,
     MergeGeojsonAttributesRequest,
     OutreachPipelineBoardResponse,
     OutreachPipelineRow,
     OwnerPortfolioRankRow,
     OwnersPeersByKeyResponse,
     OwnersPortfoliosRankedResponse,
+    ParcelScoredListResponse,
+    ParcelScoredListRow,
     PeerParcelSummary,
+    PilotCountyScopeRow,
+    PilotScopeResponse,
+    PlatformShowcaseResponse,
+    QualifiedMinScores,
+    RateCompSeedResponse,
     ScoringSummaryResponse,
+    SiteWatchdogCheckRead,
+    SiteWatchdogStatusResponse,
     SlackAgentDiscussionMessagePreview,
     SlackAgentDiscussionPreviewResponse,
     SlackConfigStatusResponse,
     SlackDigestPreviewResponse,
+    SlackLastDigestResponse,
     SlackTestMessagePostResponse,
     SlackTestMessageRequest,
-    StorageProbeResponse,
+    WaRolloutCountyRow,
+    WaRolloutStatusResponse,
     WaTechCountyQueuedResponse,
-    WorkflowFailureGroup,
-    WorkflowFailuresResponse,
 )
-from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
+from app.scoring_summary import scoring_summary_stats
 from app.slack_digest import (
-    _fetch_latest_scores_per_parcel,
-    _paired_latest_scores,
     build_dual_agent_discussion_posts,
     build_slack_digest_blocks,
     post_text_to_slack,
@@ -66,18 +83,29 @@ from app.slack_digest import (
 )
 from app.tasks import (
     enqueue_incomplete_pipeline_jobs,
+    enqueue_priority_qualified_pipeline_jobs,
     enqueue_unscored_pipeline_jobs,
+    fetch_baltimore_city_and_ingest,
+    fetch_baltimore_county_and_ingest,
     fetch_watech_county_and_ingest,
     ingest_geojson_path,
     merge_parcel_attributes_geojson,
     refresh_demand_distances_batch,
+    refresh_entitlement_scores_batch,
     refresh_identification_scores_batch,
-    rescore_identification_zoning_stale_batch,
-    enrich_wa_sos_entities_batch,
-    refresh_parking_comps_batch,
+    refresh_pipeline_scores_with_rate_comps_batch,
+    site_watchdog_check,
     slack_agent_digest,
     slack_dual_agent_discussion,
     slack_qualified_parcels_report,
+    wa_statewide_rollout_tick,
+)
+from app.wa_statewide_rollout import (
+    county_priority_list,
+    load_rollout_config,
+    next_county_to_ingest,
+    parcel_counts_by_county,
+    parking_queue_depth,
 )
 from parking_core.pilot import load_pilot_config
 
@@ -113,6 +141,22 @@ def celery_task_status(task_id: str) -> CeleryTaskStatusResponse:
     return CeleryTaskStatusResponse(**payload)
 
 
+@router.get("/slack/last-digest", response_model=SlackLastDigestResponse)
+def slack_last_digest(db: Session = Depends(get_db)) -> SlackLastDigestResponse:
+    """When the worker last posted a digest to Slack (audit_log action slack_digest_posted)."""
+    stmt = (
+        select(AuditLog)
+        .where(AuditLog.action == "slack_digest_posted")
+        .order_by(AuditLog.created_at.desc())
+        .limit(1)
+    )
+    row = db.execute(stmt).scalar_one_or_none()
+    if row is None:
+        return SlackLastDigestResponse(found=False)
+    created = row.created_at.isoformat() if row.created_at else None
+    return SlackLastDigestResponse(found=True, created_at=created, meta=row.meta)
+
+
 @router.get("/slack/status", response_model=SlackConfigStatusResponse)
 def slack_config_status() -> SlackConfigStatusResponse:
     """Whether Slack digest env is set (no token values returned)."""
@@ -130,6 +174,59 @@ def slack_config_status() -> SlackConfigStatusResponse:
     )
 
 
+@router.get("/lob/status", response_model=LobConfigStatusResponse)
+def lob_config_status() -> LobConfigStatusResponse:
+    """Whether Lob certified-mail env is set (no API key returned)."""
+    return LobConfigStatusResponse(**lob_status_payload(get_settings()))
+
+
+@router.post("/lob/verify", response_model=LobVerifyResponse)
+def lob_verify_credentials() -> LobVerifyResponse:
+    """Call Lob API to confirm LOB_API_KEY is valid (read-only list addresses)."""
+    s = get_settings()
+    status = lob_status_payload(s)
+    if not status["has_api_key"]:
+        return LobVerifyResponse(
+            ok=False,
+            lob_configured=False,
+            lob_test_mode=None,
+            detail="LOB_API_KEY is not set",
+        )
+    ok, detail = verify_lob_api_key(s.lob_api_key)
+    return LobVerifyResponse(
+        ok=ok,
+        lob_configured=bool(status["lob_configured"]),
+        lob_test_mode=status["lob_test_mode"],
+        detail=None if ok else detail,
+    )
+
+
+@router.get("/watchdog/status", response_model=SiteWatchdogStatusResponse)
+def site_watchdog_status() -> SiteWatchdogStatusResponse:
+    """Last site+server health check (Redis). Separate from pipeline Slack digest."""
+    from app.site_watchdog import load_last_report
+
+    report = load_last_report(get_settings())
+    if report is None:
+        return SiteWatchdogStatusResponse(found=False)
+    checks = [SiteWatchdogCheckRead.model_validate(c) for c in (report.get("checks") or [])]
+    return SiteWatchdogStatusResponse(
+        found=True,
+        ok=bool(report.get("ok")),
+        checked_at=report.get("checked_at"),
+        runner=report.get("runner"),
+        failure_count=report.get("failure_count"),
+        checks=checks,
+    )
+
+
+@router.post("/watchdog/run-now", response_model=CeleryTaskIdResponse)
+def site_watchdog_run_now() -> CeleryTaskIdResponse:
+    """Enqueue site watchdog on the Slack Celery queue (same as scheduled checks)."""
+    async_result = site_watchdog_check.delay()
+    return CeleryTaskIdResponse(task_id=async_result.id)
+
+
 @router.get("/stats/export-readiness", response_model=ExportReadinessResponse)
 def export_readiness(db: Session = Depends(get_db)) -> ExportReadinessResponse:
     """Null/gap counts for CSV columns and score rows — run before stakeholder exports."""
@@ -137,92 +234,75 @@ def export_readiness(db: Session = Depends(get_db)) -> ExportReadinessResponse:
     return ExportReadinessResponse(**raw)
 
 
+@router.get("/stats/pilot-scope", response_model=PilotScopeResponse)
+def pilot_scope(db: Session = Depends(get_db)) -> PilotScopeResponse:
+    """Pilot region, in-scope counties, and ingested parcel counts per county."""
+    raw = pilot_scope_summary(db)
+    counties = [PilotCountyScopeRow(**row) for row in raw.pop("counties")]
+    floors = raw.pop("qualified_min_score")
+    return PilotScopeResponse(
+        **raw,
+        qualified_min_score=QualifiedMinScores(**floors),
+        counties=counties,
+    )
+
+
+@router.get("/stats/baltimore-zoning-tiers", response_model=BaltimoreZoningTiersResponse)
+def baltimore_zoning_tiers(db: Session = Depends(get_db)) -> BaltimoreZoningTiersResponse:
+    """Baltimore City parcel counts by principal-use parking entitlement tier (Postgres)."""
+    raw = baltimore_zoning_tiers_summary(db)
+    top = [BaltimoreZoningTierZoneRow(**row) for row in raw.pop("top_permitted_zones")]
+    return BaltimoreZoningTiersResponse(**raw, top_permitted_zones=top)
+
+
 @router.get("/stats/scoring-summary", response_model=ScoringSummaryResponse)
 def scoring_summary(db: Session = Depends(get_db)) -> ScoringSummaryResponse:
     """Counts parcels and latest scores vs pilot floors (read-only; no Slack)."""
-    settings = get_settings()
-    pilot_e = load_pilot_config(settings.pilot_config_path)
-    pilot_s = load_pilot_config(settings.pilot_strategic_config_path)
-    pilot_i = load_pilot_config(settings.pilot_identification_config_path)
-    floor_e = float(pilot_e.scoring.qualified_min_score)
-    floor_s = float(pilot_s.scoring.qualified_min_score)
-    floor_i = float(pilot_i.scoring.qualified_min_score)
-
-    ent_rows = _fetch_latest_scores_per_parcel(db, profile=ENTITLEMENT)
-    str_rows = _fetch_latest_scores_per_parcel(db, profile=STRATEGIC)
-    id_rows = _fetch_latest_scores_per_parcel(db, profile=IDENTIFICATION)
-    paired = _paired_latest_scores(db)
-
-    q_ent = sum(1 for _, ps in ent_rows if float(ps.total_score) >= floor_e)
-    q_str = sum(1 for _, ps in str_rows if float(ps.total_score) >= floor_s)
-    q_id = sum(1 for _, ps in id_rows if float(ps.total_score) >= floor_i)
-
-    total_parcels = db.scalar(select(func.count()).select_from(Parcel).where(parcel_in_scope_clause()))
-    if total_parcels is None:
-        total_parcels = 0
-
-    return ScoringSummaryResponse(
-        total_parcels=int(total_parcels),
-        parcels_with_latest_entitlement_score=len(ent_rows),
-        parcels_with_latest_strategic_score=len(str_rows),
-        parcels_with_latest_identification_score=len(id_rows),
-        parcels_with_both_profiles_scored=len(paired),
-        qualified_count_entitlement=q_ent,
-        qualified_count_strategic=q_str,
-        qualified_count_identification=q_id,
-        qualified_min_score={
-            "entitlement": floor_e,
-            "strategic": floor_s,
-            "identification": floor_i,
-        },
-        pilot_region=pilot_e.region.name,
-    )
+    return ScoringSummaryResponse(**scoring_summary_stats(db))
 
 
-@router.get("/stats/ingest-status", response_model=IngestStatusResponse)
-def ingest_status(db: Session = Depends(get_db)) -> IngestStatusResponse:
-    """Bulk GeoJSON ingest activity and scoring backlog (operator home banner)."""
-    snap = build_ingest_status_snapshot(db)
-    return IngestStatusResponse(**snap.as_dict())
-
-
-@router.get("/stats/workflow-failures", response_model=WorkflowFailuresResponse)
-def workflow_failures(db: Session = Depends(get_db)) -> WorkflowFailuresResponse:
-    """Failed pipeline runs grouped by step + error (full DB — operator UI caps at 200 rows)."""
-    raw = workflow_failure_summary(db)
-    storage = probe_storage_bucket()
-    groups = [WorkflowFailureGroup(**g) for g in raw.pop("failure_groups")]
-    return WorkflowFailuresResponse(
-        **raw,
-        failure_groups=groups,
-        storage=StorageProbeResponse(**storage),
-    )
+@router.get("/stats/platform-showcase", response_model=PlatformShowcaseResponse)
+def platform_showcase(db: Session = Depends(get_db)) -> PlatformShowcaseResponse:
+    """Live metrics for partner platform page (aggregates scoring, scope, pipeline, top deals)."""
+    return PlatformShowcaseResponse(**build_platform_showcase(db))
 
 
 @router.get("/pipeline/outreach-board", response_model=OutreachPipelineBoardResponse)
 def outreach_pipeline_board(
-    limit: int = Query(default=500, ge=1, le=2000),
+    limit: int = Query(default=100, ge=1, le=2000),
+    revenue_hints: int = Query(default=25, ge=0, le=100),
+    county_fips: str | None = Query(default=None, min_length=5, max_length=5),
+    state_fips: str | None = Query(default=None, min_length=2, max_length=2),
     db: Session = Depends(get_db),
 ) -> OutreachPipelineBoardResponse:
-    """Qualified parcels (entitlement + strategic ≥ pilot floors) with workflow + outreach brief snapshot."""
+    """Qualified parcels (latest entitlement ≥ pilot floor) with workflow + outreach brief snapshot."""
     settings = get_settings()
-    pilot_e = load_pilot_config(settings.pilot_config_path)
-    pilot_s = load_pilot_config(settings.pilot_strategic_config_path)
-    floor_e = float(pilot_e.scoring.qualified_min_score)
-    floor_s = float(pilot_s.scoring.qualified_min_score)
+    pilot = load_pilot_config(settings.pilot_config_path)
+    floor = float(pilot.scoring.qualified_min_score)
     raw = query_outreach_pipeline_board(
         db,
-        qualified_min_entitlement=floor_e,
-        qualified_min_strategic=floor_s,
+        qualified_min_entitlement=floor,
         limit=limit,
+        county_fips=county_fips,
+        state_fips=state_fips,
     )
+    hint_cap = min(revenue_hints, len(raw))
+    revenue_by_parcel: dict[str, dict[str, float | bool | None]] = {}
+    if hint_cap > 0:
+        for r in raw[:hint_cap]:
+            parcel = db.get(Parcel, r.parcel_id)
+            if parcel is not None:
+                revenue_by_parcel[str(r.parcel_id)] = revenue_hint_for_parcel(
+                    db,
+                    parcel,
+                    pilot=pilot,
+                )
     rows = [
         OutreachPipelineRow(
             parcel_id=str(r.parcel_id),
             apn=r.apn,
             county_fips=r.county_fips,
             entitlement_score=r.entitlement_score,
-            strategic_score=r.strategic_score,
             identification_score=r.identification_score,
             workflow_run_id=str(r.workflow_run_id) if r.workflow_run_id else None,
             workflow_status=r.workflow_status,
@@ -230,86 +310,122 @@ def outreach_pipeline_board(
             workflow_error=r.workflow_error,
             workflow_updated_at=r.workflow_updated_at,
             has_outreach_brief=r.has_outreach_brief,
-            owner_research_tier=r.owner_research_tier,
             pending_approval_count=r.pending_approval_count,
             pipeline_stage=r.pipeline_stage,
+            monthly_gross_usd=revenue_by_parcel.get(str(r.parcel_id), {}).get("monthly_gross_usd"),
+            revenue_available=bool(
+                revenue_by_parcel.get(str(r.parcel_id), {}).get("revenue_available"),
+            ),
         )
         for r in raw
     ]
     return OutreachPipelineBoardResponse(
-        qualified_min_entitlement_score=floor_e,
-        qualified_min_strategic_score=floor_s,
+        qualified_min_entitlement_score=floor,
         row_count=len(rows),
         rows=rows,
     )
 
 
+@router.post("/rate-comps/seed-king-pilot", response_model=RateCompSeedResponse)
+def seed_king_pilot_rate_comps(
+    replace_existing: bool = False,
+    db: Session = Depends(get_db),
+) -> RateCompSeedResponse:
+    """Load Puget Sound parking rate benchmarks into ``parking_rate_comps`` (idempotent)."""
+    raw = seed_king_county_parking_rate_comps(db, replace_existing=replace_existing)
+    return RateCompSeedResponse(**raw)
+
+
 @router.get("/pipeline/deal-progress", response_model=DealProgressBoardResponse)
 def deal_progress_board(
-    limit: int = 500,
-    stage: str | None = None,
+    limit: int = Query(default=200, ge=1, le=2000),
+    county_fips: str | None = Query(default=None, min_length=5, max_length=5),
+    state_fips: str | None = Query(default=None, min_length=2, max_length=2),
     db: Session = Depends(get_db),
 ) -> DealProgressBoardResponse:
-    """In-scope parcels with latest workflow run mapped to operator deal stages."""
-    settings = get_settings()
-    pilot_e = load_pilot_config(settings.pilot_config_path)
-    pilot_s = load_pilot_config(settings.pilot_strategic_config_path)
-    floor_e = float(pilot_e.scoring.qualified_min_score)
-    floor_s = float(pilot_s.scoring.qualified_min_score)
-    stage_counts, raw = query_deal_progress_board(
+    """Latest workflow run per parcel — avoids duplicate runs from batch re-triggers."""
+    summary, raw = query_deal_progress_board(
         db,
-        qualified_min_entitlement=floor_e,
-        qualified_min_strategic=floor_s,
         limit=limit,
-        stage=stage,
+        county_fips=county_fips,
+        state_fips=state_fips,
     )
     rows = [
         DealProgressRow(
             parcel_id=str(r.parcel_id),
             apn=r.apn,
             county_fips=r.county_fips,
-            entitlement_score=r.entitlement_score,
-            strategic_score=r.strategic_score,
-            identification_score=r.identification_score,
-            deal_stage=r.deal_stage,
-            deal_stage_label=r.deal_stage_label,
-            workflow_run_id=str(r.workflow_run_id) if r.workflow_run_id else None,
+            workflow_run_id=str(r.workflow_run_id),
             workflow_status=r.workflow_status,
             workflow_step=r.workflow_step,
             workflow_error=r.workflow_error,
             workflow_updated_at=r.workflow_updated_at,
-            owner_research_tier=r.owner_research_tier,
             pending_approval_count=r.pending_approval_count,
-            has_approved_memo=r.has_approved_memo,
-            has_approved_contract=r.has_approved_contract,
+            pipeline_stage=r.pipeline_stage,
         )
         for r in raw
     ]
     return DealProgressBoardResponse(
-        qualified_min_entitlement_score=floor_e,
-        qualified_min_strategic_score=floor_s,
-        stage_counts=stage_counts,
+        summary=DealProgressSummary(
+            total_parcels=summary.total_parcels,
+            by_status=summary.by_status,
+            by_step=summary.by_step,
+        ),
         row_count=len(rows),
         rows=rows,
     )
 
 
-@router.get("/slack/digest-preview", response_model=SlackDigestPreviewResponse)
-def slack_digest_preview(
-    window_minutes: int = 20,
-    hours: int | None = None,
+@router.get("/parcels/scored-list", response_model=ParcelScoredListResponse)
+def parcels_scored_list(
+    limit: int = Query(default=100, ge=1, le=2000),
+    sort: ParcelSortProfile = Query(default=COMBINED),
+    county_fips: str | None = Query(default=None, min_length=5, max_length=5),
+    state_fips: str | None = Query(default=None, min_length=2, max_length=2),
+    zoning_tier: str | None = Query(
+        default=None,
+        description="Filter by entitlement tier: permitted, conditional, council, excluded",
+    ),
     db: Session = Depends(get_db),
-) -> SlackDigestPreviewResponse:
+) -> ParcelScoredListResponse:
+    """All parcels with latest entitlement / strategic / identification scores (operator table)."""
+    raw = query_parcels_scored_list(
+        db,
+        limit=limit,
+        sort=sort,
+        county_fips=county_fips,
+        state_fips=state_fips,
+        zoning_tier=zoning_tier,
+    )
+    rows = [
+        ParcelScoredListRow(
+            parcel_id=str(r.parcel_id),
+            apn=r.apn,
+            county_fips=r.county_fips,
+            zoning_code=r.zoning_code,
+            lot_sqft=r.lot_sqft,
+            zoning_principal_use_symbol=r.zoning_principal_use_symbol,
+            zoning_entitlement_tier=r.zoning_entitlement_tier,
+            entitlement_score=r.entitlement_score,
+            strategic_score=r.strategic_score,
+            identification_score=r.identification_score,
+            combined_score=r.combined_score,
+            created_at=r.created_at,
+        )
+        for r in raw
+    ]
+    return ParcelScoredListResponse(sort=sort, row_count=len(rows), rows=rows)
+
+
+@router.get("/slack/digest-preview", response_model=SlackDigestPreviewResponse)
+def slack_digest_preview(hours: int = 4, db: Session = Depends(get_db)) -> SlackDigestPreviewResponse:
     """Build the next digest body from the DB without posting to Slack (debug Beat / channel config)."""
-    if hours is not None:
-        wm = min(max(hours, 1), 24) * 60
-    else:
-        wm = min(max(window_minutes, 5), 24 * 60)
-    blocks, fallback = build_slack_digest_blocks(db, window_minutes=wm)
+    h = min(max(hours, 1), 24)
+    blocks, fallback = build_slack_digest_blocks(db, hours=h)
     s = get_settings()
     ch = (s.slack_digest_channel_id or "").strip()
     return SlackDigestPreviewResponse(
-        hours=max(1, wm // 60),
+        hours=h,
         slack_digest_configured=bool((s.slack_bot_token or "").strip() and ch),
         digest_channel_id_set=bool(ch),
         fallback_preview=fallback,
@@ -485,6 +601,28 @@ def ingest_geojson_server_path(body: IngestGeojsonServerPathRequest) -> IngestGe
     )
 
 
+@router.post("/ingest/baltimore-city", response_model=WaTechCountyQueuedResponse)
+def ingest_baltimore_city(body: IngestBaltimoreCityRequest) -> WaTechCountyQueuedResponse:
+    """Fetch Baltimore City EGIS parcel polygons; enqueue download+ingest on the worker."""
+    async_result = fetch_baltimore_city_and_ingest.delay(
+        max_features=body.max_features,
+        auto_run_pipeline=body.auto_run_pipeline,
+        max_auto_pipeline=body.max_auto_pipeline,
+    )
+    return WaTechCountyQueuedResponse(fetch_task_id=async_result.id)
+
+
+@router.post("/ingest/baltimore-county", response_model=WaTechCountyQueuedResponse)
+def ingest_baltimore_county(body: IngestBaltimoreCountyRequest) -> WaTechCountyQueuedResponse:
+    """Fetch Baltimore County tax parcel polygons; enqueue download+ingest on the worker."""
+    async_result = fetch_baltimore_county_and_ingest.delay(
+        max_features=body.max_features,
+        auto_run_pipeline=body.auto_run_pipeline,
+        max_auto_pipeline=body.max_auto_pipeline,
+    )
+    return WaTechCountyQueuedResponse(fetch_task_id=async_result.id)
+
+
 @router.post("/ingest/watech-county", response_model=WaTechCountyQueuedResponse)
 def ingest_watech_county(body: IngestWatechCountyRequest) -> WaTechCountyQueuedResponse:
     """Fetch public WaTech parcel polygons for one county; enqueue download+ingest on the worker."""
@@ -495,6 +633,42 @@ def ingest_watech_county(body: IngestWatechCountyRequest) -> WaTechCountyQueuedR
         max_auto_pipeline=body.max_auto_pipeline,
     )
     return WaTechCountyQueuedResponse(fetch_task_id=async_result.id)
+
+
+@router.get("/ingest/wa-rollout-status", response_model=WaRolloutStatusResponse)
+def wa_rollout_status(db: Session = Depends(get_db)) -> WaRolloutStatusResponse:
+    """Progress for slow statewide WaTech ingest (one county per day when enabled)."""
+    settings = get_settings()
+    rollout = load_rollout_config(settings.wa_statewide_rollout_config_path)
+    priority = county_priority_list(rollout, pilot_config_path=settings.pilot_config_path)
+    counts = parcel_counts_by_county(db, priority)
+    with_data = sum(1 for f in priority if counts.get(f, 0) > 0)
+    next_fips = next_county_to_ingest(db, config=rollout, pilot_config_path=settings.pilot_config_path)
+    q_depth: int | None = None
+    try:
+        q_depth = parking_queue_depth(settings.redis_url)
+    except Exception:
+        q_depth = None
+    rows = [
+        WaRolloutCountyRow(county_fips=fips, parcels_in_db=counts.get(fips, 0))
+        for fips in priority
+    ]
+    return WaRolloutStatusResponse(
+        rollout_enabled=settings.wa_statewide_rollout_enabled,
+        next_county_fips=next_fips,
+        counties_in_priority_list=len(priority),
+        counties_with_parcels=with_data,
+        counties_remaining=len(priority) - with_data,
+        parking_queue_depth=q_depth,
+        counties=rows,
+    )
+
+
+@router.post("/ingest/wa-rollout-now", response_model=CeleryTaskIdResponse)
+def wa_rollout_now() -> CeleryTaskIdResponse:
+    """Enqueue the next county ingest immediately (same logic as daily Beat)."""
+    async_result = wa_statewide_rollout_tick.delay()
+    return CeleryTaskIdResponse(task_id=async_result.id)
 
 
 @router.post("/pipeline/enqueue-unscored", response_model=EnqueueUnscoredResponse)
@@ -512,6 +686,15 @@ def enqueue_incomplete_pipelines(
 ) -> EnqueueIncompleteResponse:
     """Enqueue ``run_pipeline`` when **entitlement** or **strategic** score is missing (Atlas/Beacon pair)."""
     raw = enqueue_incomplete_pipeline_jobs(limit)
+    return EnqueueIncompleteResponse(**raw)
+
+
+@router.post("/pipeline/enqueue-priority", response_model=EnqueueIncompleteResponse)
+def enqueue_priority_pipelines(
+    limit: int = 75,
+) -> EnqueueIncompleteResponse:
+    """Enqueue pipeline for prescreen-qualified parcels, highest entitlement score first."""
+    raw = enqueue_priority_qualified_pipeline_jobs(limit)
     return EnqueueIncompleteResponse(**raw)
 
 
@@ -541,19 +724,6 @@ def refresh_demand_distances(
     return CeleryTaskIdResponse(task_id=async_result.id)
 
 
-@router.post("/metrics/refresh-parking-comps", response_model=CeleryTaskIdResponse)
-def refresh_parking_comps(
-    limit: int = 500,
-    county_fips: str | None = None,
-) -> CeleryTaskIdResponse:
-    """Recompute nearest paid-parking comp distance + rate from curated comps YAML (Celery)."""
-    async_result = refresh_parking_comps_batch.delay(
-        limit=limit,
-        county_fips=county_fips,
-    )
-    return CeleryTaskIdResponse(task_id=async_result.id)
-
-
 @router.post("/metrics/refresh-identification-scores", response_model=CeleryTaskIdResponse)
 def refresh_identification_scores(
     limit: int = 2000,
@@ -567,28 +737,30 @@ def refresh_identification_scores(
     return CeleryTaskIdResponse(task_id=async_result.id)
 
 
-@router.post("/metrics/rescore-identification-zoning-stale", response_model=CeleryTaskIdResponse)
-def rescore_identification_zoning_stale(
-    limit: int = 5000,
+@router.post("/metrics/refresh-entitlement-scores", response_model=CeleryTaskIdResponse)
+def refresh_entitlement_scores(
+    limit: int = 2000,
     county_fips: str | None = None,
 ) -> CeleryTaskIdResponse:
-    """Recompute Cartographer scores when zoning flag was updated after initial ingest."""
-    async_result = rescore_identification_zoning_stale_batch.delay(
+    """Recompute Atlas entitlement scores from parcel features (zoning, lot, demand, comps)."""
+    async_result = refresh_entitlement_scores_batch.delay(
         limit=limit,
         county_fips=county_fips,
     )
     return CeleryTaskIdResponse(task_id=async_result.id)
 
 
-@router.post("/metrics/enrich-wa-sos-entities", response_model=CeleryTaskIdResponse)
-def enrich_wa_sos_entities(
-    limit: int = 5,
+@router.post("/metrics/refresh-rate-comp-scores", response_model=CeleryTaskIdResponse)
+def refresh_rate_comp_scores(
+    limit: int = 500,
     county_fips: str | None = None,
+    min_entitlement_score: float | None = None,
 ) -> CeleryTaskIdResponse:
-    """Slow automated WA SOS (CCFS) lookup for entity owners missing registered agent data."""
-    async_result = enrich_wa_sos_entities_batch.apply_async(
-        kwargs={"limit": limit, "county_fips": county_fips},
-        queue="sos",
+    """Recompute Atlas/Beacon scores using multiple nearby paid parking comps (Celery)."""
+    async_result = refresh_pipeline_scores_with_rate_comps_batch.delay(
+        limit=limit,
+        county_fips=county_fips,
+        min_entitlement_score=min_entitlement_score,
     )
     return CeleryTaskIdResponse(task_id=async_result.id)
 
@@ -603,6 +775,13 @@ def peers_by_normalized_owner_key(
     settings = get_settings()
     pilot = load_pilot_config(settings.pilot_config_path)
     floor = float(pilot.scoring.qualified_min_score)
+    if not column_exists(db, "owner_candidates", "normalized_owner_key"):
+        return OwnersPeersByKeyResponse(
+            normalized_owner_key=normalized_owner_key,
+            qualified_min_entitlement_score=floor,
+            parcel_count=0,
+            parcels=[],
+        )
     lim = min(max(limit, 1), 500)
     parcels = list_peer_parcel_summaries(
         db,
@@ -629,6 +808,12 @@ def portfolios_ranked(
     pilot = load_pilot_config(settings.pilot_config_path)
     floor = float(pilot.scoring.qualified_min_score)
     mp = min(max(min_peers, 2), 500)
+    if not column_exists(db, "owner_candidates", "normalized_owner_key"):
+        return OwnersPortfoliosRankedResponse(
+            qualified_min_entitlement_score=floor,
+            min_peers=mp,
+            portfolios=[],
+        )
     lim = min(max(limit, 1), 200)
     rows = rank_owner_portfolios(db, entitlement_floor=floor, min_peers=mp, limit=lim)
     return OwnersPortfoliosRankedResponse(
