@@ -1254,6 +1254,7 @@ def refresh_demand_distances_batch(
     limit: int = 500,
     county_fips: str | None = None,
     process_all: bool = False,
+    refresh_identification: bool = True,
 ) -> dict[str, Any]:
     """Recompute ``distance_to_nearest_demand_m`` from pilot.yaml demand generators (centroid → POI)."""
     from geoalchemy2.shape import to_shape
@@ -1290,8 +1291,9 @@ def refresh_demand_distances_batch(
                 dmin = min_distance_to_generators_m(c.y, c.x, pilot.scoring.demand_generators)
                 parcel.distance_to_nearest_demand_m = dmin
                 db.add(parcel)
-                db.flush()
-                _upsert_identification_score(db, parcel)
+                if refresh_identification:
+                    db.flush()
+                    _upsert_identification_score(db, parcel)
                 n += 1
                 last_id = parcel.id
             db.commit()
@@ -1307,6 +1309,7 @@ def refresh_demand_distances_batch(
             "county_fips": cf or None,
             "limit": chunk,
             "process_all": process_all,
+            "refresh_identification": refresh_identification,
             "generator_count": len(pilot.scoring.demand_generators),
         }
     finally:
