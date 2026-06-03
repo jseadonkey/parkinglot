@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import statistics
 import uuid
 from typing import Any
 
@@ -16,6 +15,15 @@ from app.db.models import Parcel, ParcelScore
 from app.rate_comps import merged_rate_comps_near
 from app.scoring_profiles import ENTITLEMENT
 from parking_core.pilot import ParkingRateCompObservation, PilotConfig, load_pilot_config
+from parking_core.revenue_estimate import estimate_parking_revenue
+
+__all__ = [
+    "build_parcel_deal_context",
+    "estimate_parking_revenue",
+    "parcel_centroid_lat_lon",
+    "rate_comps_for_parcel",
+    "revenue_hint_for_parcel",
+]
 
 
 def parcel_centroid_lat_lon(parcel: Parcel) -> tuple[float, float] | None:
@@ -37,43 +45,6 @@ def rate_comps_for_parcel(
     pilot: PilotConfig,
 ) -> list[ParkingRateCompObservation]:
     return merged_rate_comps_near(db, lat=lat, lon=lon, pilot=pilot)
-
-
-def estimate_parking_revenue(
-    *,
-    lot_sqft: float | None,
-    comps: list[ParkingRateCompObservation],
-    stall_sqft: float = 200.0,
-    hours_per_day: float = 10.0,
-    days_per_month: float = 22.0,
-    occupancy: float = 0.55,
-) -> dict[str, Any]:
-    """Illustrative gross revenue from lot size and median nearby hourly comp (not a pro forma)."""
-    if lot_sqft is None or lot_sqft <= 0 or not comps:
-        return {
-            "available": False,
-            "reason": "need lot_sqft and at least one parking rate comp",
-        }
-    rates = sorted(float(c.hourly_mid_usd) for c in comps)
-    hourly_mid = float(statistics.median(rates))
-    stalls = max(1, int(lot_sqft / stall_sqft))
-    monthly = stalls * hourly_mid * hours_per_day * days_per_month * occupancy
-    return {
-        "available": True,
-        "stalls_estimated": stalls,
-        "hourly_rate_median_usd": round(hourly_mid, 2),
-        "hourly_rate_min_usd": round(rates[0], 2),
-        "hourly_rate_max_usd": round(rates[-1], 2),
-        "comp_count": len(comps),
-        "monthly_gross_usd": round(monthly, 0),
-        "annual_gross_usd": round(monthly * 12, 0),
-        "assumptions": {
-            "stall_sqft": stall_sqft,
-            "hours_per_day": hours_per_day,
-            "days_per_month": days_per_month,
-            "occupancy": occupancy,
-        },
-    }
 
 
 def _latest_entitlement_subq():
@@ -175,7 +146,13 @@ def revenue_hint_for_parcel(
         return {"revenue_available": False, "monthly_gross_usd": None}
     lat, lon = centroid
     comps = rate_comps_for_parcel(db, lat=lat, lon=lon, pilot=cfg)
-    est = estimate_parking_revenue(lot_sqft=parcel.lot_sqft, comps=comps)
+    est = estimate_parking_revenue(
+        lot_sqft=parcel.lot_sqft,
+        comps=comps,
+        lat=lat,
+        lon=lon,
+        is_corner_lot=bool(parcel.is_corner_lot),
+    )
     if not est.get("available"):
         return {"revenue_available": False, "monthly_gross_usd": None}
     monthly = est.get("monthly_gross_usd")
@@ -198,6 +175,7 @@ def build_parcel_deal_context(db: Session, parcel_id: uuid.UUID) -> dict[str, An
 
     comps: list[ParkingRateCompObservation] = []
     nearby: list[dict[str, Any]] = []
+    revenue: dict[str, Any] = {"available": False, "reason": "missing footprint"}
     if centroid is not None:
         lat, lon = centroid
         comps = rate_comps_for_parcel(db, lat=lat, lon=lon, pilot=pilot)
@@ -209,8 +187,13 @@ def build_parcel_deal_context(db: Session, parcel_id: uuid.UUID) -> dict[str, An
             radius_m=radius_m,
             min_entitlement_score=floor_ent,
         )
-
-    revenue = estimate_parking_revenue(lot_sqft=parcel.lot_sqft, comps=comps)
+        revenue = estimate_parking_revenue(
+            lot_sqft=parcel.lot_sqft,
+            comps=comps,
+            lat=lat,
+            lon=lon,
+            is_corner_lot=bool(parcel.is_corner_lot),
+        )
 
     ent_row = db.scalars(
         select(ParcelScore)
@@ -219,6 +202,25 @@ def build_parcel_deal_context(db: Session, parcel_id: uuid.UUID) -> dict[str, An
         .order_by(ParcelScore.created_at.desc())
         .limit(1),
     ).first()
+
+    rate_comps_out = revenue.get("primary_comps") or []
+    if not rate_comps_out and revenue.get("comps_weighted"):
+        rate_comps_out = revenue["comps_weighted"][:8]
+    elif not rate_comps_out:
+        rate_comps_out = [
+            {
+                "name": c.name,
+                "lat": c.lat,
+                "lon": c.lon,
+                "hourly_mid_usd": c.hourly_mid_usd,
+                "source_note": c.source_note,
+                "origin": c.origin,
+                "distance_m": c.distance_m,
+            }
+            for c in comps
+        ]
+
+    revenue_out = {k: v for k, v in revenue.items() if k not in ("comps_weighted", "primary_comps")}
 
     return {
         "found": True,
@@ -230,17 +232,7 @@ def build_parcel_deal_context(db: Session, parcel_id: uuid.UUID) -> dict[str, An
         "entitlement_score": float(ent_row.total_score) if ent_row else None,
         "qualified_floor": floor_ent,
         "rate_comp_radius_m": radius_m,
-        "rate_comps": [
-            {
-                "name": c.name,
-                "lat": c.lat,
-                "lon": c.lon,
-                "hourly_mid_usd": c.hourly_mid_usd,
-                "source_note": c.source_note,
-                "origin": c.origin,
-            }
-            for c in comps
-        ],
-        "revenue_estimate": revenue,
+        "rate_comps": rate_comps_out,
+        "revenue_estimate": revenue_out,
         "nearby_qualified_parcels": nearby,
     }

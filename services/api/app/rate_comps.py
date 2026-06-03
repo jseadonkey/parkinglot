@@ -53,6 +53,7 @@ def fetch_parking_rate_comps_near(
                 hourly_mid_usd=float(row.hourly_mid_usd),
                 source_note=row.source_note,
                 origin="database",
+                distance_m=round(float(row.distance_m), 1) if row.distance_m is not None else None,
             ),
         )
     return out

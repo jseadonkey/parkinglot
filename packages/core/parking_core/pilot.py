@@ -14,12 +14,40 @@ class RegionConfig(BaseModel):
     primary_metro_cbsa: str | None = None
 
 
+class DealOperationsConfig(BaseModel):
+    """How we operate sites after land is under lease — see docs/OPERATIONS-MODEL.md."""
+
+    model: str = "master_lease_then_sublease"
+    our_role: str = "land_aggregator"
+    partner_role: str = "parking_operator"
+    landowner_agreement: str = "master_lease"
+    partner_agreement: str = "sublease"
+    use_class: str = "unmanned_surface_parking_primary"
+    excludes: list[str] = Field(
+        default_factory=lambda: [
+            "attended_garage",
+            "valet",
+            "accessory_only_for_building",
+        ]
+    )
+    partner_provides: list[str] = Field(
+        default_factory=lambda: [
+            "signage",
+            "lpr_cameras",
+            "payment_platform",
+            "enforcement",
+            "operating_capex",
+        ]
+    )
+
+
 class DealConfig(BaseModel):
     primary_structure: str
     allowed_structures: list[str] = Field(default_factory=list)
     templates_require_legal_review: bool = True
     # Pilot: skip human queue for internal deal memos (contract_send still requires approval).
     auto_approve_deal_memo_publish: bool = False
+    operations: DealOperationsConfig = Field(default_factory=DealOperationsConfig)
 
 
 class ComplianceConfig(BaseModel):
@@ -46,6 +74,7 @@ class ParkingRateCompObservation(BaseModel):
     hourly_mid_usd: float
     source_note: str | None = None
     origin: str = "pilot"
+    distance_m: float | None = None
 
 
 class ScoringConfig(BaseModel):

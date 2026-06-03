@@ -7,7 +7,7 @@ Operator focus: enrich **highest entitlement scores** before statewide ingest.
 On each parcel page (`/operator/parcels/{id}`):
 
 - **Parking rate comps** — YAML (`config/pilot.yaml` `parking_rate_comps`) merged with Postgres `parking_rate_comps` within `parking_rate_comp_radius_m` (default 2500m).
-- **Illustrative gross revenue** — median nearby hourly rate × estimated stalls × hours × occupancy (not a pro forma).
+- **Illustrative gross revenue** — layout-based stall range × distance/similarity-weighted nearby hourly rate × hours × occupancy (garage comps discounted toward surface pricing; not a pro forma).
 - **Nearby qualified parcels** — other lots with entitlement ≥ pilot floor within the same radius.
 
 API: `GET /parcels/{parcel_id}/deal-context`

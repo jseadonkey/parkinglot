@@ -62,15 +62,27 @@ type DealContext = {
   rate_comps: Array<{
     name: string;
     hourly_mid_usd: number;
+    effective_hourly_usd?: number | null;
     origin: string;
     source_note: string | null;
+    distance_m?: number | null;
+    facility_type?: string | null;
+    similarity?: number | null;
+    comp_weight?: number | null;
   }>;
   revenue_estimate: {
     available: boolean;
     monthly_gross_usd?: number;
+    monthly_gross_low_usd?: number;
+    monthly_gross_high_usd?: number;
     annual_gross_usd?: number;
     hourly_rate_median_usd?: number;
+    hourly_rate_weighted_usd?: number;
     stalls_estimated?: number;
+    stalls_low?: number;
+    stalls_high?: number;
+    layout_efficiency?: number;
+    usable_sqft?: number;
     comp_count?: number;
     reason?: string;
   };
@@ -372,34 +384,82 @@ export default function ParcelDetailPage() {
 
           <h2>Parking market context</h2>
           <p className="muted">
-            Illustrative revenue from nearby paid parking comps and estimated stall count — not a formal pro forma.
+            Illustrative revenue from distance- and similarity-weighted nearby comps, plus a layout-based stall
+            estimate — not a formal pro forma.
           </p>
           <div className="panel">
             {dealErr ? <p className="muted">{dealErr}</p> : null}
             {dealContext ? (
               <>
                 {dealContext.revenue_estimate.available ? (
-                  <p>
-                    Illustrative gross revenue:{" "}
-                    <strong>${dealContext.revenue_estimate.monthly_gross_usd?.toLocaleString()}/mo</strong> (
-                    ${dealContext.revenue_estimate.annual_gross_usd?.toLocaleString()}/yr) — median comp $
-                    {dealContext.revenue_estimate.hourly_rate_median_usd}/hr, ~
-                    {dealContext.revenue_estimate.stalls_estimated} stalls (
-                    {dealContext.revenue_estimate.comp_count} comps within {dealContext.rate_comp_radius_m}m)
-                  </p>
+                  <>
+                    <p>
+                      Illustrative gross revenue:{" "}
+                      <strong>${dealContext.revenue_estimate.monthly_gross_usd?.toLocaleString()}/mo</strong>
+                      {dealContext.revenue_estimate.monthly_gross_low_usd != null &&
+                      dealContext.revenue_estimate.monthly_gross_high_usd != null ? (
+                        <span className="muted">
+                          {" "}
+                          (range ${dealContext.revenue_estimate.monthly_gross_low_usd.toLocaleString()}–$
+                          {dealContext.revenue_estimate.monthly_gross_high_usd.toLocaleString()}/mo)
+                        </span>
+                      ) : null}{" "}
+                      · ${dealContext.revenue_estimate.annual_gross_usd?.toLocaleString()}/yr
+                    </p>
+                    <p className="muted" style={{ marginTop: 0 }}>
+                      ~
+                      {dealContext.revenue_estimate.stalls_low ?? dealContext.revenue_estimate.stalls_estimated}–
+                      {dealContext.revenue_estimate.stalls_high ?? dealContext.revenue_estimate.stalls_estimated} stalls
+                      (mid {dealContext.revenue_estimate.stalls_estimated}
+                      {dealContext.revenue_estimate.usable_sqft
+                        ? ` on ~${Math.round(dealContext.revenue_estimate.usable_sqft).toLocaleString()} developable sqft`
+                        : ""}
+                      ) · weighted rate $
+                      {dealContext.revenue_estimate.hourly_rate_weighted_usd ??
+                        dealContext.revenue_estimate.hourly_rate_median_usd}
+                      /hr
+                      {dealContext.revenue_estimate.hourly_rate_median_usd != null &&
+                      dealContext.revenue_estimate.hourly_rate_weighted_usd != null &&
+                      dealContext.revenue_estimate.hourly_rate_weighted_usd !==
+                        dealContext.revenue_estimate.hourly_rate_median_usd ? (
+                        <span> (median ${dealContext.revenue_estimate.hourly_rate_median_usd}/hr)</span>
+                      ) : null}{" "}
+                      · {dealContext.revenue_estimate.comp_count} comps within {dealContext.rate_comp_radius_m}m
+                    </p>
+                  </>
                 ) : (
                   <p className="muted">
                     Revenue estimate unavailable ({dealContext.revenue_estimate.reason ?? "add rate comps"}).
                   </p>
                 )}
                 {dealContext.rate_comps.length > 0 ? (
-                  <ul className="muted" style={{ marginBottom: "0.75rem" }}>
-                    {dealContext.rate_comps.slice(0, 6).map((c) => (
-                      <li key={c.name}>
-                        {c.name}: ${c.hourly_mid_usd}/hr ({c.origin})
-                      </li>
-                    ))}
-                  </ul>
+                  <table className="data" style={{ marginBottom: "0.75rem" }}>
+                    <thead>
+                      <tr>
+                        <th>Comp</th>
+                        <th>Rate</th>
+                        <th>Distance</th>
+                        <th>Type</th>
+                        <th>Match</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dealContext.rate_comps.slice(0, 8).map((c) => (
+                        <tr key={`${c.name}-${c.distance_m ?? 0}`}>
+                          <td>{c.name}</td>
+                          <td>
+                            ${(c.effective_hourly_usd ?? c.hourly_mid_usd).toFixed(2)}/hr
+                            {c.effective_hourly_usd != null && c.effective_hourly_usd !== c.hourly_mid_usd ? (
+                              <span className="muted"> (listed ${c.hourly_mid_usd})</span>
+                            ) : null}
+                          </td>
+                          <td>{c.distance_m != null ? `${Math.round(c.distance_m)} m` : "—"}</td>
+                          <td>{c.facility_type ?? "—"}</td>
+                          <td>{c.comp_weight != null ? `${Math.round(c.comp_weight * 100)}%` : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 ) : null}
                 <strong>Nearby qualified parcels</strong>
                 {dealContext.nearby_qualified_parcels.length === 0 ? (

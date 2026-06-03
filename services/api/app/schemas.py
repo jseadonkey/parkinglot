@@ -30,8 +30,35 @@ class RateCompRead(BaseModel):
     lat: float
     lon: float
     hourly_mid_usd: float
+    effective_hourly_usd: float | None = None
     source_note: str | None = None
     origin: str = "pilot"
+    distance_m: float | None = None
+    facility_type: str | None = None
+    similarity: float | None = None
+    distance_weight: float | None = None
+    comp_weight: float | None = None
+
+
+class ParkingRevenueEstimateRead(BaseModel):
+    available: bool
+    reason: str | None = None
+    stalls_estimated: int | None = None
+    stalls_low: int | None = None
+    stalls_high: int | None = None
+    layout_efficiency: float | None = None
+    usable_sqft: float | None = None
+    stall_sqft_effective: float | None = None
+    hourly_rate_median_usd: float | None = None
+    hourly_rate_weighted_usd: float | None = None
+    hourly_rate_min_usd: float | None = None
+    hourly_rate_max_usd: float | None = None
+    comp_count: int | None = None
+    monthly_gross_usd: float | None = None
+    monthly_gross_low_usd: float | None = None
+    monthly_gross_high_usd: float | None = None
+    annual_gross_usd: float | None = None
+    assumptions: dict[str, float | bool] | None = None
 
 
 class NearbyQualifiedParcelRead(BaseModel):
@@ -42,19 +69,6 @@ class NearbyQualifiedParcelRead(BaseModel):
     zoning_code: str | None = None
     entitlement_score: float
     distance_m: float | None = None
-
-
-class ParkingRevenueEstimateRead(BaseModel):
-    available: bool
-    reason: str | None = None
-    stalls_estimated: int | None = None
-    hourly_rate_median_usd: float | None = None
-    hourly_rate_min_usd: float | None = None
-    hourly_rate_max_usd: float | None = None
-    comp_count: int | None = None
-    monthly_gross_usd: float | None = None
-    annual_gross_usd: float | None = None
-    assumptions: dict[str, float] | None = None
 
 
 class ParcelDealContextResponse(BaseModel):

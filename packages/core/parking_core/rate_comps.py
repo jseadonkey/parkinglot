@@ -51,7 +51,7 @@ def filter_comps_within_radius(
         if d <= radius_m:
             within.append((d, comp))
     within.sort(key=lambda x: x[0])
-    return [c for _, c in within]
+    return [c.model_copy(update={"distance_m": d}) for d, c in within]
 
 
 def parking_market_component(
