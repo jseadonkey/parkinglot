@@ -90,6 +90,15 @@ def set_cooldown(settings: Settings, action: str, *, seconds: int) -> None:
 
 def inspect_celery_workers(*, timeout: float = 3.0) -> dict[str, Any]:
     try:
+        try:
+            with celery.connection_or_acquire() as conn:
+                conn.ensure_connection(max_retries=1, timeout=min(timeout, 2.0))
+        except Exception as conn_exc:
+            return {
+                "ok": False,
+                "worker_count": 0,
+                "detail": f"Broker unreachable: {conn_exc}"[:240],
+            }
         insp = celery.control.inspect(timeout=timeout)
         stats = insp.stats() if insp else None
         if not stats:
