@@ -62,7 +62,12 @@ Replace illustrative points with real submarkets. Categories that drive surface 
 - Transit hubs (where park-and-ride spillover exists)  
 - Major retail strips  
 
-After editing `demand_generators`, run **`POST /internal/metrics/refresh-demand-distances?limit=2000`** (optional `county_fips=`) so existing parcels pick up new distances.
+After editing demand POIs, update **`config/demand_generators_baltimore.yaml`** (tier A anchors) and/or **`config/demand_generators_baltimore_tier_b.yaml`** (large restaurants, grocery, big-box), then run:
+
+- **`POST /internal/metrics/refresh-demand-distances?county_fips=24510&limit=2000&process_all=true`**
+- **`POST /internal/metrics/refresh-entitlement-scores?county_fips=24510&limit=2000&process_all=true`**
+
+(`process_all` requires a current API worker image; see `scripts/refresh_baltimore_revenue_signals.sh`.)
 
 ## Priority pipeline
 

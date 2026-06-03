@@ -49,8 +49,11 @@ _post() {
   echo ""
 }
 
-echo "==> Refresh demand distances (county $COUNTY, limit $DEMAND_LIMIT)"
-_post "/internal/metrics/refresh-demand-distances?limit=${DEMAND_LIMIT}&county_fips=${COUNTY}"
+echo "==> Refresh demand distances (county $COUNTY, tier A+B generators, all parcels)"
+_post "/internal/metrics/refresh-demand-distances?limit=${DEMAND_LIMIT}&county_fips=${COUNTY}&process_all=true"
+
+echo "==> Rescore entitlement (county $COUNTY, all parcels)"
+_post "/internal/metrics/refresh-entitlement-scores?limit=${DEMAND_LIMIT}&county_fips=${COUNTY}&process_all=true"
 
 echo "==> Refresh OSM POI density (county $COUNTY, limit $POI_LIMIT — ~1 req/sec)"
 _post "/internal/metrics/refresh-poi-density?limit=${POI_LIMIT}&county_fips=${COUNTY}&only_missing=true"

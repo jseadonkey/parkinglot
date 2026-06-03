@@ -38,16 +38,13 @@ scoring:
     near_demand_generator_m: 24
     near_paid_parking_comps: 15
   demand_generator_buffer_m: 450
+  demand_generators_paths:
+    - demand_generators_baltimore.yaml
+    - demand_generators_baltimore_tier_b.yaml
+  demand_generators: []
   parking_rate_comp_radius_m: 2500
   parking_rate_comp_min_for_full_credit: 2
   parking_rate_comp_max_used: 8
-  demand_generators:
-    - name: "Inner Harbor / downtown Baltimore (illustrative)"
-      lat: 39.2851
-      lon: -76.6105
-    - name: "Harbor East (illustrative)"
-      lat: 39.2838
-      lon: -76.6005
   parking_rate_comps:
     - name: "Downtown Baltimore garage (illustrative)"
       lat: 39.2904
@@ -63,4 +60,4 @@ scoring:
 data_sources:
   parcel_vendor: "Baltimore City EGIS + Baltimore County GIS — see docs/BALTIMORE-PILOT.md"
   zoning_vendor: "Baltimore City CityView/Zoning_New + data/zoning/md/baltimore_city_surface_parking_rules.yaml — see docs/zoning-sources-baltimore.md"
-  poi_source: "illustrative POIs in pilot YAML until vendor feed"
+  poi_source: "demand_generators_baltimore*.yaml + OSM Overpass (refresh-poi-density)"

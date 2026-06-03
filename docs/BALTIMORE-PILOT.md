@@ -92,8 +92,9 @@ Local QA: `make baltimore-phase-b-local` or `python3 scripts/summarize_baltimore
 Improve **Est. gross** on Baltimore parcels when nearby paid parking comps are sparse:
 
 1. **Rate comps** — `POST /internal/rate-comps/seed-baltimore-pilot` (16 metro benchmarks in Postgres).
-2. **Demand distance** — `POST /internal/metrics/refresh-demand-distances?county_fips=24510&limit=2000`.
-3. **OSM POI density** — `POST /internal/metrics/refresh-poi-density?county_fips=24510&limit=50` (repeat batches; Overpass ~1 req/sec).
+2. **Demand distance** — `POST /internal/metrics/refresh-demand-distances?county_fips=24510&limit=2000&process_all=true` (tier A + tier B YAML: `config/demand_generators_baltimore*.yaml`).
+3. **Entitlement rescore** — `POST /internal/metrics/refresh-entitlement-scores?county_fips=24510&limit=2000&process_all=true`.
+4. **OSM POI density** — `POST /internal/metrics/refresh-poi-density?county_fips=24510&limit=50` (repeat batches; Overpass ~1 req/sec).
 
 **One-shot on Droplet:** `bash scripts/refresh_baltimore_revenue_signals.sh`
 

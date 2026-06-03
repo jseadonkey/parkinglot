@@ -1,0 +1,180 @@
+# Baltimore tier A — regional demand anchors (hospitals, stadiums, downtown, transit, universities).
+# WGS84. See demand_generators_baltimore_tier_b.yaml for car-oriented retail / dining.
+
+demand_generators:
+  - name: "Inner Harbor — Pratt Street promenade"
+    category: downtown
+    lat: 39.2851
+    lon: -76.6105
+  - name: "Inner Harbor — National Aquarium"
+    category: tourism
+    lat: 39.2852
+    lon: -76.6083
+  - name: "Power Plant Live / Inner Harbor west"
+    category: retail
+    lat: 39.2874
+    lon: -76.6089
+  - name: "Baltimore Convention Center"
+    category: downtown
+    lat: 39.2856
+    lon: -76.6166
+  - name: "CFG Bank Arena (downtown events)"
+    category: stadium
+    lat: 39.2882
+    lon: -76.6191
+  - name: "Lexington Market"
+    category: retail
+    lat: 39.2907
+    lon: -76.6217
+  - name: "Harbor East — Four Seasons / retail core"
+    category: retail
+    lat: 39.2848
+    lon: -76.6012
+  - name: "Mount Vernon — Walters Art Museum"
+    category: tourism
+    lat: 39.2965
+    lon: -76.6165
+  - name: "Mount Vernon — Washington Monument"
+    category: tourism
+    lat: 39.2976
+    lon: -76.6153
+  - name: "Hippodrome Theatre / Bromo arts"
+    category: downtown
+    lat: 39.2908
+    lon: -76.6205
+  - name: "Fells Point — Broadway Market"
+    category: retail
+    lat: 39.2830
+    lon: -76.5915
+  - name: "Fells Point waterfront"
+    category: retail
+    lat: 39.2821
+    lon: -76.5924
+  - name: "Federal Hill — Cross Street"
+    category: retail
+    lat: 39.2755
+    lon: -76.6095
+  - name: "Canton Square"
+    category: retail
+    lat: 39.2768
+    lon: -76.5758
+  - name: "Canton Waterfront Park"
+    category: tourism
+    lat: 39.2720
+    lon: -76.5780
+  - name: "Fort McHenry (tourism)"
+    category: tourism
+    lat: 39.2639
+    lon: -76.5800
+  - name: "Oriole Park at Camden Yards"
+    category: stadium
+    lat: 39.2839
+    lon: -76.6217
+  - name: "M&T Bank Stadium (Ravens)"
+    category: stadium
+    lat: 39.2780
+    lon: -76.6237
+  - name: "Horseshoe Casino Baltimore"
+    category: casino
+    lat: 39.2723
+    lon: -76.6275
+  - name: "Baltimore Penn Station"
+    category: transit
+    lat: 39.3075
+    lon: -76.6156
+  - name: "Mondawmin Mall transit hub"
+    category: transit
+    lat: 39.3148
+    lon: -76.6593
+  - name: "Johns Hopkins Hospital — East Baltimore"
+    category: hospital
+    lat: 39.2971
+    lon: -76.5927
+  - name: "Johns Hopkins Bayview Medical Center"
+    category: hospital
+    lat: 39.2886
+    lon: -76.5534
+  - name: "University of Maryland Medical Center / Shock Trauma"
+    category: hospital
+    lat: 39.2890
+    lon: -76.6230
+  - name: "Mercy Medical Center"
+    category: hospital
+    lat: 39.2937
+    lon: -76.6125
+  - name: "MedStar Union Memorial Hospital"
+    category: hospital
+    lat: 39.3289
+    lon: -76.6115
+  - name: "Sinai Hospital"
+    category: hospital
+    lat: 39.3520
+    lon: -76.6630
+  - name: "VA Maryland Health Care — Baltimore"
+    category: hospital
+    lat: 39.2910
+    lon: -76.6010
+  - name: "Johns Hopkins University — Homewood campus"
+    category: university
+    lat: 39.3299
+    lon: -76.6205
+  - name: "University of Maryland Baltimore campus"
+    category: university
+    lat: 39.2892
+    lon: -76.6263
+  - name: "University of Baltimore"
+    category: university
+    lat: 39.3041
+    lon: -76.6164
+  - name: "Loyola University Maryland — Evergreen"
+    category: university
+    lat: 39.3469
+    lon: -76.6172
+  - name: "Morgan State University"
+    category: university
+    lat: 39.3434
+    lon: -76.5834
+  - name: "Coppin State University"
+    category: university
+    lat: 39.3108
+    lon: -76.6585
+  - name: "Notre Dame of Maryland University"
+    category: university
+    lat: 39.3503
+    lon: -76.6245
+  - name: "MICA — Station North arts"
+    category: university
+    lat: 39.3105
+    lon: -76.6135
+  - name: "Charles Village / St. Paul Street"
+    category: retail
+    lat: 39.3300
+    lon: -76.6150
+  - name: "Hampden — The Avenue (36th St)"
+    category: retail
+    lat: 39.3350
+    lon: -76.6320
+  - name: "Remington / I-83 corridor retail"
+    category: retail
+    lat: 39.3230
+    lon: -76.6155
+  - name: "Belvedere Square"
+    category: retail
+    lat: 39.3305
+    lon: -76.6105
+  - name: "Druid Hill Park / Maryland Zoo"
+    category: tourism
+    lat: 39.3198
+    lon: -76.6425
+  - name: "Port Covington / Sagamore peninsula"
+    category: downtown
+    lat: 39.2580
+    lon: -76.6190
+  - name: "Cherry Hill / South Baltimore"
+    category: retail
+    lat: 39.2520
+    lon: -76.6250
+  - name: "BWI Thurgood Marshall Airport"
+    category: transit
+    lat: 39.1754
+    lon: -76.6682

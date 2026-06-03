@@ -108,27 +108,11 @@ scoring:
     saturation_count: 12
     min_occupancy_factor: 0.40
     max_occupancy_factor: 1.05
-  # Demand POIs — hospitals, downtown, stadiums, universities (centroid → nearest for scoring + revenue occupancy).
-  # Add lat/lon from OSM or commercial POI feeds; see docs/TOP-PARCEL-DEAL-CONTEXT.md.
+  # Demand POIs — tier A/B Baltimore YAML + Seattle inline; OSM POI density for smaller retail.
+  demand_generators_paths:
+    - demand_generators_baltimore.yaml
+    - demand_generators_baltimore_tier_b.yaml
   demand_generators:
-    - name: "Inner Harbor / downtown Baltimore"
-      lat: 39.2851
-      lon: -76.6105
-    - name: "Camden Yards / Ravens stadium"
-      lat: 39.2839
-      lon: -76.6217
-    - name: "Johns Hopkins Hospital (East Baltimore)"
-      lat: 39.2971
-      lon: -76.5927
-    - name: "University of Maryland Baltimore campus"
-      lat: 39.2892
-      lon: -76.6263
-    - name: "Harbor East retail"
-      lat: 39.2838
-      lon: -76.6005
-    - name: "Fells Point waterfront"
-      lat: 39.2820
-      lon: -76.5920
     - name: "Seattle downtown retail core"
       lat: 47.6062
       lon: -122.3321
@@ -168,4 +152,4 @@ scoring:
 data_sources:
   parcel_vendor: "TBD — see docs/washington-data.md"
   zoning_vendor: "docs/zoning-sources-kent.md + data/zoning/wa/kent_king_surface_parking_rules.yaml"
-  poi_source: "OpenStreetMap Overpass — POST /internal/metrics/refresh-poi-density"
+  poi_source: "demand_generators_baltimore*.yaml + OSM Overpass (refresh-poi-density)"

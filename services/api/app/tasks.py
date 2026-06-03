@@ -1253,6 +1253,7 @@ def merge_parcel_attributes_geojson(
 def refresh_demand_distances_batch(
     limit: int = 500,
     county_fips: str | None = None,
+    process_all: bool = False,
 ) -> dict[str, Any]:
     """Recompute ``distance_to_nearest_demand_m`` from pilot.yaml demand generators (centroid → POI)."""
     from geoalchemy2.shape import to_shape
@@ -1264,33 +1265,50 @@ def refresh_demand_distances_batch(
     if not pilot.scoring.demand_generators:
         return {"skipped": True, "reason": "no_demand_generators_in_pilot", "updated": 0}
 
-    lim = min(max(limit, 1), 5000)
+    chunk = min(max(limit, 1), 5000)
+    cf = (county_fips or "").strip()
     db = _session()
     n = 0
+    last_id: uuid.UUID | None = None
     try:
-        stmt = select(Parcel).where(Parcel.footprint.isnot(None))
-        cf = (county_fips or "").strip()
-        if cf:
-            stmt = stmt.where(Parcel.county_fips == cf)
-        stmt = stmt.order_by(Parcel.created_at.desc()).limit(lim)
-        for parcel in db.scalars(stmt):
-            geom = to_shape(parcel.footprint)
-            if geom.is_empty:
-                continue
-            c = geom.centroid
-            dmin = min_distance_to_generators_m(c.y, c.x, pilot.scoring.demand_generators)
-            parcel.distance_to_nearest_demand_m = dmin
-            db.add(parcel)
-            db.flush()
-            _upsert_identification_score(db, parcel)
-            n += 1
-        db.commit()
+        while True:
+            stmt = select(Parcel).where(Parcel.footprint.isnot(None))
+            if cf:
+                stmt = stmt.where(Parcel.county_fips == cf)
+            if last_id is not None:
+                stmt = stmt.where(Parcel.id > last_id)
+            stmt = stmt.order_by(Parcel.id.asc()).limit(chunk)
+            batch = list(db.scalars(stmt))
+            if not batch:
+                break
+            for parcel in batch:
+                geom = to_shape(parcel.footprint)
+                if geom.is_empty:
+                    last_id = parcel.id
+                    continue
+                c = geom.centroid
+                dmin = min_distance_to_generators_m(c.y, c.x, pilot.scoring.demand_generators)
+                parcel.distance_to_nearest_demand_m = dmin
+                db.add(parcel)
+                db.flush()
+                _upsert_identification_score(db, parcel)
+                n += 1
+                last_id = parcel.id
+            db.commit()
+            if not process_all or len(batch) < chunk:
+                break
         post_agent_event_to_slack(
             settings,
             agent="Beacon (demand distance refresh)",
             detail=f"Refreshed demand distance for *{n}* parcel(s)" + (f" in `{cf}`." if cf else "."),
         )
-        return {"updated": n, "county_fips": cf or None, "limit": lim}
+        return {
+            "updated": n,
+            "county_fips": cf or None,
+            "limit": chunk,
+            "process_all": process_all,
+            "generator_count": len(pilot.scoring.demand_generators),
+        }
     finally:
         db.close()
 
@@ -1498,29 +1516,38 @@ def refresh_identification_scores_batch(
 def refresh_entitlement_scores_batch(
     limit: int = 2000,
     county_fips: str | None = None,
+    process_all: bool = False,
 ) -> dict[str, Any]:
     """Recompute Atlas entitlement scores from current parcel features (zoning, lot, demand, comps)."""
-    lim = min(max(limit, 1), 5000)
+    chunk = min(max(limit, 1), 5000)
+    cf = (county_fips or "").strip()
     db = _session()
     n = 0
+    last_id: uuid.UUID | None = None
     try:
-        stmt = select(Parcel).order_by(Parcel.created_at.desc())
-        cf = (county_fips or "").strip()
-        if cf:
-            stmt = stmt.where(Parcel.county_fips == cf)
-        stmt = stmt.limit(lim)
-        for parcel in db.scalars(stmt):
-            _upsert_entitlement_score(db, parcel)
-            n += 1
-            if n % 200 == 0:
-                db.commit()
-        db.commit()
+        while True:
+            stmt = select(Parcel)
+            if cf:
+                stmt = stmt.where(Parcel.county_fips == cf)
+            if last_id is not None:
+                stmt = stmt.where(Parcel.id > last_id)
+            stmt = stmt.order_by(Parcel.id.asc()).limit(chunk)
+            batch = list(db.scalars(stmt))
+            if not batch:
+                break
+            for parcel in batch:
+                _upsert_entitlement_score(db, parcel)
+                n += 1
+                last_id = parcel.id
+            db.commit()
+            if not process_all or len(batch) < chunk:
+                break
         post_agent_event_to_slack(
             get_settings(),
             agent="Atlas (entitlement refresh)",
             detail=f"Refreshed entitlement score for *{n}* parcel(s)" + (f" in `{cf}`." if cf else "."),
         )
-        return {"updated": n, "county_fips": cf or None, "limit": lim}
+        return {"updated": n, "county_fips": cf or None, "limit": chunk, "process_all": process_all}
     finally:
         db.close()
 

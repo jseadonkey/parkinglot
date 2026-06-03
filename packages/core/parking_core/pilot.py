@@ -107,6 +107,9 @@ class ScoringConfig(BaseModel):
     min_lot_sqft: int = 5000
     weights: ScoringWeights = Field(default_factory=ScoringWeights)
     demand_generator_buffer_m: int = 400
+    # Optional YAML file(s) merged into demand_generators at load (relative to pilot config dir).
+    demand_generators_path: str | None = None
+    demand_generators_paths: list[str] = Field(default_factory=list)
     demand_generators: list[dict[str, Any]] = Field(default_factory=list)
     # Latest score at or above this value is treated as a "qualified" lot for listing filters.
     qualified_min_score: float = 55.0
@@ -136,6 +139,54 @@ class PilotConfig(BaseModel):
     data_sources: DataSourcesConfig = Field(default_factory=DataSourcesConfig)
 
 
+def _load_demand_generator_file(extra_path: Path) -> list[dict[str, Any]]:
+    if not extra_path.is_file():
+        msg = f"demand generators file not found: {extra_path}"
+        raise FileNotFoundError(msg)
+    extra_raw = yaml.safe_load(extra_path.read_text())
+    if isinstance(extra_raw, list):
+        return [g for g in extra_raw if isinstance(g, dict)]
+    if isinstance(extra_raw, dict):
+        gens = extra_raw.get("demand_generators") or extra_raw.get("generators") or []
+        return [g for g in gens if isinstance(g, dict)]
+    return []
+
+
+def _merge_demand_generators_from_paths(raw: dict[str, Any], pilot_path: Path) -> None:
+    scoring = raw.get("scoring")
+    if not isinstance(scoring, dict):
+        return
+    rel_paths: list[str] = []
+    single = scoring.get("demand_generators_path")
+    if isinstance(single, str) and single.strip():
+        rel_paths.append(single.strip())
+    for rel in scoring.get("demand_generators_paths") or []:
+        if isinstance(rel, str) and rel.strip():
+            rel_paths.append(rel.strip())
+    if not rel_paths:
+        return
+
+    inline = list(scoring.get("demand_generators") or [])
+    seen = {str(g.get("name", "")).strip().lower() for g in inline if isinstance(g, dict)}
+    for rel in rel_paths:
+        extra_path = Path(rel)
+        if not extra_path.is_absolute():
+            extra_path = pilot_path.parent / extra_path
+        for gen in _load_demand_generator_file(extra_path):
+            key = str(gen.get("name", "")).strip().lower()
+            if key and key in seen:
+                continue
+            inline.append(gen)
+            if key:
+                seen.add(key)
+    scoring["demand_generators"] = inline
+
+
 def load_pilot_config(path: str | Path) -> PilotConfig:
-    raw = yaml.safe_load(Path(path).read_text())
+    pilot_path = Path(path)
+    raw = yaml.safe_load(pilot_path.read_text())
+    if not isinstance(raw, dict):
+        msg = f"Invalid pilot config (expected mapping): {pilot_path}"
+        raise TypeError(msg)
+    _merge_demand_generators_from_paths(raw, pilot_path)
     return PilotConfig.model_validate(raw)

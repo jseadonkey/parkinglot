@@ -1,0 +1,126 @@
+# Baltimore tier B — car-oriented generators (large dining, grocery, big-box, entertainment).
+# Named anchors only; smaller retail/restaurants still come from OSM POI density (refresh-poi-density).
+# category: restaurant | grocery | big_box | entertainment | food_hall
+
+demand_generators:
+  # --- Destination dining (high evening/weekend parking) ---
+  - name: "Phillips Seafood — Inner Harbor"
+    category: restaurant
+    lat: 39.2856
+    lon: -76.6118
+  - name: "Rusty Scupper — Inner Harbor"
+    category: restaurant
+    lat: 39.2735
+    lon: -76.6068
+  - name: "Thames Street Oyster House — Fells Point"
+    category: restaurant
+    lat: 39.2825
+    lon: -76.5918
+  - name: "LP Steamers — Canton"
+    category: restaurant
+    lat: 39.2762
+    lon: -76.5755
+  - name: "Nick's Fish House — Canton"
+    category: restaurant
+    lat: 39.2745
+    lon: -76.5530
+  - name: "Charleston — Harbor East"
+    category: restaurant
+    lat: 39.2865
+    lon: -76.6020
+  - name: "Woodberry Kitchen — Woodberry"
+    category: restaurant
+    lat: 39.3310
+    lon: -76.6325
+  - name: "Gertrude's — BMA / Charles Village"
+    category: restaurant
+    lat: 39.3250
+    lon: -76.6205
+  - name: "The Bygone — Pendry Harbor East"
+    category: restaurant
+    lat: 39.2858
+    lon: -76.6025
+  - name: "Faidley's Seafood — Lexington Market"
+    category: restaurant
+    lat: 39.2905
+    lon: -76.6217
+  - name: "Aldo's Ristorante — Little Italy"
+    category: restaurant
+    lat: 39.2870
+    lon: -76.6012
+
+  # --- Grocery / supermarket anchors ---
+  - name: "Whole Foods — Harbor East"
+    category: grocery
+    lat: 39.2842
+    lon: -76.5995
+  - name: "Whole Foods — Mount Vernon"
+    category: grocery
+    lat: 39.2968
+    lon: -76.6155
+  - name: "Eddie's of Roland Park"
+    category: grocery
+    lat: 39.3520
+    lon: -76.6340
+  - name: "Safeway — Charles Village"
+    category: grocery
+    lat: 39.3290
+    lon: -76.6140
+  - name: "Giant Food — Locust Point"
+    category: grocery
+    lat: 39.2710
+    lon: -76.5980
+  - name: "Harris Teeter — Canton Crossing"
+    category: grocery
+    lat: 39.2790
+    lon: -76.5690
+  - name: "Shoppers Food — Charles Village"
+    category: grocery
+    lat: 39.3315
+    lon: -76.6150
+  - name: "Trader Joe's — Hampden"
+    category: grocery
+    lat: 39.3360
+    lon: -76.6310
+  - name: "Aldi — Highlandtown"
+    category: grocery
+    lat: 39.2860
+    lon: -76.5680
+
+  # --- Big-box / power retail (surface parking lots) ---
+  - name: "Target — Mondawmin"
+    category: big_box
+    lat: 39.3145
+    lon: -76.6590
+  - name: "The Home Depot — Canton (Boston St)"
+    category: big_box
+    lat: 39.2730
+    lon: -76.5640
+  - name: "Lowe's — South Baltimore"
+    category: big_box
+    lat: 39.2350
+    lon: -76.5950
+  - name: "Best Buy — Canton Crossing"
+    category: big_box
+    lat: 39.2780
+    lon: -76.5650
+
+  # --- Food halls / clustered dining ---
+  - name: "R. House — Remington"
+    category: food_hall
+    lat: 39.3235
+    lon: -76.6155
+  - name: "Broadway Market — Fells Point"
+    category: food_hall
+    lat: 39.2830
+    lon: -76.5915
+
+  # --- Entertainment (event parking) ---
+  - name: "Senator Theatre — Charles Village"
+    category: entertainment
+    lat: 39.3320
+    lon: -76.6150
+  - name: "AMC Theatres — Canton"
+    category: entertainment
+    lat: 39.2775
+    lon: -76.5675

@@ -771,11 +771,16 @@ def merge_geojson_attributes(body: MergeGeojsonAttributesRequest) -> CeleryTaskI
 def refresh_demand_distances(
     limit: int = 500,
     county_fips: str | None = None,
+    process_all: bool = Query(
+        False,
+        description="When true with county_fips, refresh every parcel in the county (chunked).",
+    ),
 ) -> CeleryTaskIdResponse:
     """Recompute centroid→demand POI distance from ``pilot.yaml`` generators (Celery)."""
     async_result = refresh_demand_distances_batch.delay(
         limit=limit,
         county_fips=county_fips,
+        process_all=process_all,
     )
     return CeleryTaskIdResponse(task_id=async_result.id)
 
@@ -813,11 +818,16 @@ def refresh_entitlement_scores(
     limit: int = 2000,
     county_fips: str | None = None,
     min_entitlement_score: float | None = None,
+    process_all: bool = Query(
+        False,
+        description="When true with county_fips, rescore every parcel in the county (chunked).",
+    ),
 ) -> CeleryTaskIdResponse:
     """Recompute Atlas entitlement scores from parcel features (zoning, lot, demand, comps)."""
     async_result = refresh_entitlement_scores_batch.delay(
         limit=limit,
         county_fips=county_fips,
+        process_all=process_all,
     )
     return CeleryTaskIdResponse(task_id=async_result.id)
 

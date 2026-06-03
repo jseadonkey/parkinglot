@@ -1167,10 +1167,13 @@ try:
 finally:
     db.close()
 PY
-    echo "=== refresh demand distances (county ${COUNTY}) ==="
+    echo "=== refresh demand distances (county ${COUNTY}, process_all) ==="
     if [ -n "$KEY" ]; then
-      _internal_api_post "/internal/metrics/refresh-demand-distances?limit=${DEMAND_LIMIT}&county_fips=${COUNTY}" \
+      _internal_api_post "/internal/metrics/refresh-demand-distances?limit=${DEMAND_LIMIT}&county_fips=${COUNTY}&process_all=true" \
         || echo "refresh-demand-distances failed"
+      echo "=== rescore entitlement (county ${COUNTY}, process_all) ==="
+      _internal_api_post "/internal/metrics/refresh-entitlement-scores?limit=${DEMAND_LIMIT}&county_fips=${COUNTY}&process_all=true" \
+        || echo "refresh-entitlement-scores failed"
     else
       echo "INTERNAL_API_KEY not set — skipping demand distance refresh"
     fi
