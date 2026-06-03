@@ -9,29 +9,15 @@ from shapely.geometry import shape
 from shapely.geometry.base import BaseGeometry
 from shapely.strtree import STRtree
 
+from parking_ingestion.baltimore_parcels import BALTIMORE_CITY_COUNTY_FIPS, parcel_apn_from_props
+
 logger = logging.getLogger(__name__)
 
-BALTIMORE_CITY_COUNTY_FIPS = "24510"
 DEFAULT_ZONING_FIELD = "Zoning"
 
 
-def _parcel_apn(props: dict[str, Any]) -> str:
-    for key in (
-        "APN",
-        "apn",
-        "PIN",
-        "pin",
-        "PARCELNUM",
-        "parcelnum",
-        "TAXPIN",
-        "taxpin",
-        "PARCEL_ID",
-        "parcel_id",
-    ):
-        val = props.get(key)
-        if val is not None and str(val).strip():
-            return str(val).strip()
-    return ""
+def _parcel_apn(props: dict[str, Any], *, county_fips: str = BALTIMORE_CITY_COUNTY_FIPS) -> str:
+    return parcel_apn_from_props(props, county_fips=county_fips)
 
 
 def _zoning_code_from_props(props: dict[str, Any], zoning_field: str) -> str | None:
@@ -103,7 +89,7 @@ def build_zoning_overlay_geojson(
 
     for pf in parcel_features:
         props = dict(pf.get("properties") or {})
-        apn = _parcel_apn(props)
+        apn = _parcel_apn(props, county_fips=county_fips)
         if not apn:
             continue
         if not str(props.get("COUNTY_FIPS", "")).strip():

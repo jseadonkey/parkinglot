@@ -23,6 +23,26 @@ BALTIMORE_CITY_COUNTY_FIPS = "24510"
 BALTIMORE_COUNTY_COUNTY_FIPS = "24005"
 
 
+def parcel_apn_from_props(props: dict[str, Any], *, county_fips: str) -> str:
+    """Stable APN for Baltimore layers — must match ingest and overlay merge keys."""
+    existing = str(props.get("APN") or props.get("apn") or "").strip()
+    if county_fips == BALTIMORE_CITY_COUNTY_FIPS:
+        prefix = "MD-BALT-CITY-"
+        pin_fields: tuple[str, ...] = ("PIN", "BLOCKLOT", "PARCELNUM", "TAXPIN")
+    elif county_fips == BALTIMORE_COUNTY_COUNTY_FIPS:
+        prefix = "MD-BALT-CO-"
+        pin_fields = ("TAXPIN", "PARCEL_ASSET_ID", "OBJECTID")
+    else:
+        return existing
+    if existing.startswith(prefix) and len(existing) > len(prefix):
+        return existing
+    for field in pin_fields:
+        pin = str(props.get(field) or "").strip()
+        if pin:
+            return f"{prefix}{pin}"
+    return existing
+
+
 def _fetch_arcgis_parcels_geojson(
     *,
     layer_url: str,
@@ -75,9 +95,9 @@ def _fetch_arcgis_parcels_geojson(
                 pin = str(props.get(field) or "").strip()
                 if pin:
                     break
-            if pin:
-                # Always normalize from pin_fields (PARCELNUM alone is not unique in City layer).
-                props["APN"] = f"{apn_prefix}{pin}"
+            normalized = parcel_apn_from_props(props, county_fips=county_fips)
+            if normalized:
+                props["APN"] = normalized
 
         features.extend(batch)
         if len(batch) < batch_limit:
