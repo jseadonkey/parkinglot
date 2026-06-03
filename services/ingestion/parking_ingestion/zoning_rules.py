@@ -60,10 +60,16 @@ def merge_zoning_rules(base: dict[str, Any], extra: dict[str, Any]) -> dict[str,
     return out
 
 
+def _repo_root() -> Path:
+    """Monorepo root (services/ingestion/parking_ingestion → ../../../)."""
+    return Path(__file__).resolve().parents[3]
+
+
 def zoning_rules_search_paths(explicit: Path | None = None) -> list[Path]:
     """Paths to merge (explicit, env comma-list, then WA + MD defaults)."""
     seen: set[str] = set()
     paths: list[Path] = []
+    root = _repo_root()
 
     def add(p: Path) -> None:
         key = str(p.resolve()) if p.is_file() else str(p)
@@ -82,6 +88,8 @@ def zoning_rules_search_paths(explicit: Path | None = None) -> list[Path]:
     for candidate in (
         Path("/app/data/zoning/wa/kent_king_surface_parking_rules.yaml"),
         Path("/app/data/zoning/md/baltimore_city_surface_parking_rules.yaml"),
+        root / "data/zoning/wa/kent_king_surface_parking_rules.yaml",
+        root / "data/zoning/md/baltimore_city_surface_parking_rules.yaml",
         Path.cwd() / "data/zoning/wa/kent_king_surface_parking_rules.yaml",
         Path.cwd() / "data/zoning/md/baltimore_city_surface_parking_rules.yaml",
     ):
