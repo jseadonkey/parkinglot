@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from slack_sdk import WebClient
@@ -9,8 +10,10 @@ from slack_sdk.errors import SlackApiError
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
-from app.config import Settings
+from app.config import Settings, get_settings
 from app.db.models import ApprovalRequest, AuditLog, Parcel, ParcelScore, WorkflowRun
+from app.export_readiness import export_readiness_summary
+from app.pilot_scope import COUNTY_DISPLAY_NAMES, pilot_scope_summary
 from app.scoring_profiles import (
     AGENT_ENTITLEMENT_NAME,
     AGENT_ENTITLEMENT_TAGLINE,
@@ -19,9 +22,13 @@ from app.scoring_profiles import (
     ENTITLEMENT,
     STRATEGIC,
 )
+from app.site_watchdog import watchdog_slack_channel
 from parking_core.pilot import load_pilot_config
 
 logger = logging.getLogger(__name__)
+
+BALTIMORE_CITY_FIPS = "24510"
+BALTIMORE_CITY_PILOT_CAP = 20_000
 
 
 def _count_since(db: Session, model: type, column: Any, cutoff: datetime) -> int:
@@ -36,6 +43,49 @@ def _count_audit_action_since(db: Session, action: str, cutoff: datetime) -> int
         .where(and_(AuditLog.action == action, AuditLog.created_at >= cutoff)),
     )
     return int(n or 0)
+
+
+def _ingest_activity_since(db: Session, cutoff: datetime) -> dict[str, int]:
+    """Totals from audit rows written by ``ingest_geojson_path`` (action ``parcels_ingested``)."""
+    stmt = select(AuditLog.meta).where(
+        and_(AuditLog.action == "parcels_ingested", AuditLog.created_at >= cutoff),
+    )
+    runs = 0
+    inserted = 0
+    updated = 0
+    skipped = 0
+    for (meta,) in db.execute(stmt).all():
+        runs += 1
+        block = meta if isinstance(meta, dict) else {}
+        inserted += int(block.get("inserted") or 0)
+        updated += int(block.get("updated") or 0)
+        skipped += int(block.get("skipped") or 0)
+    merge = _merge_activity_since(db, cutoff)
+    return {
+        "runs": runs,
+        "inserted": inserted,
+        "updated": updated,
+        "skipped": skipped,
+        "merge_runs": merge["runs"],
+        "merge_updated": merge["updated"],
+        "merge_not_found": merge["not_found"],
+    }
+
+
+def _merge_activity_since(db: Session, cutoff: datetime) -> dict[str, int]:
+    """Totals from ``merge_parcel_attributes_geojson`` (action ``parcels_merge_attributes``)."""
+    stmt = select(AuditLog.meta).where(
+        and_(AuditLog.action == "parcels_merge_attributes", AuditLog.created_at >= cutoff),
+    )
+    runs = 0
+    updated = 0
+    not_found = 0
+    for (meta,) in db.execute(stmt).all():
+        runs += 1
+        block = meta if isinstance(meta, dict) else {}
+        updated += int(block.get("updated") or 0)
+        not_found += int(block.get("not_found") or 0)
+    return {"runs": runs, "updated": updated, "not_found": not_found}
 
 
 def _parcel_score_counts_since(db: Session, cutoff: datetime) -> dict[str, int]:
@@ -72,11 +122,402 @@ def _recent_audit_lines(db: Session, cutoff: datetime, limit: int = 8) -> list[s
     return lines
 
 
-def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict[str, Any]], str]:
+def _recent_failed_workflow_lines(db: Session, cutoff: datetime, *, limit: int = 3) -> list[str]:
+    stmt = (
+        select(WorkflowRun, Parcel.apn)
+        .join(Parcel, Parcel.id == WorkflowRun.parcel_id)
+        .where(and_(WorkflowRun.updated_at >= cutoff, WorkflowRun.status == "failed"))
+        .order_by(WorkflowRun.updated_at.desc())
+        .limit(limit)
+    )
+    lines: list[str] = []
+    for run, apn in db.execute(stmt):
+        err = (run.error or "").strip().replace("\n", " ")
+        if len(err) > 120:
+            err = err[:117] + "…"
+        tail = f" — _{err}_" if err else ""
+        lines.append(f"• `{apn}` — step `{run.current_step or '?'}`{tail}")
+    return lines
+
+
+def _progress_bar(complete_pct: float, *, width: int = 8) -> str:
+    pct = max(0.0, min(100.0, complete_pct))
+    filled = int(round(width * pct / 100.0))
+    bar = "█" * filled + "░" * (width - filled)
+    return f"{bar} {pct:.0f}%"
+
+
+def _coverage_progress_line(total: int, missing: int, label: str) -> str:
+    if total <= 0:
+        return f"• {label}: —"
+    have = max(0, total - missing)
+    return f"• {label}: *{have}/{total}* {_progress_bar(100.0 * have / total)}"
+
+
+def _recent_ingest_audit_lines(db: Session, cutoff: datetime, *, limit: int = 3) -> list[str]:
+    stmt = (
+        select(AuditLog)
+        .where(and_(AuditLog.action == "parcels_ingested", AuditLog.created_at >= cutoff))
+        .order_by(AuditLog.created_at.desc())
+        .limit(limit)
+    )
+    lines: list[str] = []
+    for row in db.scalars(stmt):
+        meta = row.meta if isinstance(row.meta, dict) else {}
+        label = Path(str(meta.get("source_path") or "ingest")).name
+        ins = int(meta.get("inserted") or 0)
+        upd = int(meta.get("updated") or 0)
+        sk = int(meta.get("skipped") or 0)
+        when = row.created_at.strftime("%H:%M UTC") if row.created_at else "?"
+        county = str(meta.get("default_county_fips") or "").strip()
+        county_bit = ""
+        if county:
+            cname = COUNTY_DISPLAY_NAMES.get(county, county)
+            county_bit = f" · {cname} `{county}`"
+        lines.append(
+            f"  ◦ `{label}` at {when}{county_bit} — +*{ins}* new, *{upd}* updated, *{sk}* skipped"
+        )
+    return lines
+
+
+def _recent_merge_audit_lines(db: Session, cutoff: datetime, *, limit: int = 2) -> list[str]:
+    stmt = (
+        select(AuditLog)
+        .where(and_(AuditLog.action == "parcels_merge_attributes", AuditLog.created_at >= cutoff))
+        .order_by(AuditLog.created_at.desc())
+        .limit(limit)
+    )
+    lines: list[str] = []
+    for row in db.scalars(stmt):
+        meta = row.meta if isinstance(row.meta, dict) else {}
+        label = Path(str(meta.get("source_path") or "overlay")).name
+        upd = int(meta.get("updated") or 0)
+        nf = int(meta.get("not_found") or 0)
+        when = row.created_at.strftime("%H:%M UTC") if row.created_at else "?"
+        lines.append(f"  ◦ `{label}` at {when} — *{upd}* parcels got zoning/attrs, *{nf}* APN not in DB")
+    return lines
+
+
+def _county_zoning_fill(db: Session, county_fips: str) -> tuple[int, int]:
+    total = db.scalar(
+        select(func.count()).select_from(Parcel).where(Parcel.county_fips == county_fips),
+    )
+    total = int(total or 0)
+    if total <= 0:
+        return 0, 0
+    with_code = db.scalar(
+        select(func.count())
+        .select_from(Parcel)
+        .where(
+            Parcel.county_fips == county_fips,
+            Parcel.zoning_code.isnot(None),
+            func.trim(Parcel.zoning_code) != "",
+        ),
+    )
+    return total, int(with_code or 0)
+
+
+def _ingest_window_interpretation(
+    *,
+    hours: int,
+    new_parcel_rows: int,
+    ingest: dict[str, int],
+) -> str:
+    ins = int(ingest.get("inserted") or 0)
+    upd = int(ingest.get("updated") or 0)
+    runs = int(ingest.get("runs") or 0)
+    merge_runs = int(ingest.get("merge_runs") or 0)
+    if runs == 0 and merge_runs == 0 and new_parcel_rows == 0:
+        return (
+            f"_No ingest or overlay merge in the last {hours}h. "
+            "Run Baltimore fetch (`POST /internal/ingest/baltimore-city`) or widen "
+            "`SLACK_DIGEST_WINDOW_HOURS`._"
+        )
+    if new_parcel_rows == 0 and ins == 0 and upd > 0:
+        return (
+            "_Re-ingest refreshed existing APNs only — `parcels.created_at` stays old, so "
+            "“new parcel rows” stays 0 even when many features were processed._"
+        )
+    if new_parcel_rows == 0 and ins > 0:
+        return "_New inserts happened but none in this time window (check a longer window)._"
+    if merge_runs > 0 and int(ingest.get("merge_not_found") or 0) > 0:
+        return (
+            "_Some overlay features did not match a parcel row (wrong APN prefix or ingest not run yet)._"
+        )
+    return ""
+
+
+def build_ingest_agent_mrkdwn(
+    db: Session,
+    settings: Settings,
+    *,
+    hours: int,
+    cutoff: datetime,
+    ingest: dict[str, int],
+    new_parcel_rows: int,
+) -> str:
+    """Ingest-agent slice of the standup: sources, market progress, and window metrics."""
+    parts: list[str] = [
+        "_Loads parcel polygons and attributes into Postgres for scoring. "
+        "Hourly window is global (all counties), not filtered to the priority market._",
+        "\n*Data sources (project)*",
+        "• *Baltimore City* (`24510`) — EGIS parcel layer + CityView zoning overlay (Phase B merge)",
+        "• *Washington* (`53*`) — WaTech county GeoJSON, ~1 county / 7d when statewide rollout is on",
+        "• *Manual* — `POST /internal/ingest/geojson-upload` or server-path GeoJSON",
+    ]
+    wa_on = bool(settings.wa_statewide_rollout_enabled)
+    parts.append(
+        f"• WA statewide Beat ingest: *{'on' if wa_on else 'off (Baltimore-first)'}*"
+    )
+
+    try:
+        scope = pilot_scope_summary(db)
+        parts.append(f"\n*Load progress — {scope['primary_market_name']}*")
+        for fips in scope.get("priority_county_fips") or []:
+            row = next((c for c in scope["counties"] if c["county_fips"] == fips), None)
+            n = int(row["parcels_in_db"]) if row else 0
+            name = COUNTY_DISPLAY_NAMES.get(fips, fips)
+            if fips == BALTIMORE_CITY_FIPS:
+                bar = _progress_bar(100.0 * n / BALTIMORE_CITY_PILOT_CAP if BALTIMORE_CITY_PILOT_CAP else 0)
+                total_b, zoned = _county_zoning_fill(db, fips)
+                z_pct = f"{100.0 * zoned / total_b:.0f}%" if total_b else "—"
+                parts.append(
+                    f"• *{name}* `{fips}`: *{n}* / ~{BALTIMORE_CITY_PILOT_CAP:,} parcels {bar}\n"
+                    f"  Zoning on rows: *{zoned}/{total_b}* ({z_pct}) — needs Phase B overlay merge"
+                )
+            else:
+                parts.append(f"• *{name}* `{fips}`: *{n}* parcels in DB")
+        king_n = next(
+            (c["parcels_in_db"] for c in scope["counties"] if c["county_fips"] == "53033"),
+            0,
+        )
+        if king_n:
+            parts.append(f"• *King County WA* (`53033`, legacy bulk): *{king_n:,}* parcels")
+    except Exception:
+        logger.exception("pilot_scope_summary failed in ingest agent block")
+        parts.append("\n*Load progress:* _(could not load pilot scope)_")
+
+    parts.append(
+        f"\n*Last {hours}h window*\n"
+        f"• New parcel rows (`parcels.created_at` in window): *{new_parcel_rows}*\n"
+        "  _First-time inserts only; upserts to existing APNs do not count._\n"
+        f"• Ingest runs (audit `parcels_ingested`): *{ingest['runs']}* → "
+        f"+*{ingest['inserted']}* inserted, *{ingest['updated']}* refreshed, "
+        f"*{ingest['skipped']}* skipped\n"
+        f"• Overlay merges (audit `parcels_merge_attributes`): *{ingest['merge_runs']}* → "
+        f"*{ingest.get('merge_updated', 0)}* rows updated, "
+        f"*{ingest.get('merge_not_found', 0)}* APN not found"
+    )
+    hint = _ingest_window_interpretation(hours=hours, new_parcel_rows=new_parcel_rows, ingest=ingest)
+    if hint:
+        parts.append(hint)
+    recent_ingest = _recent_ingest_audit_lines(db, cutoff)
+    if recent_ingest:
+        parts.append("*Recent ingest files:*\n" + "\n".join(recent_ingest))
+    recent_merge = _recent_merge_audit_lines(db, cutoff)
+    if recent_merge:
+        parts.append("*Recent overlay merges:*\n" + "\n".join(recent_merge))
+
+    sched = (settings.scheduled_geojson_ingest_path or "").strip()
+    if sched:
+        parts.append(f"• Scheduled file ingest (Beat): `{Path(sched).name}`")
+
+    return _trim_mrkdwn("\n".join(parts), 2900)
+
+
+def build_data_gathering_progress_mrkdwn(db: Session) -> str:
+    """Operator-facing summary: what data we collect, where, and how complete it is."""
+    parts: list[str] = [
+        "*What we're gathering*\n"
+        "Paid surface-parking candidates: parcel *footprints & APN*, *lot size*, *zoning*, "
+        "*demand distance*, *scores* (prescreen → Atlas → Beacon), and *owner outreach* "
+        "briefs for export.",
+    ]
+
+    try:
+        scope = pilot_scope_summary(db)
+        counties_with_data = [c for c in scope["counties"] if c["parcels_in_db"] > 0]
+        counties_with_data.sort(key=lambda c: c["parcels_in_db"], reverse=True)
+        parts.append(
+            f"\n*Geography — {scope['region_name']}*\n"
+            f"• Counties with parcel data: *{scope['counties_with_ingested_parcels']}* / "
+            f"*{scope['pilot_county_count']}* pilot counties\n"
+            f"• Parcels in pilot scope: *{scope['parcels_in_pilot_counties']}* · "
+            f"priority *{scope['primary_market_name']}*: "
+            f"*{scope['parcels_in_priority_counties']}*"
+        )
+        if counties_with_data:
+            bits = [f"{c['county_name']} *{c['parcels_in_db']}*" for c in counties_with_data[:6]]
+            parts.append("• Top loaded: " + ", ".join(bits))
+            if len(counties_with_data) > 6:
+                parts.append(f"  _…and {len(counties_with_data) - 6} more counties_")
+        else:
+            parts.append(
+                "• _No pilot-county parcels yet — use Baltimore / WaTech fetch + ingest APIs._"
+            )
+    except Exception:
+        logger.exception("pilot_scope_summary failed in Slack digest")
+        parts.append("\n*Geography:* _(could not load pilot scope)_")
+
+    summary = export_readiness_summary(db)
+    total = int(summary.get("parcel_row_total") or 0)
+    if total <= 0:
+        parts.append("\n*Coverage:* database empty — load sample or run county ingest.")
+    else:
+        parts.append(f"\n*Data layer progress* ({total} parcels)")
+        parts.append(
+            _coverage_progress_line(
+                total,
+                int((summary.get("parcels_missing_footprint") or {}).get("count") or 0),
+                "Footprints",
+            )
+        )
+        parts.append(
+            _coverage_progress_line(
+                total,
+                int((summary.get("parcels_missing_zoning_code") or {}).get("count") or 0),
+                "Zoning",
+            )
+        )
+        parts.append(
+            _coverage_progress_line(
+                total,
+                int((summary.get("parcels_missing_distance_to_nearest_demand_m") or {}).get("count") or 0),
+                "Demand distance",
+            )
+        )
+        parts.append(
+            _coverage_progress_line(
+                total,
+                int((summary.get("parcels_missing_score_identification") or {}).get("count") or 0),
+                "Prescreen scores",
+            )
+        )
+        parts.append(
+            _coverage_progress_line(
+                total,
+                int((summary.get("parcels_missing_score_entitlement") or {}).get("count") or 0),
+                "Atlas (entitlement)",
+            )
+        )
+        parts.append(
+            _coverage_progress_line(
+                total,
+                int((summary.get("parcels_missing_score_strategic") or {}).get("count") or 0),
+                "Beacon (strategic)",
+            )
+        )
+        parts.append(
+            _coverage_progress_line(
+                total,
+                int((summary.get("parcels_missing_owner_outreach_brief") or {}).get("count") or 0),
+                "Owner outreach brief",
+            )
+        )
+        pq = int((summary.get("parcels_prescreen_qualified") or {}).get("count") or 0)
+        backlog = int((summary.get("parcels_pipeline_funnel_backlog") or {}).get("count") or 0)
+        ruled_p = int((summary.get("parcels_ruled_out_by_prescreen") or {}).get("count") or 0)
+        ruled_a = int((summary.get("parcels_ruled_out_at_atlas") or {}).get("count") or 0)
+        parts.append(
+            f"\n*Scoring funnel*\n"
+            f"• Passed prescreen: *{pq}* · awaiting pipeline: *{backlog}*\n"
+            f"• Ruled out at prescreen / Atlas: *{ruled_p}* / *{ruled_a}*"
+        )
+        steps = summary.get("recommended_next_steps") or []
+        if steps and backlog > 0:
+            parts.append(f"_Suggested next step:_ {steps[0]}")
+
+    return _trim_mrkdwn("\n".join(parts), 2900)
+
+
+def slack_reporting_catalog(settings: Settings | None = None) -> list[dict[str, str]]:
+    """Inventory of automated Slack posts (for status API and digest footer)."""
+    s = settings or get_settings()
+    digest_ch = (s.slack_digest_channel_id or "").strip() or "(unset)"
+    agent_ch = (s.slack_agent_discussion_channel_id or "").strip() or "(unset)"
+    wd_ch = watchdog_slack_channel(s) or digest_ch
+
+    rows: list[dict[str, str]] = [
+        {
+            "id": "standup",
+            "schedule_utc": f"crontab hour={s.slack_digest_crontab_hour} minute={s.slack_digest_crontab_minute:02d}",
+            "channel": digest_ch,
+            "description": f"Hourly pipeline standup ({s.slack_digest_window_hours}h window)",
+        },
+        {
+            "id": "qualified_parcels",
+            "schedule_utc": "daily 14:00",
+            "channel": digest_ch,
+            "description": "Qualified vs below-floor parcels with score rationale",
+        },
+        {
+            "id": "dual_agent",
+            "schedule_utc": "daily 15:30",
+            "channel": agent_ch,
+            "description": "Atlas + Beacon rankings and joint comparison (3 messages)",
+        },
+    ]
+    if s.site_watchdog_enabled:
+        hb = s.site_watchdog_heartbeat_hours
+        rows.append(
+            {
+                "id": "site_watchdog",
+                "schedule_utc": f"every hour at :{s.site_watchdog_crontab_minute}",
+                "channel": wd_ch,
+                "description": (
+                    "API/DB/Redis/UI health; alerts on failure, recovery, "
+                    f"and all-clear heartbeat every {hb}h when green"
+                ),
+            },
+        )
+    if slack_agent_event_updates_enabled(s):
+        rows.append(
+            {
+                "id": "agent_events",
+                "schedule_utc": "on each ingest/pipeline task",
+                "channel": digest_ch,
+                "description": "Per-job lines (SLACK_AGENT_EVENT_UPDATES)",
+            },
+        )
+    rows.append(
+        {
+            "id": "deploy_notify",
+            "schedule_utc": "GitHub Deploy workflow (optional)",
+            "channel": digest_ch,
+            "description": "POST /internal/slack/test-message after deploy",
+        },
+    )
+    return rows
+
+
+def _operator_links_mrkdwn(settings: Settings) -> str:
+    base = (settings.api_public_url or "").strip().rstrip("/")
+    if not base or base.startswith("http://localhost"):
+        return "_Set `PUBLIC_API_URL` in deploy/.env for quick links in Slack._"
+    return (
+        f"• API docs: <{base}/docs|OpenAPI>\n"
+        f"• Export readiness: <{base}/internal/stats/export-readiness|JSON> "
+        "(requires `X-Internal-Key`)"
+    )
+
+
+def build_slack_digest_blocks(
+    db: Session,
+    *,
+    hours: int = 4,
+    settings: Settings | None = None,
+) -> tuple[list[dict[str, Any]], str]:
     """Return Block Kit blocks plus a plain-text fallback for notifications."""
+    settings = settings or get_settings()
     cutoff = datetime.now(tz=UTC) - timedelta(hours=hours)
+    try:
+        pilot = load_pilot_config(settings.pilot_config_path)
+        region_label = pilot.region.name
+    except Exception:
+        region_label = "pilot"
     new_parcel_rows = _count_since(db, Parcel, Parcel.created_at, cutoff)
-    ingest_batches = _count_audit_action_since(db, "parcels_ingested", cutoff)
+    ingest = _ingest_activity_since(db, cutoff)
+    ingest_batches = ingest["runs"]
     score_by_profile = _parcel_score_counts_since(db, cutoff)
     total_score_rows = sum(score_by_profile.values())
     total_parcels = db.scalar(select(func.count()).select_from(Parcel))
@@ -90,6 +531,16 @@ def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict
         .where(and_(WorkflowRun.updated_at >= cutoff, WorkflowRun.status == "failed")),
     )
     failed_n = int(failed_n or 0)
+    failed_lines = _recent_failed_workflow_lines(db, cutoff)
+    gathering_body = build_data_gathering_progress_mrkdwn(db)
+    ingest_body = build_ingest_agent_mrkdwn(
+        db,
+        settings,
+        hours=hours,
+        cutoff=cutoff,
+        ingest=ingest,
+        new_parcel_rows=new_parcel_rows,
+    )
 
     if wf_by_status:
         wf_lines = [f"• `{k}`: {v}" for k, v in sorted(wf_by_status.items())]
@@ -101,13 +552,24 @@ def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict
 
     audit_block = "\n".join(audit_lines) if audit_lines else "_(no audit events in this window)_"
 
-    header = f"Parking acquisition — {hours}h standup ({cutoff:%Y-%m-%d %H:%M} → now UTC)"
+    header = (
+        f"{region_label} — {hours}h standup ({cutoff:%Y-%m-%d %H:%M} → now UTC)"
+    )
     fallback = (
         f"{header}\n"
-        f"Ingest: new rows={new_parcel_rows}, ingest batches={ingest_batches} | "
-        f"parcel_scores written={total_score_rows} | Pending approvals: {pending} | "
-        f"Workflow updates by status: {wf_by_status!s} | Failures: {failed_n}"
+        f"Data: +{ingest['inserted']} new / {ingest['updated']} updated parcels ({ingest_batches} ingest jobs) | "
+        f"DB total={total_parcels} | scores written={total_score_rows} | "
+        f"pending approvals={pending} | workflow failures={failed_n}"
     )
+    failed_detail = (
+        "\n".join(failed_lines)
+        if failed_lines
+        else "_(no failed runs in this window)_"
+    )
+    catalog_lines = [
+        f"• *{r['id']}* — {r['schedule_utc']} — {r['description']}"
+        for r in slack_reporting_catalog(settings)
+    ]
 
     blocks: list[dict[str, Any]] = [
         {"type": "header", "text": {"type": "plain_text", "text": "Parking agents — standup", "emoji": True}},
@@ -116,7 +578,7 @@ def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": f"_{header}_",
+                    "text": f"_{header}_ · region *{region_label}_",
                 },
             ],
         },
@@ -125,16 +587,14 @@ def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": (
-                    "*Ingest agent*\n"
-                    f"• New parcel *rows* (`parcels.created_at` in window): *{new_parcel_rows}*\n"
-                    f"• Ingest *runs* (audit `parcels_ingested`): *{ingest_batches}*\n"
-                    f"• Total parcels in DB: *{total_parcels}*\n"
-                    "_GeoJSON ingest does not run by itself: call `POST /internal/ingest/geojson-upload`, "
-                    "`/internal/ingest/geojson-server-path`, or set `SCHEDULED_GEOJSON_INGEST_PATH` "
-                    "(Beat). Re-ingesting existing APNs updates rows but does **not** change `created_at`, "
-                    "so use ingest batch count above for refresh activity._"
-                ),
+                "text": "*Data gathering & progress*\n" + gathering_body,
+            },
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*Ingest agent*\n" + ingest_body,
             },
         },
         {
@@ -142,11 +602,12 @@ def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict
             "text": {
                 "type": "mrkdwn",
                 "text": (
-                    "*Scoring & pipeline agent*\n"
-                    f"• Workflow runs touched in the last *{hours}h* (by `workflow_runs.updated_at` status):\n"
+                    f"*Pipeline activity (last {hours}h)*\n"
+                    f"• Workflow runs by status:\n"
                     + "\n".join(wf_lines)
-                    + f"\n• New `parcel_scores` rows (pipeline output): *{total_score_rows}* ({score_summary})"
-                    + f"\n\n_Failures in window:_ *{failed_n}*"
+                    + f"\n• New score rows written: *{total_score_rows}* ({score_summary})\n"
+                    f"• Parcels in DB (all counties): *{total_parcels}*\n"
+                    f"• Failures: *{failed_n}*\n{failed_detail}"
                 ),
             },
         },
@@ -157,7 +618,8 @@ def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict
                 "text": (
                     "*Human-gate coordinator*\n"
                     f"*Pending* approval requests (needs a person): *{pending}*\n"
-                    "_Use the approval UI or `GET /approvals?status=pending`._"
+                    "_Use the approval UI or `GET /approvals?status=pending`._\n\n"
+                    + _operator_links_mrkdwn(settings)
                 ),
             },
         },
@@ -166,13 +628,20 @@ def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict
             "text": {"type": "mrkdwn", "text": "*Ops / audit log (snippet)*\n" + audit_block},
         },
         {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*Other Slack reports (this stack)*\n" + "\n".join(catalog_lines),
+            },
+        },
+        {
             "type": "context",
             "elements": [
                 {
                     "type": "mrkdwn",
                     "text": (
-                        "_This is a scheduled digest. Replying here does not reach the agents yet; "
-                        "see docs/SLACK.md for two-way options._"
+                        "_Scheduled digest · replying does not reach agents · "
+                        "`GET /internal/slack/status` lists config · docs/SLACK.md_"
                     ),
                 },
             ],
@@ -259,22 +728,23 @@ def build_qualified_parcels_report_blocks(
     region = pilot.region.name
 
     rows = _fetch_latest_scores_per_parcel(db, profile=ENTITLEMENT)
-    qualified: list[tuple[Parcel, ParcelScore]] = []
-    unqualified: list[tuple[Parcel, ParcelScore]] = []
+    qualified_all: list[tuple[Parcel, ParcelScore]] = []
+    unqualified_all: list[tuple[Parcel, ParcelScore]] = []
     for parcel, ps in rows:
         if float(ps.total_score) >= floor:
-            qualified.append((parcel, ps))
+            qualified_all.append((parcel, ps))
         else:
-            unqualified.append((parcel, ps))
-    qualified.sort(key=lambda x: float(x[1].total_score), reverse=True)
-    unqualified.sort(key=lambda x: float(x[1].total_score), reverse=True)
-    qualified = qualified[:max_qualified]
-    unqualified = unqualified[:max_unqualified]
+            unqualified_all.append((parcel, ps))
+    n_qualified_total = len(qualified_all)
+    n_unqualified_total = len(unqualified_all)
+    qualified = sorted(qualified_all, key=lambda x: float(x[1].total_score), reverse=True)[:max_qualified]
+    unqualified = sorted(unqualified_all, key=lambda x: float(x[1].total_score), reverse=True)[:max_unqualified]
 
     ts = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
     fallback = (
         f"Qualified parcels report ({region}) — floor {floor:.0f} — "
-        f"{len(qualified)} shown qualified, {len(unqualified)} shown not — {ts}"
+        f"{n_qualified_total} qualified / {n_unqualified_total} below floor "
+        f"(showing up to {max_qualified}/{max_unqualified}) — {ts}"
     )
 
     def lines_for(pairs: list[tuple[Parcel, ParcelScore]], *, ok: bool) -> str:
@@ -300,7 +770,8 @@ def build_qualified_parcels_report_blocks(
                     "type": "mrkdwn",
                     "text": (
                         f"_{region}_ · pilot floor *{floor:.0f}* (`qualified_min_score`) · "
-                        f"{len(rows)} parcel(s) with a score · _{ts}_"
+                        f"*{n_qualified_total}* qualified · *{n_unqualified_total}* below floor · "
+                        f"{len(rows)} scored parcel(s) · _{ts}_"
                     ),
                 },
             ],

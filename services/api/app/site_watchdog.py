@@ -287,6 +287,9 @@ def build_slack_text(report: dict[str, Any], *, recovered: bool = False) -> str:
         lines.append(f"• *{item.get('name', '?')}* [{item.get('source', '?')}]: {item.get('detail', '?')}")
     lines.append("")
     lines.append("_Pipeline Slack digest is separate — this agent only checks site + server health._")
+    base = (get_settings().api_public_url or "").strip().rstrip("/")
+    if base and not base.startswith("http://localhost"):
+        lines.append(f"API: {base}/ready · operator console on same host")
     return "\n".join(lines)[:3900]
 
 
