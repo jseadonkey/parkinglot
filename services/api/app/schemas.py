@@ -297,6 +297,23 @@ class ExportReadinessResponse(BaseModel):
     recommended_next_steps: list[str]
 
 
+class ParcelRevenueSummaryRead(BaseModel):
+    """Illustrative revenue from weighted nearby comps + layout-based stalls."""
+
+    revenue_available: bool = False
+    monthly_gross_usd: float | None = None
+    monthly_gross_low_usd: float | None = None
+    monthly_gross_high_usd: float | None = None
+    stalls_estimated: int | None = None
+    stalls_low: int | None = None
+    stalls_high: int | None = None
+    hourly_rate_weighted_usd: float | None = None
+    hourly_rate_median_usd: float | None = None
+    comp_count: int | None = None
+    nearest_comp_name: str | None = None
+    nearest_comp_distance_m: float | None = None
+
+
 class OutreachPipelineRow(BaseModel):
     """One qualified parcel with latest workflow + outreach pipeline status."""
 
@@ -315,6 +332,7 @@ class OutreachPipelineRow(BaseModel):
     pipeline_stage: str
     monthly_gross_usd: float | None = None
     revenue_available: bool = False
+    revenue: ParcelRevenueSummaryRead | None = None
 
 
 class RateCompSeedResponse(BaseModel):
@@ -375,6 +393,7 @@ class ParcelScoredListRow(BaseModel):
     identification_score: float | None
     combined_score: float | None
     created_at: datetime
+    revenue: ParcelRevenueSummaryRead | None = None
 
 
 class ParcelScoredListResponse(BaseModel):
@@ -382,6 +401,8 @@ class ParcelScoredListResponse(BaseModel):
 
     sort: str
     row_count: int
+    qualified_min_entitlement_score: float | None = None
+    revenue_rows_computed: int = 0
     rows: list[ParcelScoredListRow]
 
 

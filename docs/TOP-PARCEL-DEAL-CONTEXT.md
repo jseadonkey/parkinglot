@@ -56,4 +56,6 @@ Or insert rows into **`parking_rate_comps`** (PostGIS point + `hourly_mid_usd`) 
 
 ## Outreach board revenue column
 
-`GET /internal/pipeline/outreach-board` includes illustrative **monthly gross** for the top 25 rows (by entitlement score). Operator **Outreach** page shows **Est. gross**.
+`GET /internal/pipeline/outreach-board` includes full illustrative revenue (stall range, weighted hourly rate, monthly gross) for **all qualified rows** in the filtered region (`revenue_hints=0` default). Operator **Outreach** page shows **Est. gross** with stall and rate detail.
+
+`GET /internal/parcels/scored-list` supports `include_revenue=true` (default), `qualified_only=true`, and state/county filters so **high-scoring parcels in any pilot region** get the same revenue analysis on the **Parcels** table.

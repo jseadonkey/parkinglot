@@ -12,6 +12,11 @@ import {
 } from "../../lib/outreachLabels";
 import { MarketFilters } from "../../components/MarketFilters";
 import { countyLine, useCountyNames } from "../../lib/useCountyNames";
+import {
+  formatMonthlyGross,
+  formatStallRange,
+  type ParcelRevenueSummary,
+} from "../../lib/revenueDisplay";
 import { marketFilterParams, usePilotScope } from "../../lib/usePilotScope";
 
 type Row = {
@@ -30,6 +35,7 @@ type Row = {
   pipeline_stage: string;
   monthly_gross_usd: number | null;
   revenue_available: boolean;
+  revenue: ParcelRevenueSummary | null;
 };
 
 type Board = {
@@ -56,13 +62,6 @@ function matchesQuickFilter(row: Row, filter: QuickFilter): boolean {
     default:
       return true;
   }
-}
-
-function formatMonthlyGross(usd: number | null | undefined): string {
-  if (usd == null) return "—";
-  if (usd >= 1_000_000) return `$${(usd / 1_000_000).toFixed(1)}M/mo`;
-  if (usd >= 1_000) return `$${Math.round(usd / 1_000)}k/mo`;
-  return `$${Math.round(usd)}/mo`;
 }
 
 function sortRows(rows: Row[], sort: SortKey): Row[] {
@@ -99,7 +98,7 @@ export default function OutreachPipelinePage() {
     setLoading(true);
     try {
       const geo = marketFilterParams(stateFips, countyFips);
-      const qs = new URLSearchParams({ limit: String(limit) });
+      const qs = new URLSearchParams({ limit: String(limit), revenue_hints: "0" });
       geo.forEach((v, k) => qs.set(k, v));
       const res = await fetch(bridgeUrl(`internal/pipeline/outreach-board?${qs}`), {
         cache: "no-store",
@@ -293,10 +292,15 @@ export default function OutreachPipelinePage() {
                         </div>
                       </td>
                       <td className="muted">
-                        {r.revenue_available ? (
+                        {r.revenue?.revenue_available || r.revenue_available ? (
                           <>
-                            <div>{formatMonthlyGross(r.monthly_gross_usd)}</div>
-                            <div className="cell-sub">illustrative</div>
+                            <div>{formatMonthlyGross(r.revenue?.monthly_gross_usd ?? r.monthly_gross_usd)}</div>
+                            <div className="cell-sub">
+                              {formatStallRange(r.revenue)} stalls
+                              {r.revenue?.hourly_rate_weighted_usd != null
+                                ? ` · $${r.revenue.hourly_rate_weighted_usd.toFixed(2)}/hr`
+                                : ""}
+                            </div>
                           </>
                         ) : (
                           "—"

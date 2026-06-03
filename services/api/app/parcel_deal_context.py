@@ -18,12 +18,19 @@ from parking_core.pilot import ParkingRateCompObservation, PilotConfig, load_pil
 from parking_core.revenue_estimate import estimate_parking_revenue
 
 __all__ = [
+    "attach_revenue_summaries",
     "build_parcel_deal_context",
     "estimate_parking_revenue",
     "parcel_centroid_lat_lon",
+    "qualified_min_entitlement_score",
     "rate_comps_for_parcel",
     "revenue_hint_for_parcel",
+    "revenue_summary_for_parcel",
 ]
+
+
+def qualified_min_entitlement_score(pilot: PilotConfig) -> float:
+    return float(pilot.scoring.qualified_min_score)
 
 
 def parcel_centroid_lat_lon(parcel: Parcel) -> tuple[float, float] | None:
@@ -132,18 +139,32 @@ def nearby_qualified_parcels(
     return rows
 
 
-def revenue_hint_for_parcel(
+def revenue_summary_for_parcel(
     db: Session,
     parcel: Parcel,
     *,
     pilot: PilotConfig | None = None,
-) -> dict[str, float | bool | None]:
-    """Lightweight gross-revenue hint for list views (top parcels only)."""
+) -> dict[str, float | bool | int | str | None]:
+    """Compact revenue + stall + comp summary for list/board views (any pilot region)."""
     settings = get_settings()
     cfg = pilot or load_pilot_config(settings.pilot_config_path)
+    empty: dict[str, float | bool | int | str | None] = {
+        "revenue_available": False,
+        "monthly_gross_usd": None,
+        "monthly_gross_low_usd": None,
+        "monthly_gross_high_usd": None,
+        "stalls_estimated": None,
+        "stalls_low": None,
+        "stalls_high": None,
+        "hourly_rate_weighted_usd": None,
+        "hourly_rate_median_usd": None,
+        "comp_count": None,
+        "nearest_comp_name": None,
+        "nearest_comp_distance_m": None,
+    }
     centroid = parcel_centroid_lat_lon(parcel)
     if centroid is None:
-        return {"revenue_available": False, "monthly_gross_usd": None}
+        return empty
     lat, lon = centroid
     comps = rate_comps_for_parcel(db, lat=lat, lon=lon, pilot=cfg)
     est = estimate_parking_revenue(
@@ -154,12 +175,63 @@ def revenue_hint_for_parcel(
         is_corner_lot=bool(parcel.is_corner_lot),
     )
     if not est.get("available"):
-        return {"revenue_available": False, "monthly_gross_usd": None}
-    monthly = est.get("monthly_gross_usd")
+        return empty
+    primary = est.get("primary_comps") or []
+    top = primary[0] if primary else None
     return {
         "revenue_available": True,
-        "monthly_gross_usd": float(monthly) if monthly is not None else None,
+        "monthly_gross_usd": float(est["monthly_gross_usd"]) if est.get("monthly_gross_usd") is not None else None,
+        "monthly_gross_low_usd": (
+            float(est["monthly_gross_low_usd"]) if est.get("monthly_gross_low_usd") is not None else None
+        ),
+        "monthly_gross_high_usd": (
+            float(est["monthly_gross_high_usd"]) if est.get("monthly_gross_high_usd") is not None else None
+        ),
+        "stalls_estimated": int(est["stalls_estimated"]) if est.get("stalls_estimated") is not None else None,
+        "stalls_low": int(est["stalls_low"]) if est.get("stalls_low") is not None else None,
+        "stalls_high": int(est["stalls_high"]) if est.get("stalls_high") is not None else None,
+        "hourly_rate_weighted_usd": (
+            float(est["hourly_rate_weighted_usd"]) if est.get("hourly_rate_weighted_usd") is not None else None
+        ),
+        "hourly_rate_median_usd": (
+            float(est["hourly_rate_median_usd"]) if est.get("hourly_rate_median_usd") is not None else None
+        ),
+        "comp_count": int(est["comp_count"]) if est.get("comp_count") is not None else None,
+        "nearest_comp_name": str(top["name"]) if top else None,
+        "nearest_comp_distance_m": (
+            float(top["distance_m"]) if top and top.get("distance_m") is not None else None
+        ),
     }
+
+
+def revenue_hint_for_parcel(
+    db: Session,
+    parcel: Parcel,
+    *,
+    pilot: PilotConfig | None = None,
+) -> dict[str, float | bool | None]:
+    """Lightweight gross-revenue hint for list views (top parcels only)."""
+    summary = revenue_summary_for_parcel(db, parcel, pilot=pilot)
+    return {
+        "revenue_available": bool(summary.get("revenue_available")),
+        "monthly_gross_usd": summary.get("monthly_gross_usd"),
+    }
+
+
+def attach_revenue_summaries(
+    db: Session,
+    *,
+    parcel_ids: list[uuid.UUID],
+    pilot: PilotConfig,
+) -> dict[str, dict[str, float | bool | int | str | None]]:
+    """Batch revenue summaries keyed by parcel id string."""
+    if not parcel_ids:
+        return {}
+    rows = db.scalars(select(Parcel).where(Parcel.id.in_(parcel_ids))).all()
+    out: dict[str, dict[str, float | bool | int | str | None]] = {}
+    for parcel in rows:
+        out[str(parcel.id)] = revenue_summary_for_parcel(db, parcel, pilot=pilot)
+    return out
 
 
 def build_parcel_deal_context(db: Session, parcel_id: uuid.UUID) -> dict[str, Any]:

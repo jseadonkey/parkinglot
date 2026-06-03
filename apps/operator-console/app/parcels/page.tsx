@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { STATE_NAMES } from "../../lib/marketScope";
 import { bridgeUrl } from "../../lib/paths";
+import { formatMonthlyGross, formatStallRange, type ParcelRevenueSummary } from "../../lib/revenueDisplay";
 import { tierBadgeClass, tierLabel } from "../../lib/zoningEntitlement";
 import { countyLine, useCountyNames } from "../../lib/useCountyNames";
 
@@ -23,11 +24,14 @@ type ParcelRow = {
   identification_score: number | null;
   combined_score: number | null;
   created_at: string;
+  revenue: ParcelRevenueSummary | null;
 };
 
 type ScoredList = {
   sort: SortProfile;
   row_count: number;
+  qualified_min_entitlement_score?: number;
+  revenue_rows_computed?: number;
   rows: ParcelRow[];
 };
 
@@ -44,6 +48,7 @@ export default function ParcelsPage() {
   const [stateFips, setStateFips] = useState("");
   const [countyFips, setCountyFips] = useState("");
   const [zoningTier, setZoningTier] = useState("");
+  const [qualifiedOnly, setQualifiedOnly] = useState(true);
   const [counties, setCounties] = useState<PilotCounty[]>([]);
   const [rows, setRows] = useState<ParcelRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -74,6 +79,8 @@ export default function ParcelsPage() {
       if (countyFips) params.set("county_fips", countyFips);
       else if (stateFips) params.set("state_fips", stateFips);
       if (zoningTier) params.set("zoning_tier", zoningTier);
+      params.set("include_revenue", "true");
+      if (qualifiedOnly) params.set("qualified_only", "true");
       const res = await fetch(bridgeUrl(`internal/parcels/scored-list?${params}`), { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as ScoredList;
@@ -81,7 +88,7 @@ export default function ParcelsPage() {
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     }
-  }, [limit, sort, stateFips, countyFips, zoningTier]);
+  }, [limit, sort, stateFips, countyFips, zoningTier, qualifiedOnly]);
 
   useEffect(() => {
     void load();
@@ -90,8 +97,8 @@ export default function ParcelsPage() {
   return (
     <div className="page-content">
       <p className="muted" style={{ marginTop: 0 }}>
-        Scored parcels across pilot markets. Filter by state or county; Baltimore (MD) counties are listed first in the
-        scope table on Overview.
+        Scored parcels across pilot markets (MD, WA, and more). High-scoring rows include illustrative revenue from
+        nearby paid parking comps and estimated stall counts. Filter by state or county.
       </p>
       <div className="panel" style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
         <label className="muted">
@@ -141,6 +148,14 @@ export default function ParcelsPage() {
             <option value="excluded">Not allowed</option>
           </select>
         </label>
+        <label className="muted" style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+          <input
+            type="checkbox"
+            checked={qualifiedOnly}
+            onChange={(e) => setQualifiedOnly(e.target.checked)}
+          />
+          High scores only (entitlement ≥ pilot floor)
+        </label>
         <label className="muted">
           Sort by{" "}
           <select value={sort} onChange={(e) => setSort(e.target.value as SortProfile)}>
@@ -179,6 +194,9 @@ export default function ParcelsPage() {
               <th>County</th>
               <th>Zoning</th>
               <th>Zoning tier</th>
+              <th>Est. stalls</th>
+              <th>Est. gross/mo</th>
+              <th>$/hr (weighted)</th>
               <th>Lot sqft</th>
               <th />
             </tr>
@@ -201,6 +219,27 @@ export default function ParcelsPage() {
                   ) : (
                     "—"
                   )}
+                </td>
+                <td>{formatStallRange(p.revenue)}</td>
+                <td>
+                  {p.revenue?.revenue_available ? (
+                    <>
+                      <strong>{formatMonthlyGross(p.revenue.monthly_gross_usd)}</strong>
+                      {p.revenue.monthly_gross_low_usd != null && p.revenue.monthly_gross_high_usd != null ? (
+                        <span className="muted" style={{ display: "block", fontSize: "0.85em" }}>
+                          {formatMonthlyGross(p.revenue.monthly_gross_low_usd)}–
+                          {formatMonthlyGross(p.revenue.monthly_gross_high_usd)}
+                        </span>
+                      ) : null}
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td>
+                  {p.revenue?.hourly_rate_weighted_usd != null
+                    ? `$${p.revenue.hourly_rate_weighted_usd.toFixed(2)}`
+                    : "—"}
                 </td>
                 <td>{p.lot_sqft != null ? Math.round(p.lot_sqft).toLocaleString() : "—"}</td>
                 <td>

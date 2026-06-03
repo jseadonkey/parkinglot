@@ -77,6 +77,7 @@ def query_parcels_scored_list(
     county_fips: str | None = None,
     state_fips: str | None = None,
     zoning_tier: str | None = None,
+    min_entitlement_score: float | None = None,
 ) -> list[ParcelScoredRowData]:
     """All parcels with latest score per profile, ordered by ``sort`` (null scores last)."""
     cap = min(max(limit, 1), 2000)
@@ -118,6 +119,8 @@ def query_parcels_scored_list(
             stmt = stmt.where(Parcel.county_fips == "24510", func.upper(Parcel.zoning_code).in_(sorted(codes)))
         else:
             return []
+    if min_entitlement_score is not None:
+        stmt = stmt.where(ent_sub.isnot(None), ent_sub >= float(min_entitlement_score))
     stmt = stmt.order_by(nulls_last(desc(sort_col)), desc(Parcel.created_at)).limit(cap)
     out: list[ParcelScoredRowData] = []
     for r in db.execute(stmt).all():

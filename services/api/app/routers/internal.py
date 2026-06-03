@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
@@ -11,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.baltimore_zoning_stats import baltimore_zoning_tiers_summary
 from app.celery_app import celery
 from app.config import get_settings
-from app.db.models import AuditLog, Parcel
+from app.db.models import AuditLog
 from app.db.schema_compat import column_exists
 from app.db.session import get_db
 from app.deal_progress import query_deal_progress_board
@@ -19,7 +20,7 @@ from app.deps_internal import require_internal_key
 from app.export_readiness import export_readiness_summary
 from app.outreach_board import query_outreach_pipeline_board
 from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
-from app.parcel_deal_context import revenue_hint_for_parcel
+from app.parcel_deal_context import attach_revenue_summaries, qualified_min_entitlement_score
 from app.parcel_scored_list import COMBINED, ParcelSortProfile, query_parcels_scored_list
 from app.pilot_scope import pilot_scope_summary
 from app.platform_showcase import build_platform_showcase
@@ -49,6 +50,7 @@ from app.schemas import (
     OwnerPortfolioRankRow,
     OwnersPeersByKeyResponse,
     OwnersPortfoliosRankedResponse,
+    ParcelRevenueSummaryRead,
     ParcelScoredListResponse,
     ParcelScoredListRow,
     PeerParcelSummary,
@@ -237,10 +239,32 @@ def platform_showcase(db: Session = Depends(get_db)) -> PlatformShowcaseResponse
     return PlatformShowcaseResponse(**build_platform_showcase(db))
 
 
+def _revenue_summary_read(raw: dict[str, float | bool | int | str | None]) -> ParcelRevenueSummaryRead:
+    return ParcelRevenueSummaryRead(
+        revenue_available=bool(raw.get("revenue_available")),
+        monthly_gross_usd=raw.get("monthly_gross_usd"),  # type: ignore[arg-type]
+        monthly_gross_low_usd=raw.get("monthly_gross_low_usd"),  # type: ignore[arg-type]
+        monthly_gross_high_usd=raw.get("monthly_gross_high_usd"),  # type: ignore[arg-type]
+        stalls_estimated=raw.get("stalls_estimated"),  # type: ignore[arg-type]
+        stalls_low=raw.get("stalls_low"),  # type: ignore[arg-type]
+        stalls_high=raw.get("stalls_high"),  # type: ignore[arg-type]
+        hourly_rate_weighted_usd=raw.get("hourly_rate_weighted_usd"),  # type: ignore[arg-type]
+        hourly_rate_median_usd=raw.get("hourly_rate_median_usd"),  # type: ignore[arg-type]
+        comp_count=raw.get("comp_count"),  # type: ignore[arg-type]
+        nearest_comp_name=raw.get("nearest_comp_name"),  # type: ignore[arg-type]
+        nearest_comp_distance_m=raw.get("nearest_comp_distance_m"),  # type: ignore[arg-type]
+    )
+
+
 @router.get("/pipeline/outreach-board", response_model=OutreachPipelineBoardResponse)
 def outreach_pipeline_board(
     limit: int = Query(default=100, ge=1, le=2000),
-    revenue_hints: int = Query(default=25, ge=0, le=100),
+    revenue_hints: int = Query(
+        default=0,
+        ge=0,
+        le=500,
+        description="Max rows with revenue analysis (0 = all rows returned, up to limit)",
+    ),
     county_fips: str | None = Query(default=None, min_length=5, max_length=5),
     state_fips: str | None = Query(default=None, min_length=2, max_length=2),
     db: Session = Depends(get_db),
@@ -248,7 +272,7 @@ def outreach_pipeline_board(
     """Qualified parcels (latest entitlement ≥ pilot floor) with workflow + outreach brief snapshot."""
     settings = get_settings()
     pilot = load_pilot_config(settings.pilot_config_path)
-    floor = float(pilot.scoring.qualified_min_score)
+    floor = qualified_min_entitlement_score(pilot)
     raw = query_outreach_pipeline_board(
         db,
         qualified_min_entitlement=floor,
@@ -256,17 +280,12 @@ def outreach_pipeline_board(
         county_fips=county_fips,
         state_fips=state_fips,
     )
-    hint_cap = min(revenue_hints, len(raw))
-    revenue_by_parcel: dict[str, dict[str, float | bool | None]] = {}
-    if hint_cap > 0:
-        for r in raw[:hint_cap]:
-            parcel = db.get(Parcel, r.parcel_id)
-            if parcel is not None:
-                revenue_by_parcel[str(r.parcel_id)] = revenue_hint_for_parcel(
-                    db,
-                    parcel,
-                    pilot=pilot,
-                )
+    hint_cap = len(raw) if revenue_hints == 0 else min(revenue_hints, len(raw))
+    revenue_by_parcel = attach_revenue_summaries(
+        db,
+        parcel_ids=[r.parcel_id for r in raw[:hint_cap]],
+        pilot=pilot,
+    )
     rows = [
         OutreachPipelineRow(
             parcel_id=str(r.parcel_id),
@@ -285,6 +304,11 @@ def outreach_pipeline_board(
             monthly_gross_usd=revenue_by_parcel.get(str(r.parcel_id), {}).get("monthly_gross_usd"),
             revenue_available=bool(
                 revenue_by_parcel.get(str(r.parcel_id), {}).get("revenue_available"),
+            ),
+            revenue=(
+                _revenue_summary_read(revenue_by_parcel[str(r.parcel_id)])
+                if str(r.parcel_id) in revenue_by_parcel
+                else None
             ),
         )
         for r in raw
@@ -356,9 +380,35 @@ def parcels_scored_list(
         default=None,
         description="Filter by entitlement tier: permitted, conditional, council, excluded",
     ),
+    qualified_only: bool = Query(
+        default=False,
+        description="Only parcels with latest entitlement ≥ pilot qualified floor",
+    ),
+    include_revenue: bool = Query(
+        default=True,
+        description="Attach illustrative revenue analysis for high-scoring rows",
+    ),
+    revenue_max_rows: int = Query(
+        default=200,
+        ge=0,
+        le=500,
+        description="Cap revenue computations per request (highest scores first)",
+    ),
+    min_entitlement_score: float | None = Query(
+        default=None,
+        ge=0,
+        le=100,
+        description="Minimum entitlement score for list filter and revenue (defaults to pilot floor)",
+    ),
     db: Session = Depends(get_db),
 ) -> ParcelScoredListResponse:
     """All parcels with latest entitlement / strategic / identification scores (operator table)."""
+    settings = get_settings()
+    pilot = load_pilot_config(settings.pilot_config_path)
+    if min_entitlement_score is not None:
+        floor = float(min_entitlement_score)
+    else:
+        floor = qualified_min_entitlement_score(pilot)
     raw = query_parcels_scored_list(
         db,
         limit=limit,
@@ -366,7 +416,16 @@ def parcels_scored_list(
         county_fips=county_fips,
         state_fips=state_fips,
         zoning_tier=zoning_tier,
+        min_entitlement_score=floor if qualified_only else None,
     )
+    revenue_ids: list[uuid.UUID] = []
+    if include_revenue and revenue_max_rows > 0:
+        for r in raw:
+            if r.entitlement_score is not None and r.entitlement_score >= floor:
+                revenue_ids.append(r.parcel_id)
+            if len(revenue_ids) >= revenue_max_rows:
+                break
+    revenue_by_parcel = attach_revenue_summaries(db, parcel_ids=revenue_ids, pilot=pilot)
     rows = [
         ParcelScoredListRow(
             parcel_id=str(r.parcel_id),
@@ -381,10 +440,21 @@ def parcels_scored_list(
             identification_score=r.identification_score,
             combined_score=r.combined_score,
             created_at=r.created_at,
+            revenue=(
+                _revenue_summary_read(revenue_by_parcel[str(r.parcel_id)])
+                if str(r.parcel_id) in revenue_by_parcel
+                else None
+            ),
         )
         for r in raw
     ]
-    return ParcelScoredListResponse(sort=sort, row_count=len(rows), rows=rows)
+    return ParcelScoredListResponse(
+        sort=sort,
+        row_count=len(rows),
+        qualified_min_entitlement_score=floor,
+        revenue_rows_computed=len(revenue_by_parcel),
+        rows=rows,
+    )
 
 
 @router.get("/slack/digest-preview", response_model=SlackDigestPreviewResponse)
