@@ -108,6 +108,14 @@ scoring:
     saturation_count: 12
     min_occupancy_factor: 0.40
     max_occupancy_factor: 1.05
+  # Illustrative gross revenue — hours, occupancy, optional net after rent/operator.
+  revenue_assumptions:
+    hours_per_day: 10.0
+    days_per_month: 22.0
+    base_occupancy: 0.55
+    footprint_sqft_cap_ratio: 1.15
+    land_rent_pct_of_gross: 0.15
+    operator_margin_pct_of_gross: 0.25
   # Demand POIs — tier A/B Baltimore YAML + Seattle inline; OSM POI density for smaller retail.
   demand_generators_paths:
     - demand_generators_baltimore.yaml

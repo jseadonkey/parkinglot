@@ -96,7 +96,11 @@ Improve **Est. gross** on Baltimore parcels when nearby paid parking comps are s
 3. **Entitlement rescore** — `POST /internal/metrics/refresh-entitlement-scores?county_fips=24510&limit=2000&process_all=true`.
 4. **OSM POI density** — `POST /internal/metrics/refresh-poi-density?county_fips=24510&limit=50` (repeat batches; Overpass ~1 req/sec).
 
-**One-shot on Droplet:** `bash scripts/refresh_baltimore_revenue_signals.sh`
+**Overpass on Droplet:** set `POI_OVERPASS_URL=https://overpass.openstreetmap.fr/api/interpreter` in `deploy/.env` (default in compose). `overpass-api.de` is often unreachable from DigitalOcean.
+
+**POI background fill:** `nohup bash scripts/refresh_baltimore_poi_loop.sh &` — log: `/tmp/baltimore-poi-refresh.log`.
+
+**One-shot on Droplet:** `bash scripts/refresh_baltimore_revenue_signals.sh` (demand + entitlement sequential; POI via loop above)
 
 **GitHub Actions → Droplet resources:** check **`refresh_baltimore_revenue_signals`** (all three steps + readiness snapshot).
 

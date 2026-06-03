@@ -3,7 +3,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-POI_LIMIT="${POI_LIMIT:-50}"
+POI_LIMIT="${POI_LIMIT:-100}"
 COUNTY="${COUNTY:-24510}"
 LOG="${LOG:-/tmp/baltimore-poi-refresh.log}"
 

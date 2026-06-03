@@ -86,7 +86,8 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
         "If identification gaps: POST /internal/metrics/refresh-identification-scores?limit=2000 (or re-ingest).",
         "If demand distance gaps: POST /internal/metrics/refresh-demand-distances?limit=2000",
         "If POI density gaps (revenue occupancy): "
-        "POST /internal/metrics/refresh-poi-density?limit=50&county_fips=24510",
+        "nohup bash scripts/refresh_baltimore_poi_loop.sh & (or "
+        "POST /internal/metrics/refresh-poi-density?limit=50&county_fips=24510 — one batch at a time)",
         "If zoning gaps: spatial join → GeoJSON overlay → "
         "POST /internal/ingest/merge-geojson-attributes (or scripts/execute-phase-b.sh).",
     ]

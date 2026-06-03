@@ -88,6 +88,9 @@ type DealContext = {
     market_confidence?: number;
     market_confidence_tier?: string;
     monthly_gross_raw_usd?: number;
+    monthly_net_estimated_usd?: number;
+    lot_sqft_effective?: number;
+    assumptions?: Record<string, number | boolean | null>;
     nearest_comp_distance_m?: number;
     market_evidence_notes?: string[];
     reason?: string;
@@ -412,6 +415,25 @@ export default function ParcelDetailPage() {
                       ) : null}{" "}
                       · ${dealContext.revenue_estimate.annual_gross_usd?.toLocaleString()}/yr
                     </p>
+                    {dealContext.revenue_estimate.monthly_net_estimated_usd != null ? (
+                      <p className="muted" style={{ marginTop: 0 }}>
+                        Est. after{" "}
+                        {typeof dealContext.revenue_estimate.assumptions?.land_rent_pct_of_gross ===
+                        "number"
+                          ? `${Math.round(dealContext.revenue_estimate.assumptions.land_rent_pct_of_gross * 100)}% land rent`
+                          : "land rent"}{" "}
+                        +{" "}
+                        {typeof dealContext.revenue_estimate.assumptions?.operator_margin_pct_of_gross ===
+                        "number"
+                          ? `${Math.round(dealContext.revenue_estimate.assumptions.operator_margin_pct_of_gross * 100)}% operator margin`
+                          : "operator margin"}
+                        :{" "}
+                        <strong>
+                          ${dealContext.revenue_estimate.monthly_net_estimated_usd.toLocaleString()}/mo
+                        </strong>{" "}
+                        — not taxes, insurance, or capex.
+                      </p>
+                    ) : null}
                     <p className="muted" style={{ marginTop: 0 }}>
                       ~
                       {dealContext.revenue_estimate.stalls_low ?? dealContext.revenue_estimate.stalls_estimated}–

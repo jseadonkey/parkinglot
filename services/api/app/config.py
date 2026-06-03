@@ -525,7 +525,8 @@ class Settings(BaseSettings):
         ),
     )
     poi_overpass_url: str = Field(
-        default="https://overpass-api.de/api/interpreter",
+        default="https://overpass.openstreetmap.fr/api/interpreter",
+        description="Public Overpass endpoint; overpass-api.de is often unreachable from DO Droplets.",
         validation_alias=AliasChoices("POI_OVERPASS_URL", "poi_overpass_url"),
     )
     poi_overpass_delay_sec: float = Field(

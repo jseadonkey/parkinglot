@@ -7,7 +7,7 @@ Operator focus: enrich **highest entitlement scores** before statewide ingest.
 On each parcel page (`/operator/parcels/{id}`):
 
 - **Parking rate comps** — YAML (`config/pilot.yaml` `parking_rate_comps`) merged with Postgres `parking_rate_comps` within `parking_rate_comp_radius_m` (default 2500m). If fewer than two comps are found, search repeats at **`parking_rate_comp_expanded_radius_m`** (default 7500m).
-- **Illustrative gross revenue** — layout-based stall range × distance/similarity-weighted nearby hourly rate × hours × occupancy, then **discounted** when there are too few comps or the nearest comp is far away (same logic reduces the parking-market score). Shows confidence tier and unadjusted amount when discounted.
+- **Illustrative gross revenue** — layout-based stall range × distance/similarity-weighted nearby hourly rate × hours × occupancy (`scoring.revenue_assumptions` in `config/pilot.yaml`), then **discounted** when there are too few comps or the nearest comp is far away (same logic reduces the parking-market score). Low/high bands use stall, rate, and occupancy ranges (not confidence alone). Assessor `lot_sqft` is capped at mapped **footprint** area when it is much larger. Optional **monthly net** subtracts configured land-rent and operator-margin % of gross mid.
 - **No local comps** — when the expanded search still finds nothing, revenue uses **`parking_rate_fallbacks`** in `config/pilot.yaml` (county-specific or default indicative hourly rate) at **`confidence_factor`** (default 0.55). Tier shows as **`fallback`**; treat as directional only until real comps are seeded.
 - **Nearby qualified parcels** — other lots with entitlement ≥ pilot floor within the same radius.
 
@@ -49,7 +49,7 @@ OpenStreetMap counts **restaurants, shops, clinics, hotels, offices, etc.** with
 
 Readiness: `GET /internal/stats/export-readiness` → `parcels_missing_poi_commercial_count_400m`.
 
-Env (optional): `POI_OVERPASS_URL`, `POI_OVERPASS_DELAY_SEC`, `POI_OVERPASS_USER_AGENT`.
+Env (optional): `POI_OVERPASS_URL` (default `https://overpass.openstreetmap.fr/api/interpreter` on Droplet — `overpass-api.de` often fails), `POI_OVERPASS_DELAY_SEC`, `POI_OVERPASS_USER_AGENT`.
 
 ### Expand demand POIs
 

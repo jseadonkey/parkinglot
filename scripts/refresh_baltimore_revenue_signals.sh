@@ -46,17 +46,48 @@ _post() {
     -H "Content-Type: application/json" \
     -H "X-Internal-Key: $KEY" \
     -d '{}'
-  echo ""
 }
 
-echo "==> Refresh demand distances (county $COUNTY, tier A+B generators, all parcels)"
-_post "/internal/metrics/refresh-demand-distances?limit=${DEMAND_LIMIT}&county_fips=${COUNTY}&process_all=true"
+_task_id() {
+  python3 -c "import sys,json; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null || true
+}
+
+_wait_task() {
+  local tid="$1"
+  local label="$2"
+  if [[ -z "$tid" || -z "$KEY" ]]; then
+    return 0
+  fi
+  echo "    Waiting for $label (task $tid)..."
+  for _ in $(seq 1 360); do
+    local st ready
+    st=$(curl -sSk "${BASE}/internal/tasks/${tid}" -H "X-Internal-Key: $KEY")
+    ready=$(echo "$st" | python3 -c "import sys,json; print(json.load(sys.stdin).get('ready',False))" 2>/dev/null || echo False)
+    if [[ "$ready" == "True" ]]; then
+      echo "$st" | python3 -c "import sys,json; d=json.load(sys.stdin); print('    ', d.get('state'), d.get('result') or d.get('error'))"
+      return 0
+    fi
+    sleep 5
+  done
+  echo "    WARN: timed out waiting for $label"
+}
+
+echo "==> Refresh demand distances (county $COUNTY, all parcels)"
+DEMAND_TID=$(_post "/internal/metrics/refresh-demand-distances?limit=${DEMAND_LIMIT}&county_fips=${COUNTY}&process_all=true" | _task_id)
+echo "{\"task_id\":\"${DEMAND_TID}\"}"
+_wait_task "$DEMAND_TID" "demand distances"
 
 echo "==> Rescore entitlement (county $COUNTY, all parcels)"
-_post "/internal/metrics/refresh-entitlement-scores?limit=${DEMAND_LIMIT}&county_fips=${COUNTY}&process_all=true"
+ENT_TID=$(_post "/internal/metrics/refresh-entitlement-scores?limit=${DEMAND_LIMIT}&county_fips=${COUNTY}&process_all=true" | _task_id)
+echo "{\"task_id\":\"${ENT_TID}\"}"
+_wait_task "$ENT_TID" "entitlement scores"
 
-echo "==> Refresh OSM POI density (county $COUNTY, process_all — ~1 req/sec per parcel)"
-_post "/internal/metrics/refresh-poi-density?limit=${POI_LIMIT}&county_fips=${COUNTY}&only_missing=true&process_all=true"
+echo "==> POI density: start background loop (one Celery batch at a time; needs worker Overpass)"
+echo "    nohup bash scripts/refresh_baltimore_poi_loop.sh </dev/null >/dev/null 2>&1 &"
+echo "    tail -f /tmp/baltimore-poi-refresh.log"
+if [[ -n "$KEY" ]] && [[ "${START_POI_LOOP:-}" == "1" ]]; then
+  nohup bash "$ROOT/scripts/refresh_baltimore_poi_loop.sh" </dev/null >/dev/null 2>&1 &
+  echo "    Started POI loop (pid $!)."
+fi
 
-echo "==> Done. Poll Celery tasks with GET /internal/tasks/{task_id}"
-echo "    Re-run with POI_LIMIT=50 until export-readiness shows no missing POI counts."
+echo "==> Done (comps + demand + entitlement). POI fills via refresh_baltimore_poi_loop.sh."

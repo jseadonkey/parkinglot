@@ -399,7 +399,18 @@ def apply_remediation(
                     only_missing=True,
                     process_all=False,
                 )
-                status = "enqueued" if task_id else "failed"
+                if task_id:
+                    status = "enqueued"
+                else:
+                    # Workers down or broker unreachable — run inline (Overpass from this host).
+                    result = refresh_poi_density_batch(
+                        limit=poi_limit,
+                        county_fips=cf,
+                        only_missing=True,
+                        process_all=False,
+                    )
+                    detail = json.dumps(result)[:200]
+                    status = "completed"
             elif action == "enqueue_incomplete_limited":
                 result = enqueue_incomplete_pipeline_jobs(pipeline_limit)
                 detail = json.dumps(result)[:200]

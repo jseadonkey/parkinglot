@@ -103,6 +103,19 @@ class PoiDemandConfig(BaseModel):
     max_occupancy_factor: float = 1.05
 
 
+class RevenueAssumptionsConfig(BaseModel):
+    """Illustrative revenue operating assumptions — see packages/core/parking_core/revenue_estimate.py."""
+
+    hours_per_day: float = 10.0
+    days_per_month: float = 22.0
+    base_occupancy: float = 0.55
+    # When assessor lot_sqft exceeds footprint area by this ratio, cap stalls at footprint sqft.
+    footprint_sqft_cap_ratio: float = 1.15
+    # Optional illustrative net after rent + operator margin (fractions of gross mid).
+    land_rent_pct_of_gross: float | None = None
+    operator_margin_pct_of_gross: float | None = None
+
+
 class ScoringConfig(BaseModel):
     min_lot_sqft: int = 5000
     weights: ScoringWeights = Field(default_factory=ScoringWeights)
@@ -122,6 +135,7 @@ class ScoringConfig(BaseModel):
     parking_rate_comp_max_used: int = 8
     parking_rate_fallbacks: ParkingRateFallbackConfig | None = None
     poi_demand: PoiDemandConfig | None = None
+    revenue_assumptions: RevenueAssumptionsConfig | None = None
 
 
 class DataSourcesConfig(BaseModel):

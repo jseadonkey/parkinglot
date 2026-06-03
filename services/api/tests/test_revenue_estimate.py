@@ -5,9 +5,11 @@ from parking_core.pilot import ParkingRateCompObservation
 from parking_core.revenue_estimate import (
     classify_parking_facility,
     effective_hourly_for_surface,
+    effective_lot_sqft_for_revenue,
     enrich_rate_comps,
     estimate_parking_revenue,
     estimate_surface_stalls,
+    trim_rate_comp_outliers,
 )
 
 
@@ -174,6 +176,77 @@ def test_demand_occupancy_factor() -> None:
     far, _ = demand_occupancy_factor(3000.0, buffer_m=400.0)
     assert peak > far
     assert demand_occupancy_factor(None)[0] == 0.35
+
+
+def test_footprint_caps_assessor_lot_sqft() -> None:
+    eff, notes = effective_lot_sqft_for_revenue(50_000, 20_000, cap_ratio=1.15)
+    assert eff == 20_000
+    assert notes
+    same, _ = effective_lot_sqft_for_revenue(18_000, 20_000, cap_ratio=1.15)
+    assert same == 18_000
+
+
+def test_trim_rate_comp_outliers_drops_extreme() -> None:
+    comps = [
+        ParkingRateCompObservation(name="A", lat=0.0, lon=0.0, hourly_mid_usd=8.0),
+        ParkingRateCompObservation(name="B", lat=0.0, lon=0.0, hourly_mid_usd=9.0),
+        ParkingRateCompObservation(name="C", lat=0.0, lon=0.0, hourly_mid_usd=10.0),
+        ParkingRateCompObservation(name="D", lat=0.0, lon=0.0, hourly_mid_usd=10.0),
+        ParkingRateCompObservation(name="Outlier", lat=0.0, lon=0.0, hourly_mid_usd=50.0),
+    ]
+    trimmed = trim_rate_comp_outliers(comps)
+    assert len(trimmed) == 4
+    assert all(c.name != "Outlier" for c in trimmed)
+
+
+def test_revenue_bands_use_stall_and_rate_range() -> None:
+    comps = [
+        ParkingRateCompObservation(
+            name="Near surface lot",
+            lat=39.29,
+            lon=-76.61,
+            hourly_mid_usd=10.0,
+            distance_m=120.0,
+        ),
+    ]
+    out = estimate_parking_revenue(
+        lot_sqft=20_000,
+        comps=comps,
+        lat=39.2904,
+        lon=-76.6122,
+        is_corner_lot=True,
+    )
+    assert out["stalls_low"] < out["stalls_estimated"] < out["stalls_high"]
+    assert float(out["monthly_gross_low_usd"]) < float(out["monthly_gross_usd"]) < float(out["monthly_gross_high_usd"])
+
+
+def test_footprint_cap_reduces_stalls() -> None:
+    uncapped = estimate_parking_revenue(
+        lot_sqft=40_000,
+        comps=[],
+        fallback_hourly_usd=10.0,
+    )
+    capped = estimate_parking_revenue(
+        lot_sqft=40_000,
+        comps=[],
+        fallback_hourly_usd=10.0,
+        footprint_sqft=15_000,
+        footprint_sqft_cap_ratio=1.15,
+    )
+    assert capped["stalls_estimated"] < uncapped["stalls_estimated"]
+
+
+def test_monthly_net_after_rent_and_operator() -> None:
+    out = estimate_parking_revenue(
+        lot_sqft=10_000,
+        comps=[],
+        fallback_hourly_usd=10.0,
+        land_rent_pct_of_gross=0.15,
+        operator_margin_pct_of_gross=0.25,
+    )
+    gross = float(out["monthly_gross_usd"])
+    net = float(out["monthly_net_estimated_usd"])
+    assert abs(net - gross * 0.6) < 2.0
 
 
 def test_weak_comps_blend_with_fallback() -> None:

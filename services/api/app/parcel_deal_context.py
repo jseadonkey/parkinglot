@@ -14,9 +14,15 @@ from app.config import get_settings
 from app.db.models import Parcel, ParcelScore
 from app.rate_comps import merged_rate_comps_near
 from app.scoring_profiles import ENTITLEMENT
-from parking_core.pilot import ParkingRateCompObservation, PilotConfig, load_pilot_config
+from parking_core.pilot import (
+    ParkingRateCompObservation,
+    PilotConfig,
+    RevenueAssumptionsConfig,
+    load_pilot_config,
+)
 from parking_core.rate_comps import lookup_parking_rate_fallback
 from parking_core.revenue_estimate import estimate_parking_revenue
+from parking_ingestion.parcel_metrics import geodesic_footprint_sqft
 
 __all__ = [
     "attach_revenue_summaries",
@@ -45,6 +51,19 @@ def parcel_centroid_lat_lon(parcel: Parcel) -> tuple[float, float] | None:
         return None
 
 
+def parcel_footprint_sqft(parcel: Parcel) -> float | None:
+    if parcel.footprint is None:
+        return None
+    try:
+        return geodesic_footprint_sqft(to_shape(parcel.footprint))
+    except Exception:
+        return None
+
+
+def _revenue_assumptions(pilot: PilotConfig) -> RevenueAssumptionsConfig:
+    return pilot.scoring.revenue_assumptions or RevenueAssumptionsConfig()
+
+
 def rate_comps_for_parcel(
     db: Session,
     *,
@@ -60,6 +79,7 @@ def _revenue_estimate_kwargs(
     parcel: Parcel,
 ) -> dict[str, float | str | None]:
     fb = lookup_parking_rate_fallback(pilot, parcel.county_fips)
+    rev = _revenue_assumptions(pilot)
     kwargs: dict[str, float | str | int | None] = {
         "fallback_hourly_usd": None,
         "fallback_source": None,
@@ -68,6 +88,13 @@ def _revenue_estimate_kwargs(
         "demand_buffer_m": float(pilot.scoring.demand_generator_buffer_m or 400.0),
         "poi_commercial_count": parcel.poi_commercial_count_400m,
         "poi_saturation_count": 12.0,
+        "footprint_sqft": parcel_footprint_sqft(parcel),
+        "footprint_sqft_cap_ratio": float(rev.footprint_sqft_cap_ratio),
+        "hours_per_day": float(rev.hours_per_day),
+        "days_per_month": float(rev.days_per_month),
+        "occupancy": float(rev.base_occupancy),
+        "land_rent_pct_of_gross": rev.land_rent_pct_of_gross,
+        "operator_margin_pct_of_gross": rev.operator_margin_pct_of_gross,
     }
     poi_cfg = pilot.scoring.poi_demand
     if poi_cfg is not None:
