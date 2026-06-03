@@ -9,6 +9,7 @@ from typing import Any
 from geoalchemy2.elements import WKTElement
 from shapely.geometry import MultiPolygon, Polygon
 from sqlalchemy import and_, case, delete, desc, exists, func, select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.approvals_util import queue_approval
@@ -16,6 +17,7 @@ from app.audit import write_audit
 from app.celery_app import celery
 from app.config import get_settings
 from app.contract_render import render_ground_lease_draft
+from app.db.concurrent_writes import update_parcel_columns_if
 from app.db.models import ContractDraft, DealMemo, OwnerCandidateRow, Parcel, ParcelScore, WorkflowRun
 from app.db.session import SessionLocal
 from app.exploration_campaign import (
@@ -1283,20 +1285,31 @@ def refresh_demand_distances_batch(
             if not batch:
                 break
             for parcel in batch:
+                last_id = parcel.id
                 geom = to_shape(parcel.footprint)
                 if geom.is_empty:
-                    last_id = parcel.id
                     continue
                 c = geom.centroid
                 dmin = min_distance_to_generators_m(c.y, c.x, pilot.scoring.demand_generators)
-                parcel.distance_to_nearest_demand_m = dmin
-                db.add(parcel)
-                if refresh_identification:
-                    db.flush()
-                    _upsert_identification_score(db, parcel)
+                try:
+                    wrote = update_parcel_columns_if(
+                        db,
+                        parcel.id,
+                        {"distance_to_nearest_demand_m": dmin},
+                    )
+                except OperationalError:
+                    db.rollback()
+                    continue
+                if not wrote:
+                    continue
                 n += 1
-                last_id = parcel.id
-            db.commit()
+                if refresh_identification:
+                    try:
+                        parcel.distance_to_nearest_demand_m = dmin
+                        _upsert_identification_score(db, parcel)
+                        db.commit()
+                    except OperationalError:
+                        db.rollback()
             if not process_all or len(batch) < chunk:
                 break
         post_agent_event_to_slack(
@@ -1321,8 +1334,13 @@ def refresh_poi_density_batch(
     limit: int = 50,
     county_fips: str | None = None,
     only_missing: bool = True,
+    process_all: bool = False,
 ) -> dict[str, Any]:
-    """Count commercial OSM POIs near each parcel centroid (Overpass API, rate-limited)."""
+    """Count commercial OSM POIs near each parcel centroid (Overpass API, rate-limited).
+
+    Uses short per-parcel commits and conditional UPDATE so batch jobs can run alongside
+    live Celery workers without requiring a quiet Droplet.
+    """
     from geoalchemy2.shape import to_shape
 
     from app.db.schema_compat import column_exists
@@ -1333,7 +1351,8 @@ def refresh_poi_density_batch(
     poi_cfg = pilot.scoring.poi_demand
     radius_m = int(poi_cfg.radius_m) if poi_cfg is not None else 400
 
-    lim = min(max(limit, 1), 200)
+    chunk = min(max(limit, 1), 200)
+    cf = (county_fips or "").strip()
     db = _session()
     if not column_exists(db, "parcels", "poi_commercial_count_400m"):
         db.close()
@@ -1344,39 +1363,64 @@ def refresh_poi_density_batch(
         }
 
     n = 0
+    skipped = 0
     errors = 0
     last_at: float | None = None
+    last_id: uuid.UUID | None = None
     try:
-        stmt = select(Parcel).where(Parcel.footprint.isnot(None))
-        cf = (county_fips or "").strip()
-        if cf:
-            stmt = stmt.where(Parcel.county_fips == cf)
-        if only_missing:
-            stmt = stmt.where(Parcel.poi_commercial_count_400m.is_(None))
-        stmt = stmt.order_by(Parcel.created_at.desc()).limit(lim)
-        for parcel in db.scalars(stmt):
-            geom = to_shape(parcel.footprint)
-            if geom.is_empty:
-                continue
-            c = geom.centroid
-            try:
-                count, last_at = count_commercial_pois_osm_throttled(
-                    c.y,
-                    c.x,
-                    radius_m=radius_m,
-                    overpass_url=settings.poi_overpass_url,
-                    user_agent=settings.poi_overpass_user_agent,
-                    delay_sec=settings.poi_overpass_delay_sec,
-                    last_request_at=last_at,
-                )
-            except RuntimeError:
-                errors += 1
-                continue
-            parcel.poi_commercial_count_400m = count
-            db.add(parcel)
-            db.flush()
-            n += 1
-        db.commit()
+        while True:
+            stmt = select(Parcel).where(Parcel.footprint.isnot(None))
+            if cf:
+                stmt = stmt.where(Parcel.county_fips == cf)
+            if only_missing:
+                stmt = stmt.where(Parcel.poi_commercial_count_400m.is_(None))
+            if last_id is not None:
+                stmt = stmt.where(Parcel.id > last_id)
+            stmt = stmt.order_by(Parcel.id.asc()).limit(chunk)
+            batch = list(db.scalars(stmt))
+            if not batch:
+                break
+
+            for parcel in batch:
+                last_id = parcel.id
+                geom = to_shape(parcel.footprint)
+                if geom.is_empty:
+                    continue
+                c = geom.centroid
+                try:
+                    count, last_at = count_commercial_pois_osm_throttled(
+                        c.y,
+                        c.x,
+                        radius_m=radius_m,
+                        overpass_url=settings.poi_overpass_url,
+                        user_agent=settings.poi_overpass_user_agent,
+                        delay_sec=settings.poi_overpass_delay_sec,
+                        last_request_at=last_at,
+                    )
+                except RuntimeError:
+                    errors += 1
+                    continue
+
+                where_extra = (Parcel.poi_commercial_count_400m.is_(None),) if only_missing else ()
+                try:
+                    wrote = update_parcel_columns_if(
+                        db,
+                        parcel.id,
+                        {"poi_commercial_count_400m": count},
+                        *where_extra,
+                    )
+                except OperationalError:
+                    db.rollback()
+                    errors += 1
+                    continue
+                if wrote:
+                    n += 1
+                else:
+                    skipped += 1
+
+            if not process_all or len(batch) < chunk:
+                break
+
         if n:
             post_agent_event_to_slack(
                 settings,
@@ -1387,11 +1431,13 @@ def refresh_poi_density_batch(
             )
         return {
             "updated": n,
+            "skipped_already_set": skipped,
             "errors": errors,
             "county_fips": cf or None,
-            "limit": lim,
+            "limit": chunk,
             "radius_m": radius_m,
             "only_missing": only_missing,
+            "process_all": process_all,
         }
     finally:
         db.close()

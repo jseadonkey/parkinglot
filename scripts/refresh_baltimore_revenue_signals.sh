@@ -55,8 +55,8 @@ _post "/internal/metrics/refresh-demand-distances?limit=${DEMAND_LIMIT}&county_f
 echo "==> Rescore entitlement (county $COUNTY, all parcels)"
 _post "/internal/metrics/refresh-entitlement-scores?limit=${DEMAND_LIMIT}&county_fips=${COUNTY}&process_all=true"
 
-echo "==> Refresh OSM POI density (county $COUNTY, limit $POI_LIMIT — ~1 req/sec)"
-_post "/internal/metrics/refresh-poi-density?limit=${POI_LIMIT}&county_fips=${COUNTY}&only_missing=true"
+echo "==> Refresh OSM POI density (county $COUNTY, process_all — ~1 req/sec per parcel)"
+_post "/internal/metrics/refresh-poi-density?limit=${POI_LIMIT}&county_fips=${COUNTY}&only_missing=true&process_all=true"
 
 echo "==> Done. Poll Celery tasks with GET /internal/tasks/{task_id}"
 echo "    Re-run with POI_LIMIT=50 until export-readiness shows no missing POI counts."

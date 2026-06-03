@@ -820,12 +820,17 @@ def refresh_poi_density(
     limit: int = 50,
     county_fips: str | None = None,
     only_missing: bool = True,
+    process_all: bool = Query(
+        False,
+        description="When true with county_fips, process all matching parcels in chunked batches.",
+    ),
 ) -> CeleryTaskIdResponse:
     """Count OSM commercial POIs near parcel centroids for demand-based revenue (Celery, rate-limited)."""
     async_result = refresh_poi_density_batch.delay(
         limit=limit,
         county_fips=county_fips,
         only_missing=only_missing,
+        process_all=process_all,
     )
     return CeleryTaskIdResponse(task_id=async_result.id)
 
