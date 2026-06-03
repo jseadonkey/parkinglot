@@ -1,7 +1,12 @@
 from unittest.mock import MagicMock
 
 from app.db.models import ParkingRateComp
-from app.rate_comp_seed import KING_COUNTY_PARKING_RATE_COMPS, seed_king_county_parking_rate_comps
+from app.rate_comp_seed import (
+    BALTIMORE_PARKING_RATE_COMPS,
+    KING_COUNTY_PARKING_RATE_COMPS,
+    seed_baltimore_parking_rate_comps,
+    seed_king_county_parking_rate_comps,
+)
 
 
 def _mock_db(existing: list[ParkingRateComp] | None = None) -> MagicMock:
@@ -44,3 +49,10 @@ def test_seed_king_county_replace_updates_existing():
     assert result["updated"] == 1
     assert result["inserted"] == len(KING_COUNTY_PARKING_RATE_COMPS) - 1
     assert existing.hourly_mid_usd == KING_COUNTY_PARKING_RATE_COMPS[0].hourly_mid_usd
+
+
+def test_seed_baltimore_inserts_all_when_empty():
+    db = _mock_db()
+    result = seed_baltimore_parking_rate_comps(db)
+    assert result["inserted"] == len(BALTIMORE_PARKING_RATE_COMPS)
+    assert db.add.call_count == len(BALTIMORE_PARKING_RATE_COMPS)

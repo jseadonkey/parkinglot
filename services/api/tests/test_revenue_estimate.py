@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from parking_core.demand_signals import demand_occupancy_factor
 from parking_core.pilot import ParkingRateCompObservation
 from parking_core.revenue_estimate import (
     classify_parking_facility,
@@ -100,3 +101,99 @@ def test_single_distant_comp_discounts_revenue() -> None:
 
 def test_estimate_parking_revenue_missing_inputs() -> None:
     assert estimate_parking_revenue(lot_sqft=None, comps=[]).get("available") is False
+    assert estimate_parking_revenue(lot_sqft=10_000, comps=[]).get("available") is False
+
+
+def test_fallback_rate_when_no_comps() -> None:
+    out = estimate_parking_revenue(
+        lot_sqft=12_000,
+        comps=[],
+        lat=47.6,
+        lon=-122.3,
+        fallback_hourly_usd=9.5,
+        fallback_source="King County indicative",
+        fallback_confidence_factor=0.55,
+    )
+    assert out["available"] is True
+    assert out["rate_source"] == "fallback"
+    assert out["market_confidence_tier"] == "fallback"
+    assert out["comp_count"] == 0
+    assert float(out["hourly_rate_weighted_usd"]) == 9.5
+    assert float(out["monthly_gross_usd"]) < float(out["monthly_gross_raw_usd"])
+
+
+def test_demand_proximity_raises_occupancy_near_generator() -> None:
+    near = estimate_parking_revenue(
+        lot_sqft=10_000,
+        comps=[],
+        lat=39.29,
+        lon=-76.61,
+        fallback_hourly_usd=10.0,
+        fallback_source="test",
+        distance_to_nearest_demand_m=150.0,
+        demand_buffer_m=400.0,
+    )
+    far = estimate_parking_revenue(
+        lot_sqft=10_000,
+        comps=[],
+        lat=39.29,
+        lon=-76.61,
+        fallback_hourly_usd=10.0,
+        fallback_source="test",
+        distance_to_nearest_demand_m=5000.0,
+        demand_buffer_m=400.0,
+    )
+    assert near["available"] and far["available"]
+    assert float(near["occupancy_effective"]) > float(far["occupancy_effective"])
+    assert float(near["monthly_gross_usd"]) > float(far["monthly_gross_usd"])
+
+
+def test_poi_density_raises_revenue_with_fallback_rate() -> None:
+    sparse = estimate_parking_revenue(
+        lot_sqft=10_000,
+        comps=[],
+        fallback_hourly_usd=10.0,
+        fallback_source="test",
+        distance_to_nearest_demand_m=5000.0,
+        poi_commercial_count=0,
+    )
+    dense = estimate_parking_revenue(
+        lot_sqft=10_000,
+        comps=[],
+        fallback_hourly_usd=10.0,
+        fallback_source="test",
+        distance_to_nearest_demand_m=5000.0,
+        poi_commercial_count=25,
+    )
+    assert float(dense["monthly_gross_usd"]) > float(sparse["monthly_gross_usd"])
+    assert float(dense["poi_density_occupancy_factor"]) > float(sparse["poi_density_occupancy_factor"])
+
+
+def test_demand_occupancy_factor() -> None:
+    peak, _ = demand_occupancy_factor(50.0, buffer_m=400.0)
+    far, _ = demand_occupancy_factor(3000.0, buffer_m=400.0)
+    assert peak > far
+    assert demand_occupancy_factor(None)[0] == 0.35
+
+
+def test_weak_comps_blend_with_fallback() -> None:
+    comps = [
+        ParkingRateCompObservation(
+            name="Distant lot",
+            lat=39.31,
+            lon=-76.63,
+            hourly_mid_usd=14.0,
+            distance_m=2200.0,
+        ),
+    ]
+    out = estimate_parking_revenue(
+        lot_sqft=15_000,
+        comps=comps,
+        lat=39.2904,
+        lon=-76.6122,
+        fallback_hourly_usd=9.0,
+        fallback_source="Baltimore indicative",
+    )
+    assert out["available"] is True
+    assert out["rate_source"] == "comps_and_fallback"
+    assert float(out["hourly_rate_weighted_usd"]) < 14.0

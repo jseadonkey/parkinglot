@@ -1130,6 +1130,62 @@ finally:
     db.close()
 PY
     ;;
+  seed-baltimore-rate-comps)
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
+    echo "=== alembic upgrade heads (ensure parking_rate_comps + poi column) ==="
+    docker compose "${ARGS[@]}" exec -T api alembic upgrade heads
+    echo "=== seed Baltimore metro parking rate comps ==="
+    docker compose "${ARGS[@]}" exec -T api python - <<'PY'
+from app.db.session import SessionLocal
+from app.rate_comp_seed import seed_baltimore_parking_rate_comps
+
+db = SessionLocal()
+try:
+    result = seed_baltimore_parking_rate_comps(db)
+    print("seed_baltimore_rate_comps", result)
+finally:
+    db.close()
+PY
+    ;;
+  refresh-baltimore-revenue-signals)
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
+    POI_LIMIT="${POI_LIMIT:-50}"
+    DEMAND_LIMIT="${DEMAND_LIMIT:-2000}"
+    COUNTY="24510"
+    echo "=== alembic upgrade heads ==="
+    docker compose "${ARGS[@]}" exec -T api alembic upgrade heads
+    echo "=== seed Baltimore rate comps ==="
+    docker compose "${ARGS[@]}" exec -T api python - <<'PY'
+from app.db.session import SessionLocal
+from app.rate_comp_seed import seed_baltimore_parking_rate_comps
+
+db = SessionLocal()
+try:
+    print("seed_baltimore_rate_comps", seed_baltimore_parking_rate_comps(db))
+finally:
+    db.close()
+PY
+    echo "=== refresh demand distances (county ${COUNTY}) ==="
+    if [ -n "$KEY" ]; then
+      _internal_api_post "/internal/metrics/refresh-demand-distances?limit=${DEMAND_LIMIT}&county_fips=${COUNTY}" \
+        || echo "refresh-demand-distances failed"
+    else
+      echo "INTERNAL_API_KEY not set — skipping demand distance refresh"
+    fi
+    echo "=== refresh POI density (county ${COUNTY}, limit ${POI_LIMIT}) ==="
+    if [ -n "$KEY" ]; then
+      _internal_api_post "/internal/metrics/refresh-poi-density?limit=${POI_LIMIT}&county_fips=${COUNTY}&only_missing=true" \
+        || echo "refresh-poi-density failed"
+    else
+      echo "INTERNAL_API_KEY not set — skipping POI refresh"
+    fi
+    echo "=== export-readiness snapshot ==="
+    if [ -n "$KEY" ]; then
+      _internal_api_get "/internal/stats/export-readiness" || true
+    fi
+    ;;
   enqueue-priority-now)
     echo "=== POST /internal/pipeline/enqueue-priority?limit=75 ==="
     if [ -n "$KEY" ]; then

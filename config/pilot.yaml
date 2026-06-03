@@ -79,16 +79,74 @@ scoring:
     near_paid_parking_comps: 15
   demand_generator_buffer_m: 400
   parking_rate_comp_radius_m: 2500
+  parking_rate_comp_expanded_radius_m: 7500
   parking_rate_comp_min_for_full_credit: 2
   parking_rate_comp_max_used: 8
-  # Lat/lon POIs for “near demand” scoring
+  # Indicative surface rates when no comps within expanded radius (revenue only — low confidence).
+  parking_rate_fallbacks:
+    default_hourly_mid_usd: 8.0
+    default_source_note: "Pilot default unmanned surface lot indicative rate"
+    confidence_factor: 0.55
+    counties:
+      "24510":
+        hourly_mid_usd: 9.5
+        source_note: "Baltimore City unmanned surface indicative — replace with verified comps"
+      "24005":
+        hourly_mid_usd: 8.5
+        source_note: "Baltimore County surface indicative"
+      "53033":
+        hourly_mid_usd: 10.0
+        source_note: "King County surface indicative — seed DB comps for better accuracy"
+      "53053":
+        hourly_mid_usd: 9.0
+        source_note: "Pierce County surface indicative"
+      "53061":
+        hourly_mid_usd: 9.5
+        source_note: "Snohomish County surface indicative"
+  poi_demand:
+    radius_m: 400
+    saturation_count: 12
+    min_occupancy_factor: 0.40
+    max_occupancy_factor: 1.05
+  # Demand POIs — hospitals, downtown, stadiums, universities (centroid → nearest for scoring + revenue occupancy).
+  # Add lat/lon from OSM or commercial POI feeds; see docs/TOP-PARCEL-DEAL-CONTEXT.md.
   demand_generators:
-    - name: "Inner Harbor / downtown Baltimore (illustrative)"
+    - name: "Inner Harbor / downtown Baltimore"
       lat: 39.2851
       lon: -76.6105
-    - name: "Seattle downtown (illustrative)"
+    - name: "Camden Yards / Ravens stadium"
+      lat: 39.2839
+      lon: -76.6217
+    - name: "Johns Hopkins Hospital (East Baltimore)"
+      lat: 39.2971
+      lon: -76.5927
+    - name: "University of Maryland Baltimore campus"
+      lat: 39.2892
+      lon: -76.6263
+    - name: "Harbor East retail"
+      lat: 39.2838
+      lon: -76.6005
+    - name: "Fells Point waterfront"
+      lat: 39.2820
+      lon: -76.5920
+    - name: "Seattle downtown retail core"
       lat: 47.6062
       lon: -122.3321
+    - name: "Pike Place Market"
+      lat: 47.6090
+      lon: -122.3415
+    - name: "Seattle Center / Climate Pledge Arena"
+      lat: 47.6221
+      lon: -122.3540
+    - name: "Capitol Hill business district"
+      lat: 47.6253
+      lon: -122.3222
+    - name: "UW Medical Center / Montlake"
+      lat: 47.6490
+      lon: -122.3070
+    - name: "Bellevue downtown"
+      lat: 47.6101
+      lon: -122.2015
   # Illustrative paid-parking benchmarks (merged with DB ``parking_rate_comps`` at score + deal-context time).
   parking_rate_comps:
     - name: "Downtown Baltimore garage (illustrative)"
@@ -110,4 +168,4 @@ scoring:
 data_sources:
   parcel_vendor: "TBD — see docs/washington-data.md"
   zoning_vendor: "docs/zoning-sources-kent.md + data/zoning/wa/kent_king_surface_parking_rules.yaml"
-  poi_source: "osm_or_commercial_tbd"
+  poi_source: "OpenStreetMap Overpass — POST /internal/metrics/refresh-poi-density"

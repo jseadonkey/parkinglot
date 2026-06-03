@@ -77,6 +77,32 @@ class ParkingRateCompObservation(BaseModel):
     distance_m: float | None = None
 
 
+class ParkingRateFallbackEntry(BaseModel):
+    """Indicative hourly rate when no paid parking comps exist nearby."""
+
+    hourly_mid_usd: float
+    source_note: str | None = None
+
+
+class ParkingRateFallbackConfig(BaseModel):
+    """County / default surface-lot rate benchmarks — see docs/TOP-PARCEL-DEAL-CONTEXT.md."""
+
+    default_hourly_mid_usd: float = 8.0
+    default_source_note: str | None = None
+    counties: dict[str, ParkingRateFallbackEntry] = Field(default_factory=dict)
+    # Confidence multiplier when revenue uses fallback only (no local comps).
+    confidence_factor: float = 0.55
+
+
+class PoiDemandConfig(BaseModel):
+    """OSM commercial POI density for revenue occupancy — see docs/TOP-PARCEL-DEAL-CONTEXT.md."""
+
+    radius_m: int = 400
+    saturation_count: float = 12.0
+    min_occupancy_factor: float = 0.40
+    max_occupancy_factor: float = 1.05
+
+
 class ScoringConfig(BaseModel):
     min_lot_sqft: int = 5000
     weights: ScoringWeights = Field(default_factory=ScoringWeights)
@@ -87,8 +113,12 @@ class ScoringConfig(BaseModel):
     # Optional static comps in YAML; merged with DB comps at score time when wired.
     parking_rate_comps: list[ParkingRateCompObservation] = Field(default_factory=list)
     parking_rate_comp_radius_m: float = 2500.0
+    # Second-pass search when primary radius returns too few comps (revenue + scoring).
+    parking_rate_comp_expanded_radius_m: float = 7500.0
     parking_rate_comp_min_for_full_credit: int = 2
     parking_rate_comp_max_used: int = 8
+    parking_rate_fallbacks: ParkingRateFallbackConfig | None = None
+    poi_demand: PoiDemandConfig | None = None
 
 
 class DataSourcesConfig(BaseModel):

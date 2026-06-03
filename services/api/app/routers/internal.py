@@ -24,7 +24,7 @@ from app.parcel_deal_context import attach_revenue_summaries, qualified_min_enti
 from app.parcel_scored_list import COMBINED, ParcelSortProfile, query_parcels_scored_list
 from app.pilot_scope import pilot_scope_summary
 from app.platform_showcase import build_platform_showcase
-from app.rate_comp_seed import seed_king_county_parking_rate_comps
+from app.rate_comp_seed import seed_baltimore_parking_rate_comps, seed_king_county_parking_rate_comps
 from app.schemas import (
     BaltimoreZoningTiersResponse,
     BaltimoreZoningTierZoneRow,
@@ -93,6 +93,7 @@ from app.tasks import (
     refresh_entitlement_scores_batch,
     refresh_identification_scores_batch,
     refresh_pipeline_scores_with_rate_comps_batch,
+    refresh_poi_density_batch,
     site_watchdog_check,
     slack_agent_digest,
     slack_dual_agent_discussion,
@@ -332,6 +333,16 @@ def seed_king_pilot_rate_comps(
 ) -> RateCompSeedResponse:
     """Load Puget Sound parking rate benchmarks into ``parking_rate_comps`` (idempotent)."""
     raw = seed_king_county_parking_rate_comps(db, replace_existing=replace_existing)
+    return RateCompSeedResponse(**raw)
+
+
+@router.post("/rate-comps/seed-baltimore-pilot", response_model=RateCompSeedResponse)
+def seed_baltimore_pilot_rate_comps(
+    replace_existing: bool = False,
+    db: Session = Depends(get_db),
+) -> RateCompSeedResponse:
+    """Load Baltimore metro parking rate benchmarks into ``parking_rate_comps`` (idempotent)."""
+    raw = seed_baltimore_parking_rate_comps(db, replace_existing=replace_existing)
     return RateCompSeedResponse(**raw)
 
 
@@ -765,6 +776,21 @@ def refresh_demand_distances(
     async_result = refresh_demand_distances_batch.delay(
         limit=limit,
         county_fips=county_fips,
+    )
+    return CeleryTaskIdResponse(task_id=async_result.id)
+
+
+@router.post("/metrics/refresh-poi-density", response_model=CeleryTaskIdResponse)
+def refresh_poi_density(
+    limit: int = 50,
+    county_fips: str | None = None,
+    only_missing: bool = True,
+) -> CeleryTaskIdResponse:
+    """Count OSM commercial POIs near parcel centroids for demand-based revenue (Celery, rate-limited)."""
+    async_result = refresh_poi_density_batch.delay(
+        limit=limit,
+        county_fips=county_fips,
+        only_missing=only_missing,
     )
     return CeleryTaskIdResponse(task_id=async_result.id)
 

@@ -493,6 +493,22 @@ class Settings(BaseSettings):
             "site_watchdog_crontab_minute",
         ),
     )
+    poi_overpass_url: str = Field(
+        default="https://overpass-api.de/api/interpreter",
+        validation_alias=AliasChoices("POI_OVERPASS_URL", "poi_overpass_url"),
+    )
+    poi_overpass_delay_sec: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=10.0,
+        validation_alias=AliasChoices("POI_OVERPASS_DELAY_SEC", "poi_overpass_delay_sec"),
+    )
+    poi_overpass_user_agent: str = Field(
+        default="parkinglot-pilot/1.0 (OSM POI density; +https://github.com/jseadonkey/parkinglot)",
+        validation_alias=AliasChoices("POI_OVERPASS_USER_AGENT", "poi_overpass_user_agent"),
+    )
+
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()

@@ -66,15 +66,29 @@ def merged_rate_comps_near(
     lon: float,
     pilot: PilotConfig,
 ) -> list[ParkingRateCompObservation]:
-    """Postgres comps (nearest first) merged with YAML comps within radius."""
+    """Postgres comps (nearest first) merged with YAML comps within radius.
+
+    If the primary radius returns fewer comps than ``parking_rate_comp_min_for_full_credit``,
+    repeats the search out to ``parking_rate_comp_expanded_radius_m``.
+    """
     radius = float(pilot.scoring.parking_rate_comp_radius_m or 2500.0)
+    expanded = float(getattr(pilot.scoring, "parking_rate_comp_expanded_radius_m", 7500.0) or 7500.0)
     max_used = int(getattr(pilot.scoring, "parking_rate_comp_max_used", 8) or 8)
-    db_comps = fetch_parking_rate_comps_near(db, lat=lat, lon=lon, radius_m=radius, limit=max_used)
-    yaml_near = filter_comps_within_radius(
-        list(pilot.scoring.parking_rate_comps or []),
-        lat=lat,
-        lon=lon,
-        radius_m=radius,
-    )
-    merged = merge_rate_comp_sequences(db_comps, yaml_near)
+    min_full = int(getattr(pilot.scoring, "parking_rate_comp_min_for_full_credit", 2) or 2)
+
+    def _merge_for_radius(search_radius: float) -> list[ParkingRateCompObservation]:
+        db_comps = fetch_parking_rate_comps_near(
+            db, lat=lat, lon=lon, radius_m=search_radius, limit=max_used,
+        )
+        yaml_near = filter_comps_within_radius(
+            list(pilot.scoring.parking_rate_comps or []),
+            lat=lat,
+            lon=lon,
+            radius_m=search_radius,
+        )
+        return merge_rate_comp_sequences(db_comps, yaml_near)[:max_used]
+
+    merged = _merge_for_radius(radius)
+    if len(merged) < min_full and expanded > radius:
+        merged = _merge_for_radius(expanded)
     return merged[:max_used]

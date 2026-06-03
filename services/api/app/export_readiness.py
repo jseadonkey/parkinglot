@@ -8,6 +8,7 @@ from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore
+from app.db.schema_compat import column_exists
 from app.pipeline_funnel import (
     count_where,
     entitlement_qualified_floor,
@@ -37,6 +38,9 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
     no_zoning = count_where(db, Parcel.zoning_code.is_(None))
     no_lot_sqft = count_where(db, Parcel.lot_sqft.is_(None))
     no_demand_m = count_where(db, Parcel.distance_to_nearest_demand_m.is_(None))
+    no_poi = 0
+    if column_exists(db, "parcels", "poi_commercial_count_400m"):
+        no_poi = count_where(db, Parcel.poi_commercial_count_400m.is_(None))
 
     miss_ident = count_where(
         db,
@@ -81,6 +85,8 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
         "use `parcels_pipeline_funnel_backlog` for work that should run `run_pipeline`.",
         "If identification gaps: POST /internal/metrics/refresh-identification-scores?limit=2000 (or re-ingest).",
         "If demand distance gaps: POST /internal/metrics/refresh-demand-distances?limit=2000",
+        "If POI density gaps (revenue occupancy): "
+        "POST /internal/metrics/refresh-poi-density?limit=50&county_fips=24510",
         "If zoning gaps: spatial join → GeoJSON overlay → "
         "POST /internal/ingest/merge-geojson-attributes (or scripts/execute-phase-b.sh).",
     ]
@@ -99,6 +105,10 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
         "parcels_missing_distance_to_nearest_demand_m": {
             "count": no_demand_m,
             "pct": _pct(no_demand_m, total),
+        },
+        "parcels_missing_poi_commercial_count_400m": {
+            "count": no_poi,
+            "pct": _pct(no_poi, total),
         },
         "parcels_missing_score_identification": {"count": miss_ident, "pct": _pct(miss_ident, total)},
         "parcels_missing_score_entitlement": {"count": miss_ent, "pct": _pct(miss_ent, total)},

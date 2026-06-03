@@ -97,6 +97,14 @@ on:
         description: "Load Puget Sound parking rate benchmarks into parking_rate_comps"
         type: boolean
         default: false
+      seed_baltimore_rate_comps:
+        description: "Load Baltimore metro parking rate benchmarks into parking_rate_comps"
+        type: boolean
+        default: false
+      refresh_baltimore_revenue_signals:
+        description: "Baltimore City: seed rate comps + refresh demand distances + POI density (batch)"
+        type: boolean
+        default: false
       enqueue_priority_now:
         description: "Enqueue up to 75 top-entitlement pipeline jobs now"
         type: boolean
@@ -183,6 +191,10 @@ jobs:
             MODE="pause-wa-statewide-rollout"
           elif [ "${{ inputs.seed_king_rate_comps }}" = "true" ]; then
             MODE="seed-king-rate-comps"
+          elif [ "${{ inputs.seed_baltimore_rate_comps }}" = "true" ]; then
+            MODE="seed-baltimore-rate-comps"
+          elif [ "${{ inputs.refresh_baltimore_revenue_signals }}" = "true" ]; then
+            MODE="refresh-baltimore-revenue-signals"
           elif [ "${{ inputs.enqueue_priority_now }}" = "true" ]; then
             MODE="enqueue-priority-now"
           elif [ "${{ inputs.refresh_rate_comp_scores }}" = "true" ]; then

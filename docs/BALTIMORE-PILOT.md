@@ -87,6 +87,20 @@ Monitor live DB tier mix: `GET /internal/stats/baltimore-zoning-tiers`.
 
 Local QA: `make baltimore-phase-b-local` or `python3 scripts/summarize_baltimore_zoning_tiers.py`.
 
+## Revenue estimates (comps + demand)
+
+Improve **Est. gross** on Baltimore parcels when nearby paid parking comps are sparse:
+
+1. **Rate comps** — `POST /internal/rate-comps/seed-baltimore-pilot` (16 metro benchmarks in Postgres).
+2. **Demand distance** — `POST /internal/metrics/refresh-demand-distances?county_fips=24510&limit=2000`.
+3. **OSM POI density** — `POST /internal/metrics/refresh-poi-density?county_fips=24510&limit=50` (repeat batches; Overpass ~1 req/sec).
+
+**One-shot on Droplet:** `bash scripts/refresh_baltimore_revenue_signals.sh`
+
+**GitHub Actions → Droplet resources:** check **`refresh_baltimore_revenue_signals`** (all three steps + readiness snapshot).
+
+See [TOP-PARCEL-DEAL-CONTEXT.md](TOP-PARCEL-DEAL-CONTEXT.md).
+
 ## Washington pacing
 
 `config/wa_statewide_rollout.yaml` — `min_days_between_counties: 7`, reduced caps. WaTech county list is **WA-only** (FIPS `53*`).

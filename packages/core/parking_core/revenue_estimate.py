@@ -5,6 +5,7 @@ from __future__ import annotations
 import statistics
 from typing import Any, Literal
 
+from parking_core.demand_signals import combined_demand_occupancy_factor
 from parking_core.pilot import ParkingRateCompObservation
 from parking_core.rate_comps import distance_comp_weight, haversine_m
 
@@ -224,12 +225,32 @@ def estimate_parking_revenue(
     days_per_month: float = 22.0,
     occupancy: float = 0.55,
     distance_scale_m: float = 450.0,
+    fallback_hourly_usd: float | None = None,
+    fallback_source: str | None = None,
+    fallback_confidence_factor: float = 0.55,
+    distance_to_nearest_demand_m: float | None = None,
+    demand_buffer_m: float | None = None,
+    poi_commercial_count: int | None = None,
+    poi_saturation_count: float = 12.0,
 ) -> dict[str, Any]:
-    """Illustrative gross revenue using layout-based stalls and weighted nearby comps."""
-    if lot_sqft is None or lot_sqft <= 0 or not comps:
+    """Illustrative gross revenue using layout-based stalls and weighted nearby comps.
+
+    When ``comps`` is empty but ``fallback_hourly_usd`` is set, returns an estimate
+    using the indicative county/metro rate (tier ``fallback``). When comps are weak,
+    blends comp-derived rate with the fallback.
+
+    When ``distance_to_nearest_demand_m`` is set, adjusts ``occupancy`` by proximity
+    to pilot ``demand_generators`` (hospitals, downtown, stadiums, etc.).
+    """
+    if lot_sqft is None or lot_sqft <= 0:
         return {
             "available": False,
-            "reason": "need lot_sqft and at least one parking rate comp",
+            "reason": "need lot_sqft",
+        }
+    if not comps and fallback_hourly_usd is None:
+        return {
+            "available": False,
+            "reason": "need lot_sqft and at least one parking rate comp or fallback rate",
         }
 
     stall_info = estimate_surface_stalls(lot_sqft, is_corner_lot=is_corner_lot)
@@ -237,35 +258,87 @@ def estimate_parking_revenue(
     stalls_low = int(stall_info["stalls_low"])
     stalls_high = int(stall_info["stalls_high"])
 
-    if lat is not None and lon is not None:
-        enriched = enrich_rate_comps(comps, lat=lat, lon=lon, distance_scale_m=distance_scale_m)
+    rate_source = "comps"
+    hourly_used = float(fallback_hourly_usd or 0.0)
+    hourly_median = hourly_used
+    enriched: list[dict[str, Any]] = []
+    confidence: dict[str, Any]
+
+    if comps:
+        if lat is not None and lon is not None:
+            enriched = enrich_rate_comps(comps, lat=lat, lon=lon, distance_scale_m=distance_scale_m)
+        else:
+            enriched = enrich_rate_comps(
+                comps,
+                lat=comps[0].lat,
+                lon=comps[0].lon,
+                distance_scale_m=distance_scale_m,
+            )
+
+        raw_rates = sorted(float(c.hourly_mid_usd) for c in comps)
+        hourly_median = float(statistics.median(raw_rates))
+        hourly_weighted = weighted_hourly_rate(enriched)
+        hourly_used = hourly_weighted if hourly_weighted is not None else hourly_median
+        confidence = market_evidence_confidence(enriched)
+        conf_f = float(confidence["factor"])
+
+        if fallback_hourly_usd is not None and conf_f < 0.55:
+            blend = max(0.35, conf_f)
+            hourly_used = hourly_used * blend + float(fallback_hourly_usd) * (1.0 - blend)
+            confidence["notes"] = list(confidence.get("notes") or [])
+            confidence["notes"].append(
+                f"Blended with indicative fallback (${fallback_hourly_usd:.2f}/hr"
+                f"{': ' + fallback_source if fallback_source else ''}).",
+            )
+            rate_source = "comps_and_fallback"
     else:
-        enriched = enrich_rate_comps(
-            comps,
-            lat=comps[0].lat,
-            lon=comps[0].lon,
-            distance_scale_m=distance_scale_m,
+        hourly_used = float(fallback_hourly_usd)
+        hourly_median = hourly_used
+        conf_f = max(0.2, min(0.75, float(fallback_confidence_factor)))
+        confidence = {
+            "factor": round(conf_f, 3),
+            "tier": "fallback",
+            "strong_comp_count": 0,
+            "nearest_comp_distance_m": None,
+            "notes": [
+                "No paid parking comps within search radius — using indicative county/metro rate.",
+            ],
+        }
+        if fallback_source:
+            confidence["notes"].append(fallback_source)
+        rate_source = "fallback"
+
+    def _monthly(stalls: int, hourly: float, occ: float) -> float:
+        return stalls * hourly * hours_per_day * days_per_month * occ
+
+    demand_occ_factor, demand_occ_notes, demand_detail = combined_demand_occupancy_factor(
+        distance_to_nearest_demand_m=distance_to_nearest_demand_m,
+        poi_commercial_count=poi_commercial_count,
+        demand_buffer_m=demand_buffer_m if demand_buffer_m is not None else 400.0,
+        poi_saturation_count=poi_saturation_count,
+    )
+    occupancy_effective = occupancy * demand_occ_factor
+
+    monthly_raw = _monthly(stalls_mid, hourly_used, occupancy_effective)
+
+    if comps:
+        conf_f = float(confidence["factor"])
+    elif confidence.get("tier") == "fallback" and demand_occ_factor >= 0.85:
+        conf_f = min(0.68, conf_f + 0.10)
+        confidence["notes"] = list(confidence.get("notes") or [])
+        confidence["notes"].append(
+            "Strong demand proximity offsets missing rate comps — modest confidence uplift.",
         )
 
-    raw_rates = sorted(float(c.hourly_mid_usd) for c in comps)
-    hourly_median = float(statistics.median(raw_rates))
-    hourly_weighted = weighted_hourly_rate(enriched)
-    hourly_used = hourly_weighted if hourly_weighted is not None else hourly_median
-
-    def _monthly(stalls: int, hourly: float) -> float:
-        return stalls * hourly * hours_per_day * days_per_month * occupancy
-
-    monthly_raw = _monthly(stalls_mid, hourly_used)
-
-    confidence = market_evidence_confidence(enriched)
-    conf_f = float(confidence["factor"])
-    spread = 1.35 if confidence["tier"] in ("very_low", "low") else 1.12
+    spread = 1.35 if confidence["tier"] in ("very_low", "low", "fallback") else 1.12
 
     monthly_mid = monthly_raw * conf_f
     monthly_low = monthly_raw * conf_f * (0.72 if conf_f < 0.75 else 0.88)
     monthly_high = monthly_raw * min(1.08, conf_f * spread)
 
     primary_comps = [row for row in enriched if row["comp_weight"] >= 0.15][:6]
+
+    raw_rates_out = sorted(float(c.hourly_mid_usd) for c in comps) if comps else [hourly_used]
 
     return {
         "available": True,
@@ -277,8 +350,8 @@ def estimate_parking_revenue(
         "stall_sqft_effective": stall_info["stall_sqft_effective"],
         "hourly_rate_median_usd": round(hourly_median, 2),
         "hourly_rate_weighted_usd": round(hourly_used, 2),
-        "hourly_rate_min_usd": round(raw_rates[0], 2),
-        "hourly_rate_max_usd": round(raw_rates[-1], 2),
+        "hourly_rate_min_usd": round(raw_rates_out[0], 2),
+        "hourly_rate_max_usd": round(raw_rates_out[-1], 2),
         "comp_count": len(comps),
         "comps_weighted": enriched,
         "primary_comps": primary_comps,
@@ -291,13 +364,28 @@ def estimate_parking_revenue(
         "market_confidence_tier": confidence["tier"],
         "strong_comp_count": confidence["strong_comp_count"],
         "nearest_comp_distance_m": confidence["nearest_comp_distance_m"],
-        "market_evidence_notes": confidence["notes"],
+        "market_evidence_notes": confidence["notes"] + demand_occ_notes,
+        "rate_source": rate_source,
+        "fallback_hourly_usd": round(float(fallback_hourly_usd), 2) if fallback_hourly_usd is not None else None,
+        "distance_to_nearest_demand_m": (
+            round(float(distance_to_nearest_demand_m), 1) if distance_to_nearest_demand_m is not None else None
+        ),
+        "demand_occupancy_factor": demand_occ_factor,
+        "generator_occupancy_factor": demand_detail.get("generator_occupancy_factor"),
+        "poi_density_occupancy_factor": demand_detail.get("poi_density_occupancy_factor"),
+        "poi_commercial_count": demand_detail.get("poi_commercial_count"),
+        "occupancy_base": occupancy,
+        "occupancy_effective": round(occupancy_effective, 3),
         "assumptions": {
             "hours_per_day": hours_per_day,
             "days_per_month": days_per_month,
             "occupancy": occupancy,
+            "occupancy_effective": round(occupancy_effective, 3),
+            "demand_occupancy_factor": demand_occ_factor,
+            "demand_buffer_m": demand_buffer_m,
             "distance_scale_m": distance_scale_m,
             "is_corner_lot": is_corner_lot,
             "market_confidence_factor": conf_f,
+            "rate_source": rate_source,
         },
     }

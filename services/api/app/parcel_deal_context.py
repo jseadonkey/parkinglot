@@ -15,6 +15,7 @@ from app.db.models import Parcel, ParcelScore
 from app.rate_comps import merged_rate_comps_near
 from app.scoring_profiles import ENTITLEMENT
 from parking_core.pilot import ParkingRateCompObservation, PilotConfig, load_pilot_config
+from parking_core.rate_comps import lookup_parking_rate_fallback
 from parking_core.revenue_estimate import estimate_parking_revenue
 
 __all__ = [
@@ -52,6 +53,33 @@ def rate_comps_for_parcel(
     pilot: PilotConfig,
 ) -> list[ParkingRateCompObservation]:
     return merged_rate_comps_near(db, lat=lat, lon=lon, pilot=pilot)
+
+
+def _revenue_estimate_kwargs(
+    pilot: PilotConfig,
+    parcel: Parcel,
+) -> dict[str, float | str | None]:
+    fb = lookup_parking_rate_fallback(pilot, parcel.county_fips)
+    kwargs: dict[str, float | str | int | None] = {
+        "fallback_hourly_usd": None,
+        "fallback_source": None,
+        "fallback_confidence_factor": 0.55,
+        "distance_to_nearest_demand_m": parcel.distance_to_nearest_demand_m,
+        "demand_buffer_m": float(pilot.scoring.demand_generator_buffer_m or 400.0),
+        "poi_commercial_count": parcel.poi_commercial_count_400m,
+        "poi_saturation_count": 12.0,
+    }
+    poi_cfg = pilot.scoring.poi_demand
+    if poi_cfg is not None:
+        kwargs["poi_saturation_count"] = float(poi_cfg.saturation_count)
+    if fb is not None:
+        hourly, source = fb
+        cfg = pilot.scoring.parking_rate_fallbacks
+        factor = float(cfg.confidence_factor) if cfg is not None else 0.55
+        kwargs["fallback_hourly_usd"] = hourly
+        kwargs["fallback_source"] = source
+        kwargs["fallback_confidence_factor"] = factor
+    return kwargs
 
 
 def _latest_entitlement_subq():
@@ -178,6 +206,7 @@ def revenue_summary_for_parcel(
         lat=lat,
         lon=lon,
         is_corner_lot=bool(parcel.is_corner_lot),
+        **_revenue_estimate_kwargs(cfg, parcel),
     )
     if not est.get("available"):
         return empty
@@ -279,6 +308,7 @@ def build_parcel_deal_context(db: Session, parcel_id: uuid.UUID) -> dict[str, An
             lat=lat,
             lon=lon,
             is_corner_lot=bool(parcel.is_corner_lot),
+            **_revenue_estimate_kwargs(pilot, parcel),
         )
 
     ent_row = db.scalars(

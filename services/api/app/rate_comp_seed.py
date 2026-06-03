@@ -159,6 +159,137 @@ KING_COUNTY_PARKING_RATE_COMPS: tuple[RateCompSeedRow, ...] = (
     ),
 )
 
+SEED_TAG_BALT = "seed:baltimore-pilot-v1"
+
+# Baltimore City + inner Baltimore County paid parking benchmarks (mid hourly USD).
+BALTIMORE_PARKING_RATE_COMPS: tuple[RateCompSeedRow, ...] = (
+    RateCompSeedRow(
+        "Inner Harbor Garage (Light St)",
+        39.2865,
+        -76.6055,
+        12.0,
+        f"{SEED_TAG_BALT}; Inner Harbor structured ~$10–15/hr",
+    ),
+    RateCompSeedRow(
+        "Harbor Park Garage (Camden Yards)",
+        39.2835,
+        -76.6215,
+        11.0,
+        f"{SEED_TAG_BALT}; Camden Yards event garage ~$9–14/hr",
+    ),
+    RateCompSeedRow(
+        "Harbor East Garage",
+        39.2845,
+        -76.5995,
+        13.0,
+        f"{SEED_TAG_BALT}; Harbor East retail/office ~$11–16/hr",
+    ),
+    RateCompSeedRow(
+        "Fells Point surface lot",
+        39.2815,
+        -76.5925,
+        8.5,
+        f"{SEED_TAG_BALT}; Fells Point surface ~$7–10/hr",
+    ),
+    RateCompSeedRow(
+        "Canton waterfront lot",
+        39.2785,
+        -76.5795,
+        7.5,
+        f"{SEED_TAG_BALT}; Canton Square area ~$6–9/hr",
+    ),
+    RateCompSeedRow(
+        "Federal Hill surface",
+        39.2795,
+        -76.6105,
+        8.0,
+        f"{SEED_TAG_BALT}; Federal Hill neighborhood ~$7–10/hr",
+    ),
+    RateCompSeedRow(
+        "Mount Vernon garage",
+        39.2975,
+        -76.6155,
+        9.0,
+        f"{SEED_TAG_BALT}; Mount Vernon cultural district ~$8–11/hr",
+    ),
+    RateCompSeedRow(
+        "Penn Station area lot",
+        39.3075,
+        -76.6155,
+        7.0,
+        f"{SEED_TAG_BALT}; Penn Station commuter ~$6–9/hr",
+    ),
+    RateCompSeedRow(
+        "Johns Hopkins Hospital garage",
+        39.2975,
+        -76.5925,
+        10.0,
+        f"{SEED_TAG_BALT}; East Baltimore medical ~$8–12/hr",
+    ),
+    RateCompSeedRow(
+        "UMB campus lot",
+        39.2895,
+        -76.6275,
+        9.5,
+        f"{SEED_TAG_BALT}; University of Maryland Baltimore ~$8–11/hr",
+    ),
+    RateCompSeedRow(
+        "Hampden retail strip",
+        39.3355,
+        -76.6305,
+        6.5,
+        f"{SEED_TAG_BALT}; Hampden/The Avenue ~$5–8/hr",
+    ),
+    RateCompSeedRow(
+        "Downtown West Baltimore garage",
+        39.2905,
+        -76.6185,
+        10.5,
+        f"{SEED_TAG_BALT}; CBD west ~$9–12/hr",
+    ),
+    RateCompSeedRow(
+        "Little Italy surface",
+        39.2875,
+        -76.5985,
+        8.0,
+        f"{SEED_TAG_BALT}; Little Italy ~$7–10/hr",
+    ),
+    RateCompSeedRow(
+        "Towson Town Center garage",
+        39.4015,
+        -76.6015,
+        8.0,
+        f"{SEED_TAG_BALT}; Baltimore County Towson ~$6–10/hr",
+    ),
+    RateCompSeedRow(
+        "BWI daily garage (reference)",
+        39.1775,
+        -76.6685,
+        7.0,
+        f"{SEED_TAG_BALT}; BWI airport daily ~$6–9/hr (regional anchor)",
+    ),
+    RateCompSeedRow(
+        "Metropolis-style gateless lot (Hampden illustrative)",
+        39.3315,
+        -76.6325,
+        7.5,
+        f"{SEED_TAG_BALT}; Unmanned LPR surface ~$6–9/hr (operator illustrative)",
+    ),
+)
+
+
+def seed_baltimore_parking_rate_comps(
+    db: Session,
+    *,
+    replace_existing: bool = False,
+) -> dict[str, int | bool]:
+    """Insert Baltimore metro pilot comps. Skips names already present unless ``replace_existing``."""
+    return _seed_rate_comp_rows(
+        db,
+        BALTIMORE_PARKING_RATE_COMPS,
+        replace_existing=replace_existing,
+    )
+
 
 def _existing_by_name(db: Session) -> dict[str, ParkingRateComp]:
     try:
@@ -171,18 +302,19 @@ def _existing_by_name(db: Session) -> dict[str, ParkingRateComp]:
     return {r.name: r for r in rows}
 
 
-def seed_king_county_parking_rate_comps(
+def _seed_rate_comp_rows(
     db: Session,
+    rows: tuple[RateCompSeedRow, ...],
     *,
     replace_existing: bool = False,
 ) -> dict[str, int | bool]:
-    """Insert King County pilot comps. Skips names already present unless ``replace_existing``."""
+    """Insert rate comp rows. Skips names already present unless ``replace_existing``."""
     existing = _existing_by_name(db)
     inserted = 0
     updated = 0
     skipped = 0
 
-    for row in KING_COUNTY_PARKING_RATE_COMPS:
+    for row in rows:
         prior = existing.get(row.name)
         if prior is not None and not replace_existing:
             skipped += 1
@@ -211,6 +343,19 @@ def seed_king_county_parking_rate_comps(
         "inserted": inserted,
         "updated": updated,
         "skipped": skipped,
-        "total_seed_rows": len(KING_COUNTY_PARKING_RATE_COMPS),
+        "total_seed_rows": len(rows),
         "replace_existing": replace_existing,
     }
+
+
+def seed_king_county_parking_rate_comps(
+    db: Session,
+    *,
+    replace_existing: bool = False,
+) -> dict[str, int | bool]:
+    """Insert King County pilot comps. Skips names already present unless ``replace_existing``."""
+    return _seed_rate_comp_rows(
+        db,
+        KING_COUNTY_PARKING_RATE_COMPS,
+        replace_existing=replace_existing,
+    )

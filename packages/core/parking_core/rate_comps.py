@@ -60,6 +60,25 @@ def filter_comps_within_radius(
     return [c.model_copy(update={"distance_m": d}) for d, c in within]
 
 
+def lookup_parking_rate_fallback(
+    pilot: PilotConfig,
+    county_fips: str | None,
+) -> tuple[float, str] | None:
+    """County-specific or default indicative hourly rate when local comps are missing."""
+    cfg = pilot.scoring.parking_rate_fallbacks
+    if cfg is None:
+        return None
+    if county_fips:
+        entry = cfg.counties.get(county_fips)
+        if entry is not None:
+            note = entry.source_note or f"County {county_fips} indicative surface rate"
+            return float(entry.hourly_mid_usd), note
+    if cfg.default_hourly_mid_usd > 0:
+        note = cfg.default_source_note or "Pilot default indicative surface rate"
+        return float(cfg.default_hourly_mid_usd), note
+    return None
+
+
 def _nearest_comp_distance_m(comps: list[ParkingRateCompObservation]) -> float | None:
     distances = [float(c.distance_m) for c in comps if c.distance_m is not None]
     return min(distances) if distances else None
