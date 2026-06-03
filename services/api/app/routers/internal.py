@@ -48,6 +48,7 @@ from app.schemas import (
     LobConfigStatusResponse,
     LobVerifyResponse,
     MergeGeojsonAttributesRequest,
+    OpsRemediationStatusResponse,
     OutreachPipelineBoardResponse,
     OutreachPipelineRow,
     OwnerPortfolioRankRow,
@@ -92,6 +93,7 @@ from app.tasks import (
     fetch_watech_county_and_ingest,
     ingest_geojson_path,
     merge_parcel_attributes_geojson,
+    ops_remediation_loop,
     refresh_demand_distances_batch,
     refresh_entitlement_scores_batch,
     refresh_identification_scores_batch,
@@ -227,6 +229,36 @@ def site_watchdog_status() -> SiteWatchdogStatusResponse:
 def site_watchdog_run_now() -> CeleryTaskIdResponse:
     """Enqueue site watchdog on the Slack Celery queue (same as scheduled checks)."""
     async_result = site_watchdog_check.delay()
+    return CeleryTaskIdResponse(task_id=async_result.id)
+
+
+@router.get("/ops/status", response_model=OpsRemediationStatusResponse)
+def ops_remediation_status() -> OpsRemediationStatusResponse:
+    """Last ops remediation loop report (Redis) — gaps, actions, worker health."""
+    from app.ops_remediation import load_last_report
+
+    report = load_last_report(get_settings())
+    if report is None:
+        return OpsRemediationStatusResponse(found=False)
+    return OpsRemediationStatusResponse(
+        found=True,
+        ok=bool(report.get("ok")),
+        checked_at=report.get("checked_at"),
+        issue_count=report.get("issue_count"),
+        critical_count=report.get("critical_count"),
+        auto_fix_enabled=report.get("auto_fix_enabled"),
+        issues=list(report.get("issues") or []),
+        actions=list(report.get("actions") or []),
+        celery_workers=report.get("celery_workers"),
+        redis_queues=report.get("redis_queues"),
+        priority_counties=report.get("priority_counties"),
+    )
+
+
+@router.post("/ops/run-now", response_model=CeleryTaskIdResponse)
+def ops_remediation_run_now() -> CeleryTaskIdResponse:
+    """Enqueue ops remediation loop (diagnose + optional auto-fix) on the Slack queue."""
+    async_result = ops_remediation_loop.delay()
     return CeleryTaskIdResponse(task_id=async_result.id)
 
 

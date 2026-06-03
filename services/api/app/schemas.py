@@ -671,6 +671,22 @@ class SiteWatchdogStatusResponse(BaseModel):
     checks: list[SiteWatchdogCheckRead] = Field(default_factory=list)
 
 
+class OpsRemediationStatusResponse(BaseModel):
+    """GET /internal/ops/status — last ops remediation loop report (Redis)."""
+
+    found: bool
+    ok: bool | None = None
+    checked_at: str | None = None
+    issue_count: int | None = None
+    critical_count: int | None = None
+    auto_fix_enabled: bool | None = None
+    issues: list[dict[str, Any]] = Field(default_factory=list)
+    actions: list[dict[str, Any]] = Field(default_factory=list)
+    celery_workers: dict[str, Any] | None = None
+    redis_queues: dict[str, Any] | None = None
+    priority_counties: dict[str, Any] | None = None
+
+
 class CeleryTaskStatusResponse(BaseModel):
     """GET /internal/tasks/{task_id} — Celery AsyncResult snapshot."""
 

@@ -1686,6 +1686,25 @@ def slack_agent_digest() -> dict[str, Any]:
         db.close()
 
 
+@celery.task(name="app.tasks.ops_remediation_loop")
+def ops_remediation_loop() -> dict[str, Any]:
+    """Detect ops/data issues and enqueue remediations (Slack queue, Beat-scheduled)."""
+    from app.ops_remediation import run_ops_remediation_loop
+
+    settings = get_settings()
+    if not settings.ops_remediation_enabled:
+        return {"skipped": True, "reason": "ops_remediation_disabled"}
+
+    db = _session()
+    try:
+        return run_ops_remediation_loop(db)
+    except Exception:
+        logger.exception("ops_remediation_loop failed")
+        raise
+    finally:
+        db.close()
+
+
 @celery.task(name="app.tasks.site_watchdog_check")
 def site_watchdog_check() -> dict[str, Any]:
     """Check API, operator UI, Postgres, Redis/queues; alert Slack on failure or recovery."""

@@ -22,6 +22,7 @@ SLACK_TASK_NAMES: tuple[str, ...] = (
     "app.tasks.slack_qualified_parcels_report",
     "app.tasks.slack_dual_agent_discussion",
     "app.tasks.site_watchdog_check",
+    "app.tasks.ops_remediation_loop",
 )
 
 _SLACK_BEAT_OPTIONS = {"queue": SLACK_QUEUE}
@@ -67,6 +68,22 @@ if _s.site_watchdog_enabled:
         "Beat: site watchdog at minute=%s UTC, heartbeat=%sh (slack queue)",
         _wd_minute,
         _s.site_watchdog_heartbeat_hours,
+    )
+
+if _s.ops_remediation_enabled:
+    beat_schedule["ops-remediation-loop"] = {
+        "task": "app.tasks.ops_remediation_loop",
+        "schedule": crontab(
+            minute=_s.ops_remediation_crontab_minute,
+            hour=_s.ops_remediation_crontab_hour,
+        ),
+        "options": _SLACK_BEAT_OPTIONS,
+    }
+    logger.info(
+        "Beat: ops remediation loop — hour=%s minute=%s auto_fix=%s (slack queue)",
+        _s.ops_remediation_crontab_hour,
+        _s.ops_remediation_crontab_minute,
+        _s.ops_remediation_auto_fix,
     )
 
 _ingest_path = (_s.scheduled_geojson_ingest_path or "").strip()

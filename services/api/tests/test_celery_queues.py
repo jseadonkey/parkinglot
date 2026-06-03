@@ -20,6 +20,7 @@ def test_beat_slack_entries_target_slack_queue() -> None:
         "slack-qualified-parcels-daily",
         "slack-dual-agent-discussion-daily",
         "site-watchdog",
+        "ops-remediation-loop",
     ):
         entry = schedule[key]
         assert entry["options"]["queue"] == SLACK_QUEUE

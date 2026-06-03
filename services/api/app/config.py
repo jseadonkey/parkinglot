@@ -539,6 +539,93 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("POI_OVERPASS_USER_AGENT", "poi_overpass_user_agent"),
     )
 
+    # Ops remediation loop: detect gaps + enqueue safe fixes (Slack queue).
+    ops_remediation_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("OPS_REMEDIATION_ENABLED", "ops_remediation_enabled"),
+    )
+    ops_remediation_auto_fix: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("OPS_REMEDIATION_AUTO_FIX", "ops_remediation_auto_fix"),
+    )
+    ops_remediation_notify_on_warnings: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "OPS_REMEDIATION_NOTIFY_ON_WARNINGS",
+            "ops_remediation_notify_on_warnings",
+        ),
+    )
+    ops_remediation_priority_county_fips: str = Field(
+        default="24510",
+        validation_alias=AliasChoices(
+            "OPS_REMEDIATION_PRIORITY_COUNTY_FIPS",
+            "ops_remediation_priority_county_fips",
+        ),
+    )
+    ops_remediation_batch_limit: int = Field(
+        default=2000,
+        ge=50,
+        le=5000,
+        validation_alias=AliasChoices("OPS_REMEDIATION_BATCH_LIMIT", "ops_remediation_batch_limit"),
+    )
+    ops_remediation_poi_batch_limit: int = Field(
+        default=50,
+        ge=10,
+        le=200,
+        validation_alias=AliasChoices(
+            "OPS_REMEDIATION_POI_BATCH_LIMIT",
+            "ops_remediation_poi_batch_limit",
+        ),
+    )
+    ops_remediation_pipeline_enqueue_limit: int = Field(
+        default=75,
+        ge=10,
+        le=500,
+        validation_alias=AliasChoices(
+            "OPS_REMEDIATION_PIPELINE_ENQUEUE_LIMIT",
+            "ops_remediation_pipeline_enqueue_limit",
+        ),
+    )
+    ops_remediation_cooldown_sec: int = Field(
+        default=3600,
+        ge=300,
+        le=86400,
+        validation_alias=AliasChoices(
+            "OPS_REMEDIATION_COOLDOWN_SEC",
+            "ops_remediation_cooldown_sec",
+        ),
+    )
+    ops_remediation_heartbeat_hours: int = Field(
+        default=12,
+        ge=0,
+        le=168,
+        validation_alias=AliasChoices(
+            "OPS_REMEDIATION_HEARTBEAT_HOURS",
+            "ops_remediation_heartbeat_hours",
+        ),
+    )
+    ops_remediation_crontab_minute: str = Field(
+        default="15",
+        validation_alias=AliasChoices(
+            "OPS_REMEDIATION_CRONTAB_MINUTE",
+            "ops_remediation_crontab_minute",
+        ),
+    )
+    ops_remediation_crontab_hour: str = Field(
+        default="*/2",
+        validation_alias=AliasChoices(
+            "OPS_REMEDIATION_CRONTAB_HOUR",
+            "ops_remediation_crontab_hour",
+        ),
+    )
+    ops_remediation_slack_channel_id: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "OPS_REMEDIATION_SLACK_CHANNEL_ID",
+            "ops_remediation_slack_channel_id",
+        ),
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:
