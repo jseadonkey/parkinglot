@@ -12,8 +12,10 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
+from app.zoning_entitlement import baltimore_zone_codes_for_tier, parcel_zoning_symbol, parcel_zoning_tier
 
 ParcelSortProfile = Literal["combined", "entitlement", "strategic", "identification"]
+ZoningTierFilter = Literal["permitted", "conditional", "council", "excluded"]
 COMBINED: str = "combined"
 
 
@@ -24,6 +26,8 @@ class ParcelScoredRowData:
     county_fips: str
     zoning_code: str | None
     lot_sqft: float | None
+    zoning_principal_use_symbol: str | None
+    zoning_entitlement_tier: str | None
     entitlement_score: float | None
     strategic_score: float | None
     identification_score: float | None
@@ -72,11 +76,13 @@ def query_parcels_scored_list(
     sort: ParcelSortProfile = COMBINED,
     county_fips: str | None = None,
     state_fips: str | None = None,
+    zoning_tier: str | None = None,
 ) -> list[ParcelScoredRowData]:
     """All parcels with latest score per profile, ordered by ``sort`` (null scores last)."""
     cap = min(max(limit, 1), 2000)
     cf = (county_fips or "").strip()
     st = (state_fips or "").strip()
+    tier = (zoning_tier or "").strip().lower()
     ent_sub = _latest_score_subq(Parcel.id, ENTITLEMENT)
     str_sub = _latest_score_subq(Parcel.id, STRATEGIC)
     id_sub = _latest_score_subq(Parcel.id, IDENTIFICATION)
@@ -105,6 +111,13 @@ def query_parcels_scored_list(
         stmt = stmt.where(Parcel.county_fips == cf)
     elif st:
         stmt = stmt.where(Parcel.county_fips.startswith(st))
+    if tier in ("permitted", "conditional", "council", "excluded"):
+        # Baltimore-only filter until WA rules carry principal_use_symbol entries.
+        codes = baltimore_zone_codes_for_tier(tier)
+        if codes:
+            stmt = stmt.where(Parcel.county_fips == "24510", func.upper(Parcel.zoning_code).in_(sorted(codes)))
+        else:
+            return []
     stmt = stmt.order_by(nulls_last(desc(sort_col)), desc(Parcel.created_at)).limit(cap)
     out: list[ParcelScoredRowData] = []
     for r in db.execute(stmt).all():
@@ -112,6 +125,8 @@ def query_parcels_scored_list(
         ent_f = float(ent_f) if ent_f is not None else None
         str_f = float(str_f) if str_f is not None else None
         id_f = float(id_f) if id_f is not None else None
+        symbol = parcel_zoning_symbol(county_fips=cfips, zoning_code=zoning, raw_properties=None)
+        ent_tier = parcel_zoning_tier(county_fips=cfips, zoning_code=zoning, raw_properties=None)
         out.append(
             ParcelScoredRowData(
                 parcel_id=pid,
@@ -119,6 +134,8 @@ def query_parcels_scored_list(
                 county_fips=cfips,
                 zoning_code=zoning,
                 lot_sqft=float(sqft) if sqft is not None else None,
+                zoning_principal_use_symbol=symbol,
+                zoning_entitlement_tier=ent_tier,
                 entitlement_score=ent_f,
                 strategic_score=str_f,
                 identification_score=id_f,

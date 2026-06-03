@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { STATE_NAMES } from "../../lib/marketScope";
 import { bridgeUrl } from "../../lib/paths";
+import { tierBadgeClass, tierLabel } from "../../lib/zoningEntitlement";
 import { countyLine, useCountyNames } from "../../lib/useCountyNames";
 
 type SortProfile = "combined" | "entitlement" | "strategic" | "identification";
@@ -14,6 +15,8 @@ type ParcelRow = {
   apn: string;
   county_fips: string;
   zoning_code: string | null;
+  zoning_principal_use_symbol: string | null;
+  zoning_entitlement_tier: string | null;
   lot_sqft: number | null;
   entitlement_score: number | null;
   strategic_score: number | null;
@@ -40,6 +43,7 @@ export default function ParcelsPage() {
   const [sort, setSort] = useState<SortProfile>("combined");
   const [stateFips, setStateFips] = useState("");
   const [countyFips, setCountyFips] = useState("");
+  const [zoningTier, setZoningTier] = useState("");
   const [counties, setCounties] = useState<PilotCounty[]>([]);
   const [rows, setRows] = useState<ParcelRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -69,6 +73,7 @@ export default function ParcelsPage() {
       const params = new URLSearchParams({ limit: String(limit), sort });
       if (countyFips) params.set("county_fips", countyFips);
       else if (stateFips) params.set("state_fips", stateFips);
+      if (zoningTier) params.set("zoning_tier", zoningTier);
       const res = await fetch(bridgeUrl(`internal/parcels/scored-list?${params}`), { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as ScoredList;
@@ -76,7 +81,7 @@ export default function ParcelsPage() {
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     }
-  }, [limit, sort, stateFips, countyFips]);
+  }, [limit, sort, stateFips, countyFips, zoningTier]);
 
   useEffect(() => {
     void load();
@@ -127,6 +132,16 @@ export default function ParcelsPage() {
           </select>
         </label>
         <label className="muted">
+          Zoning tier{" "}
+          <select value={zoningTier} onChange={(e) => setZoningTier(e.target.value)}>
+            <option value="">All tiers</option>
+            <option value="permitted">Permitted (P)</option>
+            <option value="conditional">Conditional (BMZA)</option>
+            <option value="council">Council ordinance</option>
+            <option value="excluded">Not allowed</option>
+          </select>
+        </label>
+        <label className="muted">
           Sort by{" "}
           <select value={sort} onChange={(e) => setSort(e.target.value as SortProfile)}>
             <option value="combined">Combined (avg of agents)</option>
@@ -163,6 +178,7 @@ export default function ParcelsPage() {
               <th>APN</th>
               <th>County</th>
               <th>Zoning</th>
+              <th>Zoning tier</th>
               <th>Lot sqft</th>
               <th />
             </tr>
@@ -179,6 +195,13 @@ export default function ParcelsPage() {
                 <td>{p.apn}</td>
                 <td>{countyLine(countyLabel, p.county_fips)}</td>
                 <td>{p.zoning_code ?? "—"}</td>
+                <td>
+                  {p.zoning_entitlement_tier ? (
+                    <span className={tierBadgeClass(p.zoning_entitlement_tier)}>{tierLabel(p.zoning_entitlement_tier)}</span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td>{p.lot_sqft != null ? Math.round(p.lot_sqft).toLocaleString() : "—"}</td>
                 <td>
                   <Link href={`/parcels/${p.parcel_id}`}>Detail →</Link>

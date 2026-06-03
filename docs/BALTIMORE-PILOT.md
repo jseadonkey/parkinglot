@@ -63,6 +63,30 @@ Parcel ingest from EGIS sets **APN + county FIPS** only. Entitlement scoring nee
 
 Until Phase B completes, Baltimore parcels score **0** on the zoning weight (`default_when_unknown: false`).
 
+## Entitlement tiers (Article 32)
+
+Principal **surface parking lot** uses are classified in `data/zoning/md/baltimore_city_surface_parking_rules.yaml`:
+
+| Tier | Meaning | Scoring |
+|------|---------|---------|
+| **Permitted (P)** | By-right principal parking | Full zoning weight (35 pts) |
+| **Conditional (CB)** | BMZA hearing | Partial credit (12 pts) in Baltimore pilot |
+| **Council (CO)** | Mayor & Council ordinance | 0 unless overlay override |
+| **Excluded** | Not listed (most R-1–R-4) | 0 |
+
+Operator console: filter parcels by **Zoning tier** on the Parcels page. API: `GET /internal/parcels/scored-list?zoning_tier=permitted&county_fips=24510`.
+
+**Droplet GitHub Actions** (workflow *Droplet resources*):
+
+| Input | What it does |
+|-------|----------------|
+| `baltimore_zoning_overlay` | Fetch GIS → build overlay → merge → entitlement rescore → priority enqueue |
+| `baltimore_rescore_zoning` | Merge **existing** overlay only (after rules YAML update) + entitlement rescore |
+
+Monitor live DB tier mix: `GET /internal/stats/baltimore-zoning-tiers`.
+
+Local QA: `make baltimore-phase-b-local` or `python3 scripts/summarize_baltimore_zoning_tiers.py`.
+
 ## Washington pacing
 
 `config/wa_statewide_rollout.yaml` — `min_days_between_counties: 7`, reduced caps. WaTech county list is **WA-only** (FIPS `53*`).

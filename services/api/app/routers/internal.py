@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.baltimore_zoning_stats import baltimore_zoning_tiers_summary
 from app.celery_app import celery
 from app.config import get_settings
 from app.db.models import AuditLog, Parcel
@@ -24,6 +25,8 @@ from app.pilot_scope import pilot_scope_summary
 from app.platform_showcase import build_platform_showcase
 from app.rate_comp_seed import seed_king_county_parking_rate_comps
 from app.schemas import (
+    BaltimoreZoningTiersResponse,
+    BaltimoreZoningTierZoneRow,
     CeleryTaskIdResponse,
     CeleryTaskStatusResponse,
     DealProgressBoardResponse,
@@ -85,6 +88,7 @@ from app.tasks import (
     ingest_geojson_path,
     merge_parcel_attributes_geojson,
     refresh_demand_distances_batch,
+    refresh_entitlement_scores_batch,
     refresh_identification_scores_batch,
     refresh_pipeline_scores_with_rate_comps_batch,
     site_watchdog_check,
@@ -211,6 +215,14 @@ def pilot_scope(db: Session = Depends(get_db)) -> PilotScopeResponse:
         qualified_min_score=QualifiedMinScores(**floors),
         counties=counties,
     )
+
+
+@router.get("/stats/baltimore-zoning-tiers", response_model=BaltimoreZoningTiersResponse)
+def baltimore_zoning_tiers(db: Session = Depends(get_db)) -> BaltimoreZoningTiersResponse:
+    """Baltimore City parcel counts by principal-use parking entitlement tier (Postgres)."""
+    raw = baltimore_zoning_tiers_summary(db)
+    top = [BaltimoreZoningTierZoneRow(**row) for row in raw.pop("top_permitted_zones")]
+    return BaltimoreZoningTiersResponse(**raw, top_permitted_zones=top)
 
 
 @router.get("/stats/scoring-summary", response_model=ScoringSummaryResponse)
@@ -340,6 +352,10 @@ def parcels_scored_list(
     sort: ParcelSortProfile = Query(default=COMBINED),
     county_fips: str | None = Query(default=None, min_length=5, max_length=5),
     state_fips: str | None = Query(default=None, min_length=2, max_length=2),
+    zoning_tier: str | None = Query(
+        default=None,
+        description="Filter by entitlement tier: permitted, conditional, council, excluded",
+    ),
     db: Session = Depends(get_db),
 ) -> ParcelScoredListResponse:
     """All parcels with latest entitlement / strategic / identification scores (operator table)."""
@@ -349,6 +365,7 @@ def parcels_scored_list(
         sort=sort,
         county_fips=county_fips,
         state_fips=state_fips,
+        zoning_tier=zoning_tier,
     )
     rows = [
         ParcelScoredListRow(
@@ -357,6 +374,8 @@ def parcels_scored_list(
             county_fips=r.county_fips,
             zoning_code=r.zoning_code,
             lot_sqft=r.lot_sqft,
+            zoning_principal_use_symbol=r.zoning_principal_use_symbol,
+            zoning_entitlement_tier=r.zoning_entitlement_tier,
             entitlement_score=r.entitlement_score,
             strategic_score=r.strategic_score,
             identification_score=r.identification_score,
@@ -682,6 +701,20 @@ def refresh_identification_scores(
 ) -> CeleryTaskIdResponse:
     """Upsert identification (Cartographer) scores where missing — no full re-ingest required (Celery)."""
     async_result = refresh_identification_scores_batch.delay(
+        limit=limit,
+        county_fips=county_fips,
+    )
+    return CeleryTaskIdResponse(task_id=async_result.id)
+
+
+@router.post("/metrics/refresh-entitlement-scores", response_model=CeleryTaskIdResponse)
+def refresh_entitlement_scores(
+    limit: int = 2000,
+    county_fips: str | None = None,
+    min_entitlement_score: float | None = None,
+) -> CeleryTaskIdResponse:
+    """Recompute Atlas entitlement scores from parcel features (zoning, lot, demand, comps)."""
+    async_result = refresh_entitlement_scores_batch.delay(
         limit=limit,
         county_fips=county_fips,
     )

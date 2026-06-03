@@ -12,6 +12,7 @@ import {
   skipTraceRan,
 } from "../../../lib/skipTraceDisplay";
 import { countyLine, useCountyNames } from "../../../lib/useCountyNames";
+import { tierBadgeClass, tierLabel, symbolHint } from "../../../lib/zoningEntitlement";
 import { canMutate, useAuth } from "../../../lib/useAuth";
 
 type Parcel = {
@@ -21,6 +22,8 @@ type Parcel = {
   lot_sqft: number | null;
   zoning_code: string | null;
   zoning_allows_surface_parking: boolean;
+  zoning_principal_use_symbol: string | null;
+  zoning_entitlement_tier: string | null;
   is_corner_lot: boolean;
   distance_to_nearest_demand_m: number | null;
   owner_outreach_brief: Record<string, unknown> | null;
@@ -293,8 +296,21 @@ export default function ParcelDetailPage() {
             </div>
             <div className="row">
               <span className="muted">Zoning</span>
-              <span>{parcel.zoning_code ?? "—"}</span>
+              <span>
+                {parcel.zoning_code ?? "—"}
+                {parcel.zoning_entitlement_tier ? (
+                  <span className={tierBadgeClass(parcel.zoning_entitlement_tier)} style={{ marginLeft: "0.5rem" }}>
+                    {tierLabel(parcel.zoning_entitlement_tier)}
+                  </span>
+                ) : null}
+              </span>
             </div>
+            {parcel.zoning_principal_use_symbol ? (
+              <div className="row">
+                <span className="muted">Entitlement</span>
+                <span className="muted">{symbolHint(parcel.zoning_principal_use_symbol)}</span>
+              </div>
+            ) : null}
             <div className="row">
               <span className="muted">Lot sqft</span>
               <span>{parcel.lot_sqft != null ? Math.round(parcel.lot_sqft) : "—"}</span>

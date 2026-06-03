@@ -46,7 +46,7 @@ def test_build_zoning_overlay_assigns_zone_inside_district() -> None:
     assert props["APN"] == "BC-TEST-1"
 
 
-def test_overlay_loader_scores_c5_allowed(tmp_path: Path) -> None:
+def test_overlay_loader_scores_c3_allowed(tmp_path: Path) -> None:
     parcels = {
         "type": "FeatureCollection",
         "features": [
@@ -63,14 +63,14 @@ def test_overlay_loader_scores_c5_allowed(tmp_path: Path) -> None:
             {
                 "type": "Feature",
                 "geometry": _square(0, 0, 2),
-                "properties": {"Zoning": "C-5"},
+                "properties": {"Zoning": "C-3"},
             }
         ],
     }
     overlay = build_zoning_overlay_geojson(parcels, zoning)
     rules = REPO_ROOT / "data/zoning/md/baltimore_city_surface_parking_rules.yaml"
     attrs, _ = list(iter_parcels_from_geojson_dict(overlay, rules_path=rules if rules.is_file() else None))[0]
-    assert attrs["zoning_code"] == "C-5"
+    assert attrs["zoning_code"] == "C-3"
     assert attrs["zoning_allows_surface_parking"] is True
 
 

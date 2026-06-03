@@ -65,6 +65,10 @@ on:
         description: "Phase B: fetch parcels+zoning, build overlay, merge attributes + priority enqueue"
         type: boolean
         default: false
+      baltimore_rescore_zoning:
+        description: "Merge existing Baltimore overlay + refresh entitlement scores (no GIS fetch)"
+        type: boolean
+        default: false
       pilot_scope_snapshot:
         description: "Print pilot-scope JSON (MD + WA county parcel counts)"
         type: boolean
@@ -161,6 +165,8 @@ jobs:
             MODE="baltimore-markets-ingest"
           elif [ "${{ inputs.baltimore_zoning_overlay }}" = "true" ]; then
             MODE="baltimore-zoning-overlay"
+          elif [ "${{ inputs.baltimore_rescore_zoning }}" = "true" ]; then
+            MODE="baltimore-rescore-zoning"
           elif [ "${{ inputs.pilot_scope_snapshot }}" = "true" ]; then
             MODE="pilot-scope-snapshot"
           elif [ "${{ inputs.baltimore_ingest_now }}" = "true" ]; then

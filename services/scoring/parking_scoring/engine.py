@@ -15,9 +15,21 @@ def score_parcel(
     w = pilot.scoring.weights
     notes: list[str] = []
 
-    zoning_pts = float(w.zoning_permitted_surface_parking if feature.zoning_allows_surface_parking else 0)
-    if not feature.zoning_allows_surface_parking:
-        notes.append("Zoning does not explicitly allow surface parking in ingest flags.")
+    sym = (feature.zoning_principal_use_symbol or "").strip().upper()
+    cond_pts = float(getattr(w, "zoning_conditional_surface_parking", 0) or 0)
+    if feature.zoning_allows_surface_parking or sym == "P":
+        zoning_pts = float(w.zoning_permitted_surface_parking)
+    elif sym == "CB" and cond_pts > 0:
+        zoning_pts = cond_pts
+        notes.append("Zoning is BMZA conditional (CB) — partial entitlement credit only.")
+    else:
+        zoning_pts = 0.0
+        if sym == "CB":
+            notes.append("Zoning is BMZA conditional (CB) — not scored as outright permitted.")
+        elif sym == "CO":
+            notes.append("Zoning requires Council ordinance (CO) for principal parking lot.")
+        elif not feature.zoning_allows_surface_parking:
+            notes.append("Zoning does not explicitly allow surface parking in ingest flags.")
 
     lot = feature.lot_sqft or 0.0
     if lot < pilot.scoring.min_lot_sqft:

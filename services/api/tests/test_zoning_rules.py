@@ -128,7 +128,9 @@ def test_load_effective_zoning_rules_includes_baltimore(tmp_path: Path) -> None:
     bc = REPO_ROOT / "data/zoning/md/baltimore_city_surface_parking_rules.yaml"
     if bc.is_file():
         assert "baltimore_city" in (rules.get("jurisdictions") or {})
-        assert resolve_surface_parking("C-5", "baltimore_city", None, rules) is True
+        assert resolve_surface_parking("C-3", "baltimore_city", None, rules) is True
+        assert resolve_surface_parking("C-5", "baltimore_city", None, rules) is False
+        assert resolve_surface_parking("I-1", "baltimore_city", None, rules) is True
         assert resolve_surface_parking("C-1", "baltimore_city", None, rules) is False
 
 
@@ -140,7 +142,7 @@ default_when_unknown: false
 jurisdictions:
   baltimore_city:
     zones:
-      "C-5":
+      "C-3":
         allows_surface_parking: true
 """
     )
@@ -153,7 +155,7 @@ jurisdictions:
                 "properties": {
                     "PIN": "BC-001",
                     "COUNTY_FIPS": "24510",
-                    "ZONING": "C-5",
+                    "ZONING": "C-3",
                 },
             }
         ],

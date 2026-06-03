@@ -30,6 +30,7 @@ class ComplianceConfig(BaseModel):
 
 class ScoringWeights(BaseModel):
     zoning_permitted_surface_parking: int = 40
+    zoning_conditional_surface_parking: int = 0
     lot_size: int = 20
     corner_lot: int = 10
     near_demand_generator_m: int = 30

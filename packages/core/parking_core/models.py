@@ -15,6 +15,8 @@ class ParcelFeature(BaseModel):
     lot_sqft: float | None = None
     zoning_code: str | None = None
     zoning_allows_surface_parking: bool = False
+    zoning_principal_use_symbol: str | None = None
+    zoning_entitlement_tier: str | None = None
     is_corner_lot: bool = False
     distance_to_nearest_demand_m: float | None = None
     raw_properties: dict[str, Any] | None = None

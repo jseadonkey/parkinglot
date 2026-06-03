@@ -72,6 +72,7 @@ scoring:
   qualified_min_score: 55
   weights:
     zoning_permitted_surface_parking: 35
+    zoning_conditional_surface_parking: 12
     lot_size: 18
     corner_lot: 8
     near_demand_generator_m: 24

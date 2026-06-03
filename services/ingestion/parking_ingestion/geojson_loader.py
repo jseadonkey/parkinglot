@@ -11,7 +11,9 @@ from shapely.geometry.base import BaseGeometry
 from parking_ingestion.zoning_rules import (
     infer_zoning_jurisdiction,
     load_effective_zoning_rules,
+    resolve_principal_use_symbol,
     resolve_surface_parking,
+    zoning_entitlement_tier,
 )
 
 
@@ -132,6 +134,15 @@ def iter_parcels_from_geojson_dict(
             explicit_sp,
             rules,
         )
+        use_symbol = resolve_principal_use_symbol(
+            str(zoning_code) if zoning_code is not None else None,
+            juris_s,
+            rules,
+        )
+        entitlement_tier = zoning_entitlement_tier(use_symbol)
+        if use_symbol:
+            props["zoning_principal_use_symbol"] = use_symbol
+        props["zoning_entitlement_tier"] = entitlement_tier
 
         attrs = {
             "apn": apn,
@@ -139,6 +150,8 @@ def iter_parcels_from_geojson_dict(
             "lot_sqft": _lot_sqft_from_props(props),
             "zoning_code": zoning_code,
             "zoning_allows_surface_parking": zoning_ok,
+            "zoning_principal_use_symbol": use_symbol,
+            "zoning_entitlement_tier": entitlement_tier,
             "is_corner_lot": bool(_prop(props, "IS_CORNER", "is_corner", default=False)),
             "distance_to_nearest_demand_m": _prop(props, "DIST_DEMAND_M", "distance_to_nearest_demand_m"),
             "raw_properties": props,

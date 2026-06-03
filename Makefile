@@ -1,4 +1,4 @@
-.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay build-baltimore-zoning-overlay deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
+.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay build-baltimore-zoning-overlay baltimore-zoning-tiers baltimore-phase-b-local deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local lob-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
 
 help:
 	@echo "Targets:"
@@ -12,9 +12,12 @@ help:
 	@echo "  make phase-b-run        - Phase B: zoning overlay merge + readiness (needs DATABASE_URL + PHASE_B_OVERLAY_PATH; see scripts/execute-phase-b.sh)"
 	@echo "  make validate-phase-b-overlay - dry-run overlay stats (needs PHASE_B_OVERLAY_PATH)"
 	@echo "  make build-baltimore-zoning-overlay - fetch parcels+zoning and build MD overlay GeoJSON (no DATABASE_URL)"
+	@echo "  make baltimore-zoning-tiers   - print tier counts from local overlay GeoJSON"
+	@echo "  make baltimore-phase-b-local  - fetch, build overlay, validate, summarize (no DATABASE_URL)"
 	@echo "  make phase-c-run        - Phase C: readiness + portfolio internal APIs (needs DATABASE_URL; see scripts/execute-phase-c.sh)"
 	@echo "  make local              - docker compose (dev: Postgres, Redis, MinIO, api, worker, UI)"
 	@echo "  make slack-env-local    - merge SLACK_* into .env (needs SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID in env)"
+	@echo "  make lob-env-local      - merge LOB_* + OUTREACH_SENDER_* into .env (see docs/LOB.md)"
 	@echo "  make droplet-sync       - rsync to parkinglot Droplet (uses deploy/droplet.target; no raw IP needed)"
 	@echo "  make droplet-rebuild    - SSH rebuild production stack (uses deploy/droplet.target)"
 	@echo "  make droplet-rebuild-postgis - same + on-droplet PostGIS addon (USE_LOCAL_POSTGIS=1)"
@@ -89,9 +92,16 @@ validate-phase-b-overlay:
 
 build-baltimore-zoning-overlay:
 	@chmod +x scripts/fetch_baltimore_city_parcels.py scripts/fetch_baltimore_zoning_districts.py scripts/build_baltimore_zoning_overlay.py
-	@python3 scripts/fetch_baltimore_city_parcels.py -o data/baltimore/baltimore_city_parcels.geojson
+	@python3 scripts/fetch_baltimore_city_parcels.py -o data/baltimore/baltimore_city_parcels.geojson --max-features 20000
 	@python3 scripts/fetch_baltimore_zoning_districts.py -o data/baltimore/baltimore_city_zoning_districts.geojson
 	@python3 scripts/build_baltimore_zoning_overlay.py
+
+baltimore-zoning-tiers:
+	@python3 scripts/summarize_baltimore_zoning_tiers.py
+
+baltimore-phase-b-local: build-baltimore-zoning-overlay
+	@python3 scripts/validate_phase_b_overlay.py data/baltimore/baltimore_city_zoning_overlay.geojson
+	@python3 scripts/summarize_baltimore_zoning_tiers.py
 
 phase-c-run:
 	@test -n "$$DATABASE_URL" || (echo "export DATABASE_URL first"; exit 1)
@@ -129,6 +139,14 @@ slack-env-local:
 	@test -n "$$SLACK_BOT_TOKEN" || (echo "export SLACK_BOT_TOKEN first"; exit 1)
 	@test -n "$$SLACK_DIGEST_CHANNEL_ID" || (echo "export SLACK_DIGEST_CHANNEL_ID first"; exit 1)
 	./scripts/set-slack-env-local.sh
+
+lob-env-local:
+	@test -n "$$LOB_API_KEY" || (echo "export LOB_API_KEY first"; exit 1)
+	@test -n "$$LOB_FROM_ADDRESS_LINE1" || (echo "export LOB_FROM_ADDRESS_LINE1 first"; exit 1)
+	@test -n "$$LOB_FROM_ADDRESS_CITY" || (echo "export LOB_FROM_ADDRESS_CITY first"; exit 1)
+	@test -n "$$LOB_FROM_ADDRESS_STATE" || (echo "export LOB_FROM_ADDRESS_STATE first"; exit 1)
+	@test -n "$$LOB_FROM_ADDRESS_ZIP" || (echo "export LOB_FROM_ADDRESS_ZIP first"; exit 1)
+	./scripts/set-lob-env-local.sh
 
 droplet-sync:
 	@./scripts/sync-to-droplet.sh

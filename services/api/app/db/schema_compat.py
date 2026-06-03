@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, load_only
 
 from app.db.models import Parcel
 from app.schemas import ParcelRead
+from app.zoning_entitlement import parcel_zoning_symbol, parcel_zoning_tier
 
 
 def table_exists(db: Session, name: str) -> bool:
@@ -48,8 +49,19 @@ def parcel_load_only(db: Session):
 def parcel_to_read(db: Session, row: Parcel) -> ParcelRead:
     """Build ``ParcelRead`` without touching ORM attrs for missing DB columns."""
     brief = None
+    raw = getattr(row, "raw_properties", None)
     if column_exists(db, "parcels", "owner_outreach_brief"):
         brief = getattr(row, "owner_outreach_brief", None)
+    symbol = parcel_zoning_symbol(
+        county_fips=row.county_fips,
+        zoning_code=row.zoning_code,
+        raw_properties=raw if isinstance(raw, dict) else None,
+    )
+    tier = parcel_zoning_tier(
+        county_fips=row.county_fips,
+        zoning_code=row.zoning_code,
+        raw_properties=raw if isinstance(raw, dict) else None,
+    )
     return ParcelRead(
         id=row.id,
         apn=row.apn,
@@ -57,6 +69,8 @@ def parcel_to_read(db: Session, row: Parcel) -> ParcelRead:
         lot_sqft=row.lot_sqft,
         zoning_code=row.zoning_code,
         zoning_allows_surface_parking=row.zoning_allows_surface_parking,
+        zoning_principal_use_symbol=symbol,
+        zoning_entitlement_tier=tier,
         is_corner_lot=row.is_corner_lot,
         distance_to_nearest_demand_m=row.distance_to_nearest_demand_m,
         owner_outreach_brief=brief,

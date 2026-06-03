@@ -57,6 +57,7 @@ from app.wa_statewide_rollout import (
     next_county_to_ingest,
     parking_queue_depth,
 )
+from app.zoning_entitlement import parcel_zoning_symbol, parcel_zoning_tier
 from parking_core.models import OwnerCandidate, ParcelFeature, ScoreResult
 from parking_core.pilot import PilotConfig, load_pilot_config
 from parking_enrichment.owner_normalize import scoped_owner_key
@@ -264,12 +265,25 @@ def _write_slack_digest_audit(
 
 
 def _parcel_feature(parcel: Parcel) -> ParcelFeature:
+    raw = parcel.raw_properties if hasattr(parcel, "raw_properties") else None
+    symbol = parcel_zoning_symbol(
+        county_fips=parcel.county_fips,
+        zoning_code=parcel.zoning_code,
+        raw_properties=raw if isinstance(raw, dict) else None,
+    )
+    tier = parcel_zoning_tier(
+        county_fips=parcel.county_fips,
+        zoning_code=parcel.zoning_code,
+        raw_properties=raw if isinstance(raw, dict) else None,
+    )
     return ParcelFeature(
         apn=parcel.apn,
         county_fips=parcel.county_fips,
         lot_sqft=parcel.lot_sqft,
         zoning_code=parcel.zoning_code,
         zoning_allows_surface_parking=parcel.zoning_allows_surface_parking,
+        zoning_principal_use_symbol=symbol,
+        zoning_entitlement_tier=tier,
         is_corner_lot=parcel.is_corner_lot,
         distance_to_nearest_demand_m=parcel.distance_to_nearest_demand_m,
     )
@@ -315,6 +329,18 @@ def _upsert_identification_score(db: Session, parcel: Parcel) -> None:
             pilot_snapshot=snap,
         )
     )
+
+
+def _upsert_entitlement_score(db: Session, parcel: Parcel) -> None:
+    """Refresh Atlas entitlement score from parcel features (zoning, lot, demand, comps)."""
+    settings = get_settings()
+    pilot = load_pilot_config(settings.pilot_config_path)
+    result = _score_parcel_with_nearby_comps(db, parcel=parcel, pilot=pilot)
+    snap = dict(result.pilot_snapshot or {})
+    snap["agent_role"] = "entitlement_prescreen"
+    snap["agent_label"] = "Agent Atlas (feature refresh)"
+    result.pilot_snapshot = snap
+    _persist_pipeline_score(db, parcel_id=parcel.id, profile=ENTITLEMENT, result=result)
 
 
 def _to_multi(geom: Polygon | MultiPolygon) -> MultiPolygon:
@@ -1170,6 +1196,7 @@ def merge_parcel_attributes_geojson(
             db.add(row)
             db.flush()
             _upsert_identification_score(db, row)
+            _upsert_entitlement_score(db, row)
             updated += 1
             pipeline_ids.append(str(row.id))
         db.commit()
@@ -1380,6 +1407,37 @@ def refresh_identification_scores_batch(
             get_settings(),
             agent="Cartographer (identification refresh)",
             detail=f"Upserted identification score for *{n}* parcel(s)" + (f" in `{cf}`." if cf else "."),
+        )
+        return {"updated": n, "county_fips": cf or None, "limit": lim}
+    finally:
+        db.close()
+
+
+@celery.task(name="app.tasks.refresh_entitlement_scores_batch")
+def refresh_entitlement_scores_batch(
+    limit: int = 2000,
+    county_fips: str | None = None,
+) -> dict[str, Any]:
+    """Recompute Atlas entitlement scores from current parcel features (zoning, lot, demand, comps)."""
+    lim = min(max(limit, 1), 5000)
+    db = _session()
+    n = 0
+    try:
+        stmt = select(Parcel).order_by(Parcel.created_at.desc())
+        cf = (county_fips or "").strip()
+        if cf:
+            stmt = stmt.where(Parcel.county_fips == cf)
+        stmt = stmt.limit(lim)
+        for parcel in db.scalars(stmt):
+            _upsert_entitlement_score(db, parcel)
+            n += 1
+            if n % 200 == 0:
+                db.commit()
+        db.commit()
+        post_agent_event_to_slack(
+            get_settings(),
+            agent="Atlas (entitlement refresh)",
+            detail=f"Refreshed entitlement score for *{n}* parcel(s)" + (f" in `{cf}`." if cf else "."),
         )
         return {"updated": n, "county_fips": cf or None, "limit": lim}
     finally:

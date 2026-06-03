@@ -988,6 +988,8 @@ PY
       worker \
       python3 /scripts-mount/validate_phase_b_overlay.py "/app/${OVERLAY}" || true
 
+    python3 scripts/summarize_baltimore_zoning_tiers.py -i "$OVERLAY" 2>/dev/null || true
+
     if [ -n "$KEY" ]; then
       echo "=== POST merge-geojson-attributes ==="
       _internal_api_post_via_container "/internal/ingest/merge-geojson-attributes" \
@@ -995,10 +997,37 @@ PY
         || _internal_api_post "/internal/ingest/merge-geojson-attributes" \
           "{\"path\":\"${WORKER_OVERLAY}\",\"refresh_pipeline\":true,\"max_pipeline\":200}" \
           || echo "merge failed"
+      echo "=== refresh entitlement scores (Baltimore City) ==="
+      _internal_api_post "/internal/metrics/refresh-entitlement-scores?limit=5000&county_fips=24510" || true
+      echo "=== GET /internal/stats/baltimore-zoning-tiers ==="
+      _internal_api_get "/internal/stats/baltimore-zoning-tiers" || true
       echo "=== enqueue priority pipeline (Baltimore) ==="
       _internal_api_post "/internal/pipeline/enqueue-priority?limit=75" || true
     else
       echo "INTERNAL_API_KEY not set — overlay built at ${OVERLAY}; merge skipped"
+    fi
+    ;;
+  baltimore-rescore-zoning)
+    echo "=== Baltimore: merge existing overlay + entitlement rescore (no GIS fetch) ==="
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    OVERLAY="data/baltimore/baltimore_city_zoning_overlay.geojson"
+    WORKER_OVERLAY="/app/data/baltimore/baltimore_city_zoning_overlay.geojson"
+    if [ ! -f "$OVERLAY" ]; then
+      echo "FAIL: overlay missing at $OVERLAY — run baltimore-zoning-overlay first" >&2
+      exit 1
+    fi
+    python3 scripts/summarize_baltimore_zoning_tiers.py -i "$OVERLAY" || true
+    if [ -n "$KEY" ]; then
+      _internal_api_post_via_container "/internal/ingest/merge-geojson-attributes" \
+        "{\"path\":\"${WORKER_OVERLAY}\",\"refresh_pipeline\":false,\"max_pipeline\":0}" \
+        || _internal_api_post "/internal/ingest/merge-geojson-attributes" \
+          "{\"path\":\"${WORKER_OVERLAY}\",\"refresh_pipeline\":false,\"max_pipeline\":0}" \
+          || echo "merge failed"
+      _internal_api_post "/internal/metrics/refresh-entitlement-scores?limit=5000&county_fips=24510" || true
+      _internal_api_get "/internal/stats/baltimore-zoning-tiers" || true
+      _internal_api_post "/internal/pipeline/enqueue-priority?limit=75" || true
+    else
+      echo "INTERNAL_API_KEY not set"
     fi
     ;;
   pilot-scope-snapshot)

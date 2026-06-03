@@ -17,6 +17,8 @@ class ParcelRead(BaseModel):
     lot_sqft: float | None
     zoning_code: str | None
     zoning_allows_surface_parking: bool
+    zoning_principal_use_symbol: str | None = None
+    zoning_entitlement_tier: str | None = None
     is_corner_lot: bool
     distance_to_nearest_demand_m: float | None
     owner_outreach_brief: dict[str, Any] | None = None
@@ -352,6 +354,8 @@ class ParcelScoredListRow(BaseModel):
     county_fips: str
     zoning_code: str | None
     lot_sqft: float | None
+    zoning_principal_use_symbol: str | None = None
+    zoning_entitlement_tier: str | None = None
     entitlement_score: float | None
     strategic_score: float | None
     identification_score: float | None
@@ -478,6 +482,21 @@ class PilotScopeResponse(BaseModel):
     min_lot_sqft: float
     qualified_min_score: QualifiedMinScores
     counties: list[PilotCountyScopeRow]
+
+
+class BaltimoreZoningTierZoneRow(BaseModel):
+    zoning_code: str
+    parcel_count: int
+
+
+class BaltimoreZoningTiersResponse(BaseModel):
+    """GET /internal/stats/baltimore-zoning-tiers — MD principal-use parking tiers in Postgres."""
+
+    county_fips: str
+    total_parcels: int
+    tiers: dict[str, int]
+    top_permitted_zones: list[BaltimoreZoningTierZoneRow]
+    rules_path: str
 
 
 class IngestSampleQueuedResponse(BaseModel):
