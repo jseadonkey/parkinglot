@@ -171,6 +171,19 @@ jobs:
           exit 1
           EOS
 
+      - name: Merge Lob env on Droplet
+        env:
+          LOB_API_KEY: ${{ secrets.LOB_API_KEY }}
+          DROPLET_USER: ${{ secrets.DROPLET_USER }}
+          DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+        run: |
+          if [ -z "${LOB_API_KEY:-}" ]; then
+            echo "LOB_API_KEY GitHub secret not set — skipping Lob env merge (add repo secret and re-run deploy)."
+            exit 0
+          fi
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          bash scripts/merge-lob-env-on-droplet.sh "$REMOTE_PATH"
+
       - name: Ensure API_IMAGE in deploy/.env (GHCR)
         if: steps.opts.outputs.compose_file == 'docker-compose.production.ghcr.yml' || steps.opts.outputs.compose_file == 'docker-compose.production.ghcr-full.yml'
         run: |

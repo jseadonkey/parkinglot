@@ -420,6 +420,37 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("OUTREACH_SENDER_PHONE", "outreach_sender_phone"),
     )
 
+    lob_api_key: str = Field(default="", validation_alias=AliasChoices("LOB_API_KEY", "lob_api_key"))
+    lob_from_name: str = Field(default="", validation_alias=AliasChoices("LOB_FROM_NAME", "lob_from_name"))
+    lob_from_address_line1: str = Field(
+        default="",
+        validation_alias=AliasChoices("LOB_FROM_ADDRESS_LINE1", "lob_from_address_line1"),
+    )
+    lob_from_address_line2: str = Field(
+        default="",
+        validation_alias=AliasChoices("LOB_FROM_ADDRESS_LINE2", "lob_from_address_line2"),
+    )
+    lob_from_address_city: str = Field(
+        default="",
+        validation_alias=AliasChoices("LOB_FROM_ADDRESS_CITY", "lob_from_address_city"),
+    )
+    lob_from_address_state: str = Field(
+        default="",
+        validation_alias=AliasChoices("LOB_FROM_ADDRESS_STATE", "lob_from_address_state"),
+    )
+    lob_from_address_zip: str = Field(
+        default="",
+        validation_alias=AliasChoices("LOB_FROM_ADDRESS_ZIP", "lob_from_address_zip"),
+    )
+    lob_mail_extra_service: str = Field(
+        default="certified",
+        validation_alias=AliasChoices("LOB_MAIL_EXTRA_SERVICE", "lob_mail_extra_service"),
+    )
+    lob_send_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("LOB_SEND_ENABLED", "lob_send_enabled"),
+    )
+
     # Site watchdog: API + UI + server checks (separate from pipeline Slack digest).
     site_watchdog_enabled: bool = Field(
         default=True,

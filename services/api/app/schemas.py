@@ -632,6 +632,26 @@ class SlackConfigStatusResponse(BaseModel):
     slack_agent_event_updates_enabled: bool
 
 
+class LobConfigStatusResponse(BaseModel):
+    """GET /internal/lob/status — booleans only (no secrets)."""
+
+    lob_configured: bool
+    has_api_key: bool
+    has_from_address: bool
+    lob_send_enabled: bool
+    lob_test_mode: bool | None = None
+    lob_mail_extra_service: str = "certified"
+
+
+class LobVerifyResponse(BaseModel):
+    """POST /internal/lob/verify — Lob API credential check."""
+
+    ok: bool
+    lob_configured: bool
+    lob_test_mode: bool | None = None
+    detail: str | None = None
+
+
 class SiteWatchdogCheckRead(BaseModel):
     name: str
     ok: bool

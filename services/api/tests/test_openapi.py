@@ -30,6 +30,8 @@ def test_openapi_lists_required_paths_and_response_models() -> None:
             "/internal/slack/last-digest",
             "/internal/slack/test-message",
             "/internal/slack/full-update-now",
+            "/internal/lob/status",
+            "/internal/lob/verify",
             "/internal/stats/scoring-summary",
             "/internal/stats/platform-showcase",
             "/internal/stats/pilot-scope",
@@ -84,6 +86,8 @@ def test_openapi_lists_required_paths_and_response_models() -> None:
     object_refs: list[tuple[str, str, str]] = [
         ("/internal/tasks/{task_id}", "get", "CeleryTaskStatusResponse"),
         ("/internal/slack/status", "get", "SlackConfigStatusResponse"),
+        ("/internal/lob/status", "get", "LobConfigStatusResponse"),
+        ("/internal/lob/verify", "post", "LobVerifyResponse"),
         ("/internal/stats/export-readiness", "get", "ExportReadinessResponse"),
         ("/internal/stats/pilot-scope", "get", "PilotScopeResponse"),
         ("/internal/stats/baltimore-zoning-tiers", "get", "BaltimoreZoningTiersResponse"),

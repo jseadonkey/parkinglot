@@ -18,6 +18,7 @@ from app.db.session import get_db
 from app.deal_progress import query_deal_progress_board
 from app.deps_internal import require_internal_key
 from app.export_readiness import export_readiness_summary
+from app.lob_client import lob_status_payload, verify_lob_api_key
 from app.outreach_board import query_outreach_pipeline_board
 from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
 from app.parcel_deal_context import attach_revenue_summaries, qualified_min_entitlement_score
@@ -44,6 +45,8 @@ from app.schemas import (
     IngestGeojsonUploadQueuedResponse,
     IngestSampleQueuedResponse,
     IngestWatechCountyRequest,
+    LobConfigStatusResponse,
+    LobVerifyResponse,
     MergeGeojsonAttributesRequest,
     OutreachPipelineBoardResponse,
     OutreachPipelineRow,
@@ -171,6 +174,33 @@ def slack_config_status() -> SlackConfigStatusResponse:
         slack_dual_agent_configured=has_token and has_agent_ch,
         has_agent_discussion_channel_id=has_agent_ch,
         slack_agent_event_updates_enabled=slack_agent_event_updates_enabled(s),
+    )
+
+
+@router.get("/lob/status", response_model=LobConfigStatusResponse)
+def lob_config_status() -> LobConfigStatusResponse:
+    """Whether Lob certified-mail env is set (no API key returned)."""
+    return LobConfigStatusResponse(**lob_status_payload(get_settings()))
+
+
+@router.post("/lob/verify", response_model=LobVerifyResponse)
+def lob_verify_credentials() -> LobVerifyResponse:
+    """Call Lob API to confirm LOB_API_KEY is valid (read-only list addresses)."""
+    s = get_settings()
+    status = lob_status_payload(s)
+    if not status["has_api_key"]:
+        return LobVerifyResponse(
+            ok=False,
+            lob_configured=False,
+            lob_test_mode=None,
+            detail="LOB_API_KEY is not set",
+        )
+    ok, detail = verify_lob_api_key(s.lob_api_key)
+    return LobVerifyResponse(
+        ok=ok,
+        lob_configured=bool(status["lob_configured"]),
+        lob_test_mode=status["lob_test_mode"],
+        detail=None if ok else detail,
     )
 
 
