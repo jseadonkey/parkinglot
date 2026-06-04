@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import redis
-from sqlalchemy import and_, exists, func, select
+from sqlalchemy import and_, exists, func, select, text
 from sqlalchemy.orm import Session
 
 from app.celery_app import celery
@@ -204,7 +204,7 @@ def county_data_gaps(db: Session, county_fips: str) -> dict[str, Any]:
         or 0,
     )
 
-    return {
+    out: dict[str, Any] = {
         "county_fips": cf,
         "total": total,
         "missing_demand_m": no_demand,
@@ -212,6 +212,111 @@ def county_data_gaps(db: Session, county_fips: str) -> dict[str, Any]:
         "missing_entitlement_score": miss_ent,
         "missing_identification_score": miss_ident,
         "pipeline_funnel_backlog": funnel,
+    }
+    out.update(skip_trace_metrics(db, cf, total=total))
+    return out
+
+
+def skip_trace_metrics(db: Session, county_fips: str, *, total: int | None = None) -> dict[str, Any]:
+    """Owner outreach / vendor lookup coverage for a county.
+
+    The vendor lookup is stored in ``parcels.owner_outreach_brief`` as JSONB. Keep
+    this as raw SQL so Postgres JSON operators stay explicit and easy to audit.
+    """
+    cf = county_fips.strip()
+    parcel_total = total
+    if parcel_total is None:
+        parcel_total = int(
+            db.scalar(select(func.count()).select_from(Parcel).where(Parcel.county_fips == cf)) or 0,
+        )
+    if parcel_total <= 0:
+        return {
+            "owner_outreach_brief_count": 0,
+            "missing_owner_outreach_brief": 0,
+            "skip_trace_vendor_lookup_count": 0,
+            "skip_trace_vendor_hit_count": 0,
+            "skip_trace_vendor_contacts_count": 0,
+            "skip_trace_vendor_error_count": 0,
+            "skip_trace_vendor_skipped_count": 0,
+            "skip_trace_latest_computed_at": None,
+            "skip_trace_outcomes": {},
+        }
+    if not column_exists(db, "parcels", "owner_outreach_brief"):
+        return {
+            "owner_outreach_brief_count": 0,
+            "missing_owner_outreach_brief": parcel_total,
+            "skip_trace_vendor_lookup_count": 0,
+            "skip_trace_vendor_hit_count": 0,
+            "skip_trace_vendor_contacts_count": 0,
+            "skip_trace_vendor_error_count": 0,
+            "skip_trace_vendor_skipped_count": 0,
+            "skip_trace_latest_computed_at": None,
+            "skip_trace_outcomes": {},
+        }
+
+    summary = (
+        db.execute(
+            text(
+                """
+                select
+                  count(*) filter (where owner_outreach_brief is not null)::int
+                    as owner_outreach_brief_count,
+                  count(*) filter (where owner_outreach_brief is null)::int
+                    as missing_owner_outreach_brief,
+                  count(*) filter (
+                    where owner_outreach_brief->'vendor_lookup' is not null
+                      and owner_outreach_brief->'vendor_lookup' <> 'null'::jsonb
+                  )::int as skip_trace_vendor_lookup_count,
+                  count(*) filter (
+                    where owner_outreach_brief->'vendor_lookup'->>'outcome' = 'hit'
+                  )::int as skip_trace_vendor_hit_count,
+                  count(*) filter (
+                    where jsonb_array_length(
+                      coalesce(owner_outreach_brief->'vendor_lookup'->'contacts', '[]'::jsonb)
+                    ) > 0
+                  )::int as skip_trace_vendor_contacts_count,
+                  count(*) filter (
+                    where owner_outreach_brief->'vendor_lookup'->>'outcome' = 'error'
+                  )::int as skip_trace_vendor_error_count,
+                  count(*) filter (
+                    where coalesce(owner_outreach_brief->'vendor_lookup'->>'outcome', '') like 'skipped%'
+                  )::int as skip_trace_vendor_skipped_count,
+                  max(owner_outreach_brief->>'computed_at') as skip_trace_latest_computed_at
+                from parcels
+                where county_fips = :cf
+                """,
+            ),
+            {"cf": cf},
+        )
+        .mappings()
+        .one()
+    )
+    outcomes = {
+        str(row["outcome"]): int(row["count"] or 0)
+        for row in db.execute(
+            text(
+                """
+                select coalesce(owner_outreach_brief->'vendor_lookup'->>'outcome', '(none)') as outcome,
+                       count(*)::int as count
+                from parcels
+                where county_fips = :cf
+                group by 1
+                order by count desc, outcome
+                """,
+            ),
+            {"cf": cf},
+        ).mappings()
+    }
+    return {
+        "owner_outreach_brief_count": int(summary["owner_outreach_brief_count"] or 0),
+        "missing_owner_outreach_brief": int(summary["missing_owner_outreach_brief"] or 0),
+        "skip_trace_vendor_lookup_count": int(summary["skip_trace_vendor_lookup_count"] or 0),
+        "skip_trace_vendor_hit_count": int(summary["skip_trace_vendor_hit_count"] or 0),
+        "skip_trace_vendor_contacts_count": int(summary["skip_trace_vendor_contacts_count"] or 0),
+        "skip_trace_vendor_error_count": int(summary["skip_trace_vendor_error_count"] or 0),
+        "skip_trace_vendor_skipped_count": int(summary["skip_trace_vendor_skipped_count"] or 0),
+        "skip_trace_latest_computed_at": summary["skip_trace_latest_computed_at"],
+        "skip_trace_outcomes": outcomes,
     }
 
 

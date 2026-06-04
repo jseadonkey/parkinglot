@@ -8,6 +8,7 @@ from app.ops_remediation import (
     build_slack_text,
     diagnose,
     should_post_slack,
+    skip_trace_metrics,
 )
 
 
@@ -76,3 +77,17 @@ def test_diagnose_flags_missing_workers() -> None:
     ):
         issues = diagnose(MagicMock(), settings)
     assert any(i.code == "celery_workers_down" for i in issues)
+
+
+def test_skip_trace_metrics_handles_missing_outreach_brief_column(monkeypatch) -> None:
+    db = MagicMock()
+    monkeypatch.setattr("app.ops_remediation.column_exists", lambda *_args: False)
+
+    metrics = skip_trace_metrics(db, "24510", total=7)
+
+    assert metrics["owner_outreach_brief_count"] == 0
+    assert metrics["missing_owner_outreach_brief"] == 7
+    assert metrics["skip_trace_vendor_lookup_count"] == 0
+    assert metrics["skip_trace_vendor_hit_count"] == 0
+    assert metrics["skip_trace_outcomes"] == {}
+    db.execute.assert_not_called()

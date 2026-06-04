@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import redis
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
@@ -199,6 +199,42 @@ def run_server_checks(
         )
     except Exception as exc:
         checks.append(WatchdogCheck(name="redis", ok=False, detail=str(exc)[:240], source=source))
+
+    try:
+        from app.db.models import Parcel
+        from app.geo_markets import priority_county_fips
+        from app.ops_remediation import skip_trace_metrics
+
+        for cf in priority_county_fips():
+            total = int(
+                db.scalar(select(func.count()).select_from(Parcel).where(Parcel.county_fips == cf)) or 0,
+            )
+            metrics = skip_trace_metrics(db, cf, total=total)
+            outcomes = metrics.get("skip_trace_outcomes") or {}
+            outcome_bits = ", ".join(f"{k}={v}" for k, v in sorted(outcomes.items()))
+            detail = (
+                f"parcels {total} · briefs {metrics['owner_outreach_brief_count']} "
+                f"(missing {metrics['missing_owner_outreach_brief']}) · "
+                f"vendor lookups {metrics['skip_trace_vendor_lookup_count']} · "
+                f"hits {metrics['skip_trace_vendor_hit_count']} · "
+                f"contacts {metrics['skip_trace_vendor_contacts_count']} · "
+                f"errors {metrics['skip_trace_vendor_error_count']} · "
+                f"skipped {metrics['skip_trace_vendor_skipped_count']}"
+            )
+            if metrics.get("skip_trace_latest_computed_at"):
+                detail += f" · latest {metrics['skip_trace_latest_computed_at']}"
+            if outcome_bits:
+                detail += f" · outcomes {outcome_bits}"
+            checks.append(
+                WatchdogCheck(
+                    name=f"skip_trace_{cf}",
+                    ok=True,
+                    detail=detail,
+                    source=source,
+                ),
+            )
+    except Exception as exc:
+        checks.append(WatchdogCheck(name="skip_trace_metrics", ok=False, detail=str(exc)[:240], source=source))
 
     return checks
 
