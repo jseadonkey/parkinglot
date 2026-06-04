@@ -1,4 +1,4 @@
-.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay build-baltimore-zoning-overlay build-baltimore-county-zoning-overlay baltimore-zoning-tiers baltimore-county-zoning-tiers baltimore-phase-b-local baltimore-county-phase-b-local deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local lob-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
+.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay wa-zoning-curation-status build-baltimore-zoning-overlay build-baltimore-county-zoning-overlay baltimore-zoning-tiers baltimore-county-zoning-tiers baltimore-phase-b-local baltimore-county-phase-b-local deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local lob-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
 
 help:
 	@echo "Targets:"
@@ -11,6 +11,7 @@ help:
 	@echo "  make phase-a-run        - Phase A: readiness + enqueue + identification backfill + demand refresh (needs DATABASE_URL; see scripts/execute-phase-a.sh)"
 	@echo "  make phase-b-run        - Phase B: zoning overlay merge + readiness (needs DATABASE_URL + PHASE_B_OVERLAY_PATH; see scripts/execute-phase-b.sh)"
 	@echo "  make validate-phase-b-overlay - dry-run overlay stats (needs PHASE_B_OVERLAY_PATH)"
+	@echo "  make wa-zoning-curation-status - report WA city/county zoning preference curation progress"
 	@echo "  make build-baltimore-zoning-overlay - fetch parcels+zoning and build MD overlay GeoJSON (no DATABASE_URL)"
 	@echo "  make build-baltimore-county-zoning-overlay - fetch county parcels+zoning and build county overlay GeoJSON"
 	@echo "  make baltimore-zoning-tiers   - print tier counts from local overlay GeoJSON"
@@ -92,6 +93,9 @@ validate-phase-b-overlay:
 	@test -n "$$PHASE_B_OVERLAY_PATH" || (echo "export PHASE_B_OVERLAY_PATH"; exit 1)
 	@chmod +x scripts/validate_phase_b_overlay.py
 	@./scripts/validate_phase_b_overlay.py "$$PHASE_B_OVERLAY_PATH"
+
+wa-zoning-curation-status:
+	@python3 scripts/check_wa_zoning_curation.py
 
 build-baltimore-zoning-overlay:
 	@chmod +x scripts/fetch_baltimore_city_parcels.py scripts/fetch_baltimore_zoning_districts.py scripts/build_baltimore_zoning_overlay.py

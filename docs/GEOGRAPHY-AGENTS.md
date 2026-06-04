@@ -43,6 +43,7 @@ exports can inspect the same jurisdiction key.
 python3 scripts/validate_geography_registry.py
 python3 scripts/validate_phase_b_overlay.py /path/to/overlay.geojson
 python3 scripts/check_baltimore_readiness.py
+make wa-zoning-curation-status
 ```
 
 The registry validator exits non-zero only on structural errors. Empty zoning-rule
@@ -69,6 +70,11 @@ As of the current TIGERweb layer, Washington has **281 active incorporated
 places** and **289 city/county slices**. The slice count is higher because some
 cities cross county lines; each slice gets a county-scoped geography agent that
 uses the same city boundary and jurisdiction key.
+
+Zoning preference curation is tracked separately in
+[`WA_ZONING_CURATION.md`](WA_ZONING_CURATION.md). Future resource runs should
+use `python3 scripts/check_wa_zoning_curation.py --fail-if-incomplete` as the
+completion gate once the goal is to finish every Washington jurisdiction.
 
 ## Adding or curating a city
 
