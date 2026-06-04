@@ -95,7 +95,8 @@ validate-phase-b-overlay:
 	@./scripts/validate_phase_b_overlay.py "$$PHASE_B_OVERLAY_PATH"
 
 wa-zoning-curation-status:
-	@python3 scripts/check_wa_zoning_curation.py
+	@test -x .venv/bin/python || (echo "Run make run-api-tests once to create .venv"; exit 1)
+	@PYTHONPATH=packages/core:services/ingestion .venv/bin/python scripts/check_wa_zoning_curation.py
 
 build-baltimore-zoning-overlay:
 	@chmod +x scripts/fetch_baltimore_city_parcels.py scripts/fetch_baltimore_zoning_districts.py scripts/build_baltimore_zoning_overlay.py
