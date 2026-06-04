@@ -59,6 +59,7 @@ class CityInventorySource(BaseModel):
     coverage: str = "all_incorporated_places"
     agent_key_template: str = "{state_fips}_{place_geoid}_{slug}"
     jurisdiction_key_template: str = "{slug}_city"
+    manifest_path: str | None = None
 
     @field_validator("state_fips", "source_ref")
     @classmethod
@@ -125,6 +126,7 @@ class CoverageIssue(BaseModel):
 class GeographyRegistry(BaseModel):
     version: int = 1
     description: str | None = None
+    generated_geography_paths: list[str] = Field(default_factory=list)
     sources: list[SourceRef] = Field(default_factory=list)
     city_inventory_sources: list[CityInventorySource] = Field(default_factory=list)
     geographies: list[GeographyAgent] = Field(default_factory=list)
@@ -187,12 +189,40 @@ def default_geography_registry_path() -> Path:
     return _repo_root() / "config" / "geography_registry.yaml"
 
 
+def _registry_fragment_path(registry_path: Path, fragment: str) -> Path:
+    candidate = Path(fragment)
+    if candidate.is_absolute():
+        return candidate
+    root_candidate = _repo_root() / candidate
+    if root_candidate.is_file():
+        return root_candidate
+    return registry_path.parent / candidate
+
+
+def _merge_generated_fragments(raw: dict[str, Any], registry_path: Path) -> None:
+    for fragment in raw.get("generated_geography_paths") or []:
+        if not isinstance(fragment, str) or not fragment.strip():
+            continue
+        fragment_path = _registry_fragment_path(registry_path, fragment.strip())
+        if not fragment_path.is_file():
+            continue
+        fragment_raw = yaml.safe_load(fragment_path.read_text(encoding="utf-8"))
+        if not isinstance(fragment_raw, dict):
+            continue
+        for key in ("sources", "city_inventory_sources", "geographies"):
+            values = fragment_raw.get(key)
+            if isinstance(values, list):
+                raw.setdefault(key, [])
+                raw[key].extend(values)
+
+
 def _load_registry_uncached(path: str) -> GeographyRegistry:
     registry_path = Path(path)
     raw = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         msg = f"Invalid geography registry (expected mapping): {registry_path}"
         raise TypeError(msg)
+    _merge_generated_fragments(raw, registry_path)
     return GeographyRegistry.model_validate(raw)
 
 

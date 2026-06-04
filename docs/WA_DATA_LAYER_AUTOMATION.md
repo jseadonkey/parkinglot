@@ -52,9 +52,11 @@ Exit criteria:
 
 Implementation note: the registry and resolver foundation now lives in
 [`GEOGRAPHY-AGENTS.md`](GEOGRAPHY-AGENTS.md), `config/geography_registry.yaml`,
-and `parking_ingestion.jurisdiction_resolver`. The remaining Phase 2 data work is
-curating city/county boundary files and ordinance-backed zone entries for each
-jurisdiction.
+`config/generated/wa_city_geography_agents.yaml`, and
+`parking_ingestion.jurisdiction_resolver`. Washington incorporated-place
+boundaries are refreshed with `scripts/sync_wa_incorporated_places.py`; the
+remaining Phase 2 data work is curating ordinance-backed zoning source/rule
+entries for each jurisdiction.
 
 ## Phase 3 — Tier C/D: demand + ROW/access proxies (ranking)
 

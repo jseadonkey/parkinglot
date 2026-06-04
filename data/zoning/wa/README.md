@@ -2,8 +2,10 @@
 
 `kent_king_surface_parking_rules.yaml` and
 `pilot_county_unincorporated_surface_parking_rules.yaml` map **zone codes** (per
-jurisdiction) to **`allows_surface_parking`** for scoring—not legal conclusions;
-curate with GIS + counsel.
+jurisdiction) to **`allows_surface_parking`** for scoring. The generated
+`wa_city_surface_parking_rules_skeleton.yaml` file creates conservative
+false-by-default blocks for every Washington city/town jurisdiction key. These
+are not legal conclusions; curate with GIS + counsel.
 
 ## Environment override
 

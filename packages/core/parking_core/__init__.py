@@ -1,3 +1,4 @@
+from parking_core.city_inventory import CityInventoryManifest, load_city_inventory_manifest
 from parking_core.geography_registry import GeographyRegistry, load_geography_registry, validate_geography_registry
 from parking_core.models import (
     ApprovalRequestRead,
@@ -17,6 +18,7 @@ __all__ = [
     "ApprovalStatus",
     "ApprovalType",
     "AuditLogEntry",
+    "CityInventoryManifest",
     "DealMemoPayload",
     "GeographyRegistry",
     "OwnerCandidate",
@@ -24,6 +26,7 @@ __all__ = [
     "PilotConfig",
     "ScoreBreakdown",
     "ScoreResult",
+    "load_city_inventory_manifest",
     "load_geography_registry",
     "load_pilot_config",
     "validate_geography_registry",

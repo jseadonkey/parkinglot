@@ -5,6 +5,7 @@ from pathlib import Path
 
 from shapely.geometry import Point
 
+from parking_core.city_inventory import load_city_inventory_manifest
 from parking_core.geography_registry import load_geography_registry, validate_geography_registry
 from parking_core.pilot import load_pilot_config
 from parking_ingestion.geojson_loader import iter_parcels_from_geojson_dict
@@ -12,6 +13,7 @@ from parking_ingestion.jurisdiction_resolver import resolve_zoning_jurisdiction
 from parking_ingestion.zoning_rules import infer_zoning_jurisdiction, load_effective_zoning_rules
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+WA_CITY_MANIFEST = REPO_ROOT / "data/boundaries/wa/manifest/wa_incorporated_places.json"
 
 
 def _square(x0: float, y0: float, size: float = 1.0) -> dict:
@@ -44,6 +46,49 @@ def test_registry_has_city_inventory_sources_for_pilot_states() -> None:
 
     assert {"24", "53"}.issubset(city_inventory_states)
     assert registry.geography_for_jurisdiction("kent_city") is not None
+
+
+def test_wa_city_manifest_covers_all_incorporated_places() -> None:
+    manifest = load_city_inventory_manifest(WA_CITY_MANIFEST)
+
+    assert manifest.place_count == 281
+    assert len(manifest.entries) == 281
+    assert manifest.county_slice_count >= 281
+    assert set(manifest.lsadc_counts) == {"25", "43"}
+    assert manifest.entry_by_geoid()["5335415"].jurisdiction_key == "kent_city"
+
+
+def test_registry_wa_city_agents_match_manifest() -> None:
+    registry = load_geography_registry(REPO_ROOT / "config/geography_registry.yaml")
+    manifest = load_city_inventory_manifest(WA_CITY_MANIFEST)
+    city_agents = [
+        geo
+        for geo in registry.geographies
+        if geo.type == "city" and geo.state_fips == "53" and geo.boundary_path
+    ]
+
+    for entry in manifest.entries:
+        assert any(
+            geo.jurisdiction_key == entry.jurisdiction_key and geo.boundary_path == entry.boundary_path
+            for geo in city_agents
+        ), entry.geoid
+        for county in entry.county_fips:
+            assert any(
+                geo.jurisdiction_key == entry.jurisdiction_key
+                and geo.boundary_path == entry.boundary_path
+                and geo.county_fips == county
+                for geo in city_agents
+            ), f"{entry.geoid}:{county}"
+
+
+def test_wa_city_rules_skeleton_has_manifest_jurisdictions() -> None:
+    manifest = load_city_inventory_manifest(WA_CITY_MANIFEST)
+    rules = load_effective_zoning_rules()
+    jurisdictions = rules.get("jurisdictions") or {}
+
+    missing = sorted(manifest.jurisdiction_keys() - set(jurisdictions))
+
+    assert missing == []
 
 
 def test_registry_validation_has_no_structural_errors() -> None:
@@ -95,6 +140,20 @@ geographies:
 
     assert resolve_zoning_jurisdiction("53033", None, geom=Point(1, 1), registry=registry) == "test_city"
     assert resolve_zoning_jurisdiction("53033", None, geom=Point(5, 5), registry=registry) == "test_unincorporated"
+
+
+def test_resolver_uses_generated_wa_city_boundaries() -> None:
+    registry = load_geography_registry(REPO_ROOT / "config/geography_registry.yaml")
+
+    assert (
+        resolve_zoning_jurisdiction("53033", None, geom=Point(-122.3321, 47.6062), registry=registry)
+        == "seattle_city"
+    )
+    assert (
+        resolve_zoning_jurisdiction("53063", None, geom=Point(-117.4260, 47.6588), registry=registry)
+        == "spokane_city"
+    )
+    assert resolve_zoning_jurisdiction("53033", None, geom=Point(-122.2348, 47.3809), registry=registry) == "kent_city"
 
 
 def test_loader_persists_registry_resolved_jurisdiction() -> None:

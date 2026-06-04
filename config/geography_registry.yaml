@@ -4,6 +4,9 @@ description: >
   county, or county-unincorporated area to authoritative data sources, zoning
   jurisdiction keys, rules files, and validation checks.
 
+generated_geography_paths:
+  - config/generated/wa_city_geography_agents.yaml
+
 sources:
   - key: watech_statewide_parcels
     name: Washington State Geospatial Open Data - Tax Parcels
@@ -16,10 +19,18 @@ sources:
   - key: census_tiger_incorporated_places_wa
     name: US Census TIGERweb Incorporated Places - Washington
     type: boundary
-    url: https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/25/query
+    url: https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/4/query
     cadence: annual
     coverage: all_washington_incorporated_places
     notes: Authoritative inventory for city-level agents and municipal boundary resolution.
+
+  - key: census_tiger_counties_wa
+    name: US Census TIGERweb Counties - Washington
+    type: boundary
+    url: https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1/query
+    cadence: annual
+    coverage: all_washington_counties
+    notes: Used by the WA incorporated-place sync to assign city/town boundaries to counties.
 
   - key: census_tiger_incorporated_places_md
     name: US Census TIGERweb Incorporated Places - Maryland
@@ -36,6 +47,22 @@ sources:
     cadence: weekly_review
     coverage: all_washington_counties_plus_municipal_jurisdictions
     notes: Washington zoning is municipal; city and county layers must be resolved per parcel.
+
+  - key: wa_city_zoning_inventory_template
+    name: Washington city zoning source inventory
+    type: zoning
+    path: docs/washington-data.md
+    cadence: weekly_review
+    coverage: all_washington_incorporated_places
+    notes: Placeholder source inventory for generated city agents; replace per city as zoning layers are curated.
+
+  - key: wa_city_rules_skeleton
+    name: Washington city surface-parking rules skeleton
+    type: zoning_rules
+    path: data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+    cadence: as_ordinances_change
+    coverage: all_washington_incorporated_places
+    notes: Conservative false-by-default skeleton for generated city jurisdiction keys.
 
   - key: wa_unincorporated_rules
     name: Washington pilot county unincorporated surface-parking rules
@@ -75,6 +102,7 @@ sources:
   - key: baltimore_city_parcels
     name: Baltimore City parcel source
     type: parcel
+    url: https://egis.baltimorecity.gov/egis/rest/services/Parcel_Information/Parcel/FeatureServer/0
     path: docs/zoning-sources-baltimore.md
     coverage: baltimore_city
 
@@ -119,6 +147,7 @@ city_inventory_sources:
     coverage: all_incorporated_places
     agent_key_template: "wa_{place_geoid}_{slug}"
     jurisdiction_key_template: "{slug}_city"
+    manifest_path: data/boundaries/wa/manifest/wa_incorporated_places.json
   - state_fips: "24"
     state: MD
     source_ref: census_tiger_incorporated_places_md

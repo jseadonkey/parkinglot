@@ -17,7 +17,7 @@ not an LLM persona. It binds a city, county, or county-unincorporated area to:
 
 | Previous gap | Current implementation |
 | --- | --- |
-| No agent/registry for every city | The registry includes state-level Census/TIGER incorporated-place inventory sources for WA and MD. City records can be added or generated from those authoritative sources; Kent is the first registered city with a boundary file. |
+| No agent/registry for every city | Washington city/town records are generated from Census/TIGER into `config/generated/wa_city_geography_agents.yaml`; Maryland has a Census/TIGER inventory source ready for the same pattern. |
 | No county/unincorporated coverage for all counties | Every county in `config/pilot.yaml` now has a default county/consolidated or county-unincorporated geography agent. |
 | No automatic jurisdiction resolver | `parking_ingestion.jurisdiction_resolver` resolves explicit `ZONING_JURISDICTION`, then registered city boundaries, then county/unincorporated defaults. |
 | No per-jurisdiction favorability database | All registered jurisdiction keys have conservative false-by-default zoning-rules blocks; Baltimore City has curated positive/negative entries, while other skeletons remain safe until ordinance-backed entries are added. |
@@ -42,23 +42,53 @@ exports can inspect the same jurisdiction key.
 ```bash
 python3 scripts/validate_geography_registry.py
 python3 scripts/validate_phase_b_overlay.py /path/to/overlay.geojson
+python3 scripts/check_baltimore_readiness.py
 ```
 
 The registry validator exits non-zero only on structural errors. Empty zoning-rule
 blocks are reported as informational because they are deliberately conservative:
 unknown zoning does not receive surface-parking credit.
 
-## Adding a city
+## Washington statewide rollout
 
-1. Add or refresh a boundary GeoJSON under `data/boundaries/<state>/`.
-2. Add a `city` entry in `config/geography_registry.yaml` with:
-   - `county_fips`,
-   - `jurisdiction_key`,
-   - `boundary_path`,
-   - source refs for parcel, boundary, zoning, and rules.
-3. Add or update a rules block under `data/zoning/...`.
+Washington city/county coverage starts from Census TIGERweb and WaTech:
+
+```bash
+.venv/bin/python scripts/sync_wa_incorporated_places.py --json
+python3 scripts/validate_geography_registry.py --json
+```
+
+The sync command writes:
+
+- `data/boundaries/wa/manifest/wa_incorporated_places.json`
+- `data/boundaries/wa/by_geoid/{GEOID}.geojson`
+- `config/generated/wa_city_geography_agents.yaml`
+- `data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml`
+
+As of the current TIGERweb layer, Washington has **281 active incorporated
+places** and **289 city/county slices**. The slice count is higher because some
+cities cross county lines; each slice gets a county-scoped geography agent that
+uses the same city boundary and jurisdiction key.
+
+## Adding or curating a city
+
+1. For Washington, run `scripts/sync_wa_incorporated_places.py` rather than
+   hand-authoring city agents.
+2. Add or replace the city-specific zoning source in `config/geography_registry.yaml`
+   when a better local layer is selected.
+3. Add or update the city's rules block under `data/zoning/...`.
 4. Run `python3 scripts/validate_geography_registry.py`.
 5. Re-run Phase B overlay validation/merge for parcels in that county.
+
+## Baltimore readiness
+
+`scripts/check_baltimore_readiness.py` reports:
+
+- **Baltimore City (`24510`)**: ready in repo assets — registry agent, curated
+  rules, staged local sample assets, overlay builder, and tier reporting exist.
+- **Baltimore County (`24005`)**: scaffolded but not ready — registry/default
+  jurisdiction and false-by-default rules skeleton exist, but zoning source doc,
+  county overlay assets, and curated rules are still missing.
 
 ## Safety stance
 
