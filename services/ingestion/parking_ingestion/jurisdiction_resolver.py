@@ -5,9 +5,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from parking_core.geography_registry import GeographyAgent, GeographyRegistry, load_geography_registry
 from shapely.geometry import shape
 from shapely.geometry.base import BaseGeometry
+
+from parking_core.geography_registry import GeographyAgent, GeographyRegistry, load_geography_registry
 
 
 def _repo_root() -> Path:
@@ -115,4 +116,9 @@ def resolve_feature_zoning_jurisdiction(
         or ""
     ).strip()
     explicit = properties.get("ZONING_JURISDICTION") or properties.get("zoning_jurisdiction")
-    return resolve_zoning_jurisdiction(county, str(explicit).strip() if explicit is not None else None, geom=geom, registry=registry)
+    return resolve_zoning_jurisdiction(
+        county,
+        str(explicit).strip() if explicit is not None else None,
+        geom=geom,
+        registry=registry,
+    )

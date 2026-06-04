@@ -3,12 +3,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from shapely.geometry import Point
+
 from parking_core.geography_registry import load_geography_registry, validate_geography_registry
 from parking_core.pilot import load_pilot_config
 from parking_ingestion.geojson_loader import iter_parcels_from_geojson_dict
 from parking_ingestion.jurisdiction_resolver import resolve_zoning_jurisdiction
 from parking_ingestion.zoning_rules import infer_zoning_jurisdiction, load_effective_zoning_rules
-from shapely.geometry import Point
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -25,7 +26,11 @@ def test_registry_covers_every_pilot_county_with_default_jurisdiction() -> None:
     registry = load_geography_registry(REPO_ROOT / "config/geography_registry.yaml")
     pilot = load_pilot_config(REPO_ROOT / "config/pilot.yaml")
 
-    missing = [county for county in pilot.region.county_fips if registry.default_jurisdiction_for_county(county) is None]
+    missing = [
+        county
+        for county in pilot.region.county_fips
+        if registry.default_jurisdiction_for_county(county) is None
+    ]
 
     assert missing == []
     assert registry.default_jurisdiction_for_county("24510") == "baltimore_city"

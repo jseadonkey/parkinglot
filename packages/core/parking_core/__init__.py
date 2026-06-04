@@ -1,3 +1,4 @@
+from parking_core.geography_registry import GeographyRegistry, load_geography_registry, validate_geography_registry
 from parking_core.models import (
     ApprovalRequestRead,
     ApprovalStatus,
@@ -9,7 +10,6 @@ from parking_core.models import (
     ScoreBreakdown,
     ScoreResult,
 )
-from parking_core.geography_registry import GeographyRegistry, load_geography_registry, validate_geography_registry
 from parking_core.pilot import PilotConfig, load_pilot_config
 
 __all__ = [
