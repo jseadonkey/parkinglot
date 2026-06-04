@@ -109,9 +109,13 @@ def _county_fips_for_place(place_geom: Any, county_features: list[dict[str, Any]
     return []
 
 
-def _write_json(path: Path, payload: dict[str, Any]) -> None:
+def _write_json(path: Path, payload: dict[str, Any], *, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=False) + "\n", encoding="utf-8")
+    if compact:
+        text = json.dumps(payload, separators=(",", ":"), sort_keys=False)
+    else:
+        text = json.dumps(payload, indent=2, sort_keys=False)
+    path.write_text(text + "\n", encoding="utf-8")
 
 
 def _write_yaml(path: Path, payload: dict[str, Any]) -> None:
@@ -176,6 +180,7 @@ def sync(expected_count: int) -> dict[str, Any]:
         _write_json(
             _REPO_ROOT / boundary_path,
             {"type": "FeatureCollection", "features": [out_feature]},
+            compact=True,
         )
         manifest_entries.append(
             {
