@@ -18,4 +18,4 @@ def test_priority_counties_baltimore_first() -> None:
     raw = load_geo_markets(_GEO_MARKETS)
     assert raw.get("primary_market")
     fips = priority_county_fips(_GEO_MARKETS)
-    assert fips == ["24510"]
+    assert fips == ["24510", "24005"]

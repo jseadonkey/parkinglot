@@ -1,4 +1,4 @@
-.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay build-baltimore-zoning-overlay baltimore-zoning-tiers baltimore-phase-b-local deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local lob-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
+.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay build-baltimore-zoning-overlay build-baltimore-county-zoning-overlay baltimore-zoning-tiers baltimore-county-zoning-tiers baltimore-phase-b-local baltimore-county-phase-b-local deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local lob-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
 
 help:
 	@echo "Targets:"
@@ -12,8 +12,11 @@ help:
 	@echo "  make phase-b-run        - Phase B: zoning overlay merge + readiness (needs DATABASE_URL + PHASE_B_OVERLAY_PATH; see scripts/execute-phase-b.sh)"
 	@echo "  make validate-phase-b-overlay - dry-run overlay stats (needs PHASE_B_OVERLAY_PATH)"
 	@echo "  make build-baltimore-zoning-overlay - fetch parcels+zoning and build MD overlay GeoJSON (no DATABASE_URL)"
+	@echo "  make build-baltimore-county-zoning-overlay - fetch county parcels+zoning and build county overlay GeoJSON"
 	@echo "  make baltimore-zoning-tiers   - print tier counts from local overlay GeoJSON"
+	@echo "  make baltimore-county-zoning-tiers - print county tier counts from local overlay GeoJSON"
 	@echo "  make baltimore-phase-b-local  - fetch, build overlay, validate, summarize (no DATABASE_URL)"
+	@echo "  make baltimore-county-phase-b-local - county fetch, overlay, validate, summarize (no DATABASE_URL)"
 	@echo "  make phase-c-run        - Phase C: readiness + portfolio internal APIs (needs DATABASE_URL; see scripts/execute-phase-c.sh)"
 	@echo "  make local              - docker compose (dev: Postgres, Redis, MinIO, api, worker, UI)"
 	@echo "  make slack-env-local    - merge SLACK_* into .env (needs SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID in env)"
@@ -96,12 +99,25 @@ build-baltimore-zoning-overlay:
 	@python3 scripts/fetch_baltimore_zoning_districts.py -o data/baltimore/baltimore_city_zoning_districts.geojson
 	@python3 scripts/build_baltimore_zoning_overlay.py
 
+build-baltimore-county-zoning-overlay:
+	@chmod +x scripts/fetch_baltimore_county_parcels.py scripts/fetch_baltimore_zoning_districts.py scripts/build_baltimore_zoning_overlay.py
+	@python3 scripts/fetch_baltimore_county_parcels.py -o data/baltimore/baltimore_county_parcels.geojson --max-features 20000
+	@python3 scripts/fetch_baltimore_zoning_districts.py --county county -o data/baltimore/baltimore_county_zoning_districts.geojson
+	@python3 scripts/build_baltimore_zoning_overlay.py --county county
+
 baltimore-zoning-tiers:
 	@python3 scripts/summarize_baltimore_zoning_tiers.py
+
+baltimore-county-zoning-tiers:
+	@python3 scripts/summarize_baltimore_zoning_tiers.py -i data/baltimore/baltimore_county_zoning_overlay.geojson --jurisdiction baltimore_county_unincorporated
 
 baltimore-phase-b-local: build-baltimore-zoning-overlay
 	@python3 scripts/validate_phase_b_overlay.py data/baltimore/baltimore_city_zoning_overlay.geojson
 	@python3 scripts/summarize_baltimore_zoning_tiers.py
+
+baltimore-county-phase-b-local: build-baltimore-county-zoning-overlay
+	@python3 scripts/validate_phase_b_overlay.py data/baltimore/baltimore_county_zoning_overlay.geojson
+	@python3 scripts/summarize_baltimore_zoning_tiers.py -i data/baltimore/baltimore_county_zoning_overlay.geojson --jurisdiction baltimore_county_unincorporated
 
 phase-c-run:
 	@test -n "$$DATABASE_URL" || (echo "export DATABASE_URL first"; exit 1)

@@ -122,16 +122,16 @@ sources:
   - key: baltimore_county_parcels
     name: Baltimore County parcel source
     type: parcel
-    path: docs/washington-data.md
+    url: https://bcgisdata.baltimorecountymd.gov/arcgis/rest/services/Property/Property/MapServer/1
+    path: docs/zoning-sources-baltimore-county.md
     coverage: baltimore_county
-    notes: Placeholder inventory record until county-specific parcel connector is selected.
 
   - key: baltimore_county_zoning
     name: Baltimore County zoning source
     type: zoning
-    path: docs/data-vendor-shortlist.md
+    url: https://bcgisapps.baltimorecountymd.gov/arcgis/rest/services/MyNeighborhood/MapServer/51
+    path: docs/zoning-sources-baltimore-county.md
     coverage: baltimore_county
-    notes: Placeholder inventory record until county/city zoning layer is staged.
 
   - key: baltimore_county_rules
     name: Baltimore County surface-parking rules

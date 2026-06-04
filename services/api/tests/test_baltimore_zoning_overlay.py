@@ -46,6 +46,41 @@ def test_build_zoning_overlay_assigns_zone_inside_district() -> None:
     assert props["APN"] == "BC-TEST-1"
 
 
+def test_build_zoning_overlay_supports_baltimore_county_defaults() -> None:
+    parcels = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": _square(0.5, 0.5, 0.1),
+                "properties": {"TAXPIN": "CO-TEST-1", "COUNTY_FIPS": "24005"},
+            }
+        ],
+    }
+    zoning = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": _square(0, 0, 2),
+                "properties": {"ZONE_DIST": "BM"},
+            }
+        ],
+    }
+    overlay = build_zoning_overlay_geojson(
+        parcels,
+        zoning,
+        county_fips="24005",
+        zoning_field="ZONE_DIST",
+        zoning_jurisdiction="baltimore_county_unincorporated",
+    )
+    props = overlay["features"][0]["properties"]
+    assert props["APN"] == "MD-BALT-CO-CO-TEST-1"
+    assert props["COUNTY_FIPS"] == "24005"
+    assert props["ZONING"] == "BM"
+    assert props["ZONING_JURISDICTION"] == "baltimore_county_unincorporated"
+
+
 def test_overlay_loader_scores_c3_allowed(tmp_path: Path) -> None:
     parcels = {
         "type": "FeatureCollection",

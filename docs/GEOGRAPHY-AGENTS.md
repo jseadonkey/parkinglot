@@ -86,9 +86,11 @@ uses the same city boundary and jurisdiction key.
 
 - **Baltimore City (`24510`)**: ready in repo assets — registry agent, curated
   rules, staged local sample assets, overlay builder, and tier reporting exist.
-- **Baltimore County (`24005`)**: scaffolded but not ready — registry/default
-  jurisdiction and false-by-default rules skeleton exist, but zoning source doc,
-  county overlay assets, and curated rules are still missing.
+- **Baltimore County (`24005`)**: ready in repo assets — registry/default
+  jurisdiction, official County parcel/zoning source docs, local sample assets,
+  overlay builder, and exact-label conservative rules exist. County rules are
+  conditional-review only until counsel confirms permitted-by-right principal
+  parking-lot treatment for specific zones.
 
 ## Safety stance
 

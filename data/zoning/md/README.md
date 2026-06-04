@@ -1,9 +1,9 @@
 # Maryland zoning rules (YAML)
 
 `baltimore_city_surface_parking_rules.yaml` maps **Baltimore City** zone codes
-(from a spatial join) to **`allows_surface_parking`** for scoring. The
-`baltimore_county_surface_parking_rules.yaml` file is a conservative
-false-by-default skeleton for Baltimore County. Neither file is legal advice;
+(from a spatial join) to **`allows_surface_parking`** for scoring.
+`baltimore_county_surface_parking_rules.yaml` maps exact Baltimore County
+`ZONE_DIST` labels to conservative review tiers. Neither file is legal advice;
 curate with GIS + counsel against the applicable use tables.
 
 ## Auto-merge at ingest
@@ -26,10 +26,12 @@ Set **`ZONING_RULES_PATH`** to a comma-separated list to override or add files.
 | `ZONING_JURISDICTION` | Optional when the registry can resolve it. Examples: `baltimore_city`, `baltimore_county_unincorporated`. |
 | `ZONING_ALLOWS_SURFACE_PARKING` | Optional bool override (beats YAML) |
 
-See `docs/zoning-sources-baltimore.md` for layer URLs and Phase B steps.
+See `docs/zoning-sources-baltimore.md` and
+`docs/zoning-sources-baltimore-county.md` for layer URLs and Phase B steps.
 
 ## Before merge (Phase B)
 
 ```bash
 python3 scripts/validate_phase_b_overlay.py data/baltimore/baltimore_city_zoning_overlay.geojson
+python3 scripts/validate_phase_b_overlay.py data/baltimore/baltimore_county_zoning_overlay.geojson
 ```

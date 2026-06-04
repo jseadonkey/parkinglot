@@ -60,22 +60,30 @@ def main() -> int:
 
     city_ready = all(city_checks.values())
     county_ready = all(county_checks.values())
+    county_block = {
+        "county_fips": "24005",
+        "status": "ready" if county_ready else "scaffolded_not_ready",
+        "checks": county_checks,
+    }
+    if county_ready:
+        county_block["notes"] = [
+            "County source docs, local overlay sample, and conservative reviewed-zone rules are present.",
+            "Rules do not grant permitted-by-right zoning credit until counsel confirms specific zones.",
+        ]
+    else:
+        county_block["next_steps"] = [
+            "Select county zoning layer/source and document it.",
+            "Curate data/zoning/md/baltimore_county_surface_parking_rules.yaml.",
+            "Build county zoning overlay assets and enable ops rollout.",
+        ]
+
     summary = {
         "baltimore_city": {
             "county_fips": "24510",
             "status": "ready" if city_ready else "needs_attention",
             "checks": city_checks,
         },
-        "baltimore_county": {
-            "county_fips": "24005",
-            "status": "ready" if county_ready else "scaffolded_not_ready",
-            "checks": county_checks,
-            "next_steps": [
-                "Select county zoning layer/source and document it.",
-                "Curate data/zoning/md/baltimore_county_surface_parking_rules.yaml.",
-                "Build county zoning overlay assets and enable ops rollout.",
-            ],
-        },
+        "baltimore_county": county_block,
     }
 
     if args.json:
@@ -89,6 +97,10 @@ def main() -> int:
                 print("  next:")
                 for step in block["next_steps"]:
                     print(f"    - {step}")
+            if block.get("notes"):
+                print("  notes:")
+                for note in block["notes"]:
+                    print(f"    - {note}")
     return 0 if city_ready else 1
 
 

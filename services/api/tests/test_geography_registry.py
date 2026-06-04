@@ -104,6 +104,7 @@ def test_infer_zoning_jurisdiction_uses_registry_defaults() -> None:
     assert infer_zoning_jurisdiction("53033", None) == "king_unincorporated"
     assert infer_zoning_jurisdiction("53053", None) == "wa_53053_unincorporated"
     assert infer_zoning_jurisdiction("24510", None) == "baltimore_city"
+    assert infer_zoning_jurisdiction("24005", None) == "baltimore_county_unincorporated"
 
 
 def test_resolver_uses_city_boundary_before_county_default(tmp_path: Path) -> None:

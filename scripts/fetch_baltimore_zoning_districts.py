@@ -12,8 +12,11 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-BALTIMORE_ZONING_LAYER = (
+BALTIMORE_CITY_ZONING_LAYER = (
     "https://geodata.baltimorecity.gov/egis/rest/services/CityView/Zoning_New/MapServer/0"
+)
+BALTIMORE_COUNTY_ZONING_LAYER = (
+    "https://bcgisapps.baltimorecountymd.gov/arcgis/rest/services/MyNeighborhood/MapServer/51"
 )
 
 
@@ -22,7 +25,7 @@ def fetch_zoning_geojson(
     page_size: int = 1000,
     max_features: int | None = None,
     sleep_sec: float = 0.2,
-    layer_url: str = BALTIMORE_ZONING_LAYER,
+    layer_url: str = BALTIMORE_CITY_ZONING_LAYER,
 ) -> dict:
     features: list[dict] = []
     offset = 0
@@ -64,21 +67,43 @@ def fetch_zoning_geojson(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Fetch Baltimore City zoning districts GeoJSON")
+    parser = argparse.ArgumentParser(description="Fetch Baltimore zoning districts GeoJSON")
+    parser.add_argument(
+        "--county",
+        choices=("city", "county"),
+        default="city",
+        help="Use Baltimore City or Baltimore County zoning layer defaults",
+    )
+    parser.add_argument(
+        "--layer-url",
+        default="",
+        help="Override ArcGIS MapServer/FeatureServer layer URL",
+    )
     parser.add_argument(
         "-o",
         "--output",
         type=Path,
-        default=Path("data/baltimore/baltimore_city_zoning_districts.geojson"),
+        default=None,
     )
     parser.add_argument("--max-features", type=int, default=None)
     args = parser.parse_args()
 
-    collection = fetch_zoning_geojson(max_features=args.max_features)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(collection), encoding="utf-8")
+    if args.county == "county":
+        layer_url = BALTIMORE_COUNTY_ZONING_LAYER
+        output = Path("data/baltimore/baltimore_county_zoning_districts.geojson")
+    else:
+        layer_url = BALTIMORE_CITY_ZONING_LAYER
+        output = Path("data/baltimore/baltimore_city_zoning_districts.geojson")
+    if args.layer_url:
+        layer_url = args.layer_url
+    if args.output is not None:
+        output = args.output
+
+    collection = fetch_zoning_geojson(max_features=args.max_features, layer_url=layer_url)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(collection), encoding="utf-8")
     n = len(collection.get("features", []))
-    print(f"Wrote {n} zoning features to {args.output}")
+    print(f"Wrote {n} zoning features to {output}")
     if n and collection["features"]:
         props = collection["features"][0].get("properties") or {}
         print("Sample property keys:", sorted(props.keys())[:20], file=sys.stderr)
