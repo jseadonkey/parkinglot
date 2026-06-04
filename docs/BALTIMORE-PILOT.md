@@ -39,6 +39,16 @@ Local export:
 python3 scripts/fetch_baltimore_city_parcels.py -o data/baltimore_city_parcels.geojson
 ```
 
+### Full-city Phase 1 for meeting prep
+
+The 20k ingest above is the normal pilot cohort. To push **all Baltimore City parcels** through the first funnel stage
+(parcel anchor + `identification` prescreen score), run GitHub Actions → **Droplet resources** with:
+
+- `baltimore_full_city_phase1=true`
+
+That mode fetches the full city layer with a high cap, waits for ingest, repeatedly backfills missing
+`identification` scores for FIPS `24510`, and prints `scripts/check_baltimore_phase1_status.py`-equivalent coverage.
+
 ## Operator UI
 
 `GET /internal/stats/pilot-scope` includes `primary_market_*` and `priority_county_fips` (city only). Scheduled priority pipeline enqueues **24510** before Washington counties.
