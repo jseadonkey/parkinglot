@@ -19,6 +19,12 @@ The data agents work on here (parcel attributes, scores, workflow status, sample
 
 If Slack env is unset, tasks **no-op** (return `skipped` in the task result) so stacks without Slack keep working. The dual-agent discussion needs **`SLACK_BOT_TOKEN`** and **`SLACK_AGENT_DISCUSSION_CHANNEL_ID`**.
 
+## Cursor `@Cursor settings` vs this app's Slack bot
+
+The `@Cursor settings` message in Slack is handled by **Cursor Cloud Agents**, not by this repository. Use it in each **public** Slack channel to set that channel's default repository (for example, this repo for `#cursor-parkinglot-parking` and a different repo for a different channel). Cursor also lets operators override routing by naming the repo in the prompt, and team routing rules live in the Cursor dashboard under **Cloud Agents → Routing Rules**.
+
+The env vars in this document configure this app's own Slack bot: scheduled digests, watchdog alerts, deploy/test pings, and the optional `/parking` command. They do **not** assign Cursor Cloud Agent repositories to Slack channels.
+
 ### Per-task “agent” updates (optional)
 
 Set **`SLACK_AGENT_EVENT_UPDATES=1`** (or `true` / `yes` / `on`) in the same env as the **Celery worker** (and API if you want `GET /internal/slack/status` to report the flag). When Slack is fully configured, the worker posts short messages for:
@@ -35,8 +41,8 @@ Leave unset in production if you only want the **scheduled digest** (hourly UTC 
 1. [Create a Slack app](https://api.slack.com/apps) (From scratch) for your workspace.
 2. **OAuth & Permissions** → **Bot Token Scopes** → add **`chat:write`** (post messages).
 3. **Install to Workspace** → copy **Bot User OAuth Token** (`xoxb-…`) → set as **`SLACK_BOT_TOKEN`** in `deploy/.env` (or local `.env` for Docker Compose).
-4. Open the target channel, run **`/invite @YourBotName`**, or add the app under **Integrations** for that channel.
-5. Copy the **channel ID** (e.g. from channel details / URL) → **`SLACK_DIGEST_CHANNEL_ID`** (usually starts with `C`).
+4. Open each target channel, run **`/invite @YourBotName`**, or add the app under **Integrations** for that channel.
+5. Copy the **channel ID** (e.g. from channel details / URL) → **`SLACK_DIGEST_CHANNEL_ID`** (usually starts with `C`). If discussion or watchdog alerts should go elsewhere, also set **`SLACK_AGENT_DISCUSSION_CHANNEL_ID`** and/or **`SITE_WATCHDOG_SLACK_CHANNEL_ID`**.
 
 Redeploy so **worker**, **worker-slack**, and **beat** pick up env vars. Rebuild or pull a **new API image** that includes the `slack-sdk` dependency (`services/api/pyproject.toml`).
 
@@ -48,13 +54,16 @@ If the repo is already on the Droplet at `REMOTE_PATH` and **`deploy/.env` exist
 chmod +x scripts/set-slack-env-on-droplet.sh
 export SLACK_BOT_TOKEN='xoxb-…'
 export SLACK_DIGEST_CHANNEL_ID='C…'
+# optional, only when these should differ from the digest channel:
+# export SLACK_AGENT_DISCUSSION_CHANNEL_ID='C…'
+# export SITE_WATCHDOG_SLACK_CHANNEL_ID='C…'
 export DROPLET='YOUR_DROPLET_IP_OR_HOST'
 # optional: export REMOTE_PATH=/opt/parking-acquisition-agents
 # optional: export COMPOSE_FILE=deploy/docker-compose.production.ghcr.yml
 ./scripts/set-slack-env-on-droplet.sh
 ```
 
-The script strips any previous `SLACK_*` lines, appends the new ones, then runs `docker compose … up -d` for **worker**, **worker-slack**, and **beat** only (`pull` first when `COMPOSE_FILE` contains `ghcr`). It cannot run from this chat: you need your real token, channel id, and SSH access.
+The script updates `SLACK_BOT_TOKEN` and `SLACK_DIGEST_CHANNEL_ID`; it updates the optional discussion/watchdog channel IDs only when you export them, otherwise existing distinct channel IDs are preserved. It then runs `docker compose … up -d` for **worker**, **worker-slack**, and **beat** only (`pull` first when `COMPOSE_FILE` contains `ghcr`). It cannot run from this chat: you need your real token, channel id, and SSH access.
 
 ### Local laptop (repo-root `.env`)
 
@@ -63,6 +72,9 @@ For **`docker compose`** from the repo root (not the Droplet):
 ```bash
 export SLACK_BOT_TOKEN='xoxb-…'
 export SLACK_DIGEST_CHANNEL_ID='C…'
+# optional, only when these should differ from the digest channel:
+# export SLACK_AGENT_DISCUSSION_CHANNEL_ID='C…'
+# export SITE_WATCHDOG_SLACK_CHANNEL_ID='C…'
 chmod +x scripts/set-slack-env-local.sh
 ./scripts/set-slack-env-local.sh
 # or: make slack-env-local   # same checks + script
@@ -75,7 +87,7 @@ Creates **`.env`** from **`.env.example`** if missing, then merges Slack lines.
 
 With **`X-Internal-Key`** set as for other `/internal/*` routes:
 
-`GET /internal/slack/status` → `{"slack_digest_configured": true/false, "has_bot_token": ..., "has_digest_channel_id": ...}` (no secrets in the body).
+`GET /internal/slack/status` → `{"slack_digest_configured": true/false, "has_bot_token": ..., "has_digest_channel_id": ..., "slack_channels_distinct": ...}` (no secrets or channel IDs in the body).
 
 `GET /internal/slack/last-digest` → when the **worker** last posted a digest (`audit_log` action `slack_digest_posted`). Use this to confirm Beat → worker → Slack without watching the channel.
 
@@ -145,7 +157,7 @@ Workflow file: [`.github/workflows/slack-digest-now-via-droplet.yml`](../.github
 
 ## Limits and future work
 
-- **Replies in Slack are not read** by the app today. There is no Events API, Socket Mode, or slash-command handler, so you cannot “talk back” to the agents through Slack without additional work (public HTTPS endpoint, `Slack-Signature` verification, idempotency, and mapping messages to internal actions).
+- **Replies in Slack are not read** by the app today. The optional Socket Mode service only handles the `/parking` slash command; it does not handle `@Cursor settings`, Slack replies, or repo assignment for Cursor Cloud Agents.
 - **Digest content** is derived from the database (parcels, `workflow_runs`, `approval_requests`, `audit_log`). It does not call LLM “agents”; the sections are labeled *Ingest*, *Scoring & pipeline*, etc., as a readable stand-in for operator reporting.
 - **Good next steps** if you want “manage like an employee”: (1) Slack slash command → signed request → enqueue Celery task or create `approval_requests`; (2) thread `ts` stored per parcel for continuity; (3) optional LLM summarization of diffs before post.
 

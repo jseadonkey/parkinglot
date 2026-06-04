@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Merge SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID into repo-root .env for local docker compose.
+# Merge Slack channel settings into repo-root .env for local docker compose.
 #
 #   export SLACK_BOT_TOKEN='xoxb-...'
 #   export SLACK_DIGEST_CHANNEL_ID='C...'
+#   # optional, when these should differ from the digest channel:
+#   export SLACK_AGENT_DISCUSSION_CHANNEL_ID='C...'
+#   export SITE_WATCHDOG_SLACK_CHANNEL_ID='C...'
 #   ./scripts/set-slack-env-local.sh
 #   docker compose up -d --build worker beat
 set -euo pipefail
@@ -25,6 +28,8 @@ fi
 
 export TOKEN="$SLACK_BOT_TOKEN"
 export CHAN="$SLACK_DIGEST_CHANNEL_ID"
+export AGENT_DISCUSSION_CHAN="${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}"
+export WATCHDOG_CHAN="${SITE_WATCHDOG_SLACK_CHANNEL_ID:-}"
 
 python3 <<'PY'
 import os
@@ -33,19 +38,23 @@ import pathlib
 root = pathlib.Path.cwd()
 env_path = root / ".env"
 text = env_path.read_text(encoding="utf-8")
+updates = {
+    "SLACK_BOT_TOKEN": os.environ["TOKEN"],
+    "SLACK_DIGEST_CHANNEL_ID": os.environ["CHAN"],
+}
+optional = {
+    "SLACK_AGENT_DISCUSSION_CHANNEL_ID": os.environ.get("AGENT_DISCUSSION_CHAN", "").strip(),
+    "SITE_WATCHDOG_SLACK_CHANNEL_ID": os.environ.get("WATCHDOG_CHAN", "").strip(),
+}
+updates.update({key: val for key, val in optional.items() if val})
 lines = [
     ln
     for ln in text.splitlines()
-    if not ln.startswith("SLACK_BOT_TOKEN=") and not ln.startswith("SLACK_DIGEST_CHANNEL_ID=")
+    if ln.split("=", 1)[0] not in updates
 ]
 body = "\n".join(lines).rstrip() + "\n"
-token = os.environ["TOKEN"]
-chan = os.environ["CHAN"]
-addition = (
-    "\n# Slack — added by scripts/set-slack-env-local.sh\n"
-    f"SLACK_BOT_TOKEN={token}\n"
-    f"SLACK_DIGEST_CHANNEL_ID={chan}\n"
-)
+addition = "\n# Slack — added by scripts/set-slack-env-local.sh\n"
+addition += "".join(f"{key}={val}\n" for key, val in updates.items())
 env_path.write_text(body + addition, encoding="utf-8", newline="\n")
 print("Updated", env_path)
 PY

@@ -57,6 +57,12 @@ class Settings(BaseSettings):
 
     # Slack (optional): bot posts a digest on a schedule from Celery Beat → worker task.
     slack_bot_token: str = Field(default="", validation_alias=AliasChoices("SLACK_BOT_TOKEN", "slack_bot_token"))
+    # Optional Socket Mode support for slash commands. The scheduled Slack digests do not need these.
+    slack_app_token: str = Field(default="", validation_alias=AliasChoices("SLACK_APP_TOKEN", "slack_app_token"))
+    slack_signing_secret: str = Field(
+        default="",
+        validation_alias=AliasChoices("SLACK_SIGNING_SECRET", "slack_signing_secret"),
+    )
     slack_digest_channel_id: str = Field(
         default="",
         validation_alias=AliasChoices("SLACK_DIGEST_CHANNEL_ID", "slack_digest_channel_id"),

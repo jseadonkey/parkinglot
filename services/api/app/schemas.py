@@ -635,9 +635,13 @@ class SlackConfigStatusResponse(BaseModel):
 
     slack_digest_configured: bool
     has_bot_token: bool
+    has_socket_app_token: bool = False
+    has_signing_secret: bool = False
     has_digest_channel_id: bool
     slack_dual_agent_configured: bool
     has_agent_discussion_channel_id: bool
+    has_site_watchdog_channel_id: bool = False
+    slack_channels_distinct: bool = False
     slack_agent_event_updates_enabled: bool
 
 

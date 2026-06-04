@@ -38,7 +38,7 @@ on:
         type: boolean
         default: false
       sync_slack_channels:
-        description: "Point watchdog + agent-discussion channels at SLACK_DIGEST_CHANNEL_ID"
+        description: "Fill missing watchdog + agent-discussion channels from SLACK_DIGEST_CHANNEL_ID"
         type: boolean
         default: false
       fix_hourly_slack_reports:
