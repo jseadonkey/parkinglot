@@ -23,6 +23,71 @@ from parking_core.pilot import load_pilot_config
 
 logger = logging.getLogger(__name__)
 
+PARKINGLOT_PROJECT_ID = "parkinglot"
+PARKINGLOT_SLACK_CHANNEL_ID = "C0B0VPSAH44"
+
+
+class SlackSafetyError(RuntimeError):
+    """Raised before Slack API calls when runtime project/channel safety checks fail."""
+
+
+def _split_channel_ids(raw: str) -> set[str]:
+    return {part.strip() for part in raw.split(",") if part.strip()}
+
+
+def configured_slack_channel_ids(settings: Settings) -> set[str]:
+    """Channel IDs this deployment is configured to use for parkinglot Slack messages."""
+    channels = {
+        (settings.slack_digest_channel_id or "").strip(),
+        (settings.slack_agent_discussion_channel_id or "").strip(),
+        (getattr(settings, "site_watchdog_slack_channel_id", "") or "").strip(),
+        (getattr(settings, "ops_remediation_slack_channel_id", "") or "").strip(),
+    }
+    return {ch for ch in channels if ch}
+
+
+def allowed_slack_channel_ids(settings: Settings) -> set[str]:
+    """Parkinglot Slack allowlist, constrained to the one documented channel ID."""
+    explicit = _split_channel_ids(settings.slack_allowed_channel_ids or "")
+    if explicit:
+        return explicit & {PARKINGLOT_SLACK_CHANNEL_ID}
+    return {PARKINGLOT_SLACK_CHANNEL_ID}
+
+
+def slack_safety_status(settings: Settings) -> dict[str, Any]:
+    """Non-secret Slack safety fields for status endpoints and smoke checks."""
+    allowed = sorted(allowed_slack_channel_ids(settings))
+    configured = sorted(configured_slack_channel_ids(settings))
+    project = (settings.app_project_id or "").strip()
+    return {
+        "app_project_id": project,
+        "project_is_parkinglot": project == PARKINGLOT_PROJECT_ID,
+        "allowed_channel_ids": allowed,
+        "configured_channel_ids": configured,
+        "has_allowed_channel_ids": bool(allowed),
+    }
+
+
+def validate_slack_destination(settings: Settings, channel_id: str) -> None:
+    """Fail closed unless this parkinglot runtime is posting to an allowed channel ID."""
+    project = (settings.app_project_id or "").strip()
+    if project != PARKINGLOT_PROJECT_ID:
+        raise SlackSafetyError(
+            f"Slack disabled: APP_PROJECT_ID must be {PARKINGLOT_PROJECT_ID!r}, got {project!r}",
+        )
+    channel = (channel_id or "").strip()
+    allowed = allowed_slack_channel_ids(settings)
+    if not allowed:
+        raise SlackSafetyError(
+            "Slack disabled: no allowed channel IDs configured "
+            "(set SLACK_DIGEST_CHANNEL_ID or SLACK_ALLOWED_CHANNEL_IDS)",
+        )
+    if channel not in allowed:
+        raise SlackSafetyError(
+            f"Slack channel {channel!r} is not the parkinglot Slack channel "
+            f"{PARKINGLOT_SLACK_CHANNEL_ID!r}",
+        )
+
 
 def _count_since(db: Session, model: type, column: Any, cutoff: datetime) -> int:
     n = db.scalar(select(func.count()).select_from(model).where(column >= cutoff))
@@ -353,6 +418,7 @@ def post_blocks_to_slack_channel(
     channel = (channel_id or "").strip()
     if not token or not channel:
         raise ValueError("slack not configured")
+    validate_slack_destination(settings, channel)
     client = WebClient(token=token)
     try:
         resp = client.chat_postMessage(channel=channel, blocks=blocks, text=fallback)
@@ -579,6 +645,7 @@ def post_text_to_slack(settings: Settings, *, text: str, channel_id: str | None 
     channel = (channel_id or settings.slack_digest_channel_id or "").strip()
     if not token or not channel:
         raise ValueError("slack not configured")
+    validate_slack_destination(settings, channel)
     client = WebClient(token=token)
     try:
         resp = client.chat_postMessage(channel=channel, text=text)

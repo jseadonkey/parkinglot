@@ -80,10 +80,12 @@ from app.schemas import (
 )
 from app.scoring_summary import scoring_summary_stats
 from app.slack_digest import (
+    SlackSafetyError,
     build_dual_agent_discussion_posts,
     build_slack_digest_blocks,
     post_text_to_slack,
     slack_agent_event_updates_enabled,
+    slack_safety_status,
 )
 from app.tasks import (
     enqueue_incomplete_pipeline_jobs,
@@ -172,11 +174,21 @@ def slack_config_status() -> SlackConfigStatusResponse:
     has_token = bool((s.slack_bot_token or "").strip())
     has_channel = bool((s.slack_digest_channel_id or "").strip())
     has_agent_ch = bool((s.slack_agent_discussion_channel_id or "").strip())
+    safety = slack_safety_status(s)
+    allowed = set(safety["allowed_channel_ids"])
+    project_ok = bool(safety["project_is_parkinglot"])
+    digest_channel = (s.slack_digest_channel_id or "").strip()
+    agent_channel = (s.slack_agent_discussion_channel_id or "").strip()
     return SlackConfigStatusResponse(
-        slack_digest_configured=has_token and has_channel,
+        app_project_id=str(safety["app_project_id"]),
+        project_is_parkinglot=project_ok,
+        allowed_channel_ids=list(safety["allowed_channel_ids"]),
+        configured_channel_ids=list(safety["configured_channel_ids"]),
+        has_allowed_channel_ids=bool(safety["has_allowed_channel_ids"]),
+        slack_digest_configured=has_token and has_channel and project_ok and digest_channel in allowed,
         has_bot_token=has_token,
         has_digest_channel_id=has_channel,
-        slack_dual_agent_configured=has_token and has_agent_ch,
+        slack_dual_agent_configured=has_token and has_agent_ch and project_ok and agent_channel in allowed,
         has_agent_discussion_channel_id=has_agent_ch,
         slack_agent_event_updates_enabled=slack_agent_event_updates_enabled(s),
     )
@@ -609,7 +621,10 @@ def slack_test_message(body: SlackTestMessageRequest) -> SlackTestMessagePostRes
     Uses SLACK_DIGEST_CHANNEL_ID by default; override with body.channel_id (Slack channel ID).
     """
     settings = get_settings()
-    resp = post_text_to_slack(settings, text=body.text, channel_id=body.channel_id)
+    try:
+        resp = post_text_to_slack(settings, text=body.text, channel_id=body.channel_id)
+    except SlackSafetyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     ts = resp.get("ts")
     ch = resp.get("channel")
     return SlackTestMessagePostResponse(
