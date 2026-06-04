@@ -8,8 +8,8 @@ from typing import Any
 from shapely.geometry import shape
 from shapely.geometry.base import BaseGeometry
 
+from parking_ingestion.jurisdiction_resolver import resolve_zoning_jurisdiction
 from parking_ingestion.zoning_rules import (
-    infer_zoning_jurisdiction,
     load_effective_zoning_rules,
     resolve_principal_use_symbol,
     resolve_surface_parking,
@@ -125,7 +125,10 @@ def iter_parcels_from_geojson_dict(
             "GIS_LU_CODE",
         )
         juris = _prop(props, "ZONING_JURISDICTION", "zoning_jurisdiction")
-        juris_s = infer_zoning_jurisdiction(county, str(juris).strip() if juris is not None else None)
+        juris_s = resolve_zoning_jurisdiction(county, str(juris).strip() if juris is not None else None, geom=geom)
+        if juris_s:
+            props.setdefault("ZONING_JURISDICTION", juris_s)
+            props.setdefault("zoning_jurisdiction", juris_s)
 
         explicit_sp = _explicit_surface_parking(props)
         zoning_ok = resolve_surface_parking(
@@ -149,6 +152,7 @@ def iter_parcels_from_geojson_dict(
             "county_fips": county,
             "lot_sqft": _lot_sqft_from_props(props),
             "zoning_code": zoning_code,
+            "zoning_jurisdiction": juris_s,
             "zoning_allows_surface_parking": zoning_ok,
             "zoning_principal_use_symbol": use_symbol,
             "zoning_entitlement_tier": entitlement_tier,

@@ -1,0 +1,46 @@
+# Washington pilot county-unincorporated zoning rule skeleton.
+# NOT LEGAL ADVICE — all entries are conservative false-by-default until a
+# county/city zoning memo curates ordinance-backed zone codes.
+
+version: 1
+default_when_unknown: false
+
+jurisdictions:
+  wa_53001_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53003_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53005_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53007_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53009_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53011_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53013_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53015_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53017_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53019_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53021_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53023_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53025_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53027_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53029_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53031_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53035_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53037_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53039_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53041_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53043_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53045_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53047_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53049_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53051_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53053_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53055_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53057_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53059_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53061_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53063_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53065_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53067_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53069_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53071_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53073_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53075_unincorporated: {source_url: "docs/washington-data.md", zones: {}}
+  wa_53077_unincorporated: {source_url: "docs/washington-data.md", zones: {}}

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from parking_core.geography_registry import load_geography_registry
 
 # County FIPS → zoning_rules.yaml jurisdiction key (ingest when overlay omits ZONING_JURISDICTION).
 COUNTY_FIPS_TO_ZONING_JURISDICTION: dict[str, str] = {
@@ -19,8 +20,14 @@ def normalize_zone_code(code: str | None) -> str:
 def infer_zoning_jurisdiction(county_fips: str, explicit_jurisdiction: str | None) -> str | None:
     """Default jurisdiction from county when spatial join did not set ZONING_JURISDICTION."""
     if explicit_jurisdiction is not None and str(explicit_jurisdiction).strip():
-        return str(explicit_jurisdiction).strip()
+        return str(explicit_jurisdiction).strip().lower()
     cf = (county_fips or "").strip()
+    try:
+        default_jurisdiction = load_geography_registry().default_jurisdiction_for_county(cf)
+    except Exception:
+        default_jurisdiction = None
+    if default_jurisdiction:
+        return default_jurisdiction
     return COUNTY_FIPS_TO_ZONING_JURISDICTION.get(cf)
 
 
@@ -90,13 +97,31 @@ def zoning_rules_search_paths(explicit: Path | None = None) -> list[Path]:
         for part in env.split(","):
             add(Path(part.strip()))
 
+    try:
+        registry_rules_paths = load_geography_registry().zoning_rules_paths()
+    except Exception:
+        registry_rules_paths = []
+    for rel in registry_rules_paths:
+        candidate = Path(rel)
+        if candidate.is_absolute():
+            add(candidate)
+        else:
+            add(root / candidate)
+            add(Path("/app") / candidate)
+
     for candidate in (
         Path("/app/data/zoning/wa/kent_king_surface_parking_rules.yaml"),
+        Path("/app/data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml"),
         Path("/app/data/zoning/md/baltimore_city_surface_parking_rules.yaml"),
+        Path("/app/data/zoning/md/baltimore_county_surface_parking_rules.yaml"),
         root / "data/zoning/wa/kent_king_surface_parking_rules.yaml",
+        root / "data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml",
         root / "data/zoning/md/baltimore_city_surface_parking_rules.yaml",
+        root / "data/zoning/md/baltimore_county_surface_parking_rules.yaml",
         Path.cwd() / "data/zoning/wa/kent_king_surface_parking_rules.yaml",
+        Path.cwd() / "data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml",
         Path.cwd() / "data/zoning/md/baltimore_city_surface_parking_rules.yaml",
+        Path.cwd() / "data/zoning/md/baltimore_county_surface_parking_rules.yaml",
     ):
         add(candidate)
 

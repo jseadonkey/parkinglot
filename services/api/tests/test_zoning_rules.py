@@ -112,7 +112,7 @@ jurisdictions:
 def test_infer_zoning_jurisdiction_baltimore_city() -> None:
     assert infer_zoning_jurisdiction("24510", None) == "baltimore_city"
     assert infer_zoning_jurisdiction("24510", "custom") == "custom"
-    assert infer_zoning_jurisdiction("53033", None) is None
+    assert infer_zoning_jurisdiction("53033", None) == "king_unincorporated"
 
 
 def test_merge_zoning_rules_combines_jurisdictions() -> None:

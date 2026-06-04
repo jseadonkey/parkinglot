@@ -45,6 +45,10 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("ZONING_RULES_PATH", "zoning_rules_path"),
     )
+    geography_registry_path: str = Field(
+        default="./config/geography_registry.yaml",
+        validation_alias=AliasChoices("GEOGRAPHY_REGISTRY_PATH", "geography_registry_path"),
+    )
     storage_endpoint: str = "http://localhost:9000"
     storage_access_key: str = "minio"
     storage_secret_key: str = "minio12345"

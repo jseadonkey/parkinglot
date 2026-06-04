@@ -50,6 +50,12 @@ Exit criteria:
 - “qualified” parcels correlate with zoning evidence fields
 - scoring notes explain *why* (not just a number)
 
+Implementation note: the registry and resolver foundation now lives in
+[`GEOGRAPHY-AGENTS.md`](GEOGRAPHY-AGENTS.md), `config/geography_registry.yaml`,
+and `parking_ingestion.jurisdiction_resolver`. The remaining Phase 2 data work is
+curating city/county boundary files and ordinance-backed zone entries for each
+jurisdiction.
+
 ## Phase 3 — Tier C/D: demand + ROW/access proxies (ranking)
 
 Deliverables:

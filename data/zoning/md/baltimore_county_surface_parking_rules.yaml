@@ -1,0 +1,11 @@
+# Baltimore County surface-parking suitability skeleton.
+# NOT LEGAL ADVICE — conservative false-by-default until ordinance-backed
+# entries are curated for county/unincorporated and municipal jurisdictions.
+
+version: 1
+default_when_unknown: false
+
+jurisdictions:
+  baltimore_county_unincorporated:
+    source_url: "docs/data-vendor-shortlist.md"
+    zones: {}

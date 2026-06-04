@@ -1,17 +1,23 @@
 # Washington zoning rules (YAML)
 
-`kent_king_surface_parking_rules.yaml` maps **zone codes** (per jurisdiction) to **`allows_surface_parking`** for scoring—not legal conclusions; curate with GIS + counsel.
+`kent_king_surface_parking_rules.yaml` and
+`pilot_county_unincorporated_surface_parking_rules.yaml` map **zone codes** (per
+jurisdiction) to **`allows_surface_parking`** for scoring—not legal conclusions;
+curate with GIS + counsel.
 
 ## Environment override
 
-- **`ZONING_RULES_PATH`** — comma-separated YAML paths (optional). When unset, ingest **merges** WA + MD defaults if present: `data/zoning/wa/kent_king_surface_parking_rules.yaml` and `data/zoning/md/baltimore_city_surface_parking_rules.yaml` (Docker: `/app/data/zoning/...`). See `data/zoning/md/README.md` for Baltimore.
+- **`ZONING_RULES_PATH`** — comma-separated YAML paths (optional). When unset,
+  ingest **merges** registry-declared rule files plus WA + MD defaults
+  (Docker: `/app/data/zoning/...`). See `docs/GEOGRAPHY-AGENTS.md` for the
+  registry/resolver.
 
 ## GeoJSON properties for ingest
 
 | Property | Purpose |
 |----------|---------|
 | `ZONING` / `zoning_code` | Zone label from the spatial join. |
-| `ZONING_JURISDICTION` | `kent_city` or `king_unincorporated`. |
+| `ZONING_JURISDICTION` | Optional when the registry can resolve it. Examples: `kent_city`, `king_unincorporated`, `wa_53053_unincorporated`. |
 | `ZONING_ALLOWS_SURFACE_PARKING` | Optional; if present, overrides YAML lookup. |
 
 See `docs/zoning-sources-kent.md` for layer URLs.

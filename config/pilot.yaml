@@ -158,6 +158,6 @@ scoring:
       source_note: "Pilot placeholder"
 
 data_sources:
-  parcel_vendor: "TBD — see docs/washington-data.md"
-  zoning_vendor: "docs/zoning-sources-kent.md + data/zoning/wa/kent_king_surface_parking_rules.yaml"
+  parcel_vendor: "config/geography_registry.yaml (source refs; WA uses WaTech statewide parcels)"
+  zoning_vendor: "config/geography_registry.yaml + data/zoning/{wa,md}/*surface_parking_rules.yaml"
   poi_source: "demand_generators_baltimore*.yaml + OSM Overpass (refresh-poi-density)"
