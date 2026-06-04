@@ -179,9 +179,18 @@ class GeographyRegistry(BaseModel):
 def _repo_root() -> Path:
     here = Path(__file__).resolve()
     marker = Path("config") / "geography_registry.yaml"
+    cwd = Path.cwd()
+    if (cwd / marker).is_file():
+        return cwd
     for parent in (here.parent, *here.parents):
         if (parent / marker).is_file():
             return parent
+    for parent in (cwd, *cwd.parents):
+        if (parent / marker).is_file():
+            return parent
+    app_root = Path("/app")
+    if (app_root / marker).is_file():
+        return app_root
     return here.parents[2]
 
 
@@ -193,6 +202,10 @@ def _registry_fragment_path(registry_path: Path, fragment: str) -> Path:
     candidate = Path(fragment)
     if candidate.is_absolute():
         return candidate
+    registry_root = registry_path.parent.parent
+    registry_root_candidate = registry_root / candidate
+    if registry_root_candidate.is_file():
+        return registry_root_candidate
     root_candidate = _repo_root() / candidate
     if root_candidate.is_file():
         return root_candidate

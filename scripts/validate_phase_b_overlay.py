@@ -78,7 +78,11 @@ def main() -> int:
 
     data = load_geojson_path(args.path)
     pilot = load_pilot_config(pilot_path)
-    registry = load_geography_registry(args.geography_registry) if args.geography_registry else load_geography_registry()
+    registry = (
+        load_geography_registry(args.geography_registry)
+        if args.geography_registry
+        else load_geography_registry()
+    )
     registry_issues = validate_geography_registry(
         registry,
         pilot_county_fips=pilot.region.county_fips,

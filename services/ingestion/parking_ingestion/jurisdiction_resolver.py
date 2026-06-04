@@ -14,9 +14,18 @@ from parking_core.geography_registry import GeographyAgent, GeographyRegistry, l
 def _repo_root() -> Path:
     here = Path(__file__).resolve()
     marker = Path("config") / "geography_registry.yaml"
+    cwd = Path.cwd()
+    if (cwd / marker).is_file():
+        return cwd
     for parent in (here.parent, *here.parents):
         if (parent / marker).is_file():
             return parent
+    for parent in (cwd, *cwd.parents):
+        if (parent / marker).is_file():
+            return parent
+    app_root = Path("/app")
+    if (app_root / marker).is_file():
+        return app_root
     return here.parents[3]
 
 

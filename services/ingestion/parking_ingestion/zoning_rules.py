@@ -72,9 +72,18 @@ def _repo_root() -> Path:
     """Monorepo root — works from source tree or installed site-packages."""
     here = Path(__file__).resolve()
     marker = Path("data") / "zoning" / "wa" / "kent_king_surface_parking_rules.yaml"
+    cwd = Path.cwd()
+    if (cwd / marker).is_file():
+        return cwd
     for parent in (here.parent, *here.parents):
         if (parent / marker).is_file():
             return parent
+    for parent in (cwd, *cwd.parents):
+        if (parent / marker).is_file():
+            return parent
+    app_root = Path("/app")
+    if (app_root / marker).is_file():
+        return app_root
     return here.parents[3]
 
 

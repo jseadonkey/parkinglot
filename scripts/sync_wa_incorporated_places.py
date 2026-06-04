@@ -217,7 +217,10 @@ def sync(expected_count: int) -> dict[str, Any]:
                         "wa_city_rules_skeleton",
                     ],
                     "zoning_rules_paths": ["data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml"],
-                    "notes": "Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.",
+                    "notes": (
+                        "Generated from Census TIGERweb incorporated places; "
+                        "zoning entries are conservative until curated."
+                    ),
                 }
             )
 

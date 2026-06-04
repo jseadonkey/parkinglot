@@ -23,6 +23,7 @@ county_fips_priority:
   - "53021" # Franklin
   - "53025" # Grant
   - "53027" # Grays Harbor
+  - "53031" # Jefferson
   - "53037" # Kittitas
   - "53039" # Klickitat
   - "53041" # Lewis
