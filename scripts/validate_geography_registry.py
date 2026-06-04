@@ -22,9 +22,9 @@ def _ensure_repo_paths() -> None:
 def main() -> int:
     _ensure_repo_paths()
 
+    from parking_core.city_inventory import load_city_inventory_manifest
     from parking_core.geography_registry import load_geography_registry, validate_geography_registry
     from parking_core.pilot import load_pilot_config
-    from parking_core.city_inventory import load_city_inventory_manifest
     from parking_ingestion.zoning_rules import load_effective_zoning_rules
 
     parser = argparse.ArgumentParser(description="Validate geography registry coverage.")
