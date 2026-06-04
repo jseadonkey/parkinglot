@@ -2,12 +2,13 @@
 # Set PUBLIC_API_URL and CORS_ALLOW_ORIGINS to include the HTTPS host port from CADDY_PUBLISH_HTTPS
 # (e.g. 9443) so the approval UI build and API CORS match alternate Caddy publishing.
 #
-#   DROPLET=203.0.113.10 ./scripts/droplet-sync-public-urls-to-caddy-port.sh
+#   ./scripts/droplet-sync-public-urls-to-caddy-port.sh
 set -euo pipefail
 
-: "${DROPLET:?Set DROPLET to the Droplet IPv4 or hostname}"
-REMOTE_PATH="${REMOTE_PATH:-/opt/parking-acquisition-agents}"
-SSH_USER="${SSH_USER:-root}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/droplet-target.sh
+source "$ROOT/scripts/lib/droplet-target.sh"
+assert_droplet_target "$ROOT/scripts/droplet-sync-public-urls-to-caddy-port.sh" "${DROPLET:-}" "${REMOTE_PATH:-}" "${SSH_USER:-}" || exit 1
 
 ssh -oBatchMode=yes "${SSH_USER}@${DROPLET}" \
   "env REMOTE_PATH=$(printf '%q' "$REMOTE_PATH") bash -s" <<'EOS'

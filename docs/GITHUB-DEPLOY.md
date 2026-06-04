@@ -9,7 +9,7 @@ Workflow: [`.github/workflows/deploy-droplet.yml`](../.github/workflows/deploy-d
 
 | Secret | Example |
 |--------|---------|
-| `DROPLET_HOST` | `203.0.113.10` |
+| `DROPLET_HOST` | `209.38.142.108` |
 | `DROPLET_USER` | `root` |
 | `DROPLET_SSH_PRIVATE_KEY` | Full PEM / OpenSSH private key (include `-----BEGIN` lines) |
 
@@ -25,9 +25,13 @@ From your laptop (GitHub CLI authenticated for this repo): pipe the **raw key va
 
 | Variable | Purpose |
 |----------|---------|
-| `DROPLET_REMOTE_PATH` | Remote directory (default `/opt/parking-acquisition-agents` if unset) |
+| `DROPLET_REMOTE_PATH` | Remote directory (default `/opt/workspaces/parkinglot` if unset) |
 
 4. Run **Actions → Deploy to Droplet → Run workflow**.
+
+The workflow validates `DROPLET_HOST`, `DROPLET_USER`, and `DROPLET_REMOTE_PATH`
+against [`deploy/droplet.target`](../deploy/droplet.target) before any remote
+directory creation, rsync, or rebuild step.
 
 When **Verify /ready** is enabled (default), the job finishes by curling **`PUBLIC_API_URL/ready`** from the Droplet itself. Turn it off if DNS or TLS is not ready yet (first-time bring-up).
 

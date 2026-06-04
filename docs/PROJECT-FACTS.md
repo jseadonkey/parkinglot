@@ -13,7 +13,7 @@ Single place for **names, IDs, and paths** this codebase assumes. Update this fi
 |------|--------|
 | **Public IPv4** | `209.38.142.108` |
 | **SSH user** | `cursor` (key-based; `root` also used in some docs) |
-| **Repo root on server (canonical)** | **`/opt/parking-acquisition-agents`** — all operator docs use this path ([DROPLET_REPO_PATH.md](DROPLET_REPO_PATH.md)). |
+| **Repo root on server (canonical)** | **`/opt/workspaces/parkinglot`** — all operator docs use this path ([DROPLET_REPO_PATH.md](DROPLET_REPO_PATH.md)). |
 | **Physical clone on this Droplet** | `/opt/workspaces/parkinglot` (use symlink or `REMOTE_PATH` until aligned — same doc). |
 | **Compose** | `docker compose` from that directory (loads repo-root `.env` for `${SLACK_*}` interpolation) |
 | **Optional Slack socket / slash commands** | Service **`slack-socket`** is behind profile **`slack-socket`** (not started by default). Enable with: `docker compose --profile slack-socket up -d slack-socket` (requires `app.slack_socket_runner` in the tree + `SLACK_APP_TOKEN` / `SLACK_SIGNING_SECRET`). |
@@ -45,7 +45,7 @@ You may substitute other subdomains (e.g. **`app.`** / **`agents.`**) as long as
 | **Env vars** | `SLACK_BOT_TOKEN` (`xoxb-…`), `SLACK_DIGEST_CHANNEL_ID`, optional `SLACK_AGENT_EVENT_UPDATES=1` (worker posts per ingest/pipeline lines — see `docs/SLACK.md`) |
 | **Slack & data** | Pipeline inputs and digests are **not sensitive** — OK to post to Slack; still keep **`SLACK_BOT_TOKEN`** secret ([`SLACK.md`](SLACK.md#non-sensitive-pilot-data)). |
 | **Production API** | `deploy/docker-compose.production*.yml` pass the same `SLACK_*` values to **`api`** as **worker** / **beat** so `/internal/slack/*` matches digest config. |
-| **Apply token on server** | `cd /opt/parking-acquisition-agents && python3 scripts/apply_slack_token.py 'xoxb-…'` |
+| **Apply token on server** | `cd /opt/workspaces/parkinglot && python3 scripts/apply_slack_token.py 'xoxb-…'` |
 
 ### Bot name (not in git — fill once)
 

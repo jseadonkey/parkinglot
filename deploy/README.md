@@ -6,10 +6,10 @@ The repo is meant to sit in a single directory on the Droplet, with `docker comp
 
 | Item | Value |
 |------|--------|
-| **Default path** | `/opt/parking-acquisition-agents` |
-| **Folder name** | `parking-acquisition-agents` (matches the git clone / rsync target) |
+| **Default path** | `/opt/workspaces/parkinglot` |
+| **Folder name** | `parkinglot` |
 
-You can use another path (e.g. `/home/deploy/app`); set **`REMOTE_PATH`** for [`scripts/sync-to-droplet.sh`](../scripts/sync-to-droplet.sh) and [`scripts/remote-rebuild.sh`](../scripts/remote-rebuild.sh), or GitHub variable **`DROPLET_REMOTE_PATH`** for [`.github/workflows/deploy-droplet.yml`](../.github/workflows/deploy-droplet.yml). If unset, those tools default to **`/opt/parking-acquisition-agents`** ([docs/DROPLET_REPO_PATH.md](../docs/DROPLET_REPO_PATH.md)).
+You can use another path (e.g. `/home/deploy/app`); set **`REMOTE_PATH`** for [`scripts/sync-to-droplet.sh`](../scripts/sync-to-droplet.sh) and [`scripts/remote-rebuild.sh`](../scripts/remote-rebuild.sh), or GitHub variable **`DROPLET_REMOTE_PATH`** for [`.github/workflows/deploy-droplet.yml`](../.github/workflows/deploy-droplet.yml). If unset, those tools default to **`/opt/workspaces/parkinglot`** ([docs/DROPLET_REPO_PATH.md](../docs/DROPLET_REPO_PATH.md)).
 
 On the server, secrets live in **`deploy/.env`** next to the compose files (that file is never committed).
 
@@ -17,9 +17,9 @@ On the server, secrets live in **`deploy/.env`** next to the compose files (that
 - **Slack (optional):** [docs/SLACK.md](../docs/SLACK.md) — set `SLACK_BOT_TOKEN` and `SLACK_DIGEST_CHANNEL_ID` in `deploy/.env`.
 - **Env template**: [`env.production.example`](env.production.example) → copy to `deploy/.env` on the server (gitignored).
 - **Managed Postgres firewall:** In **Databases → your cluster → Settings** (or **Trusted sources**), allow your **Droplet** as a trusted resource, or add the Droplet’s **public IPv4**. Otherwise connections from the app on the Droplet often fail with timeouts / “connection refused” even when `DATABASE_URL` is correct.
-- **Easier than editing `nano`:** On the Droplet, from the repo root (**`/opt/parking-acquisition-agents`** — see [docs/DROPLET_REPO_PATH.md](../docs/DROPLET_REPO_PATH.md)), run **`python3 scripts/droplet_set_database_url.py`** — it prompts for host and password (hidden) and updates **`deploy/.env`** with **`DATABASE_URL`** (backs up `.env` first). Needs the script on disk (from **`git pull`** or after a deploy **rsync**).
+- **Easier than editing `nano`:** On the Droplet, from the repo root (**`/opt/workspaces/parkinglot`** — see [docs/DROPLET_REPO_PATH.md](../docs/DROPLET_REPO_PATH.md)), run **`python3 scripts/droplet_set_database_url.py`** — it prompts for host and password (hidden) and updates **`deploy/.env`** with **`DATABASE_URL`** (backs up `.env` first). Needs the script on disk (from **`git pull`** or after a deploy **rsync**).
 - **Easiest (one paste):** **`python3 scripts/droplet_paste_database_uri.py`** — in the DO panel use **Copy** on the full **`postgresql://…`** connection URI (one line), paste when the script asks, Enter. Converts to **`postgresql+psycopg://`** automatically.
-- **No Droplet typing:** Add GitHub repository secret **`DEPLOY_DATABASE_URL`** (paste the full **`postgresql://…`** URI once), then under **Actions** run **`droplet-set-database-url-from-secret.yml`** (**Droplet — set DATABASE_URL from GitHub secret**). Uses the same SSH secrets as **Deploy to Droplet**. Set repository variable **`DROPLET_REMOTE_PATH`** if your app is not at **`/opt/parking-acquisition-agents`** (e.g. **`/opt/workspaces/parkinglot`**).
+- **No Droplet typing:** Add GitHub repository secret **`DEPLOY_DATABASE_URL`** (paste the full **`postgresql://…`** URI once), then under **Actions** run **`droplet-set-database-url-from-secret.yml`** (**Droplet — set DATABASE_URL from GitHub secret**). Uses the same SSH secrets as **Deploy to Droplet**. Keep repository variable **`DROPLET_REMOTE_PATH`** aligned with [`deploy/droplet.target`](droplet.target) if the repo path ever changes.
 - **Edge proxy**: [`Caddyfile`](Caddyfile) — `UI_HOST` and `API_HOST` must have DNS pointing at the Droplet before TLS will succeed.
 - **Port clash on shared Droplets**: if something else already binds **80/443**, set **`CADDY_PUBLISH_HTTP`**, **`CADDY_PUBLISH_HTTPS`**, and **`CADDY_CADDYFILE=./Caddyfile.internal-tls`** in `deploy/.env` (see [`env.production.example`](env.production.example)). Then point **`PUBLIC_API_URL`** / **`CORS_ALLOW_ORIGINS`** at the same hostnames **including the HTTPS port**. **One click:** Actions → **Droplet — apply Caddy alternate ports (80 clash)** (`droplet-apply-caddy-alt-ports.yml`) — SSHs in and runs [`scripts/droplet_apply_caddy_alt_ports.sh`](../scripts/droplet_apply_caddy_alt_ports.sh). Helpers: [`scripts/droplet-enable-alt-caddy-ports.sh`](../scripts/droplet-enable-alt-caddy-ports.sh), [`scripts/droplet-sync-public-urls-to-caddy-port.sh`](../scripts/droplet-sync-public-urls-to-caddy-port.sh), [`scripts/droplet-open-caddy-alt-ports-ufw.sh`](../scripts/droplet-open-caddy-alt-ports-ufw.sh) (UFW), [`scripts/droplet-provision-internal-api-key.sh`](../scripts/droplet-provision-internal-api-key.sh) (random **`INTERNAL_API_KEY`** when empty).
 - **No Managed Postgres yet (bootstrap on one VM)**: [`docker-compose.postgis-addon.yml`](docker-compose.postgis-addon.yml) adds **PostGIS** on the compose network. Run [`scripts/droplet-provision-local-postgis-env.sh`](../scripts/droplet-provision-local-postgis-env.sh) once (replaces `YOUR_DB_HOST` template), then rebuild with **`USE_LOCAL_POSTGIS=1`** (see [`scripts/remote-rebuild.sh`](../scripts/remote-rebuild.sh)). Switch back to DigitalOcean Managed Postgres by restoring `DATABASE_URL`, removing **`POSTGRES_PASSWORD`**, and rebuilding without **`USE_LOCAL_POSTGIS`**.
@@ -66,8 +66,8 @@ Sync + rebuild from your laptop (requires SSH):
 
 ```bash
 chmod +x scripts/sync-to-droplet.sh scripts/remote-rebuild.sh
-DROPLET=<droplet-ipv4> ./scripts/sync-to-droplet.sh
-DROPLET=<droplet-ipv4> ./scripts/remote-rebuild.sh
+./scripts/sync-to-droplet.sh
+./scripts/remote-rebuild.sh
 ```
 
 Slack env on the Droplet + restart worker/beat only: [`scripts/set-slack-env-on-droplet.sh`](../scripts/set-slack-env-on-droplet.sh) (see [docs/SLACK.md](../docs/SLACK.md)).

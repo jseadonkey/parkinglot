@@ -49,7 +49,7 @@ chmod +x scripts/set-slack-env-on-droplet.sh
 export SLACK_BOT_TOKEN='xoxb-…'
 export SLACK_DIGEST_CHANNEL_ID='C…'
 export DROPLET='YOUR_DROPLET_IP_OR_HOST'
-# optional: export REMOTE_PATH=/opt/parking-acquisition-agents
+# optional: export REMOTE_PATH=/opt/workspaces/parkinglot
 # optional: export COMPOSE_FILE=deploy/docker-compose.production.ghcr.yml
 ./scripts/set-slack-env-on-droplet.sh
 ```

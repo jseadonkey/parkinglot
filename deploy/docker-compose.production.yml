@@ -1,7 +1,7 @@
 # Production stack on a single DigitalOcean Droplet (24/7).
 # Uses Managed Postgres + Spaces (not container Postgres/MinIO). Redis runs on the Droplet.
 #
-# On the server: copy repo to e.g. /opt/parking-acquisition-agents, create deploy/.env from
+# On the server: copy repo to e.g. /opt/workspaces/parkinglot, create deploy/.env from
 # env.production.example (must live next to this file). UI containers load deploy/.env via env_file.
 # Then:
 #   docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env up -d --build

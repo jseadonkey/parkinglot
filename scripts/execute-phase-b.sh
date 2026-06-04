@@ -40,7 +40,7 @@
 #   set -a && source deploy/.env && set +a
 #   export DATABASE_URL INTERNAL_API_KEY PHASE_B_API_BASE="${PUBLIC_API_URL}"
 #   PHASE_B_OVERLAY_PATH=/app/data/zoning/kent_overlay.geojson \
-#   PHASE_B_OVERLAY_VALIDATE_PATH=/opt/parking-acquisition-agents/data/zoning/kent_overlay.geojson \
+#   PHASE_B_OVERLAY_VALIDATE_PATH=/opt/workspaces/parkinglot/data/zoning/kent_overlay.geojson \
 #   ./scripts/execute-phase-b.sh
 # (POST body uses worker path /app/data/...; validator reads host copy via VALIDATE_PATH.)
 #

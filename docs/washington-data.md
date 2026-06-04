@@ -70,13 +70,13 @@ Verify **terms of use** for any county or vendor export before production use.
 
 ### Large files on the Droplet (server path)
 
-If the GeoJSON is already on the machine (e.g. under `/opt/parking-acquisition-agents/data/`), enqueue ingest without uploading through the API:
+If the GeoJSON is already on the machine (e.g. under `/opt/workspaces/parkinglot/data/`), enqueue ingest without uploading through the API:
 
 ```bash
 curl -sS -X POST "https://$API_HOST/internal/ingest/geojson-server-path" \
   -H "X-Internal-Key: $INTERNAL_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"path":"/opt/parking-acquisition-agents/data/king_parcels.geojson","default_county_fips":"53033","auto_run_pipeline":false}'
+  -d '{"path":"/opt/workspaces/parkinglot/data/king_parcels.geojson","default_county_fips":"53033","auto_run_pipeline":false}'
 ```
 
 ### Score parcels already in Postgres

@@ -26,7 +26,7 @@
 #   PHASE_A_PUBLISH_SPACES=1    — add --publish-spaces to export (needs STORAGE_*)
 #   PHASE_A_JSON_DIR            — if set, write before/after readiness JSON here (mkdir -p)
 #
-# Droplet (repo at /opt/parking-acquisition-agents; see docs/DROPLET_REPO_PATH.md):
+# Droplet (repo at /opt/workspaces/parkinglot; see docs/DROPLET_REPO_PATH.md):
 #   set -a && source deploy/.env && set +a
 #   export DATABASE_URL INTERNAL_API_KEY
 #   PHASE_A_API_BASE="https://YOUR_PUBLIC_API" PHASE_A_ENQUEUE_ROUNDS=3 ./scripts/execute-phase-a.sh

@@ -6,7 +6,7 @@
 #   DROPLET_SSH_PRIVATE_KEY — full private key (ed25519 or RSA), multiline
 #
 # Optional repository variables (Settings → Secrets and variables → Actions → Variables):
-#   DROPLET_REMOTE_PATH   — default /opt/parking-acquisition-agents
+#   DROPLET_REMOTE_PATH   — default /opt/workspaces/parkinglot
 #
 # Optional workflow input verify_public_ready (default true): curls PUBLIC_API_URL/ready from the Droplet after deploy.
 #
@@ -122,22 +122,32 @@ jobs:
       # Repository variables sometimes paste with a trailing newline — breaks rsync/SSH into "bash: /: Is a directory".
       - name: Sanitize remote path
         run: |
-          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           CLEAN="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-          [ -n "$CLEAN" ] || CLEAN="/opt/parking-acquisition-agents"
+          [ -n "$CLEAN" ] || CLEAN="/opt/workspaces/parkinglot"
           echo "DEPLOY_REMOTE_PATH=$CLEAN" >> "$GITHUB_ENV"
           echo "Using DEPLOY_REMOTE_PATH=$CLEAN"
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
 
+      - name: Validate droplet target
+        env:
+          DROPLET: ${{ secrets.DROPLET_HOST }}
+          SSH_USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          source scripts/lib/droplet-target.sh
+          assert_droplet_target "$PWD/scripts/sync-to-droplet.sh" "$DROPLET" "$REMOTE_PATH" "$SSH_USER"
+
       - name: Ensure remote directory
         run: |
-          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" "mkdir -p '$REMOTE_PATH'"
 
       - name: Rsync application
         run: |
-          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           rsync -az --delete \
             --exclude .git \
             --exclude node_modules \
@@ -153,7 +163,7 @@ jobs:
       - name: Require deploy/.env on Droplet
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           USER_HOST="${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}"
           ssh -oBatchMode=yes "$USER_HOST" \
             bash -s -- "$REMOTE_PATH" "$USER_HOST" <<'EOS'
@@ -181,14 +191,14 @@ jobs:
             echo "LOB_API_KEY GitHub secret not set — skipping Lob env merge (add repo secret and re-run deploy)."
             exit 0
           fi
-          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           bash scripts/merge-lob-env-on-droplet.sh "$REMOTE_PATH"
 
       - name: Ensure API_IMAGE in deploy/.env (GHCR)
         if: steps.opts.outputs.compose_file == 'docker-compose.production.ghcr.yml' || steps.opts.outputs.compose_file == 'docker-compose.production.ghcr-full.yml'
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           OWNER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
           IMAGE_TAG="${{ github.event.workflow_run.head_sha || github.sha }}"
           DEFAULT_IMAGE="ghcr.io/${OWNER}/parking-acquisition-api:${IMAGE_TAG}"
@@ -219,7 +229,7 @@ jobs:
         if: steps.opts.outputs.compose_file == 'docker-compose.production.ghcr.yml' || steps.opts.outputs.compose_file == 'docker-compose.production.ghcr-full.yml'
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           COMPOSE_FILE="deploy/${{ steps.opts.outputs.compose_file }}"
           PG_EXTRA=""
           if [ "${{ steps.opts.outputs.use_local_postgis }}" = "true" ]; then
@@ -231,7 +241,7 @@ jobs:
       - name: Docker compose up
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           COMPOSE_FILE="deploy/${{ steps.opts.outputs.compose_file }}"
           COMPOSE_BASENAME="${{ steps.opts.outputs.compose_file }}"
           PG_EXTRA=""
@@ -254,7 +264,7 @@ jobs:
         if: steps.opts.outputs.post_slack_tasks != 'none'
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           MODE="${{ steps.opts.outputs.post_slack_tasks }}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             bash -s -- "$REMOTE_PATH" "$MODE" <<'EOS'
@@ -282,7 +292,7 @@ jobs:
         if: steps.opts.outputs.verify_public_ready == 'true'
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             bash -s -- "$REMOTE_PATH" <<'EOS'
           set -euo pipefail
@@ -328,7 +338,7 @@ jobs:
           print(json.dumps(body))
           PY
           )
-          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             bash -s -- "$REMOTE_PATH" "$PAYLOAD_JSON" "$KEY" <<'EOS'

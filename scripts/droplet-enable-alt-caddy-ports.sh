@@ -2,12 +2,13 @@
 # Append Caddy alternate host ports + internal TLS to deploy/.env on the Droplet when
 # another service already owns 80/443. Idempotent (skips keys that already exist).
 #
-#   DROPLET=203.0.113.10 ./scripts/droplet-enable-alt-caddy-ports.sh
+#   ./scripts/droplet-enable-alt-caddy-ports.sh
 set -euo pipefail
 
-: "${DROPLET:?Set DROPLET to the Droplet IPv4 or hostname}"
-REMOTE_PATH="${REMOTE_PATH:-/opt/parking-acquisition-agents}"
-SSH_USER="${SSH_USER:-root}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/droplet-target.sh
+source "$ROOT/scripts/lib/droplet-target.sh"
+assert_droplet_target "$ROOT/scripts/droplet-enable-alt-caddy-ports.sh" "${DROPLET:-}" "${REMOTE_PATH:-}" "${SSH_USER:-}" || exit 1
 HTTP_PORT="${CADDY_PUBLISH_HTTP:-9080}"
 HTTPS_PORT="${CADDY_PUBLISH_HTTPS:-9443}"
 

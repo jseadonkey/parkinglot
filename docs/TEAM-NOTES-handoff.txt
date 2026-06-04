@@ -32,5 +32,5 @@ My SSH command: ssh root@209.38.142.108
 
 ## Repo path on server (typical)
 
-- /opt/parking-acquisition-agents if you rsync/deploy there; this file is under /root/parking-handoff for easy personal notes.
+- /opt/workspaces/parkinglot if you rsync/deploy there; this file is under /root/parking-handoff for easy personal notes.
 

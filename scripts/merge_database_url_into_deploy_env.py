@@ -4,7 +4,7 @@
 Examples:
   printf '%s' "$URI" | python3 scripts/merge_database_url_into_deploy_env.py
   python3 scripts/merge_database_url_into_deploy_env.py <<< 'postgresql://...'
-  python3 scripts/merge_database_url_into_deploy_env.py /opt/parking-acquisition-agents <<< 'postgresql://...'
+  python3 scripts/merge_database_url_into_deploy_env.py /opt/workspaces/parkinglot <<< 'postgresql://...'
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from db_url_merge import merge_database_url_into_deploy_env
 
 
 def main() -> int:
-    repo = Path("/opt/parking-acquisition-agents")
+    repo = Path("/opt/workspaces/parkinglot")
     i = 1
     if len(sys.argv) > i and sys.argv[i].startswith("/"):
         repo = Path(sys.argv[i]).resolve()

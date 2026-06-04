@@ -4,7 +4,6 @@
 # From your laptop (SSH to the Droplet must work). Example:
 #   export SLACK_BOT_TOKEN='xoxb-...'
 #   export SLACK_DIGEST_CHANNEL_ID='C01234...'
-#   export DROPLET='203.0.113.10'
 #   export COMPOSE_FILE='deploy/docker-compose.production.yml'   # optional
 #   ./scripts/set-slack-env-on-droplet.sh
 #
@@ -13,12 +12,14 @@
 #   ./scripts/set-slack-env-on-droplet.sh
 set -euo pipefail
 
-: "${DROPLET:?Set DROPLET to the Droplet IPv4 or hostname}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/droplet-target.sh
+source "$ROOT/scripts/lib/droplet-target.sh"
+assert_droplet_target "$ROOT/scripts/set-slack-env-on-droplet.sh" "${DROPLET:-}" "${REMOTE_PATH:-}" "${SSH_USER:-}" || exit 1
+
 : "${SLACK_BOT_TOKEN:?Set SLACK_BOT_TOKEN (xoxb-...)}"
 : "${SLACK_DIGEST_CHANNEL_ID:?Set SLACK_DIGEST_CHANNEL_ID (e.g. C...)}"
 
-REMOTE_PATH="${REMOTE_PATH:-/opt/parking-acquisition-agents}"
-SSH_USER="${SSH_USER:-root}"
 COMPOSE_FILE="${COMPOSE_FILE:-deploy/docker-compose.production.yml}"
 
 ENC_TOKEN=$(printf '%s' "$SLACK_BOT_TOKEN" | base64 | tr -d '\n')

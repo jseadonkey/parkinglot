@@ -15,18 +15,18 @@ You cannot move **this chat thread** onto the Droplet — Cursor conversations s
 ## Setup (high level)
 
 1. Install **OpenSSH** server on the Droplet (Ubuntu images already have `sshd`).
-2. On your **Mac**, ensure you can run:  
+2. On your **Mac**, ensure you can run:<br>
    `ssh -o BatchMode=yes root@YOUR_PUBLIC_IP 'echo ok'`
 3. In **Cursor**: Command Palette → **“Remote-SSH: Connect to Host…”** (same idea as VS Code Remote SSH). Pick `root@YOUR_PUBLIC_IP` or an entry from `~/.ssh/config` (see [AGENT-DROPLET-SSH.md](AGENT-DROPLET-SSH.md)).
-4. After connected, **File → Open Folder** on the remote host:  
-   **`/opt/parking-acquisition-agents`**  
+4. After connected, **File → Open Folder** on the remote host:<br>
+   **`/opt/workspaces/parkinglot`**<br>
    (canonical Droplet repo root — [DROPLET_REPO_PATH.md](DROPLET_REPO_PATH.md); [PROJECT-FACTS.md](PROJECT-FACTS.md) for IP and Slack IDs).
 
 Then start a **new chat** in that remote window; ask the agent to use the **remote** terminal for `docker compose`, migrations, and Slack checks.
 
 ## Handoff notes on the server
 
-- **Canonical operator facts:** `docs/PROJECT-FACTS.md` in the repo (open the repo at **`/opt/parking-acquisition-agents`** on the Droplet — [DROPLET_REPO_PATH.md](DROPLET_REPO_PATH.md)).
+- **Canonical operator facts:** `docs/PROJECT-FACTS.md` in the repo (open the repo at **`/opt/workspaces/parkinglot`** on the Droplet — [DROPLET_REPO_PATH.md](DROPLET_REPO_PATH.md)).
 - Older example: **`/root/parking-handoff/TEAM-NOTES.txt`** (if present).
 
 ## If Remote SSH is not available in Cursor

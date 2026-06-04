@@ -6,10 +6,10 @@
 # opens UFW if present, then docker compose up -d --build.
 #
 #   sudo bash scripts/droplet_apply_caddy_alt_ports.sh
-#   sudo bash scripts/droplet_apply_caddy_alt_ports.sh /opt/parking-acquisition-agents
+#   sudo bash scripts/droplet_apply_caddy_alt_ports.sh /opt/workspaces/parkinglot
 set -euo pipefail
 
-REPO_ROOT="${1:-/opt/parking-acquisition-agents}"
+REPO_ROOT="${1:-/opt/workspaces/parkinglot}"
 cd "$REPO_ROOT"
 ENV_FILE="${REPO_ROOT}/deploy/.env"
 if [ ! -f "$ENV_FILE" ]; then

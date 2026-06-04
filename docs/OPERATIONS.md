@@ -22,7 +22,7 @@ From GitHub (no SSH to your laptop): **Actions → Droplet endpoint checks** cur
 ## Logs (Droplet)
 
 ```bash
-cd /opt/parking-acquisition-agents
+cd /opt/workspaces/parkinglot
 # Canonical Droplet repo root — see [DROPLET_REPO_PATH.md](DROPLET_REPO_PATH.md) if your clone lives elsewhere.
 # Managed Postgres only (default production compose):
 docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env logs -f --tail=200 api worker beat caddy
@@ -81,7 +81,7 @@ Pilot region filters are in **`config/pilot.yaml`** (`region.county_fips`). Feat
 Export latest identification / entitlement / strategic scores per parcel (same profile strings as `app.scoring_profiles`) to a shareable CSV. Requires **`DATABASE_URL`** (same as the API) and the backend Python deps (`pip install -e services/api` from a venv at repo root, or run inside the **`api`** container where `/app` is the API package root). The script adds `services/api` to `sys.path` when run from the repo root, so extra **`PYTHONPATH`** is optional.
 
 ```bash
-cd /opt/parking-acquisition-agents
+cd /opt/workspaces/parkinglot
 export DATABASE_URL='postgresql+psycopg://...'
 python3 scripts/check_export_readiness.py
 # Optional: --json   ;   same authless DB URL as export
@@ -119,7 +119,7 @@ This does **not** download assessor data automatically; it only ingests files yo
 ## Deploy updates from your laptop
 
 1. `git push` your changes (or ensure local tree matches what you want on the server).
-2. `./scripts/sync-to-droplet.sh` (set `DROPLET`; optional `REMOTE_PATH` / `SSH_USER` — default remote path is `/opt/parking-acquisition-agents`; see [DROPLET_REPO_PATH.md](DROPLET_REPO_PATH.md)).
+2. `./scripts/sync-to-droplet.sh` (set `DROPLET`; optional `REMOTE_PATH` / `SSH_USER` — default remote path is `/opt/workspaces/parkinglot`; see [DROPLET_REPO_PATH.md](DROPLET_REPO_PATH.md)).
 3. `./scripts/remote-rebuild.sh`
 
 For **GHCR-only** stacks, push new images from CI first, then on the Droplet `docker compose -f deploy/docker-compose.production.ghcr.yml --env-file deploy/.env pull && ... up -d` (or use the full GHCR compose) — see [GHCR-DEPLOY.md](GHCR-DEPLOY.md).

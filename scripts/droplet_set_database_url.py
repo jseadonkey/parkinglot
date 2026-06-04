@@ -9,7 +9,7 @@ Does not print your password. Backs up .env before changing.
 
 Usage:
   python3 scripts/droplet_set_database_url.py
-  python3 scripts/droplet_set_database_url.py /opt/parking-acquisition-agents
+  python3 scripts/droplet_set_database_url.py /opt/workspaces/parkinglot
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from urllib.parse import quote
 
 
 def main() -> int:
-    repo = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path("/opt/parking-acquisition-agents")
+    repo = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path("/opt/workspaces/parkinglot")
     env_path = repo / "deploy" / ".env"
     if not env_path.is_file():
         print(
