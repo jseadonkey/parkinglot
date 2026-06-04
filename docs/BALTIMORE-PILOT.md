@@ -108,4 +108,4 @@ See [TOP-PARCEL-DEAL-CONTEXT.md](TOP-PARCEL-DEAL-CONTEXT.md).
 
 ## Washington pacing
 
-`config/wa_statewide_rollout.yaml` — `min_days_between_counties: 7`, reduced caps. WaTech county list is **WA-only** (FIPS `53*`).
+`config/wa_statewide_rollout.yaml` — size-based cooldown between counties (`min_days_base` / `min_days_per_10k_parcels` / `min_days_max`), reduced caps. WaTech county list is **WA-only** (FIPS `53*`).

@@ -61,8 +61,13 @@ def merge_zoning_rules(base: dict[str, Any], extra: dict[str, Any]) -> dict[str,
 
 
 def _repo_root() -> Path:
-    """Monorepo root (services/ingestion/parking_ingestion → ../../../)."""
-    return Path(__file__).resolve().parents[3]
+    """Monorepo root — works from source tree or installed site-packages."""
+    here = Path(__file__).resolve()
+    marker = Path("data") / "zoning" / "wa" / "kent_king_surface_parking_rules.yaml"
+    for parent in (here.parent, *here.parents):
+        if (parent / marker).is_file():
+            return parent
+    return here.parents[3]
 
 
 def zoning_rules_search_paths(explicit: Path | None = None) -> list[Path]:

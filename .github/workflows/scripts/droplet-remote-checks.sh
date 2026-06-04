@@ -1039,7 +1039,7 @@ PY
     fi
     ;;
   enable-slow-statewide-expansion)
-    echo "=== enable slow statewide expansion (7d/county + keep priority pipeline) ==="
+    echo "=== enable slow statewide expansion (size-based county cooldown + keep priority pipeline) ==="
     python3 - <<'PY'
 import pathlib
 
@@ -1077,7 +1077,7 @@ missing = [k for k in keys if k not in seen]
 if missing:
     if out and out[-1].strip():
         out.append("")
-    out.append("# Slow statewide expansion — WaTech 1 county/day; priority pipeline stays on")
+    out.append("# Slow statewide expansion — WaTech; size-based cooldown between counties; priority pipeline stays on")
     for key in sorted(missing):
         out.append(f"{key}={updates[key]}")
 path.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")

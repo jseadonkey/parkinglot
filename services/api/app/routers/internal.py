@@ -18,6 +18,7 @@ from app.db.session import get_db
 from app.deal_progress import query_deal_progress_board
 from app.deps_internal import require_internal_key
 from app.export_readiness import export_readiness_summary
+from app.geo_markets import wa_rollout_pacing
 from app.lob_client import lob_status_payload, verify_lob_api_key
 from app.outreach_board import query_outreach_pipeline_board
 from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
@@ -108,9 +109,11 @@ from app.tasks import (
 from app.wa_statewide_rollout import (
     county_priority_list,
     load_rollout_config,
+    merge_rollout_config,
     next_county_to_ingest,
     parcel_counts_by_county,
     parking_queue_depth,
+    wa_rollout_cooldown_state,
 )
 from parking_core.pilot import load_pilot_config
 
@@ -755,13 +758,15 @@ def ingest_watech_county(body: IngestWatechCountyRequest) -> WaTechCountyQueuedR
 
 @router.get("/ingest/wa-rollout-status", response_model=WaRolloutStatusResponse)
 def wa_rollout_status(db: Session = Depends(get_db)) -> WaRolloutStatusResponse:
-    """Progress for slow statewide WaTech ingest (one county per day when enabled)."""
+    """Progress for slow statewide WaTech ingest (size-based cooldown between counties)."""
     settings = get_settings()
     rollout = load_rollout_config(settings.wa_statewide_rollout_config_path)
+    merged = merge_rollout_config(rollout, wa_rollout_pacing())
     priority = county_priority_list(rollout, pilot_config_path=settings.pilot_config_path)
     counts = parcel_counts_by_county(db, priority)
     with_data = sum(1 for f in priority if counts.get(f, 0) > 0)
     next_fips = next_county_to_ingest(db, config=rollout, pilot_config_path=settings.pilot_config_path)
+    cooldown = wa_rollout_cooldown_state(db, merged)
     q_depth: int | None = None
     try:
         q_depth = parking_queue_depth(settings.redis_url)
@@ -778,6 +783,11 @@ def wa_rollout_status(db: Session = Depends(get_db)) -> WaRolloutStatusResponse:
         counties_with_parcels=with_data,
         counties_remaining=len(priority) - with_data,
         parking_queue_depth=q_depth,
+        cooldown_ready=cooldown.get("ready"),
+        required_cooldown_days=cooldown.get("required_cooldown_days"),
+        days_since_last_county_ingest=cooldown.get("days_since_last_ingest"),
+        last_ingested_county_fips=cooldown.get("last_county_fips"),
+        last_ingested_county_parcels=cooldown.get("last_county_parcels_in_db"),
         counties=rows,
     )
 

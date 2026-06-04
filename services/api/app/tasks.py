@@ -56,8 +56,10 @@ from app.slack_digest import (
 from app.storage import put_text_object
 from app.wa_statewide_rollout import (
     load_rollout_config,
+    merge_rollout_config,
     next_county_to_ingest,
     parking_queue_depth,
+    wa_rollout_cooldown_state,
 )
 from app.zoning_entitlement import parcel_zoning_symbol, parcel_zoning_tier
 from parking_core.models import OwnerCandidate, ParcelFeature, ScoreResult
@@ -758,8 +760,8 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
 
     rollout = load_rollout_config(settings.wa_statewide_rollout_config_path)
     pacing = wa_rollout_pacing()
-    max_queue = int(rollout.get("max_parking_queue_depth") or pacing["max_parking_queue_depth"])
-    min_days = int(rollout.get("min_days_between_counties") or pacing["min_days_between_counties"])
+    merged = merge_rollout_config(rollout, pacing)
+    max_queue = int(merged.get("max_parking_queue_depth") or 400)
     queue_depth = parking_queue_depth(settings.redis_url)
     if queue_depth > max_queue:
         logger.info(
@@ -776,27 +778,16 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
 
     db = _session()
     try:
-        if min_days > 0:
-            from app.db.models import AuditLog
-
-            last = db.execute(
-                select(AuditLog)
-                .where(AuditLog.action == "wa_statewide_county_ingest")
-                .order_by(AuditLog.created_at.desc())
-                .limit(1)
-            ).scalar_one_or_none()
-            if last is not None and last.created_at is not None:
-                created = last.created_at
-                if created.tzinfo is None:
-                    created = created.replace(tzinfo=UTC)
-                age_days = (datetime.now(UTC) - created).total_seconds() / 86400.0
-                if age_days < float(min_days):
-                    return {
-                        "skipped": True,
-                        "reason": "wa_rollout_cooldown",
-                        "min_days_between_counties": min_days,
-                        "days_since_last_county_ingest": round(age_days, 2),
-                    }
+        cooldown = wa_rollout_cooldown_state(db, merged)
+        if not cooldown.get("ready"):
+            return {
+                "skipped": True,
+                "reason": "wa_rollout_cooldown",
+                "required_cooldown_days": cooldown.get("required_cooldown_days"),
+                "days_since_last_county_ingest": cooldown.get("days_since_last_ingest"),
+                "last_county_fips": cooldown.get("last_county_fips"),
+                "last_county_parcels_in_db": cooldown.get("last_county_parcels_in_db"),
+            }
 
         county = next_county_to_ingest(
             db,
@@ -813,7 +804,7 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
         else:
             max_features = int(max_feat)
 
-        max_pipe = int(rollout.get("max_auto_pipeline") or pacing["max_auto_pipeline"])
+        max_pipe = int(merged.get("max_auto_pipeline") or 15)
         write_audit(
             db,
             actor="celery:wa_statewide_rollout",
@@ -829,7 +820,7 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
             detail=(
                 f"Starting WaTech ingest for county `{county}` "
                 f"(pipeline cap {max_pipe}/parcel batch; queue depth {queue_depth}; "
-                f"next county after {min_days}d cooldown)."
+                "next county after size-based cooldown)."
             ),
         )
         ar = fetch_watech_county_and_ingest.delay(

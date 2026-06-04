@@ -35,7 +35,7 @@ type ScoredList = {
   rows: ParcelRow[];
 };
 
-type PilotCounty = { county_fips: string; county_name: string; priority_market?: boolean };
+type PilotCounty = { county_fips: string; county_name: string; priority_market?: boolean; parcels_in_db?: number };
 
 function fmtScore(v: number | null): string {
   return v != null ? v.toFixed(1) : "—";
@@ -43,14 +43,17 @@ function fmtScore(v: number | null): string {
 
 export default function ParcelsPage() {
   const countyLabel = useCountyNames();
-  const [limit, setLimit] = useState(100);
+  const [limit, setLimit] = useState(25);
   const [sort, setSort] = useState<SortProfile>("combined");
   const [stateFips, setStateFips] = useState("");
   const [countyFips, setCountyFips] = useState("");
   const [zoningTier, setZoningTier] = useState("");
-  const [qualifiedOnly, setQualifiedOnly] = useState(true);
+  const [qualifiedOnly, setQualifiedOnly] = useState(false);
   const [counties, setCounties] = useState<PilotCounty[]>([]);
   const [rows, setRows] = useState<ParcelRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [rowCount, setRowCount] = useState<number | null>(null);
+  const [qualifiedFloor, setQualifiedFloor] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -74,6 +77,7 @@ export default function ParcelsPage() {
 
   const load = useCallback(async () => {
     setErr(null);
+    setLoading(true);
     try {
       const params = new URLSearchParams({ limit: String(limit), sort });
       if (countyFips) params.set("county_fips", countyFips);
@@ -85,8 +89,14 @@ export default function ParcelsPage() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as ScoredList;
       setRows(data.rows);
+      setRowCount(data.row_count);
+      setQualifiedFloor(data.qualified_min_entitlement_score ?? null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
+      setRows([]);
+      setRowCount(null);
+    } finally {
+      setLoading(false);
     }
   }, [limit, sort, stateFips, countyFips, zoningTier, qualifiedOnly]);
 
@@ -94,11 +104,31 @@ export default function ParcelsPage() {
     void load();
   }, [load]);
 
+  const mdParcelCount = counties.filter((c) => c.county_fips.startsWith("24")).reduce((n, c) => n + (c.parcels_in_db ?? 0), 0);
+
+  const emptyHint = (() => {
+    if (loading || rows.length > 0) return null;
+    if (qualifiedOnly && qualifiedFloor != null) {
+      return `No parcels score at or above entitlement ${qualifiedFloor} with these filters. Uncheck “High scores only” to see all ingested parcels (including unscored or lower scores).`;
+    }
+    if (stateFips === "24" || countyFips === "24510") {
+      if (mdParcelCount > 0) {
+        return `Maryland has ${mdParcelCount.toLocaleString()} parcels in the database but none match these filters. Try “All tiers” and turn off “High scores only”.`;
+      }
+      return "No Baltimore parcels in the database yet. Run Droplet resources → baltimore_ingest_now or baltimore_zoning_overlay, then refresh.";
+    }
+    if (stateFips || countyFips || zoningTier) {
+      return "No parcels match the state, county, or zoning tier filters. Try “All states” and “All tiers”.";
+    }
+    return "No scored parcels in the database yet. Run county ingest on the Droplet (Baltimore or Washington), then refresh.";
+  })();
+
   return (
     <div className="page-content">
       <p className="muted" style={{ marginTop: 0 }}>
         Scored parcels across pilot markets (MD, WA, and more). High-scoring rows include illustrative revenue from
-        nearby paid parking comps and estimated stall counts. Filter by state or county.
+        nearby paid parking comps and estimated stall counts. Start with <strong>All states</strong> and leave{" "}
+        <strong>High scores only</strong> off to browse inventory; turn it on for deal-ready shortlists.
       </p>
       <div className="panel" style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
         <label className="muted">
@@ -175,14 +205,23 @@ export default function ParcelsPage() {
             ))}
           </select>
         </label>
-        <button type="button" className="primary" onClick={() => void load()}>
-          Refresh
+        <button type="button" className="primary" onClick={() => void load()} disabled={loading}>
+          {loading ? "Loading…" : "Refresh"}
         </button>
       </div>
+
+      {rowCount != null ? (
+        <p className="muted result-meta">
+          Showing <strong>{rows.length}</strong>
+          {rowCount !== rows.length ? ` of ${rowCount}` : ""} parcel{rows.length === 1 ? "" : "s"}
+          {qualifiedOnly && qualifiedFloor != null ? ` (entitlement ≥ ${qualifiedFloor})` : ""}
+        </p>
+      ) : null}
 
       {err ? <div className="error">{err}</div> : null}
 
       <div className="panel" style={{ overflowX: "auto" }}>
+        {loading && rows.length === 0 ? <p className="muted">Loading parcels…</p> : null}
         <table className="data">
           <thead>
             <tr>
@@ -249,7 +288,9 @@ export default function ParcelsPage() {
             ))}
           </tbody>
         </table>
-        {rows.length === 0 ? <p className="muted">No parcels match this filter.</p> : null}
+        {!loading && rows.length === 0 ? (
+          <p className="muted empty-state">{emptyHint ?? "No parcels match this filter."}</p>
+        ) : null}
       </div>
     </div>
   );

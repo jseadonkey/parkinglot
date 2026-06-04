@@ -41,8 +41,14 @@ def primary_market_summary(path: str | Path | None = None) -> dict[str, Any]:
 def wa_rollout_pacing(path: str | Path | None = None) -> dict[str, Any]:
     raw = load_geo_markets(path)
     pacing = raw.get("wa_statewide_rollout") if isinstance(raw.get("wa_statewide_rollout"), dict) else {}
-    return {
-        "min_days_between_counties": int(pacing.get("min_days_between_counties") or 7),
+    out: dict[str, Any] = {
         "max_auto_pipeline": int(pacing.get("max_auto_pipeline") or 15),
         "max_parking_queue_depth": int(pacing.get("max_parking_queue_depth") or 400),
     }
+    if pacing.get("min_days_base") is not None or pacing.get("min_days_per_10k_parcels") is not None:
+        out["min_days_base"] = float(pacing.get("min_days_base") or 0.5)
+        out["min_days_per_10k_parcels"] = float(pacing.get("min_days_per_10k_parcels") or 0.75)
+        out["min_days_max"] = float(pacing.get("min_days_max") or 10)
+    else:
+        out["min_days_between_counties"] = int(pacing.get("min_days_between_counties") or 7)
+    return out

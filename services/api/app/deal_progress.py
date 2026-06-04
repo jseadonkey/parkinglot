@@ -5,7 +5,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import desc, select
+from sqlalchemy import and_, desc, func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, WorkflowRun
@@ -45,50 +45,53 @@ def query_deal_progress_board(
     cap = min(max(limit, 1), 2000)
     cf = (county_fips or "").strip()
     st = (state_fips or "").strip()
-    # Fetch recent runs, keep newest per parcel until we have enough distinct parcels.
-    scan_cap = min(cap * 4, 8000)
-    wr_all = list(
-        db.scalars(
-            select(WorkflowRun).order_by(desc(WorkflowRun.updated_at)).limit(scan_cap),
-        ).all(),
-    )
-    latest: dict[uuid.UUID, WorkflowRun] = {}
-    for w in wr_all:
-        if w.parcel_id not in latest:
-            latest[w.parcel_id] = w
-        if len(latest) >= cap:
-            break
 
-    if not latest:
+    latest_sub = (
+        select(
+            WorkflowRun.parcel_id.label("parcel_id"),
+            func.max(WorkflowRun.updated_at).label("max_updated"),
+        )
+        .group_by(WorkflowRun.parcel_id)
+        .subquery("latest_wr")
+    )
+
+    stmt = (
+        select(WorkflowRun, Parcel)
+        .join(
+            latest_sub,
+            and_(
+                WorkflowRun.parcel_id == latest_sub.c.parcel_id,
+                WorkflowRun.updated_at == latest_sub.c.max_updated,
+            ),
+        )
+        .join(Parcel, Parcel.id == WorkflowRun.parcel_id)
+    )
+    if cf:
+        stmt = stmt.where(Parcel.county_fips == cf)
+    elif st:
+        stmt = stmt.where(Parcel.county_fips.startswith(st))
+    stmt = stmt.order_by(desc(WorkflowRun.updated_at)).limit(cap)
+
+    pairs = list(db.execute(stmt).all())
+    if not pairs:
         empty = DealProgressSummary(total_parcels=0, by_status={}, by_step={})
         return empty, []
 
-    parcel_ids = list(latest.keys())
-    parcels = {
-        p.id: p
-        for p in db.scalars(select(Parcel).where(Parcel.id.in_(parcel_ids))).all()
-    }
+    parcel_ids = [wr.parcel_id for wr, _ in pairs]
     pending_map = _pending_approval_counts(db, parcel_ids)
 
     by_status: dict[str, int] = {}
     by_step: dict[str, int] = {}
     rows: list[DealProgressRowData] = []
 
-    for pid, wr in latest.items():
+    for wr, parcel in pairs:
         stage = _derive_pipeline_stage(wr)
         by_status[stage] = by_status.get(stage, 0) + 1
         if wr.status in (WorkflowStatus.running.value, WorkflowStatus.pending.value) and wr.current_step:
             by_step[wr.current_step] = by_step.get(wr.current_step, 0) + 1
-        parcel = parcels.get(pid)
-        if parcel is None:
-            continue
-        if cf and parcel.county_fips != cf:
-            continue
-        if st and not str(parcel.county_fips).startswith(st):
-            continue
         rows.append(
             DealProgressRowData(
-                parcel_id=pid,
+                parcel_id=wr.parcel_id,
                 apn=parcel.apn,
                 county_fips=parcel.county_fips,
                 workflow_run_id=wr.id,
@@ -96,12 +99,11 @@ def query_deal_progress_board(
                 workflow_step=wr.current_step,
                 workflow_error=wr.error,
                 workflow_updated_at=wr.updated_at,
-                pending_approval_count=pending_map.get(str(pid), 0),
+                pending_approval_count=pending_map.get(str(wr.parcel_id), 0),
                 pipeline_stage=stage,
             ),
         )
 
-    rows.sort(key=lambda r: r.workflow_updated_at, reverse=True)
     summary = DealProgressSummary(
         total_parcels=len(rows),
         by_status=dict(sorted(by_status.items())),

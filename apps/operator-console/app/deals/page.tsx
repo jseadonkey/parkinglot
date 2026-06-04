@@ -151,8 +151,23 @@ export default function DealsPage() {
 
   const stepCounts = summary?.by_step ?? {};
 
+  const mdParcelCount =
+    scope?.counties
+      .filter((c) => c.county_fips.startsWith("24"))
+      .reduce((n, c) => n + c.parcels_in_db, 0) ?? null;
+  const emptyGeoHint =
+    !loading && board && board.row_count === 0 && (stateFips || countyFips)
+      ? stateFips === "24" && mdParcelCount && mdParcelCount > 0
+        ? `Maryland has ${mdParcelCount.toLocaleString()} parcels in the database, but none have a pipeline run yet. Open the Outreach pipeline for scored deals, or enqueue Baltimore priority pipelines from the Droplet.`
+        : "No parcels in this market have a pipeline run yet. Ingest and scoring can exist without a run — use Outreach pipeline or Parcels for inventory."
+      : null;
+
   return (
     <div className="page-content main-wide">
+      <p className="muted" style={{ marginTop: 0 }}>
+        Parcels that have started the enrichment pipeline (workflow run). For qualified inventory before a run exists,
+        use <Link href="/outreach">Outreach pipeline</Link> or <Link href="/parcels">Parcels</Link>.
+      </p>
       <div className="page-actions">
         <button type="button" className="outline" onClick={() => void load()} disabled={loading}>
           {loading ? "Loading…" : "Refresh"}
@@ -244,6 +259,7 @@ export default function DealsPage() {
       ) : null}
 
       {err ? <div className="error">{err}</div> : null}
+      {emptyGeoHint ? <div className="panel muted">{emptyGeoHint}</div> : null}
 
       {loading && !board ? (
         <div className="panel muted">Loading deal progress…</div>

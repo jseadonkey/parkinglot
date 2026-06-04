@@ -264,6 +264,11 @@ class WaRolloutStatusResponse(BaseModel):
     counties_with_parcels: int
     counties_remaining: int
     parking_queue_depth: int | None = None
+    cooldown_ready: bool | None = None
+    required_cooldown_days: float | None = None
+    days_since_last_county_ingest: float | None = None
+    last_ingested_county_fips: str | None = None
+    last_ingested_county_parcels: int | None = None
     counties: list[WaRolloutCountyRow]
 
 

@@ -4,7 +4,7 @@
 
 Prioritize **top entitlement parcels** (deal context + `SCHEDULED_PRIORITY_PIPELINE_*`) — statewide ingest runs in parallel at a low rate, not instead of it.
 
-Adds **one new county per day** from the public **WaTech** statewide parcel layer when the Celery **parking** queue is not overloaded. King County is skipped once it already has rows in Postgres.
+Adds **one new county at a time** from the public **WaTech** statewide parcel layer when the Celery **parking** queue is not overloaded. **Wait time before the next county scales with how many parcels the last county loaded** (small counties can advance in ~1 day; King-scale counties wait longer). King County is skipped once it already has rows in Postgres.
 
 ## How it works
 
@@ -15,10 +15,15 @@ Adds **one new county per day** from the public **WaTech** statewide parcel laye
 | **Worker** `fetch_watech_county_and_ingest` | Downloads county GeoJSON from WaTech → `ingest_geojson_path` |
 | **Existing enqueue** | `SCHEDULED_ENQUEUE_*` continues draining pipeline backlog on loaded counties |
 
-Default caps (tunable in YAML):
+Default caps (tunable in `config/wa_statewide_rollout.yaml`):
 
-- **30** parcels get `run_pipeline` per new county ingest batch (`max_auto_pipeline`)
-- Skip a new county if **parking** queue depth **> 600**
+- **15** parcels get `run_pipeline` per new county ingest batch (`max_auto_pipeline`)
+- Skip a new county if **parking** queue depth **> 400**
+- **Size-based cooldown** after each county (not a flat 7 days for everyone):
+  - `min_days_base` (default **0.5**)
+  - `+ min_days_per_10k_parcels` × (parcels in last county ÷ 10,000) (default **0.75**)
+  - capped at `min_days_max` (default **10**)
+  - Examples: ~5k parcels → ~1 day; ~50k → ~4 days; ~120k → ~9.5 days
 
 ## Enable on the Droplet
 
@@ -58,7 +63,7 @@ From GitHub Actions: **Droplet resources** → `wa_rollout_status` or `wa_rollou
 ## Progress expectation
 
 - **~38 counties** remain after King (~124k parcels already loaded).
-- **~1 county/day** ≈ statewide parcel **ingest** in about **5–6 weeks** if the queue stays healthy.
+- **Pace varies by county size** — many small counties can load in quick succession; large Puget Sound counties space out automatically. Full statewide **ingest** is typically **weeks**, not one fixed county per calendar week.
 - **Scoring, zoning overlay, and outreach** still run on their own schedules — this only spreads **GIS ingest** across the state.
 
 Do **not** enable `EXPLORATION_CAMPAIGN_ENABLED` at the same time unless you also place GeoJSON files under `data/exploration/` — rollout uses WaTech directly.
