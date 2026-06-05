@@ -19,6 +19,14 @@ from typing import Any
 import yaml
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
+_JURISDICTION_PRIORITY: dict[str, int] = {
+    "kent_city": 0,
+    "king_unincorporated": 1,
+    "tacoma_city": 2,
+    "wa_53053_unincorporated": 3,
+    "everett_city": 4,
+    "wa_53061_unincorporated": 5,
+}
 
 
 def _ensure_repo_paths() -> None:
@@ -53,13 +61,15 @@ def _is_curated_rules_block(block: Any) -> bool:
     return False
 
 
-def _jurisdiction_sort_key(row: dict[str, Any], county_priority: list[str]) -> tuple[int, str, str]:
+def _jurisdiction_sort_key(row: dict[str, Any], county_priority: list[str]) -> tuple[int, int, str, str]:
+    jurisdiction_key = str(row.get("jurisdiction_key") or "")
+    jurisdiction_rank = _JURISDICTION_PRIORITY.get(jurisdiction_key, len(_JURISDICTION_PRIORITY))
     county = str(row.get("county_fips") or "")
     try:
         county_rank = county_priority.index(county)
     except ValueError:
         county_rank = len(county_priority)
-    return (county_rank, county, str(row.get("jurisdiction_key") or ""))
+    return (jurisdiction_rank, county_rank, county, jurisdiction_key)
 
 
 def main() -> int:
@@ -102,11 +112,11 @@ def main() -> int:
     county_priority = [str(fips) for fips in rollout.get("county_fips_priority") or []]
 
     rows: list[dict[str, Any]] = []
-    seen: set[tuple[str, str | None, str | None]] = set()
+    seen: set[tuple[str, str | None]] = set()
     for geo in registry.geographies:
         if geo.state_fips != "53" or not geo.jurisdiction_key:
             continue
-        key = (geo.jurisdiction_key, geo.county_fips, geo.boundary_path)
+        key = (geo.jurisdiction_key, geo.county_fips)
         if key in seen:
             continue
         seen.add(key)
