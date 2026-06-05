@@ -3,6 +3,7 @@
 The **operator console** is a Next.js app at **`/operator`** on the same hostname as the approval UI (`UI_HOST` in Caddy). It helps you:
 
 - **Overview** — export-readiness gaps + scoring summary (via a **server-side** proxy to `/internal/stats/*` so `INTERNAL_API_KEY` never reaches the browser).
+- **Data quality & jurisdiction parity** — county/city coverage gaps, stale 24h/7d unresolved data issues, and recommended fixes from **`GET /internal/stats/jurisdiction-quality`**.
 - **Parcels** — scored lots with **illustrative revenue** (stalls, weighted $/hr, gross/mo) for high entitlement scores in any state/county — **`GET /internal/parcels/scored-list`**; detail page has full comp table and deal context.
 - **Deal progress** — workflow runs grouped by **`status`** with links into parcels.
 - **Approvals** — same queue/actions as the standalone approval UI.

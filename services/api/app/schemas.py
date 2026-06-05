@@ -449,6 +449,59 @@ class ScoringSummaryResponse(BaseModel):
     pilot_region: str
 
 
+class JurisdictionQualityMetric(BaseModel):
+    count: int
+    pct: float
+
+
+class JurisdictionQualityAgeBuckets(BaseModel):
+    last_24h: int
+    days_1_to_7: int
+    older_7d: int
+
+
+class JurisdictionQualityRow(BaseModel):
+    """One county/jurisdiction group in GET /internal/stats/jurisdiction-quality."""
+
+    jurisdiction_key: str
+    label: str
+    county_fips: str
+    zoning_jurisdiction: str | None = None
+    parcel_count: int
+    quality_score: float
+    parity_gap_to_best: float
+    opportunity_score: float
+    qualified_entitlement_count: int
+    qualified_entitlement_pct: float
+    age_buckets: JurisdictionQualityAgeBuckets
+    unresolved_core_gaps_older_24h: int
+    unresolved_core_gaps_older_7d: int
+    missing_footprint: JurisdictionQualityMetric
+    missing_zoning: JurisdictionQualityMetric
+    missing_lot_size: JurisdictionQualityMetric
+    missing_demand_distance: JurisdictionQualityMetric
+    missing_poi_density: JurisdictionQualityMetric
+    missing_owner_roll_name: JurisdictionQualityMetric
+    missing_owner_outreach_brief: JurisdictionQualityMetric
+    missing_identification_score: JurisdictionQualityMetric
+    missing_entitlement_score: JurisdictionQualityMetric
+    missing_strategic_score: JurisdictionQualityMetric
+    recommended_actions: list[str]
+
+
+class JurisdictionQualityResponse(BaseModel):
+    """GET /internal/stats/jurisdiction-quality — data-quality and parity gaps by jurisdiction."""
+
+    generated_at: datetime
+    total_parcels: int
+    jurisdiction_count: int
+    benchmark_quality_score: float
+    watch_windows_hours: list[int]
+    rows: list[JurisdictionQualityRow]
+    top_actions: list[str]
+    notes: list[str]
+
+
 class PlatformShowcaseCountyRow(BaseModel):
     county_fips: str
     county_name: str

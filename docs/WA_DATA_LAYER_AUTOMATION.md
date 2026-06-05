@@ -105,4 +105,4 @@ Everything above can be automated with audit trails.
 1. `wa-parcels-nightly` job: download/export → `ingest_geojson_path` (+ enqueue pipelines)
 2. `wa-zoning-weekly` job: build jurisdiction map + join zoning attributes into parcel facts
 3. `wa-sos-entity-weekly` job: batch SOS enrichment for entity owners
-4. “data quality dashboard” section in Slack digest: % parcels missing zoning, % missing roll owner, SOS hit rate
+4. **Jurisdiction quality/parity analytics:** `GET /internal/stats/jurisdiction-quality`, the operator overview, and the Slack digest data-quality section compare city/county coverage, flag stale 24h/7d data gaps, and recommend fixes to make weaker jurisdictions comparable to the best-covered ones. See [JURISDICTION-DATA-QUALITY-PARITY.md](JURISDICTION-DATA-QUALITY-PARITY.md).

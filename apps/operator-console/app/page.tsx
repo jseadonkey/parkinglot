@@ -63,6 +63,49 @@ type PilotScope = {
   counties: PilotCounty[];
 };
 
+type JurisdictionQualityMetric = {
+  count: number;
+  pct: number;
+};
+
+type JurisdictionQualityRow = {
+  jurisdiction_key: string;
+  label: string;
+  county_fips: string;
+  zoning_jurisdiction?: string | null;
+  parcel_count: number;
+  quality_score: number;
+  parity_gap_to_best: number;
+  opportunity_score: number;
+  qualified_entitlement_count: number;
+  qualified_entitlement_pct: number;
+  age_buckets: {
+    last_24h: number;
+    days_1_to_7: number;
+    older_7d: number;
+  };
+  unresolved_core_gaps_older_24h: number;
+  unresolved_core_gaps_older_7d: number;
+  missing_zoning: JurisdictionQualityMetric;
+  missing_demand_distance: JurisdictionQualityMetric;
+  missing_poi_density: JurisdictionQualityMetric;
+  missing_owner_roll_name: JurisdictionQualityMetric;
+  missing_owner_outreach_brief: JurisdictionQualityMetric;
+  missing_entitlement_score: JurisdictionQualityMetric;
+  missing_strategic_score: JurisdictionQualityMetric;
+  recommended_actions: string[];
+};
+
+type JurisdictionQuality = {
+  total_parcels: number;
+  jurisdiction_count: number;
+  benchmark_quality_score: number;
+  watch_windows_hours: number[];
+  rows: JurisdictionQualityRow[];
+  top_actions: string[];
+  notes: string[];
+};
+
 type FunnelStep = {
   key: string;
   label: string;
@@ -80,6 +123,10 @@ function isPilotScope(s: unknown): s is PilotScope {
 
 function isExportReadiness(s: unknown): s is ExportReadiness {
   return typeof s === "object" && s !== null && "parcel_row_total" in s;
+}
+
+function isJurisdictionQuality(s: unknown): s is JurisdictionQuality {
+  return typeof s === "object" && s !== null && "rows" in s && Array.isArray((s as JurisdictionQuality).rows);
 }
 
 function formatCount(n: number | null): string {
@@ -102,11 +149,14 @@ export default function OverviewPage() {
   const [readiness, setReadiness] = useState<unknown>(null);
   const [summary, setSummary] = useState<unknown>(null);
   const [scope, setScope] = useState<unknown>(null);
+  const [quality, setQuality] = useState<unknown>(null);
   const [scopeLoading, setScopeLoading] = useState(true);
   const [summaryLoading, setSummaryLoading] = useState(true);
+  const [qualityLoading, setQualityLoading] = useState(true);
   const [readinessLoading, setReadinessLoading] = useState(false);
   const [scopeErr, setScopeErr] = useState<string | null>(null);
   const [summaryErr, setSummaryErr] = useState<string | null>(null);
+  const [qualityErr, setQualityErr] = useState<string | null>(null);
   const [readinessErr, setReadinessErr] = useState<string | null>(null);
   const [showAllCounties, setShowAllCounties] = useState(false);
   const [exportDetailsOpen, setExportDetailsOpen] = useState(false);
@@ -143,6 +193,25 @@ export default function OverviewPage() {
       })
       .finally(() => {
         if (!cancelled) setSummaryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setQualityLoading(true);
+    setQualityErr(null);
+    fetchJson("internal/stats/jurisdiction-quality?limit=8")
+      .then((data) => {
+        if (!cancelled) setQuality(data);
+      })
+      .catch((e) => {
+        if (!cancelled) setQualityErr(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setQualityLoading(false);
       });
     return () => {
       cancelled = true;
@@ -252,6 +321,7 @@ export default function OverviewPage() {
       .sort((a, b) => b.parcels_in_db - a.parcels_in_db);
   }, [scopeView]);
 
+  const qualityView = isJurisdictionQuality(quality) ? quality : null;
   const funnelBase = funnelSteps[0]?.count ?? 0;
 
   return (
@@ -379,6 +449,86 @@ export default function OverviewPage() {
           </div>
         ) : null}
       </div>
+
+      <h2>Data quality & jurisdiction parity</h2>
+      <p className="muted">
+        This compares counties/city zoning jurisdictions after data arrives, then highlights where missing fields,
+        stale pipeline gaps, or sparse demand/owner evidence keep one market from matching the best-covered market.
+      </p>
+      {qualityErr ? <div className="error">{qualityErr}</div> : null}
+      {qualityView ? (
+        <div className="panel">
+          <div className="cols" style={{ marginBottom: "0.75rem" }}>
+            <div className="stat">
+              <div className="muted">Jurisdictions inspected</div>
+              <div className="n">{qualityView.jurisdiction_count.toLocaleString()}</div>
+            </div>
+            <div className="stat">
+              <div className="muted">Benchmark quality</div>
+              <div className="n">{Math.round(qualityView.benchmark_quality_score)}/100</div>
+            </div>
+            <div className="stat">
+              <div className="muted">Watch windows</div>
+              <div className="n">{qualityView.watch_windows_hours.join("h / ")}h</div>
+            </div>
+          </div>
+
+          {qualityView.top_actions.length > 0 ? (
+            <div className="panel-inset">
+              <strong>Top fixes to make weaker markets comparable</strong>
+              <ul className="muted" style={{ marginBottom: 0 }}>
+                {qualityView.top_actions.slice(0, 5).map((action) => (
+                  <li key={action}>{action}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          <table className="data scope-county-table" style={{ marginTop: "0.75rem" }}>
+            <thead>
+              <tr>
+                <th>Jurisdiction</th>
+                <th>Parcels</th>
+                <th>Quality</th>
+                <th>Opportunity</th>
+                <th>Stale gaps</th>
+                <th>Largest fix</th>
+              </tr>
+            </thead>
+            <tbody>
+              {qualityView.rows.map((row) => (
+                <tr key={row.jurisdiction_key}>
+                  <td>
+                    <strong>{row.label}</strong>
+                    <div className="muted">Qualified: {row.qualified_entitlement_count.toLocaleString()}</div>
+                  </td>
+                  <td>{row.parcel_count.toLocaleString()}</td>
+                  <td>{Math.round(row.quality_score)}/100</td>
+                  <td>{Math.round(row.opportunity_score)}</td>
+                  <td>
+                    {row.unresolved_core_gaps_older_24h.toLocaleString()} older than 24h
+                    <div className="muted">{row.unresolved_core_gaps_older_7d.toLocaleString()} older than 7d</div>
+                  </td>
+                  <td>
+                    {row.recommended_actions[0] ?? "Review opportunity and spot-check."}
+                    <div className="muted">
+                      Missing zoning {row.missing_zoning.pct}% · demand {row.missing_demand_distance.pct}% · owner{" "}
+                      {row.missing_owner_roll_name.pct}%
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <p className="muted" style={{ marginBottom: 0 }}>
+            Re-inspected by the scheduled Slack digest too. The stale counters use parcel arrival time, so records that
+            remain incomplete after 24h or 7d keep showing up until the source, overlay, or pipeline gap is fixed.
+          </p>
+        </div>
+      ) : qualityLoading ? (
+        <p className="muted">Loading jurisdiction quality analytics…</p>
+      ) : null}
 
       <h2>Scoring totals</h2>
       {summaryErr ? <div className="error">{summaryErr}</div> : null}

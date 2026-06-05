@@ -19,6 +19,7 @@ from app.deal_progress import query_deal_progress_board
 from app.deps_internal import require_internal_key
 from app.export_readiness import export_readiness_summary
 from app.geo_markets import wa_rollout_pacing
+from app.jurisdiction_quality import jurisdiction_quality_summary
 from app.lob_client import lob_status_payload, verify_lob_api_key
 from app.outreach_board import query_outreach_pipeline_board
 from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolios
@@ -46,6 +47,7 @@ from app.schemas import (
     IngestGeojsonUploadQueuedResponse,
     IngestSampleQueuedResponse,
     IngestWatechCountyRequest,
+    JurisdictionQualityResponse,
     LobConfigStatusResponse,
     LobVerifyResponse,
     MergeGeojsonAttributesRequest,
@@ -297,6 +299,15 @@ def baltimore_zoning_tiers(db: Session = Depends(get_db)) -> BaltimoreZoningTier
 def scoring_summary(db: Session = Depends(get_db)) -> ScoringSummaryResponse:
     """Counts parcels and latest scores vs pilot floors (read-only; no Slack)."""
     return ScoringSummaryResponse(**scoring_summary_stats(db))
+
+
+@router.get("/stats/jurisdiction-quality", response_model=JurisdictionQualityResponse)
+def jurisdiction_quality(
+    limit: int = Query(default=25, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> JurisdictionQualityResponse:
+    """Data-quality gaps and upgrade recommendations grouped by county/jurisdiction."""
+    return JurisdictionQualityResponse(**jurisdiction_quality_summary(db, limit=limit))
 
 
 @router.get("/stats/platform-showcase", response_model=PlatformShowcaseResponse)
