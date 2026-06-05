@@ -141,7 +141,7 @@ class Settings(BaseSettings):
 
     # Periodic pipeline backlog drain (parcels with no parcel_scores yet).
     scheduled_enqueue_unscored_enabled: bool = Field(
-        default=True,
+        default=False,
         validation_alias=AliasChoices(
             "SCHEDULED_ENQUEUE_UNSCORED_ENABLED",
             "scheduled_enqueue_unscored_enabled",

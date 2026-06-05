@@ -27,7 +27,7 @@ python3 scripts/check_ae_setup.py --probe
 
 **Shipped:** enqueue incomplete pipelines, identification/demand batch tasks, **`scripts/execute-phase-a.sh`**, Beat schedules.
 
-- [ ] **Backlog drain (automatic):** **`SCHEDULED_ENQUEUE_UNSCORED_ENABLED`** (default on), **`SCHEDULED_ENQUEUE_UNSCORED_LIMIT`**, **`SCHEDULED_ENQUEUE_UNSCORED_CRONTAB_*`** in **`deploy/.env`** → restart **worker + beat** after changes.
+- [ ] **Backlog drain (automatic):** **`SCHEDULED_ENQUEUE_UNSCORED_ENABLED`** (default off; enable only for controlled catch-up windows), **`SCHEDULED_ENQUEUE_UNSCORED_LIMIT`**, **`SCHEDULED_ENQUEUE_UNSCORED_CRONTAB_*`** in **`deploy/.env`** → restart **worker + beat** after changes.
 - [ ] **Optional — identification + demand batches on a timer:** **`SCHEDULED_REFRESH_IDENTIFICATION_ENABLED`**, **`SCHEDULED_REFRESH_DEMAND_ENABLED`** (+ limits/cron in **`deploy/env.production.example`**) → restart **worker + beat**.
 - [ ] **`config/pilot.yaml`** — **`demand_generators`** populated for your pilot (not placeholder-only if you rely on demand distance).
 - [ ] **Verify:** **`python3 scripts/check_export_readiness.py`** (needs **`DATABASE_URL`**) or **`GET /internal/stats/export-readiness`** with **`X-Internal-Key`**.
