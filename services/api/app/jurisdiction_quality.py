@@ -155,6 +155,8 @@ def _recommended_actions(group: dict[str, Any]) -> list[str]:
 
     if gap("missing_zoning") >= 10:
         actions.append("Build or merge the zoning overlay and jurisdiction-specific parking rules.")
+    if int(group["unresolved_core_gaps_older_24h"]) > 0:
+        actions.append("Inspect rows still missing core fields after 24h; they likely need source or pipeline repair.")
     if gap("missing_entitlement_score") >= 10 or gap("missing_strategic_score") >= 10:
         actions.append("Drain the full scoring pipeline for prescreen-qualified parcels.")
     if gap("missing_demand_distance") >= 10:
@@ -165,8 +167,6 @@ def _recommended_actions(group: dict[str, Any]) -> list[str]:
         actions.append("Fix assessor roll owner-name mapping before outreach enrichment.")
     if gap("missing_owner_outreach_brief") >= 10 and int(group["qualified_entitlement_count"]) > 0:
         actions.append("Run owner/outreach enrichment for entitlement-qualified parcels.")
-    if int(group["unresolved_core_gaps_older_24h"]) > 0:
-        actions.append("Inspect rows still missing core fields after 24h; they likely need source or pipeline repair.")
 
     if not actions and int(group["qualified_entitlement_count"]) > 0:
         actions.append("Use this jurisdiction as a benchmark playbook for weaker markets.")
@@ -331,7 +331,8 @@ def _summarize_records(
         "top_actions": top_actions,
         "notes": [
             "Rows are grouped by county FIPS plus raw_properties ZONING_JURISDICTION when available.",
-            "The 24h/7d stale-gap counters use parcels.created_at; updated existing APNs are tracked by ingest audit events until parcels get an updated_at column.",
+            "The 24h/7d stale-gap counters use parcels.created_at; updated existing APNs are tracked by "
+            "ingest audit events until parcels get an updated_at column.",
         ],
     }
 
