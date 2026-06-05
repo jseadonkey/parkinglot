@@ -43,8 +43,10 @@ def main() -> int:
     if _default_rules.is_file():
         os.environ.setdefault("ZONING_RULES_PATH", str(_default_rules))
 
+    from parking_core.geography_registry import load_geography_registry, validate_geography_registry
     from parking_core.pilot import load_pilot_config
     from parking_ingestion.geojson_loader import iter_parcels_from_geojson_dict, load_geojson_path
+    from parking_ingestion.zoning_rules import load_effective_zoning_rules
 
     parser = argparse.ArgumentParser(description="Validate Phase B overlay GeoJSON before merge.")
     parser.add_argument("path", type=Path, help="Path to GeoJSON file")
@@ -59,6 +61,12 @@ def main() -> int:
         default=None,
         help="Pilot YAML for region filter (default: config/pilot.yaml or PHASE_B_PILOT_CONFIG)",
     )
+    parser.add_argument(
+        "--geography-registry",
+        type=Path,
+        default=None,
+        help="Geography registry YAML (default: config/geography_registry.yaml)",
+    )
     args = parser.parse_args()
 
     pilot_path = args.pilot_config or Path(
@@ -70,6 +78,16 @@ def main() -> int:
 
     data = load_geojson_path(args.path)
     pilot = load_pilot_config(pilot_path)
+    registry = (
+        load_geography_registry(args.geography_registry)
+        if args.geography_registry
+        else load_geography_registry()
+    )
+    registry_issues = validate_geography_registry(
+        registry,
+        pilot_county_fips=pilot.region.county_fips,
+        zoning_rules=load_effective_zoning_rules(),
+    )
     allowed_counties = set(pilot.region.county_fips or [])
 
     total_iter = 0
@@ -77,6 +95,7 @@ def main() -> int:
     skipped_region = 0
     missing_apn = 0
     missing_county = 0
+    missing_jurisdiction = 0
     zoning_codes: Counter[str] = Counter()
     jurisdictions: Counter[str] = Counter()
 
@@ -88,6 +107,9 @@ def main() -> int:
             missing_apn += 1
         if not county:
             missing_county += 1
+        jur = attrs.get("zoning_jurisdiction") or attrs.get("ZONING_JURISDICTION")
+        if jur is None or not str(jur).strip():
+            missing_jurisdiction += 1
         if allowed_counties and county and county not in allowed_counties:
             skipped_region += 1
         if apn and county:
@@ -95,7 +117,6 @@ def main() -> int:
         zc = attrs.get("zoning_code")
         if zc is not None and str(zc).strip():
             zoning_codes[str(zc).strip()[:80]] += 1
-        jur = attrs.get("zoning_jurisdiction") or attrs.get("ZONING_JURISDICTION")
         if jur is not None and str(jur).strip():
             jurisdictions[str(jur).strip()[:64]] += 1
 
@@ -107,10 +128,13 @@ def main() -> int:
         "features_with_apn_and_county": with_apn_county,
         "missing_apn": missing_apn,
         "missing_county_fips": missing_county,
+        "missing_zoning_jurisdiction": missing_jurisdiction,
         "skipped_wrong_region": skipped_region,
         "distinct_zoning_codes_seen": len(zoning_codes),
         "top_zoning_codes": dict(zoning_codes.most_common(15)),
         "top_zoning_jurisdictions": dict(jurisdictions.most_common(10)),
+        "geography_registry_issue_counts": dict(Counter(issue.severity for issue in registry_issues)),
+        "geography_registry_issues": [issue.model_dump() for issue in registry_issues[:25]],
     }
 
     if args.json:
@@ -123,6 +147,7 @@ def main() -> int:
     print(f"Rows with both apn + county_fips: {with_apn_county}")
     print(f"Missing apn (merge skips): {missing_apn}")
     print(f"Missing county_fips (merge skips): {missing_county}")
+    print(f"Missing zoning_jurisdiction after registry resolution: {missing_jurisdiction}")
     print(f"Skipped wrong region vs pilot: {skipped_region}")
     print(f"Distinct zoning_code values: {len(zoning_codes)}")
     if zoning_codes:
@@ -133,6 +158,12 @@ def main() -> int:
         print("Top zoning jurisdictions:")
         for j, n in jurisdictions.most_common(5):
             print(f"  {n:5d}  {j}")
+    if registry_issues:
+        counts = Counter(issue.severity for issue in registry_issues)
+        print(f"Geography registry issues: {dict(counts)}")
+        for issue in registry_issues[:10]:
+            geo = f" [{issue.geography_key}]" if issue.geography_key else ""
+            print(f"  {issue.severity.upper()} {issue.code}{geo}: {issue.message}")
 
     if total_iter == 0:
         print("\nwarning: no parcel rows yielded — check GeoJSON type and polygon features.", file=sys.stderr)

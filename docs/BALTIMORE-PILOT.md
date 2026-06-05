@@ -1,24 +1,28 @@
 # Baltimore pilot (primary market)
 
-Washington statewide WaTech ingest is intentionally **slow** (7-day county cooldown, lower pipeline caps). **Baltimore City** is the active priority for parcel ingest, scoring, and operator focus.
-
-**Baltimore County (24005) is paused** — still listed in `config/pilot.yaml` for later, but not in `geo_markets.yaml` priority or automated county ingest.
+Washington statewide WaTech ingest is intentionally **slow** (size-based county cooldown, lower pipeline caps).
+**Baltimore City and Baltimore County** are the active Maryland priorities for parcel ingest, scoring, and operator focus.
 
 ## Counties
 
 | FIPS   | Jurisdiction      | Status        |
 |--------|-------------------|---------------|
 | 24510  | Baltimore City    | **Active**    |
-| 24005  | Baltimore County  | Paused        |
+| 24005  | Baltimore County  | **Active**    |
 
 Config: `config/geo_markets.yaml`, `config/pilot_baltimore.yaml`, and Baltimore rows in `config/pilot.yaml`.
 
-## Parcel source (city)
+## Parcel sources
 
 Baltimore City publishes parcels on EGIS ArcGIS:
 
 - Layer: `Parcel_Information/Parcel/FeatureServer/0`
 - Fetcher: `services/ingestion/parking_ingestion/baltimore_parcels.py` → `fetch_baltimore_city_geojson`
+
+Baltimore County publishes parcels on County ArcGIS:
+
+- Layer: `Property/Property/MapServer/1`
+- Fetcher: `services/ingestion/parking_ingestion/baltimore_parcels.py` → `fetch_baltimore_county_geojson`
 
 ## Ingest (production API)
 
@@ -31,35 +35,47 @@ Content-Type: application/json
 {"max_features": 20000, "auto_run_pipeline": true, "max_auto_pipeline": 100}
 ```
 
+County:
+
+```http
+POST /internal/ingest/baltimore-county
+Content-Type: application/json
+
+{"max_features": 20000, "auto_run_pipeline": true, "max_auto_pipeline": 100}
+```
+
 Or upload / server-path GeoJSON with `default_county_fips=24510`.
 
 Local export:
 
 ```bash
-python3 scripts/fetch_baltimore_city_parcels.py -o data/baltimore_city_parcels.geojson
+python3 scripts/fetch_baltimore_city_parcels.py -o data/baltimore/baltimore_city_parcels.geojson
+python3 scripts/fetch_baltimore_county_parcels.py -o data/baltimore/baltimore_county_parcels.geojson --max-features 20000
 ```
 
 ## Operator UI
 
-`GET /internal/stats/pilot-scope` includes `primary_market_*` and `priority_county_fips` (city only). Scheduled priority pipeline enqueues **24510** before Washington counties.
+`GET /internal/stats/pilot-scope` includes `primary_market_*` and `priority_county_fips`. Scheduled priority pipeline enqueues **24510** and **24005** before Washington counties.
 
 ## Droplet ops
 
 GitHub Actions → **Droplet resources**:
 
-- `prioritize_baltimore_market` — geo config + priority pipeline; kicks **city** ingest only
-- `baltimore_ingest_now` — city ingest only (20k cap)
-- Do **not** use county ingest until county is re-enabled in `geo_markets.yaml`
+- `prioritize_baltimore_market` — geo config + priority pipeline.
+- `baltimore_ingest_now` — city ingest (20k cap).
+- County ingest is available through `POST /internal/ingest/baltimore-county` and local scripts.
 
-## Zoning (Maryland — Article 32)
+## Zoning (Maryland)
 
 Parcel ingest from EGIS sets **APN + county FIPS** only. Entitlement scoring needs a **zoning district** on each row:
 
-1. **Rules file:** `data/zoning/md/baltimore_city_surface_parking_rules.yaml` (merged with WA rules at ingest).
-2. **GIS layer:** [CityView/Zoning_New](https://geodata.baltimorecity.gov/egis/rest/services/CityView/Zoning_New/MapServer/0) — export with `scripts/fetch_baltimore_zoning_districts.py`.
-3. **Phase B:** `scripts/build_baltimore_zoning_overlay.py` → `data/baltimore/baltimore_city_zoning_overlay.geojson` → merge (see `docs/zoning-sources-baltimore.md`). On Droplet: GitHub Action **baltimore_zoning_overlay**.
-4. **Jurisdiction:** `ZONING_JURISDICTION=baltimore_city` or auto-infer from FIPS `24510`.
-5. **Counsel:** Table 10-301 — **CB** (conditional) districts are scored as **not allowed** unless you set `ZONING_ALLOWS_SURFACE_PARKING` on the overlay.
+1. **Rules files:** `data/zoning/md/baltimore_city_surface_parking_rules.yaml` and `data/zoning/md/baltimore_county_surface_parking_rules.yaml` (merged with WA rules at ingest).
+2. **City GIS layer:** [CityView/Zoning_New](https://geodata.baltimorecity.gov/egis/rest/services/CityView/Zoning_New/MapServer/0) — export with `scripts/fetch_baltimore_zoning_districts.py`.
+3. **County GIS layer:** [MyNeighborhood/Zoning](https://bcgisapps.baltimorecountymd.gov/arcgis/rest/services/MyNeighborhood/MapServer/51) — export with `scripts/fetch_baltimore_zoning_districts.py --county county`.
+4. **Phase B City:** `make baltimore-phase-b-local` → `data/baltimore/baltimore_city_zoning_overlay.geojson` → merge (see `docs/zoning-sources-baltimore.md`).
+5. **Phase B County:** `make baltimore-county-phase-b-local` → `data/baltimore/baltimore_county_zoning_overlay.geojson` → merge (see `docs/zoning-sources-baltimore-county.md`).
+6. **Jurisdiction:** `baltimore_city` for FIPS `24510`; `baltimore_county_unincorporated` for FIPS `24005`.
+7. **Counsel:** City **CB** districts and County commercial/industrial conditional-review districts should not receive full zoning credit unless counsel approves a specific path or overlay override.
 
 Until Phase B completes, Baltimore parcels score **0** on the zoning weight (`default_when_unknown: false`).
 
@@ -85,7 +101,7 @@ Operator console: filter parcels by **Zoning tier** on the Parcels page. API: `G
 
 Monitor live DB tier mix: `GET /internal/stats/baltimore-zoning-tiers`.
 
-Local QA: `make baltimore-phase-b-local` or `python3 scripts/summarize_baltimore_zoning_tiers.py`.
+Local QA: `make baltimore-phase-b-local`, `make baltimore-county-phase-b-local`, or `python3 scripts/summarize_baltimore_zoning_tiers.py`.
 
 ## Revenue estimates (comps + demand)
 

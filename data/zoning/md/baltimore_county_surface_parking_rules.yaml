@@ -1,0 +1,124 @@
+# Baltimore County surface-parking suitability by ZONE_DIST.
+# NOT LEGAL ADVICE — conservative false-by-default. Business/manufacturing/
+# office/service districts are tagged as conditional-review (CB) so they can be
+# inspected without granting full permitted-by-right zoning score credit.
+
+version: 1
+default_when_unknown: false
+
+jurisdictions:
+  baltimore_county_unincorporated:
+    source_url: "https://bcgisapps.baltimorecountymd.gov/arcgis/rest/services/MyNeighborhood/MapServer/51"
+    ordinance_ref: "https://www.baltimorecountymd.gov/departments/pai/zoning"
+    use_standards_ref: "https://www.baltimorecountymd.gov/files/Documents/Permits/Zoning/zoning%20policy%20manual%202023.pdf"
+    note: >
+      County zoning layer labels are ZONE_DIST values. Residential/resource
+      conservation districts are excluded. Business, manufacturing, office, and
+      service employment classes are conditional-review placeholders until
+      counsel confirms a permitted-by-right principal parking-lot path.
+    zones:
+      # Business / manufacturing / office / service districts — review required.
+      "BL": &conditional_review
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Commercial/industrial/office class; verify BCZR use path before zoning credit."
+      "BL AS": *conditional_review
+      "BL CCC": *conditional_review
+      "BL CCC ESH": *conditional_review
+      "BL CR": *conditional_review
+      "BL CT": *conditional_review
+      "BL H": *conditional_review
+      "BL NC": *conditional_review
+      "BLR": *conditional_review
+      "BM": *conditional_review
+      "BM AS": *conditional_review
+      "BM AS MU": *conditional_review
+      "BM CCC": *conditional_review
+      "BM CCC MU": *conditional_review
+      "BM CR": *conditional_review
+      "BM CT": *conditional_review
+      "BM CT MU": *conditional_review
+      "BM DT": *conditional_review
+      "BM IM": *conditional_review
+      "BM IM MU": *conditional_review
+      "BM MU": *conditional_review
+      "BM NC": *conditional_review
+      "BMB": *conditional_review
+      "BMM": *conditional_review
+      "BMYC": *conditional_review
+      "BMYC ": *conditional_review
+      "BR": *conditional_review
+      "BR AS": *conditional_review
+      "BR CCC": *conditional_review
+      "BR CCC MU": *conditional_review
+      "BR CR": *conditional_review
+      "BR IM": *conditional_review
+      "BR IM MU": *conditional_review
+      "BR ME": *conditional_review
+      "CB": *conditional_review
+      "CB CR": *conditional_review
+      "MH": *conditional_review
+      "MH AS": *conditional_review
+      "MH IM": *conditional_review
+      "MH IM M43": *conditional_review
+      "ML": *conditional_review
+      "ML AS": *conditional_review
+      "ML IM": *conditional_review
+      "ML IM M43": *conditional_review
+      "ML M43": *conditional_review
+      "ML MU": *conditional_review
+      "ML NC": *conditional_review
+      "MLR": *conditional_review
+      "MLR IM": *conditional_review
+      "MR": *conditional_review
+      "MR IM": *conditional_review
+      "O 3": *conditional_review
+      "O 3 BM/G": *conditional_review
+      "OR 1": *conditional_review
+      "OR 2": *conditional_review
+      "OT": *conditional_review
+      "RO": *conditional_review
+      "RO CR": *conditional_review
+      "RO NC": *conditional_review
+      "ROA": *conditional_review
+      "SE": *conditional_review
+
+      # Residential / resource conservation / rural classes — excluded.
+      "DR 1": &excluded
+        allows_surface_parking: false
+        principal_use_symbol: NOT_LISTED
+        note: "Residential/resource district; no principal paid surface-parking credit."
+      "DR 1 H": *excluded
+      "DR 1 NC": *excluded
+      "DR 10.5": *excluded
+      "DR 10.5 ESH": *excluded
+      "DR 10.5 NC": *excluded
+      "DR 16": *excluded
+      "DR 2": *excluded
+      "DR 2 H": *excluded
+      "DR 2 NC": *excluded
+      "DR 3.5": *excluded
+      "DR 3.5 H": *excluded
+      "DR 3.5 H1": *excluded
+      "DR 3.5 NC": *excluded
+      "DR 5.5": *excluded
+      "DR 5.5 H": *excluded
+      "DR 5.5 NC": *excluded
+      "RAE 1": *excluded
+      "RAE 1 ESH": *excluded
+      "RAE 2": *excluded
+      "RC 2": *excluded
+      "RC 20": *excluded
+      "RC 20 EP": *excluded
+      "RC 20 NC": *excluded
+      "RC 3": *excluded
+      "RC 4": *excluded
+      "RC 5": *excluded
+      "RC 5 CR": *excluded
+      "RC 50": *excluded
+      "RC 6": *excluded
+      "RC 7": *excluded
+      "RC 8": *excluded
+      "RC 8 EP": *excluded
+      "RC 8 NC": *excluded
+      "RCC": *excluded

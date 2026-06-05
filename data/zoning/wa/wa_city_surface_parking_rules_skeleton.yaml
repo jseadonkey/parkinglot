@@ -1,0 +1,846 @@
+version: 1
+default_when_unknown: false
+jurisdictions:
+  aberdeen_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  airway_heights_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  albion_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  algona_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  almira_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  anacortes_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  arlington_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  asotin_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  auburn_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  bainbridge_island_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  battle_ground_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  beaux_arts_village_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  bellevue_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  bellingham_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  benton_city_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  bingen_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  black_diamond_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  blaine_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  bonney_lake_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  bothell_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  bremerton_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  brewster_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  bridgeport_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  brier_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  buckley_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  bucoda_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  burien_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  burlington_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  camas_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  carbonado_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  carnation_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  cashmere_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  castle_rock_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  cathlamet_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  centralia_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  chehalis_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  chelan_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  cheney_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  chewelah_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  clarkston_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  cle_elum_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  clyde_hill_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  colfax_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  college_place_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  colton_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  colville_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  conconully_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  concrete_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  connell_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  cosmopolis_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  coulee_city_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  coulee_dam_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  coupeville_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  covington_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  creston_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  cusick_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  darrington_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  davenport_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  dayton_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  deer_park_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  des_moines_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  dupont_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  duvall_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  east_wenatchee_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  eatonville_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  edgewood_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  edmonds_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  electric_city_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  ellensburg_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  elma_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  elmer_city_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  endicott_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  entiat_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  enumclaw_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  ephrata_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  everett_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  everson_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  fairfield_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  farmington_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  federal_way_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  ferndale_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  fife_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  fircrest_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  forks_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  friday_harbor_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  garfield_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  george_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  gig_harbor_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  gold_bar_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  goldendale_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  grand_coulee_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  grandview_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  granger_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  granite_falls_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  hamilton_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  harrah_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  harrington_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  hartline_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  hatton_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  hoquiam_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  hunts_point_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  ilwaco_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  index_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  ione_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  issaquah_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  kahlotus_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  kalama_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  kelso_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  kenmore_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  kennewick_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  kent_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  kettle_falls_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  kirkland_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  kittitas_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  krupp_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  la_center_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  la_conner_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  lacey_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  lacrosse_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  lake_forest_park_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  lake_stevens_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  lakewood_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  lamont_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  langley_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  latah_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  leavenworth_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  liberty_lake_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  lind_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  long_beach_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  longview_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  lyman_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  lynden_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  lynnwood_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  mabton_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  malden_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  mansfield_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  maple_valley_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  marcus_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  marysville_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  mattawa_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  mccleary_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  medical_lake_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  medina_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  mercer_island_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  mesa_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  metaline_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  metaline_falls_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  mill_creek_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  millwood_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  milton_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  monroe_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  montesano_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  morton_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  moses_lake_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  mossyrock_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  mount_vernon_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  mountlake_terrace_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  moxee_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  mukilteo_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  naches_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  napavine_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  nespelem_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  newcastle_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  newport_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  nooksack_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  normandy_park_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  north_bend_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  north_bonneville_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  northport_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  oak_harbor_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  oakesdale_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  oakville_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  ocean_shores_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  odessa_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  okanogan_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  olympia_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  omak_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  oroville_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  orting_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  othello_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  pacific_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  palouse_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  pasco_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  pateros_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  pe_ell_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  pomeroy_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  port_angeles_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  port_orchard_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  port_townsend_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  poulsbo_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  prescott_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  prosser_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  pullman_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  puyallup_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  quincy_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  rainier_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  raymond_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  reardan_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  redmond_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  renton_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  republic_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  richland_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  ridgefield_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  ritzville_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  riverside_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  rock_island_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  rockford_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  rosalia_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  roslyn_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  roy_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  royal_city_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  ruston_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  sammamish_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  seatac_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  seattle_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  sedro_woolley_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  selah_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  sequim_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  shelton_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  shoreline_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  skykomish_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  snohomish_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  snoqualmie_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  soap_lake_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  south_bend_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  south_cle_elum_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  south_prairie_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  spangle_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  spokane_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  spokane_valley_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  sprague_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  springdale_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  st_john_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  stanwood_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  starbuck_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  steilacoom_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  stevenson_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  sultan_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  sumas_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  sumner_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  sunnyside_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  tacoma_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  tekoa_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  tenino_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  tieton_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  toledo_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  tonasket_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  toppenish_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  tukwila_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  tumwater_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  twisp_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  union_gap_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  uniontown_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  university_place_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  vader_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  vancouver_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  waitsburg_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  walla_walla_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  wapato_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  warden_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  washougal_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  washtucna_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  waterville_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  waverly_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  wenatchee_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  west_richland_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  westport_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  white_salmon_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  wilbur_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  wilkeson_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  wilson_creek_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  winlock_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  winthrop_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  woodinville_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  woodland_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  woodway_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  yacolt_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  yakima_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  yarrow_point_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  yelm_city:
+    source_url: config/geography_registry.yaml
+    zones: {}
+  zillah_city:
+    source_url: config/geography_registry.yaml
+    zones: {}

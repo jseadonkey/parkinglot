@@ -1,0 +1,4236 @@
+{
+  "source_url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/4/query",
+  "state_fips": "53",
+  "generated_at": "2026-06-04T19:55:18+00:00",
+  "place_count": 281,
+  "county_slice_count": 289,
+  "lsadc_counts": {
+    "25": 212,
+    "43": 69
+  },
+  "entries": [
+    {
+      "geoid": "5300100",
+      "name": "Aberdeen city",
+      "basename": "Aberdeen",
+      "slug": "aberdeen",
+      "state_fips": "53",
+      "place_fips": "00100",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "aberdeen_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5300100.geojson",
+      "county_fips": [
+        "53027"
+      ]
+    },
+    {
+      "geoid": "5300905",
+      "name": "Airway Heights city",
+      "basename": "Airway Heights",
+      "slug": "airway_heights",
+      "state_fips": "53",
+      "place_fips": "00905",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "airway_heights_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5300905.geojson",
+      "county_fips": [
+        "53063"
+      ]
+    },
+    {
+      "geoid": "5301010",
+      "name": "Albion town",
+      "basename": "Albion",
+      "slug": "albion",
+      "state_fips": "53",
+      "place_fips": "01010",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "albion_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5301010.geojson",
+      "county_fips": [
+        "53075"
+      ]
+    },
+    {
+      "geoid": "5301290",
+      "name": "Algona city",
+      "basename": "Algona",
+      "slug": "algona",
+      "state_fips": "53",
+      "place_fips": "01290",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "algona_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5301290.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5301500",
+      "name": "Almira town",
+      "basename": "Almira",
+      "slug": "almira",
+      "state_fips": "53",
+      "place_fips": "01500",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "almira_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5301500.geojson",
+      "county_fips": [
+        "53043"
+      ]
+    },
+    {
+      "geoid": "5301990",
+      "name": "Anacortes city",
+      "basename": "Anacortes",
+      "slug": "anacortes",
+      "state_fips": "53",
+      "place_fips": "01990",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "anacortes_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5301990.geojson",
+      "county_fips": [
+        "53057"
+      ]
+    },
+    {
+      "geoid": "5302585",
+      "name": "Arlington city",
+      "basename": "Arlington",
+      "slug": "arlington",
+      "state_fips": "53",
+      "place_fips": "02585",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "arlington_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5302585.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5303075",
+      "name": "Asotin city",
+      "basename": "Asotin",
+      "slug": "asotin",
+      "state_fips": "53",
+      "place_fips": "03075",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "asotin_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5303075.geojson",
+      "county_fips": [
+        "53003"
+      ]
+    },
+    {
+      "geoid": "5303180",
+      "name": "Auburn city",
+      "basename": "Auburn",
+      "slug": "auburn",
+      "state_fips": "53",
+      "place_fips": "03180",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "auburn_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5303180.geojson",
+      "county_fips": [
+        "53033",
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5303736",
+      "name": "Bainbridge Island city",
+      "basename": "Bainbridge Island",
+      "slug": "bainbridge_island",
+      "state_fips": "53",
+      "place_fips": "03736",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "bainbridge_island_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5303736.geojson",
+      "county_fips": [
+        "53035"
+      ]
+    },
+    {
+      "geoid": "5304475",
+      "name": "Battle Ground city",
+      "basename": "Battle Ground",
+      "slug": "battle_ground",
+      "state_fips": "53",
+      "place_fips": "04475",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "battle_ground_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5304475.geojson",
+      "county_fips": [
+        "53011"
+      ]
+    },
+    {
+      "geoid": "5304895",
+      "name": "Beaux Arts Village town",
+      "basename": "Beaux Arts Village",
+      "slug": "beaux_arts_village",
+      "state_fips": "53",
+      "place_fips": "04895",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "beaux_arts_village_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5304895.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5305210",
+      "name": "Bellevue city",
+      "basename": "Bellevue",
+      "slug": "bellevue",
+      "state_fips": "53",
+      "place_fips": "05210",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "bellevue_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5305210.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5305280",
+      "name": "Bellingham city",
+      "basename": "Bellingham",
+      "slug": "bellingham",
+      "state_fips": "53",
+      "place_fips": "05280",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "bellingham_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5305280.geojson",
+      "county_fips": [
+        "53073"
+      ]
+    },
+    {
+      "geoid": "5305560",
+      "name": "Benton City city",
+      "basename": "Benton City",
+      "slug": "benton_city",
+      "state_fips": "53",
+      "place_fips": "05560",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "benton_city_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5305560.geojson",
+      "county_fips": [
+        "53005"
+      ]
+    },
+    {
+      "geoid": "5306085",
+      "name": "Bingen city",
+      "basename": "Bingen",
+      "slug": "bingen",
+      "state_fips": "53",
+      "place_fips": "06085",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "bingen_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5306085.geojson",
+      "county_fips": [
+        "53039"
+      ]
+    },
+    {
+      "geoid": "5306330",
+      "name": "Black Diamond city",
+      "basename": "Black Diamond",
+      "slug": "black_diamond",
+      "state_fips": "53",
+      "place_fips": "06330",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "black_diamond_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5306330.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5306505",
+      "name": "Blaine city",
+      "basename": "Blaine",
+      "slug": "blaine",
+      "state_fips": "53",
+      "place_fips": "06505",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "blaine_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5306505.geojson",
+      "county_fips": [
+        "53073"
+      ]
+    },
+    {
+      "geoid": "5307170",
+      "name": "Bonney Lake city",
+      "basename": "Bonney Lake",
+      "slug": "bonney_lake",
+      "state_fips": "53",
+      "place_fips": "07170",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "bonney_lake_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5307170.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5307380",
+      "name": "Bothell city",
+      "basename": "Bothell",
+      "slug": "bothell",
+      "state_fips": "53",
+      "place_fips": "07380",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "bothell_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5307380.geojson",
+      "county_fips": [
+        "53033",
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5307695",
+      "name": "Bremerton city",
+      "basename": "Bremerton",
+      "slug": "bremerton",
+      "state_fips": "53",
+      "place_fips": "07695",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "bremerton_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5307695.geojson",
+      "county_fips": [
+        "53035"
+      ]
+    },
+    {
+      "geoid": "5307835",
+      "name": "Brewster city",
+      "basename": "Brewster",
+      "slug": "brewster",
+      "state_fips": "53",
+      "place_fips": "07835",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "brewster_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5307835.geojson",
+      "county_fips": [
+        "53047"
+      ]
+    },
+    {
+      "geoid": "5307870",
+      "name": "Bridgeport city",
+      "basename": "Bridgeport",
+      "slug": "bridgeport",
+      "state_fips": "53",
+      "place_fips": "07870",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "bridgeport_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5307870.geojson",
+      "county_fips": [
+        "53017"
+      ]
+    },
+    {
+      "geoid": "5307940",
+      "name": "Brier city",
+      "basename": "Brier",
+      "slug": "brier",
+      "state_fips": "53",
+      "place_fips": "07940",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "brier_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5307940.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5308570",
+      "name": "Buckley city",
+      "basename": "Buckley",
+      "slug": "buckley",
+      "state_fips": "53",
+      "place_fips": "08570",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "buckley_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5308570.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5308605",
+      "name": "Bucoda town",
+      "basename": "Bucoda",
+      "slug": "bucoda",
+      "state_fips": "53",
+      "place_fips": "08605",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "bucoda_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5308605.geojson",
+      "county_fips": [
+        "53067"
+      ]
+    },
+    {
+      "geoid": "5308850",
+      "name": "Burien city",
+      "basename": "Burien",
+      "slug": "burien",
+      "state_fips": "53",
+      "place_fips": "08850",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "burien_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5308850.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5308920",
+      "name": "Burlington city",
+      "basename": "Burlington",
+      "slug": "burlington",
+      "state_fips": "53",
+      "place_fips": "08920",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "burlington_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5308920.geojson",
+      "county_fips": [
+        "53057"
+      ]
+    },
+    {
+      "geoid": "5309480",
+      "name": "Camas city",
+      "basename": "Camas",
+      "slug": "camas",
+      "state_fips": "53",
+      "place_fips": "09480",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "camas_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5309480.geojson",
+      "county_fips": [
+        "53011"
+      ]
+    },
+    {
+      "geoid": "5309970",
+      "name": "Carbonado town",
+      "basename": "Carbonado",
+      "slug": "carbonado",
+      "state_fips": "53",
+      "place_fips": "09970",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "carbonado_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5309970.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5310215",
+      "name": "Carnation city",
+      "basename": "Carnation",
+      "slug": "carnation",
+      "state_fips": "53",
+      "place_fips": "10215",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "carnation_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5310215.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5310495",
+      "name": "Cashmere city",
+      "basename": "Cashmere",
+      "slug": "cashmere",
+      "state_fips": "53",
+      "place_fips": "10495",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "cashmere_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5310495.geojson",
+      "county_fips": [
+        "53007"
+      ]
+    },
+    {
+      "geoid": "5310565",
+      "name": "Castle Rock city",
+      "basename": "Castle Rock",
+      "slug": "castle_rock",
+      "state_fips": "53",
+      "place_fips": "10565",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "castle_rock_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5310565.geojson",
+      "county_fips": [
+        "53015"
+      ]
+    },
+    {
+      "geoid": "5310635",
+      "name": "Cathlamet town",
+      "basename": "Cathlamet",
+      "slug": "cathlamet",
+      "state_fips": "53",
+      "place_fips": "10635",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "cathlamet_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5310635.geojson",
+      "county_fips": [
+        "53069"
+      ]
+    },
+    {
+      "geoid": "5311160",
+      "name": "Centralia city",
+      "basename": "Centralia",
+      "slug": "centralia",
+      "state_fips": "53",
+      "place_fips": "11160",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "centralia_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5311160.geojson",
+      "county_fips": [
+        "53041"
+      ]
+    },
+    {
+      "geoid": "5311475",
+      "name": "Chehalis city",
+      "basename": "Chehalis",
+      "slug": "chehalis",
+      "state_fips": "53",
+      "place_fips": "11475",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "chehalis_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5311475.geojson",
+      "county_fips": [
+        "53041"
+      ]
+    },
+    {
+      "geoid": "5311615",
+      "name": "Chelan city",
+      "basename": "Chelan",
+      "slug": "chelan",
+      "state_fips": "53",
+      "place_fips": "11615",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "chelan_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5311615.geojson",
+      "county_fips": [
+        "53007"
+      ]
+    },
+    {
+      "geoid": "5311825",
+      "name": "Cheney city",
+      "basename": "Cheney",
+      "slug": "cheney",
+      "state_fips": "53",
+      "place_fips": "11825",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "cheney_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5311825.geojson",
+      "county_fips": [
+        "53063"
+      ]
+    },
+    {
+      "geoid": "5312140",
+      "name": "Chewelah city",
+      "basename": "Chewelah",
+      "slug": "chewelah",
+      "state_fips": "53",
+      "place_fips": "12140",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "chewelah_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5312140.geojson",
+      "county_fips": [
+        "53065"
+      ]
+    },
+    {
+      "geoid": "5312630",
+      "name": "Clarkston city",
+      "basename": "Clarkston",
+      "slug": "clarkston",
+      "state_fips": "53",
+      "place_fips": "12630",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "clarkston_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5312630.geojson",
+      "county_fips": [
+        "53003"
+      ]
+    },
+    {
+      "geoid": "5312945",
+      "name": "Cle Elum city",
+      "basename": "Cle Elum",
+      "slug": "cle_elum",
+      "state_fips": "53",
+      "place_fips": "12945",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "cle_elum_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5312945.geojson",
+      "county_fips": [
+        "53037"
+      ]
+    },
+    {
+      "geoid": "5313365",
+      "name": "Clyde Hill city",
+      "basename": "Clyde Hill",
+      "slug": "clyde_hill",
+      "state_fips": "53",
+      "place_fips": "13365",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "clyde_hill_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5313365.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5313785",
+      "name": "Colfax city",
+      "basename": "Colfax",
+      "slug": "colfax",
+      "state_fips": "53",
+      "place_fips": "13785",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "colfax_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5313785.geojson",
+      "county_fips": [
+        "53075"
+      ]
+    },
+    {
+      "geoid": "5313855",
+      "name": "College Place city",
+      "basename": "College Place",
+      "slug": "college_place",
+      "state_fips": "53",
+      "place_fips": "13855",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "college_place_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5313855.geojson",
+      "county_fips": [
+        "53071"
+      ]
+    },
+    {
+      "geoid": "5313890",
+      "name": "Colton town",
+      "basename": "Colton",
+      "slug": "colton",
+      "state_fips": "53",
+      "place_fips": "13890",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "colton_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5313890.geojson",
+      "county_fips": [
+        "53075"
+      ]
+    },
+    {
+      "geoid": "5314170",
+      "name": "Colville city",
+      "basename": "Colville",
+      "slug": "colville",
+      "state_fips": "53",
+      "place_fips": "14170",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "colville_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5314170.geojson",
+      "county_fips": [
+        "53065"
+      ]
+    },
+    {
+      "geoid": "5314310",
+      "name": "Conconully town",
+      "basename": "Conconully",
+      "slug": "conconully",
+      "state_fips": "53",
+      "place_fips": "14310",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "conconully_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5314310.geojson",
+      "county_fips": [
+        "53047"
+      ]
+    },
+    {
+      "geoid": "5314380",
+      "name": "Concrete town",
+      "basename": "Concrete",
+      "slug": "concrete",
+      "state_fips": "53",
+      "place_fips": "14380",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "concrete_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5314380.geojson",
+      "county_fips": [
+        "53057"
+      ]
+    },
+    {
+      "geoid": "5314485",
+      "name": "Connell city",
+      "basename": "Connell",
+      "slug": "connell",
+      "state_fips": "53",
+      "place_fips": "14485",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "connell_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5314485.geojson",
+      "county_fips": [
+        "53021"
+      ]
+    },
+    {
+      "geoid": "5314870",
+      "name": "Cosmopolis city",
+      "basename": "Cosmopolis",
+      "slug": "cosmopolis",
+      "state_fips": "53",
+      "place_fips": "14870",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "cosmopolis_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5314870.geojson",
+      "county_fips": [
+        "53027"
+      ]
+    },
+    {
+      "geoid": "5315080",
+      "name": "Coulee City town",
+      "basename": "Coulee City",
+      "slug": "coulee_city",
+      "state_fips": "53",
+      "place_fips": "15080",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "coulee_city_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5315080.geojson",
+      "county_fips": [
+        "53025"
+      ]
+    },
+    {
+      "geoid": "5315115",
+      "name": "Coulee Dam town",
+      "basename": "Coulee Dam",
+      "slug": "coulee_dam",
+      "state_fips": "53",
+      "place_fips": "15115",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "coulee_dam_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5315115.geojson",
+      "county_fips": [
+        "53017",
+        "53025",
+        "53047"
+      ]
+    },
+    {
+      "geoid": "5315185",
+      "name": "Coupeville town",
+      "basename": "Coupeville",
+      "slug": "coupeville",
+      "state_fips": "53",
+      "place_fips": "15185",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "coupeville_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5315185.geojson",
+      "county_fips": [
+        "53029"
+      ]
+    },
+    {
+      "geoid": "5315290",
+      "name": "Covington city",
+      "basename": "Covington",
+      "slug": "covington",
+      "state_fips": "53",
+      "place_fips": "15290",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "covington_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5315290.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5315710",
+      "name": "Creston town",
+      "basename": "Creston",
+      "slug": "creston",
+      "state_fips": "53",
+      "place_fips": "15710",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "creston_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5315710.geojson",
+      "county_fips": [
+        "53043"
+      ]
+    },
+    {
+      "geoid": "5316340",
+      "name": "Cusick town",
+      "basename": "Cusick",
+      "slug": "cusick",
+      "state_fips": "53",
+      "place_fips": "16340",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "cusick_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5316340.geojson",
+      "county_fips": [
+        "53051"
+      ]
+    },
+    {
+      "geoid": "5316690",
+      "name": "Darrington town",
+      "basename": "Darrington",
+      "slug": "darrington",
+      "state_fips": "53",
+      "place_fips": "16690",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "darrington_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5316690.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5316795",
+      "name": "Davenport city",
+      "basename": "Davenport",
+      "slug": "davenport",
+      "state_fips": "53",
+      "place_fips": "16795",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "davenport_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5316795.geojson",
+      "county_fips": [
+        "53043"
+      ]
+    },
+    {
+      "geoid": "5316970",
+      "name": "Dayton city",
+      "basename": "Dayton",
+      "slug": "dayton",
+      "state_fips": "53",
+      "place_fips": "16970",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "dayton_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5316970.geojson",
+      "county_fips": [
+        "53013"
+      ]
+    },
+    {
+      "geoid": "5317320",
+      "name": "Deer Park city",
+      "basename": "Deer Park",
+      "slug": "deer_park",
+      "state_fips": "53",
+      "place_fips": "17320",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "deer_park_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5317320.geojson",
+      "county_fips": [
+        "53063"
+      ]
+    },
+    {
+      "geoid": "5317635",
+      "name": "Des Moines city",
+      "basename": "Des Moines",
+      "slug": "des_moines",
+      "state_fips": "53",
+      "place_fips": "17635",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "des_moines_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5317635.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5318965",
+      "name": "DuPont city",
+      "basename": "DuPont",
+      "slug": "dupont",
+      "state_fips": "53",
+      "place_fips": "18965",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "dupont_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5318965.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5319035",
+      "name": "Duvall city",
+      "basename": "Duvall",
+      "slug": "duvall",
+      "state_fips": "53",
+      "place_fips": "19035",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "duvall_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5319035.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5320155",
+      "name": "East Wenatchee city",
+      "basename": "East Wenatchee",
+      "slug": "east_wenatchee",
+      "state_fips": "53",
+      "place_fips": "20155",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "east_wenatchee_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5320155.geojson",
+      "county_fips": [
+        "53017"
+      ]
+    },
+    {
+      "geoid": "5320260",
+      "name": "Eatonville town",
+      "basename": "Eatonville",
+      "slug": "eatonville",
+      "state_fips": "53",
+      "place_fips": "20260",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "eatonville_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5320260.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5320645",
+      "name": "Edgewood city",
+      "basename": "Edgewood",
+      "slug": "edgewood",
+      "state_fips": "53",
+      "place_fips": "20645",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "edgewood_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5320645.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5320750",
+      "name": "Edmonds city",
+      "basename": "Edmonds",
+      "slug": "edmonds",
+      "state_fips": "53",
+      "place_fips": "20750",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "edmonds_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5320750.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5321030",
+      "name": "Electric City city",
+      "basename": "Electric City",
+      "slug": "electric_city",
+      "state_fips": "53",
+      "place_fips": "21030",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "electric_city_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5321030.geojson",
+      "county_fips": [
+        "53025"
+      ]
+    },
+    {
+      "geoid": "5321240",
+      "name": "Ellensburg city",
+      "basename": "Ellensburg",
+      "slug": "ellensburg",
+      "state_fips": "53",
+      "place_fips": "21240",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "ellensburg_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5321240.geojson",
+      "county_fips": [
+        "53037"
+      ]
+    },
+    {
+      "geoid": "5321450",
+      "name": "Elma city",
+      "basename": "Elma",
+      "slug": "elma",
+      "state_fips": "53",
+      "place_fips": "21450",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "elma_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5321450.geojson",
+      "county_fips": [
+        "53027"
+      ]
+    },
+    {
+      "geoid": "5321485",
+      "name": "Elmer City town",
+      "basename": "Elmer City",
+      "slug": "elmer_city",
+      "state_fips": "53",
+      "place_fips": "21485",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "elmer_city_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5321485.geojson",
+      "county_fips": [
+        "53047"
+      ]
+    },
+    {
+      "geoid": "5321730",
+      "name": "Endicott town",
+      "basename": "Endicott",
+      "slug": "endicott",
+      "state_fips": "53",
+      "place_fips": "21730",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "endicott_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5321730.geojson",
+      "county_fips": [
+        "53075"
+      ]
+    },
+    {
+      "geoid": "5322010",
+      "name": "Entiat city",
+      "basename": "Entiat",
+      "slug": "entiat",
+      "state_fips": "53",
+      "place_fips": "22010",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "entiat_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5322010.geojson",
+      "county_fips": [
+        "53007"
+      ]
+    },
+    {
+      "geoid": "5322045",
+      "name": "Enumclaw city",
+      "basename": "Enumclaw",
+      "slug": "enumclaw",
+      "state_fips": "53",
+      "place_fips": "22045",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "enumclaw_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5322045.geojson",
+      "county_fips": [
+        "53033",
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5322080",
+      "name": "Ephrata city",
+      "basename": "Ephrata",
+      "slug": "ephrata",
+      "state_fips": "53",
+      "place_fips": "22080",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "ephrata_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5322080.geojson",
+      "county_fips": [
+        "53025"
+      ]
+    },
+    {
+      "geoid": "5322640",
+      "name": "Everett city",
+      "basename": "Everett",
+      "slug": "everett",
+      "state_fips": "53",
+      "place_fips": "22640",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "everett_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5322640.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5322745",
+      "name": "Everson city",
+      "basename": "Everson",
+      "slug": "everson",
+      "state_fips": "53",
+      "place_fips": "22745",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "everson_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5322745.geojson",
+      "county_fips": [
+        "53073"
+      ]
+    },
+    {
+      "geoid": "5322990",
+      "name": "Fairfield town",
+      "basename": "Fairfield",
+      "slug": "fairfield",
+      "state_fips": "53",
+      "place_fips": "22990",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "fairfield_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5322990.geojson",
+      "county_fips": [
+        "53063"
+      ]
+    },
+    {
+      "geoid": "5323340",
+      "name": "Farmington town",
+      "basename": "Farmington",
+      "slug": "farmington",
+      "state_fips": "53",
+      "place_fips": "23340",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "farmington_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5323340.geojson",
+      "county_fips": [
+        "53075"
+      ]
+    },
+    {
+      "geoid": "5323515",
+      "name": "Federal Way city",
+      "basename": "Federal Way",
+      "slug": "federal_way",
+      "state_fips": "53",
+      "place_fips": "23515",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "federal_way_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5323515.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5323620",
+      "name": "Ferndale city",
+      "basename": "Ferndale",
+      "slug": "ferndale",
+      "state_fips": "53",
+      "place_fips": "23620",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "ferndale_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5323620.geojson",
+      "county_fips": [
+        "53073"
+      ]
+    },
+    {
+      "geoid": "5323795",
+      "name": "Fife city",
+      "basename": "Fife",
+      "slug": "fife",
+      "state_fips": "53",
+      "place_fips": "23795",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "fife_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5323795.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5323970",
+      "name": "Fircrest city",
+      "basename": "Fircrest",
+      "slug": "fircrest",
+      "state_fips": "53",
+      "place_fips": "23970",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "fircrest_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5323970.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5324810",
+      "name": "Forks city",
+      "basename": "Forks",
+      "slug": "forks",
+      "state_fips": "53",
+      "place_fips": "24810",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "forks_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5324810.geojson",
+      "county_fips": [
+        "53009"
+      ]
+    },
+    {
+      "geoid": "5325615",
+      "name": "Friday Harbor town",
+      "basename": "Friday Harbor",
+      "slug": "friday_harbor",
+      "state_fips": "53",
+      "place_fips": "25615",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "friday_harbor_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5325615.geojson",
+      "county_fips": [
+        "53055"
+      ]
+    },
+    {
+      "geoid": "5326140",
+      "name": "Garfield town",
+      "basename": "Garfield",
+      "slug": "garfield",
+      "state_fips": "53",
+      "place_fips": "26140",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "garfield_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5326140.geojson",
+      "county_fips": [
+        "53075"
+      ]
+    },
+    {
+      "geoid": "5326455",
+      "name": "George city",
+      "basename": "George",
+      "slug": "george",
+      "state_fips": "53",
+      "place_fips": "26455",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "george_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5326455.geojson",
+      "county_fips": [
+        "53025"
+      ]
+    },
+    {
+      "geoid": "5326735",
+      "name": "Gig Harbor city",
+      "basename": "Gig Harbor",
+      "slug": "gig_harbor",
+      "state_fips": "53",
+      "place_fips": "26735",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "gig_harbor_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5326735.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5327365",
+      "name": "Gold Bar city",
+      "basename": "Gold Bar",
+      "slug": "gold_bar",
+      "state_fips": "53",
+      "place_fips": "27365",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "gold_bar_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5327365.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5327435",
+      "name": "Goldendale city",
+      "basename": "Goldendale",
+      "slug": "goldendale",
+      "state_fips": "53",
+      "place_fips": "27435",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "goldendale_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5327435.geojson",
+      "county_fips": [
+        "53039"
+      ]
+    },
+    {
+      "geoid": "5327855",
+      "name": "Grand Coulee city",
+      "basename": "Grand Coulee",
+      "slug": "grand_coulee",
+      "state_fips": "53",
+      "place_fips": "27855",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "grand_coulee_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5327855.geojson",
+      "county_fips": [
+        "53025"
+      ]
+    },
+    {
+      "geoid": "5327925",
+      "name": "Grandview city",
+      "basename": "Grandview",
+      "slug": "grandview",
+      "state_fips": "53",
+      "place_fips": "27925",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "grandview_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5327925.geojson",
+      "county_fips": [
+        "53077"
+      ]
+    },
+    {
+      "geoid": "5327960",
+      "name": "Granger city",
+      "basename": "Granger",
+      "slug": "granger",
+      "state_fips": "53",
+      "place_fips": "27960",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "granger_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5327960.geojson",
+      "county_fips": [
+        "53077"
+      ]
+    },
+    {
+      "geoid": "5327995",
+      "name": "Granite Falls city",
+      "basename": "Granite Falls",
+      "slug": "granite_falls",
+      "state_fips": "53",
+      "place_fips": "27995",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "granite_falls_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5327995.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5329255",
+      "name": "Hamilton town",
+      "basename": "Hamilton",
+      "slug": "hamilton",
+      "state_fips": "53",
+      "place_fips": "29255",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "hamilton_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5329255.geojson",
+      "county_fips": [
+        "53057"
+      ]
+    },
+    {
+      "geoid": "5329710",
+      "name": "Harrah town",
+      "basename": "Harrah",
+      "slug": "harrah",
+      "state_fips": "53",
+      "place_fips": "29710",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "harrah_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5329710.geojson",
+      "county_fips": [
+        "53077"
+      ]
+    },
+    {
+      "geoid": "5329745",
+      "name": "Harrington city",
+      "basename": "Harrington",
+      "slug": "harrington",
+      "state_fips": "53",
+      "place_fips": "29745",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "harrington_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5329745.geojson",
+      "county_fips": [
+        "53043"
+      ]
+    },
+    {
+      "geoid": "5329920",
+      "name": "Hartline town",
+      "basename": "Hartline",
+      "slug": "hartline",
+      "state_fips": "53",
+      "place_fips": "29920",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "hartline_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5329920.geojson",
+      "county_fips": [
+        "53025"
+      ]
+    },
+    {
+      "geoid": "5330060",
+      "name": "Hatton town",
+      "basename": "Hatton",
+      "slug": "hatton",
+      "state_fips": "53",
+      "place_fips": "30060",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "hatton_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5330060.geojson",
+      "county_fips": [
+        "53001"
+      ]
+    },
+    {
+      "geoid": "5332300",
+      "name": "Hoquiam city",
+      "basename": "Hoquiam",
+      "slug": "hoquiam",
+      "state_fips": "53",
+      "place_fips": "32300",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "hoquiam_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5332300.geojson",
+      "county_fips": [
+        "53027"
+      ]
+    },
+    {
+      "geoid": "5332755",
+      "name": "Hunts Point town",
+      "basename": "Hunts Point",
+      "slug": "hunts_point",
+      "state_fips": "53",
+      "place_fips": "32755",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "hunts_point_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5332755.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5333000",
+      "name": "Ilwaco city",
+      "basename": "Ilwaco",
+      "slug": "ilwaco",
+      "state_fips": "53",
+      "place_fips": "33000",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "ilwaco_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5333000.geojson",
+      "county_fips": [
+        "53049"
+      ]
+    },
+    {
+      "geoid": "5333175",
+      "name": "Index town",
+      "basename": "Index",
+      "slug": "index",
+      "state_fips": "53",
+      "place_fips": "33175",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "index_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5333175.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5333560",
+      "name": "Ione town",
+      "basename": "Ione",
+      "slug": "ione",
+      "state_fips": "53",
+      "place_fips": "33560",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "ione_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5333560.geojson",
+      "county_fips": [
+        "53051"
+      ]
+    },
+    {
+      "geoid": "5333805",
+      "name": "Issaquah city",
+      "basename": "Issaquah",
+      "slug": "issaquah",
+      "state_fips": "53",
+      "place_fips": "33805",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "issaquah_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5333805.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5334575",
+      "name": "Kahlotus city",
+      "basename": "Kahlotus",
+      "slug": "kahlotus",
+      "state_fips": "53",
+      "place_fips": "34575",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "kahlotus_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5334575.geojson",
+      "county_fips": [
+        "53021"
+      ]
+    },
+    {
+      "geoid": "5334645",
+      "name": "Kalama city",
+      "basename": "Kalama",
+      "slug": "kalama",
+      "state_fips": "53",
+      "place_fips": "34645",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "kalama_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5334645.geojson",
+      "county_fips": [
+        "53015"
+      ]
+    },
+    {
+      "geoid": "5335065",
+      "name": "Kelso city",
+      "basename": "Kelso",
+      "slug": "kelso",
+      "state_fips": "53",
+      "place_fips": "35065",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "kelso_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5335065.geojson",
+      "county_fips": [
+        "53015"
+      ]
+    },
+    {
+      "geoid": "5335170",
+      "name": "Kenmore city",
+      "basename": "Kenmore",
+      "slug": "kenmore",
+      "state_fips": "53",
+      "place_fips": "35170",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "kenmore_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5335170.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5335275",
+      "name": "Kennewick city",
+      "basename": "Kennewick",
+      "slug": "kennewick",
+      "state_fips": "53",
+      "place_fips": "35275",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "kennewick_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5335275.geojson",
+      "county_fips": [
+        "53005"
+      ]
+    },
+    {
+      "geoid": "5335415",
+      "name": "Kent city",
+      "basename": "Kent",
+      "slug": "kent",
+      "state_fips": "53",
+      "place_fips": "35415",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "kent_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5335415.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5335485",
+      "name": "Kettle Falls city",
+      "basename": "Kettle Falls",
+      "slug": "kettle_falls",
+      "state_fips": "53",
+      "place_fips": "35485",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "kettle_falls_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5335485.geojson",
+      "county_fips": [
+        "53065"
+      ]
+    },
+    {
+      "geoid": "5335940",
+      "name": "Kirkland city",
+      "basename": "Kirkland",
+      "slug": "kirkland",
+      "state_fips": "53",
+      "place_fips": "35940",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "kirkland_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5335940.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5336045",
+      "name": "Kittitas city",
+      "basename": "Kittitas",
+      "slug": "kittitas",
+      "state_fips": "53",
+      "place_fips": "36045",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "kittitas_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5336045.geojson",
+      "county_fips": [
+        "53037"
+      ]
+    },
+    {
+      "geoid": "5336395",
+      "name": "Krupp town",
+      "basename": "Krupp",
+      "slug": "krupp",
+      "state_fips": "53",
+      "place_fips": "36395",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "krupp_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5336395.geojson",
+      "county_fips": [
+        "53025"
+      ]
+    },
+    {
+      "geoid": "5336710",
+      "name": "La Center city",
+      "basename": "La Center",
+      "slug": "la_center",
+      "state_fips": "53",
+      "place_fips": "36710",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "la_center_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5336710.geojson",
+      "county_fips": [
+        "53011"
+      ]
+    },
+    {
+      "geoid": "5336780",
+      "name": "La Conner town",
+      "basename": "La Conner",
+      "slug": "la_conner",
+      "state_fips": "53",
+      "place_fips": "36780",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "la_conner_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5336780.geojson",
+      "county_fips": [
+        "53057"
+      ]
+    },
+    {
+      "geoid": "5336850",
+      "name": "LaCrosse town",
+      "basename": "LaCrosse",
+      "slug": "lacrosse",
+      "state_fips": "53",
+      "place_fips": "36850",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "lacrosse_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5336850.geojson",
+      "county_fips": [
+        "53075"
+      ]
+    },
+    {
+      "geoid": "5336745",
+      "name": "Lacey city",
+      "basename": "Lacey",
+      "slug": "lacey",
+      "state_fips": "53",
+      "place_fips": "36745",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "lacey_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5336745.geojson",
+      "county_fips": [
+        "53067"
+      ]
+    },
+    {
+      "geoid": "5337270",
+      "name": "Lake Forest Park city",
+      "basename": "Lake Forest Park",
+      "slug": "lake_forest_park",
+      "state_fips": "53",
+      "place_fips": "37270",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "lake_forest_park_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5337270.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5337900",
+      "name": "Lake Stevens city",
+      "basename": "Lake Stevens",
+      "slug": "lake_stevens",
+      "state_fips": "53",
+      "place_fips": "37900",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "lake_stevens_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5337900.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5338038",
+      "name": "Lakewood city",
+      "basename": "Lakewood",
+      "slug": "lakewood",
+      "state_fips": "53",
+      "place_fips": "38038",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "lakewood_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5338038.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5338215",
+      "name": "Lamont town",
+      "basename": "Lamont",
+      "slug": "lamont",
+      "state_fips": "53",
+      "place_fips": "38215",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "lamont_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5338215.geojson",
+      "county_fips": [
+        "53075"
+      ]
+    },
+    {
+      "geoid": "5338355",
+      "name": "Langley city",
+      "basename": "Langley",
+      "slug": "langley",
+      "state_fips": "53",
+      "place_fips": "38355",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "langley_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5338355.geojson",
+      "county_fips": [
+        "53029"
+      ]
+    },
+    {
+      "geoid": "5338495",
+      "name": "Latah town",
+      "basename": "Latah",
+      "slug": "latah",
+      "state_fips": "53",
+      "place_fips": "38495",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "latah_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5338495.geojson",
+      "county_fips": [
+        "53063"
+      ]
+    },
+    {
+      "geoid": "5338845",
+      "name": "Leavenworth city",
+      "basename": "Leavenworth",
+      "slug": "leavenworth",
+      "state_fips": "53",
+      "place_fips": "38845",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "leavenworth_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5338845.geojson",
+      "county_fips": [
+        "53007"
+      ]
+    },
+    {
+      "geoid": "5339335",
+      "name": "Liberty Lake city",
+      "basename": "Liberty Lake",
+      "slug": "liberty_lake",
+      "state_fips": "53",
+      "place_fips": "39335",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "liberty_lake_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5339335.geojson",
+      "county_fips": [
+        "53063"
+      ]
+    },
+    {
+      "geoid": "5339510",
+      "name": "Lind town",
+      "basename": "Lind",
+      "slug": "lind",
+      "state_fips": "53",
+      "place_fips": "39510",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "lind_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5339510.geojson",
+      "county_fips": [
+        "53001"
+      ]
+    },
+    {
+      "geoid": "5340070",
+      "name": "Long Beach city",
+      "basename": "Long Beach",
+      "slug": "long_beach",
+      "state_fips": "53",
+      "place_fips": "40070",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "long_beach_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5340070.geojson",
+      "county_fips": [
+        "53049"
+      ]
+    },
+    {
+      "geoid": "5340245",
+      "name": "Longview city",
+      "basename": "Longview",
+      "slug": "longview",
+      "state_fips": "53",
+      "place_fips": "40245",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "longview_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5340245.geojson",
+      "county_fips": [
+        "53015"
+      ]
+    },
+    {
+      "geoid": "5340770",
+      "name": "Lyman town",
+      "basename": "Lyman",
+      "slug": "lyman",
+      "state_fips": "53",
+      "place_fips": "40770",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "lyman_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5340770.geojson",
+      "county_fips": [
+        "53057"
+      ]
+    },
+    {
+      "geoid": "5340805",
+      "name": "Lynden city",
+      "basename": "Lynden",
+      "slug": "lynden",
+      "state_fips": "53",
+      "place_fips": "40805",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "lynden_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5340805.geojson",
+      "county_fips": [
+        "53073"
+      ]
+    },
+    {
+      "geoid": "5340840",
+      "name": "Lynnwood city",
+      "basename": "Lynnwood",
+      "slug": "lynnwood",
+      "state_fips": "53",
+      "place_fips": "40840",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "lynnwood_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5340840.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5340980",
+      "name": "Mabton city",
+      "basename": "Mabton",
+      "slug": "mabton",
+      "state_fips": "53",
+      "place_fips": "40980",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "mabton_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5340980.geojson",
+      "county_fips": [
+        "53077"
+      ]
+    },
+    {
+      "geoid": "5342275",
+      "name": "Malden town",
+      "basename": "Malden",
+      "slug": "malden",
+      "state_fips": "53",
+      "place_fips": "42275",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "malden_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5342275.geojson",
+      "county_fips": [
+        "53075"
+      ]
+    },
+    {
+      "geoid": "5342800",
+      "name": "Mansfield town",
+      "basename": "Mansfield",
+      "slug": "mansfield",
+      "state_fips": "53",
+      "place_fips": "42800",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "mansfield_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5342800.geojson",
+      "county_fips": [
+        "53017"
+      ]
+    },
+    {
+      "geoid": "5343150",
+      "name": "Maple Valley city",
+      "basename": "Maple Valley",
+      "slug": "maple_valley",
+      "state_fips": "53",
+      "place_fips": "43150",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "maple_valley_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5343150.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5343395",
+      "name": "Marcus town",
+      "basename": "Marcus",
+      "slug": "marcus",
+      "state_fips": "53",
+      "place_fips": "43395",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "marcus_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5343395.geojson",
+      "county_fips": [
+        "53065"
+      ]
+    },
+    {
+      "geoid": "5343955",
+      "name": "Marysville city",
+      "basename": "Marysville",
+      "slug": "marysville",
+      "state_fips": "53",
+      "place_fips": "43955",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "marysville_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5343955.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5344165",
+      "name": "Mattawa city",
+      "basename": "Mattawa",
+      "slug": "mattawa",
+      "state_fips": "53",
+      "place_fips": "44165",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "mattawa_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5344165.geojson",
+      "county_fips": [
+        "53025"
+      ]
+    },
+    {
+      "geoid": "5341225",
+      "name": "McCleary city",
+      "basename": "McCleary",
+      "slug": "mccleary",
+      "state_fips": "53",
+      "place_fips": "41225",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "mccleary_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5341225.geojson",
+      "county_fips": [
+        "53027"
+      ]
+    },
+    {
+      "geoid": "5344690",
+      "name": "Medical Lake city",
+      "basename": "Medical Lake",
+      "slug": "medical_lake",
+      "state_fips": "53",
+      "place_fips": "44690",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "medical_lake_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5344690.geojson",
+      "county_fips": [
+        "53063"
+      ]
+    },
+    {
+      "geoid": "5344725",
+      "name": "Medina city",
+      "basename": "Medina",
+      "slug": "medina",
+      "state_fips": "53",
+      "place_fips": "44725",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "medina_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5344725.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5345005",
+      "name": "Mercer Island city",
+      "basename": "Mercer Island",
+      "slug": "mercer_island",
+      "state_fips": "53",
+      "place_fips": "45005",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "mercer_island_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5345005.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5345180",
+      "name": "Mesa city",
+      "basename": "Mesa",
+      "slug": "mesa",
+      "state_fips": "53",
+      "place_fips": "45180",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "mesa_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5345180.geojson",
+      "county_fips": [
+        "53021"
+      ]
+    },
+    {
+      "geoid": "5345285",
+      "name": "Metaline town",
+      "basename": "Metaline",
+      "slug": "metaline",
+      "state_fips": "53",
+      "place_fips": "45285",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "metaline_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5345285.geojson",
+      "county_fips": [
+        "53051"
+      ]
+    },
+    {
+      "geoid": "5345320",
+      "name": "Metaline Falls town",
+      "basename": "Metaline Falls",
+      "slug": "metaline_falls",
+      "state_fips": "53",
+      "place_fips": "45320",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "metaline_falls_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5345320.geojson",
+      "county_fips": [
+        "53051"
+      ]
+    },
+    {
+      "geoid": "5345865",
+      "name": "Mill Creek city",
+      "basename": "Mill Creek",
+      "slug": "mill_creek",
+      "state_fips": "53",
+      "place_fips": "45865",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "mill_creek_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5345865.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5345985",
+      "name": "Millwood city",
+      "basename": "Millwood",
+      "slug": "millwood",
+      "state_fips": "53",
+      "place_fips": "45985",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "millwood_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5345985.geojson",
+      "county_fips": [
+        "53063"
+      ]
+    },
+    {
+      "geoid": "5346020",
+      "name": "Milton city",
+      "basename": "Milton",
+      "slug": "milton",
+      "state_fips": "53",
+      "place_fips": "46020",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "milton_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5346020.geojson",
+      "county_fips": [
+        "53033",
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5346685",
+      "name": "Monroe city",
+      "basename": "Monroe",
+      "slug": "monroe",
+      "state_fips": "53",
+      "place_fips": "46685",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "monroe_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5346685.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5346895",
+      "name": "Montesano city",
+      "basename": "Montesano",
+      "slug": "montesano",
+      "state_fips": "53",
+      "place_fips": "46895",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "montesano_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5346895.geojson",
+      "county_fips": [
+        "53027"
+      ]
+    },
+    {
+      "geoid": "5347175",
+      "name": "Morton city",
+      "basename": "Morton",
+      "slug": "morton",
+      "state_fips": "53",
+      "place_fips": "47175",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "morton_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5347175.geojson",
+      "county_fips": [
+        "53041"
+      ]
+    },
+    {
+      "geoid": "5347245",
+      "name": "Moses Lake city",
+      "basename": "Moses Lake",
+      "slug": "moses_lake",
+      "state_fips": "53",
+      "place_fips": "47245",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "moses_lake_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5347245.geojson",
+      "county_fips": [
+        "53025"
+      ]
+    },
+    {
+      "geoid": "5347315",
+      "name": "Mossyrock city",
+      "basename": "Mossyrock",
+      "slug": "mossyrock",
+      "state_fips": "53",
+      "place_fips": "47315",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "mossyrock_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5347315.geojson",
+      "county_fips": [
+        "53041"
+      ]
+    },
+    {
+      "geoid": "5347560",
+      "name": "Mount Vernon city",
+      "basename": "Mount Vernon",
+      "slug": "mount_vernon",
+      "state_fips": "53",
+      "place_fips": "47560",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "mount_vernon_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5347560.geojson",
+      "county_fips": [
+        "53057"
+      ]
+    },
+    {
+      "geoid": "5347490",
+      "name": "Mountlake Terrace city",
+      "basename": "Mountlake Terrace",
+      "slug": "mountlake_terrace",
+      "state_fips": "53",
+      "place_fips": "47490",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "mountlake_terrace_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5347490.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5347665",
+      "name": "Moxee city",
+      "basename": "Moxee",
+      "slug": "moxee",
+      "state_fips": "53",
+      "place_fips": "47665",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "moxee_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5347665.geojson",
+      "county_fips": [
+        "53077"
+      ]
+    },
+    {
+      "geoid": "5347735",
+      "name": "Mukilteo city",
+      "basename": "Mukilteo",
+      "slug": "mukilteo",
+      "state_fips": "53",
+      "place_fips": "47735",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "mukilteo_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5347735.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5347805",
+      "name": "Naches town",
+      "basename": "Naches",
+      "slug": "naches",
+      "state_fips": "53",
+      "place_fips": "47805",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "naches_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5347805.geojson",
+      "county_fips": [
+        "53077"
+      ]
+    },
+    {
+      "geoid": "5347980",
+      "name": "Napavine city",
+      "basename": "Napavine",
+      "slug": "napavine",
+      "state_fips": "53",
+      "place_fips": "47980",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "napavine_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5347980.geojson",
+      "county_fips": [
+        "53041"
+      ]
+    },
+    {
+      "geoid": "5348540",
+      "name": "Nespelem town",
+      "basename": "Nespelem",
+      "slug": "nespelem",
+      "state_fips": "53",
+      "place_fips": "48540",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "nespelem_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5348540.geojson",
+      "county_fips": [
+        "53047"
+      ]
+    },
+    {
+      "geoid": "5348645",
+      "name": "Newcastle city",
+      "basename": "Newcastle",
+      "slug": "newcastle",
+      "state_fips": "53",
+      "place_fips": "48645",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "newcastle_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5348645.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5348820",
+      "name": "Newport city",
+      "basename": "Newport",
+      "slug": "newport",
+      "state_fips": "53",
+      "place_fips": "48820",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "newport_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5348820.geojson",
+      "county_fips": [
+        "53051"
+      ]
+    },
+    {
+      "geoid": "5349275",
+      "name": "Nooksack city",
+      "basename": "Nooksack",
+      "slug": "nooksack",
+      "state_fips": "53",
+      "place_fips": "49275",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "nooksack_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5349275.geojson",
+      "county_fips": [
+        "53073"
+      ]
+    },
+    {
+      "geoid": "5349415",
+      "name": "Normandy Park city",
+      "basename": "Normandy Park",
+      "slug": "normandy_park",
+      "state_fips": "53",
+      "place_fips": "49415",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "normandy_park_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5349415.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5349485",
+      "name": "North Bend city",
+      "basename": "North Bend",
+      "slug": "north_bend",
+      "state_fips": "53",
+      "place_fips": "49485",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "north_bend_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5349485.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5349555",
+      "name": "North Bonneville city",
+      "basename": "North Bonneville",
+      "slug": "north_bonneville",
+      "state_fips": "53",
+      "place_fips": "49555",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "north_bonneville_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5349555.geojson",
+      "county_fips": [
+        "53059"
+      ]
+    },
+    {
+      "geoid": "5350045",
+      "name": "Northport town",
+      "basename": "Northport",
+      "slug": "northport",
+      "state_fips": "53",
+      "place_fips": "50045",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "northport_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5350045.geojson",
+      "county_fips": [
+        "53065"
+      ]
+    },
+    {
+      "geoid": "5350360",
+      "name": "Oak Harbor city",
+      "basename": "Oak Harbor",
+      "slug": "oak_harbor",
+      "state_fips": "53",
+      "place_fips": "50360",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "oak_harbor_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5350360.geojson",
+      "county_fips": [
+        "53029"
+      ]
+    },
+    {
+      "geoid": "5350325",
+      "name": "Oakesdale town",
+      "basename": "Oakesdale",
+      "slug": "oakesdale",
+      "state_fips": "53",
+      "place_fips": "50325",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "oakesdale_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5350325.geojson",
+      "county_fips": [
+        "53075"
+      ]
+    },
+    {
+      "geoid": "5350430",
+      "name": "Oakville city",
+      "basename": "Oakville",
+      "slug": "oakville",
+      "state_fips": "53",
+      "place_fips": "50430",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "oakville_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5350430.geojson",
+      "county_fips": [
+        "53027"
+      ]
+    },
+    {
+      "geoid": "5350570",
+      "name": "Ocean Shores city",
+      "basename": "Ocean Shores",
+      "slug": "ocean_shores",
+      "state_fips": "53",
+      "place_fips": "50570",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "ocean_shores_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5350570.geojson",
+      "county_fips": [
+        "53027"
+      ]
+    },
+    {
+      "geoid": "5350745",
+      "name": "Odessa town",
+      "basename": "Odessa",
+      "slug": "odessa",
+      "state_fips": "53",
+      "place_fips": "50745",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "odessa_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5350745.geojson",
+      "county_fips": [
+        "53043"
+      ]
+    },
+    {
+      "geoid": "5350920",
+      "name": "Okanogan city",
+      "basename": "Okanogan",
+      "slug": "okanogan",
+      "state_fips": "53",
+      "place_fips": "50920",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "okanogan_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5350920.geojson",
+      "county_fips": [
+        "53047"
+      ]
+    },
+    {
+      "geoid": "5351300",
+      "name": "Olympia city",
+      "basename": "Olympia",
+      "slug": "olympia",
+      "state_fips": "53",
+      "place_fips": "51300",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "olympia_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5351300.geojson",
+      "county_fips": [
+        "53067"
+      ]
+    },
+    {
+      "geoid": "5351340",
+      "name": "Omak city",
+      "basename": "Omak",
+      "slug": "omak",
+      "state_fips": "53",
+      "place_fips": "51340",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "omak_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5351340.geojson",
+      "county_fips": [
+        "53047"
+      ]
+    },
+    {
+      "geoid": "5351970",
+      "name": "Oroville city",
+      "basename": "Oroville",
+      "slug": "oroville",
+      "state_fips": "53",
+      "place_fips": "51970",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "oroville_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5351970.geojson",
+      "county_fips": [
+        "53047"
+      ]
+    },
+    {
+      "geoid": "5352005",
+      "name": "Orting city",
+      "basename": "Orting",
+      "slug": "orting",
+      "state_fips": "53",
+      "place_fips": "52005",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "orting_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5352005.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5352215",
+      "name": "Othello city",
+      "basename": "Othello",
+      "slug": "othello",
+      "state_fips": "53",
+      "place_fips": "52215",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "othello_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5352215.geojson",
+      "county_fips": [
+        "53001"
+      ]
+    },
+    {
+      "geoid": "5352495",
+      "name": "Pacific city",
+      "basename": "Pacific",
+      "slug": "pacific",
+      "state_fips": "53",
+      "place_fips": "52495",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "pacific_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5352495.geojson",
+      "county_fips": [
+        "53033",
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5352950",
+      "name": "Palouse city",
+      "basename": "Palouse",
+      "slug": "palouse",
+      "state_fips": "53",
+      "place_fips": "52950",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "palouse_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5352950.geojson",
+      "county_fips": [
+        "53075"
+      ]
+    },
+    {
+      "geoid": "5353545",
+      "name": "Pasco city",
+      "basename": "Pasco",
+      "slug": "pasco",
+      "state_fips": "53",
+      "place_fips": "53545",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "pasco_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5353545.geojson",
+      "county_fips": [
+        "53021"
+      ]
+    },
+    {
+      "geoid": "5353720",
+      "name": "Pateros city",
+      "basename": "Pateros",
+      "slug": "pateros",
+      "state_fips": "53",
+      "place_fips": "53720",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "pateros_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5353720.geojson",
+      "county_fips": [
+        "53047"
+      ]
+    },
+    {
+      "geoid": "5353930",
+      "name": "Pe Ell town",
+      "basename": "Pe Ell",
+      "slug": "pe_ell",
+      "state_fips": "53",
+      "place_fips": "53930",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "pe_ell_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5353930.geojson",
+      "county_fips": [
+        "53041"
+      ]
+    },
+    {
+      "geoid": "5355120",
+      "name": "Pomeroy city",
+      "basename": "Pomeroy",
+      "slug": "pomeroy",
+      "state_fips": "53",
+      "place_fips": "55120",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "pomeroy_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5355120.geojson",
+      "county_fips": [
+        "53023"
+      ]
+    },
+    {
+      "geoid": "5355365",
+      "name": "Port Angeles city",
+      "basename": "Port Angeles",
+      "slug": "port_angeles",
+      "state_fips": "53",
+      "place_fips": "55365",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "port_angeles_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5355365.geojson",
+      "county_fips": [
+        "53009"
+      ]
+    },
+    {
+      "geoid": "5355785",
+      "name": "Port Orchard city",
+      "basename": "Port Orchard",
+      "slug": "port_orchard",
+      "state_fips": "53",
+      "place_fips": "55785",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "port_orchard_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5355785.geojson",
+      "county_fips": [
+        "53035"
+      ]
+    },
+    {
+      "geoid": "5355855",
+      "name": "Port Townsend city",
+      "basename": "Port Townsend",
+      "slug": "port_townsend",
+      "state_fips": "53",
+      "place_fips": "55855",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "port_townsend_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5355855.geojson",
+      "county_fips": [
+        "53031"
+      ]
+    },
+    {
+      "geoid": "5355995",
+      "name": "Poulsbo city",
+      "basename": "Poulsbo",
+      "slug": "poulsbo",
+      "state_fips": "53",
+      "place_fips": "55995",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "poulsbo_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5355995.geojson",
+      "county_fips": [
+        "53035"
+      ]
+    },
+    {
+      "geoid": "5356240",
+      "name": "Prescott city",
+      "basename": "Prescott",
+      "slug": "prescott",
+      "state_fips": "53",
+      "place_fips": "56240",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "prescott_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5356240.geojson",
+      "county_fips": [
+        "53071"
+      ]
+    },
+    {
+      "geoid": "5356450",
+      "name": "Prosser city",
+      "basename": "Prosser",
+      "slug": "prosser",
+      "state_fips": "53",
+      "place_fips": "56450",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "prosser_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5356450.geojson",
+      "county_fips": [
+        "53005"
+      ]
+    },
+    {
+      "geoid": "5356625",
+      "name": "Pullman city",
+      "basename": "Pullman",
+      "slug": "pullman",
+      "state_fips": "53",
+      "place_fips": "56625",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "pullman_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5356625.geojson",
+      "county_fips": [
+        "53075"
+      ]
+    },
+    {
+      "geoid": "5356695",
+      "name": "Puyallup city",
+      "basename": "Puyallup",
+      "slug": "puyallup",
+      "state_fips": "53",
+      "place_fips": "56695",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "puyallup_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5356695.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5357115",
+      "name": "Quincy city",
+      "basename": "Quincy",
+      "slug": "quincy",
+      "state_fips": "53",
+      "place_fips": "57115",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "quincy_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5357115.geojson",
+      "county_fips": [
+        "53025"
+      ]
+    },
+    {
+      "geoid": "5357220",
+      "name": "Rainier city",
+      "basename": "Rainier",
+      "slug": "rainier",
+      "state_fips": "53",
+      "place_fips": "57220",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "rainier_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5357220.geojson",
+      "county_fips": [
+        "53067"
+      ]
+    },
+    {
+      "geoid": "5357430",
+      "name": "Raymond city",
+      "basename": "Raymond",
+      "slug": "raymond",
+      "state_fips": "53",
+      "place_fips": "57430",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "raymond_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5357430.geojson",
+      "county_fips": [
+        "53049"
+      ]
+    },
+    {
+      "geoid": "5357465",
+      "name": "Reardan town",
+      "basename": "Reardan",
+      "slug": "reardan",
+      "state_fips": "53",
+      "place_fips": "57465",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "reardan_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5357465.geojson",
+      "county_fips": [
+        "53043"
+      ]
+    },
+    {
+      "geoid": "5357535",
+      "name": "Redmond city",
+      "basename": "Redmond",
+      "slug": "redmond",
+      "state_fips": "53",
+      "place_fips": "57535",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "redmond_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5357535.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5357745",
+      "name": "Renton city",
+      "basename": "Renton",
+      "slug": "renton",
+      "state_fips": "53",
+      "place_fips": "57745",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "renton_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5357745.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5357850",
+      "name": "Republic city",
+      "basename": "Republic",
+      "slug": "republic",
+      "state_fips": "53",
+      "place_fips": "57850",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "republic_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5357850.geojson",
+      "county_fips": [
+        "53019"
+      ]
+    },
+    {
+      "geoid": "5358235",
+      "name": "Richland city",
+      "basename": "Richland",
+      "slug": "richland",
+      "state_fips": "53",
+      "place_fips": "58235",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "richland_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5358235.geojson",
+      "county_fips": [
+        "53005"
+      ]
+    },
+    {
+      "geoid": "5358410",
+      "name": "Ridgefield city",
+      "basename": "Ridgefield",
+      "slug": "ridgefield",
+      "state_fips": "53",
+      "place_fips": "58410",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "ridgefield_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5358410.geojson",
+      "county_fips": [
+        "53011"
+      ]
+    },
+    {
+      "geoid": "5358725",
+      "name": "Ritzville city",
+      "basename": "Ritzville",
+      "slug": "ritzville",
+      "state_fips": "53",
+      "place_fips": "58725",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "ritzville_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5358725.geojson",
+      "county_fips": [
+        "53001"
+      ]
+    },
+    {
+      "geoid": "5358795",
+      "name": "Riverside town",
+      "basename": "Riverside",
+      "slug": "riverside",
+      "state_fips": "53",
+      "place_fips": "58795",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "riverside_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5358795.geojson",
+      "county_fips": [
+        "53047"
+      ]
+    },
+    {
+      "geoid": "5359180",
+      "name": "Rock Island city",
+      "basename": "Rock Island",
+      "slug": "rock_island",
+      "state_fips": "53",
+      "place_fips": "59180",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "rock_island_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5359180.geojson",
+      "county_fips": [
+        "53017"
+      ]
+    },
+    {
+      "geoid": "5359145",
+      "name": "Rockford town",
+      "basename": "Rockford",
+      "slug": "rockford",
+      "state_fips": "53",
+      "place_fips": "59145",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "rockford_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5359145.geojson",
+      "county_fips": [
+        "53063"
+      ]
+    },
+    {
+      "geoid": "5359775",
+      "name": "Rosalia town",
+      "basename": "Rosalia",
+      "slug": "rosalia",
+      "state_fips": "53",
+      "place_fips": "59775",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "rosalia_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5359775.geojson",
+      "county_fips": [
+        "53075"
+      ]
+    },
+    {
+      "geoid": "5360055",
+      "name": "Roslyn city",
+      "basename": "Roslyn",
+      "slug": "roslyn",
+      "state_fips": "53",
+      "place_fips": "60055",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "roslyn_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5360055.geojson",
+      "county_fips": [
+        "53037"
+      ]
+    },
+    {
+      "geoid": "5360160",
+      "name": "Roy city",
+      "basename": "Roy",
+      "slug": "roy",
+      "state_fips": "53",
+      "place_fips": "60160",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "roy_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5360160.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5360230",
+      "name": "Royal City city",
+      "basename": "Royal City",
+      "slug": "royal_city",
+      "state_fips": "53",
+      "place_fips": "60230",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "royal_city_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5360230.geojson",
+      "county_fips": [
+        "53025"
+      ]
+    },
+    {
+      "geoid": "5360510",
+      "name": "Ruston city",
+      "basename": "Ruston",
+      "slug": "ruston",
+      "state_fips": "53",
+      "place_fips": "60510",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "ruston_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5360510.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5361115",
+      "name": "Sammamish city",
+      "basename": "Sammamish",
+      "slug": "sammamish",
+      "state_fips": "53",
+      "place_fips": "61115",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "sammamish_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5361115.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5362288",
+      "name": "SeaTac city",
+      "basename": "SeaTac",
+      "slug": "seatac",
+      "state_fips": "53",
+      "place_fips": "62288",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "seatac_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5362288.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5363000",
+      "name": "Seattle city",
+      "basename": "Seattle",
+      "slug": "seattle",
+      "state_fips": "53",
+      "place_fips": "63000",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "seattle_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5363000.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5363210",
+      "name": "Sedro-Woolley city",
+      "basename": "Sedro-Woolley",
+      "slug": "sedro_woolley",
+      "state_fips": "53",
+      "place_fips": "63210",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "sedro_woolley_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5363210.geojson",
+      "county_fips": [
+        "53057"
+      ]
+    },
+    {
+      "geoid": "5363280",
+      "name": "Selah city",
+      "basename": "Selah",
+      "slug": "selah",
+      "state_fips": "53",
+      "place_fips": "63280",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "selah_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5363280.geojson",
+      "county_fips": [
+        "53077"
+      ]
+    },
+    {
+      "geoid": "5363385",
+      "name": "Sequim city",
+      "basename": "Sequim",
+      "slug": "sequim",
+      "state_fips": "53",
+      "place_fips": "63385",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "sequim_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5363385.geojson",
+      "county_fips": [
+        "53009"
+      ]
+    },
+    {
+      "geoid": "5363735",
+      "name": "Shelton city",
+      "basename": "Shelton",
+      "slug": "shelton",
+      "state_fips": "53",
+      "place_fips": "63735",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "shelton_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5363735.geojson",
+      "county_fips": [
+        "53045"
+      ]
+    },
+    {
+      "geoid": "5363960",
+      "name": "Shoreline city",
+      "basename": "Shoreline",
+      "slug": "shoreline",
+      "state_fips": "53",
+      "place_fips": "63960",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "shoreline_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5363960.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5364855",
+      "name": "Skykomish town",
+      "basename": "Skykomish",
+      "slug": "skykomish",
+      "state_fips": "53",
+      "place_fips": "64855",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "skykomish_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5364855.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5365170",
+      "name": "Snohomish city",
+      "basename": "Snohomish",
+      "slug": "snohomish",
+      "state_fips": "53",
+      "place_fips": "65170",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "snohomish_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5365170.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5365205",
+      "name": "Snoqualmie city",
+      "basename": "Snoqualmie",
+      "slug": "snoqualmie",
+      "state_fips": "53",
+      "place_fips": "65205",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "snoqualmie_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5365205.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5365345",
+      "name": "Soap Lake city",
+      "basename": "Soap Lake",
+      "slug": "soap_lake",
+      "state_fips": "53",
+      "place_fips": "65345",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "soap_lake_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5365345.geojson",
+      "county_fips": [
+        "53025"
+      ]
+    },
+    {
+      "geoid": "5365625",
+      "name": "South Bend city",
+      "basename": "South Bend",
+      "slug": "south_bend",
+      "state_fips": "53",
+      "place_fips": "65625",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "south_bend_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5365625.geojson",
+      "county_fips": [
+        "53049"
+      ]
+    },
+    {
+      "geoid": "5365765",
+      "name": "South Cle Elum town",
+      "basename": "South Cle Elum",
+      "slug": "south_cle_elum",
+      "state_fips": "53",
+      "place_fips": "65765",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "south_cle_elum_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5365765.geojson",
+      "county_fips": [
+        "53037"
+      ]
+    },
+    {
+      "geoid": "5366045",
+      "name": "South Prairie town",
+      "basename": "South Prairie",
+      "slug": "south_prairie",
+      "state_fips": "53",
+      "place_fips": "66045",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "south_prairie_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5366045.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5366290",
+      "name": "Spangle city",
+      "basename": "Spangle",
+      "slug": "spangle",
+      "state_fips": "53",
+      "place_fips": "66290",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "spangle_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5366290.geojson",
+      "county_fips": [
+        "53063"
+      ]
+    },
+    {
+      "geoid": "5367000",
+      "name": "Spokane city",
+      "basename": "Spokane",
+      "slug": "spokane",
+      "state_fips": "53",
+      "place_fips": "67000",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "spokane_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5367000.geojson",
+      "county_fips": [
+        "53063"
+      ]
+    },
+    {
+      "geoid": "5367167",
+      "name": "Spokane Valley city",
+      "basename": "Spokane Valley",
+      "slug": "spokane_valley",
+      "state_fips": "53",
+      "place_fips": "67167",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "spokane_valley_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5367167.geojson",
+      "county_fips": [
+        "53063"
+      ]
+    },
+    {
+      "geoid": "5367175",
+      "name": "Sprague city",
+      "basename": "Sprague",
+      "slug": "sprague",
+      "state_fips": "53",
+      "place_fips": "67175",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "sprague_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5367175.geojson",
+      "county_fips": [
+        "53043"
+      ]
+    },
+    {
+      "geoid": "5367210",
+      "name": "Springdale town",
+      "basename": "Springdale",
+      "slug": "springdale",
+      "state_fips": "53",
+      "place_fips": "67210",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "springdale_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5367210.geojson",
+      "county_fips": [
+        "53065"
+      ]
+    },
+    {
+      "geoid": "5360860",
+      "name": "St. John town",
+      "basename": "St. John",
+      "slug": "st_john",
+      "state_fips": "53",
+      "place_fips": "60860",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "st_john_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5360860.geojson",
+      "county_fips": [
+        "53075"
+      ]
+    },
+    {
+      "geoid": "5367455",
+      "name": "Stanwood city",
+      "basename": "Stanwood",
+      "slug": "stanwood",
+      "state_fips": "53",
+      "place_fips": "67455",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "stanwood_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5367455.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5367490",
+      "name": "Starbuck town",
+      "basename": "Starbuck",
+      "slug": "starbuck",
+      "state_fips": "53",
+      "place_fips": "67490",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "starbuck_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5367490.geojson",
+      "county_fips": [
+        "53013"
+      ]
+    },
+    {
+      "geoid": "5367770",
+      "name": "Steilacoom town",
+      "basename": "Steilacoom",
+      "slug": "steilacoom",
+      "state_fips": "53",
+      "place_fips": "67770",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "steilacoom_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5367770.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5367875",
+      "name": "Stevenson city",
+      "basename": "Stevenson",
+      "slug": "stevenson",
+      "state_fips": "53",
+      "place_fips": "67875",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "stevenson_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5367875.geojson",
+      "county_fips": [
+        "53059"
+      ]
+    },
+    {
+      "geoid": "5368260",
+      "name": "Sultan city",
+      "basename": "Sultan",
+      "slug": "sultan",
+      "state_fips": "53",
+      "place_fips": "68260",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "sultan_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5368260.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5368330",
+      "name": "Sumas city",
+      "basename": "Sumas",
+      "slug": "sumas",
+      "state_fips": "53",
+      "place_fips": "68330",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "sumas_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5368330.geojson",
+      "county_fips": [
+        "53073"
+      ]
+    },
+    {
+      "geoid": "5368435",
+      "name": "Sumner city",
+      "basename": "Sumner",
+      "slug": "sumner",
+      "state_fips": "53",
+      "place_fips": "68435",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "sumner_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5368435.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5368750",
+      "name": "Sunnyside city",
+      "basename": "Sunnyside",
+      "slug": "sunnyside",
+      "state_fips": "53",
+      "place_fips": "68750",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "sunnyside_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5368750.geojson",
+      "county_fips": [
+        "53077"
+      ]
+    },
+    {
+      "geoid": "5370000",
+      "name": "Tacoma city",
+      "basename": "Tacoma",
+      "slug": "tacoma",
+      "state_fips": "53",
+      "place_fips": "70000",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "tacoma_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5370000.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5370560",
+      "name": "Tekoa city",
+      "basename": "Tekoa",
+      "slug": "tekoa",
+      "state_fips": "53",
+      "place_fips": "70560",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "tekoa_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5370560.geojson",
+      "county_fips": [
+        "53075"
+      ]
+    },
+    {
+      "geoid": "5370630",
+      "name": "Tenino city",
+      "basename": "Tenino",
+      "slug": "tenino",
+      "state_fips": "53",
+      "place_fips": "70630",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "tenino_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5370630.geojson",
+      "county_fips": [
+        "53067"
+      ]
+    },
+    {
+      "geoid": "5371400",
+      "name": "Tieton city",
+      "basename": "Tieton",
+      "slug": "tieton",
+      "state_fips": "53",
+      "place_fips": "71400",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "tieton_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5371400.geojson",
+      "county_fips": [
+        "53077"
+      ]
+    },
+    {
+      "geoid": "5371785",
+      "name": "Toledo city",
+      "basename": "Toledo",
+      "slug": "toledo",
+      "state_fips": "53",
+      "place_fips": "71785",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "toledo_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5371785.geojson",
+      "county_fips": [
+        "53041"
+      ]
+    },
+    {
+      "geoid": "5371890",
+      "name": "Tonasket city",
+      "basename": "Tonasket",
+      "slug": "tonasket",
+      "state_fips": "53",
+      "place_fips": "71890",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "tonasket_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5371890.geojson",
+      "county_fips": [
+        "53047"
+      ]
+    },
+    {
+      "geoid": "5371960",
+      "name": "Toppenish city",
+      "basename": "Toppenish",
+      "slug": "toppenish",
+      "state_fips": "53",
+      "place_fips": "71960",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "toppenish_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5371960.geojson",
+      "county_fips": [
+        "53077"
+      ]
+    },
+    {
+      "geoid": "5372625",
+      "name": "Tukwila city",
+      "basename": "Tukwila",
+      "slug": "tukwila",
+      "state_fips": "53",
+      "place_fips": "72625",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "tukwila_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5372625.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5372905",
+      "name": "Tumwater city",
+      "basename": "Tumwater",
+      "slug": "tumwater",
+      "state_fips": "53",
+      "place_fips": "72905",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "tumwater_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5372905.geojson",
+      "county_fips": [
+        "53067"
+      ]
+    },
+    {
+      "geoid": "5373080",
+      "name": "Twisp town",
+      "basename": "Twisp",
+      "slug": "twisp",
+      "state_fips": "53",
+      "place_fips": "73080",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "twisp_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5373080.geojson",
+      "county_fips": [
+        "53047"
+      ]
+    },
+    {
+      "geoid": "5373290",
+      "name": "Union Gap city",
+      "basename": "Union Gap",
+      "slug": "union_gap",
+      "state_fips": "53",
+      "place_fips": "73290",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "union_gap_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5373290.geojson",
+      "county_fips": [
+        "53077"
+      ]
+    },
+    {
+      "geoid": "5373360",
+      "name": "Uniontown town",
+      "basename": "Uniontown",
+      "slug": "uniontown",
+      "state_fips": "53",
+      "place_fips": "73360",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "uniontown_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5373360.geojson",
+      "county_fips": [
+        "53075"
+      ]
+    },
+    {
+      "geoid": "5373465",
+      "name": "University Place city",
+      "basename": "University Place",
+      "slug": "university_place",
+      "state_fips": "53",
+      "place_fips": "73465",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "university_place_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5373465.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5373780",
+      "name": "Vader city",
+      "basename": "Vader",
+      "slug": "vader",
+      "state_fips": "53",
+      "place_fips": "73780",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "vader_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5373780.geojson",
+      "county_fips": [
+        "53041"
+      ]
+    },
+    {
+      "geoid": "5374060",
+      "name": "Vancouver city",
+      "basename": "Vancouver",
+      "slug": "vancouver",
+      "state_fips": "53",
+      "place_fips": "74060",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "vancouver_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5374060.geojson",
+      "county_fips": [
+        "53011"
+      ]
+    },
+    {
+      "geoid": "5375565",
+      "name": "Waitsburg city",
+      "basename": "Waitsburg",
+      "slug": "waitsburg",
+      "state_fips": "53",
+      "place_fips": "75565",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "waitsburg_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5375565.geojson",
+      "county_fips": [
+        "53071"
+      ]
+    },
+    {
+      "geoid": "5375775",
+      "name": "Walla Walla city",
+      "basename": "Walla Walla",
+      "slug": "walla_walla",
+      "state_fips": "53",
+      "place_fips": "75775",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "walla_walla_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5375775.geojson",
+      "county_fips": [
+        "53071"
+      ]
+    },
+    {
+      "geoid": "5376125",
+      "name": "Wapato city",
+      "basename": "Wapato",
+      "slug": "wapato",
+      "state_fips": "53",
+      "place_fips": "76125",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "wapato_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5376125.geojson",
+      "county_fips": [
+        "53077"
+      ]
+    },
+    {
+      "geoid": "5376160",
+      "name": "Warden city",
+      "basename": "Warden",
+      "slug": "warden",
+      "state_fips": "53",
+      "place_fips": "76160",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "warden_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5376160.geojson",
+      "county_fips": [
+        "53025"
+      ]
+    },
+    {
+      "geoid": "5376405",
+      "name": "Washougal city",
+      "basename": "Washougal",
+      "slug": "washougal",
+      "state_fips": "53",
+      "place_fips": "76405",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "washougal_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5376405.geojson",
+      "county_fips": [
+        "53011"
+      ]
+    },
+    {
+      "geoid": "5376440",
+      "name": "Washtucna town",
+      "basename": "Washtucna",
+      "slug": "washtucna",
+      "state_fips": "53",
+      "place_fips": "76440",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "washtucna_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5376440.geojson",
+      "county_fips": [
+        "53001"
+      ]
+    },
+    {
+      "geoid": "5376510",
+      "name": "Waterville town",
+      "basename": "Waterville",
+      "slug": "waterville",
+      "state_fips": "53",
+      "place_fips": "76510",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "waterville_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5376510.geojson",
+      "county_fips": [
+        "53017"
+      ]
+    },
+    {
+      "geoid": "5376720",
+      "name": "Waverly town",
+      "basename": "Waverly",
+      "slug": "waverly",
+      "state_fips": "53",
+      "place_fips": "76720",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "waverly_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5376720.geojson",
+      "county_fips": [
+        "53063"
+      ]
+    },
+    {
+      "geoid": "5377105",
+      "name": "Wenatchee city",
+      "basename": "Wenatchee",
+      "slug": "wenatchee",
+      "state_fips": "53",
+      "place_fips": "77105",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "wenatchee_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5377105.geojson",
+      "county_fips": [
+        "53007"
+      ]
+    },
+    {
+      "geoid": "5377665",
+      "name": "West Richland city",
+      "basename": "West Richland",
+      "slug": "west_richland",
+      "state_fips": "53",
+      "place_fips": "77665",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "west_richland_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5377665.geojson",
+      "county_fips": [
+        "53005"
+      ]
+    },
+    {
+      "geoid": "5377630",
+      "name": "Westport city",
+      "basename": "Westport",
+      "slug": "westport",
+      "state_fips": "53",
+      "place_fips": "77630",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "westport_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5377630.geojson",
+      "county_fips": [
+        "53027"
+      ]
+    },
+    {
+      "geoid": "5378330",
+      "name": "White Salmon city",
+      "basename": "White Salmon",
+      "slug": "white_salmon",
+      "state_fips": "53",
+      "place_fips": "78330",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "white_salmon_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5378330.geojson",
+      "county_fips": [
+        "53039"
+      ]
+    },
+    {
+      "geoid": "5378680",
+      "name": "Wilbur town",
+      "basename": "Wilbur",
+      "slug": "wilbur",
+      "state_fips": "53",
+      "place_fips": "78680",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "wilbur_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5378680.geojson",
+      "county_fips": [
+        "53043"
+      ]
+    },
+    {
+      "geoid": "5378925",
+      "name": "Wilkeson town",
+      "basename": "Wilkeson",
+      "slug": "wilkeson",
+      "state_fips": "53",
+      "place_fips": "78925",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "wilkeson_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5378925.geojson",
+      "county_fips": [
+        "53053"
+      ]
+    },
+    {
+      "geoid": "5379135",
+      "name": "Wilson Creek town",
+      "basename": "Wilson Creek",
+      "slug": "wilson_creek",
+      "state_fips": "53",
+      "place_fips": "79135",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "wilson_creek_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5379135.geojson",
+      "county_fips": [
+        "53025"
+      ]
+    },
+    {
+      "geoid": "5379275",
+      "name": "Winlock city",
+      "basename": "Winlock",
+      "slug": "winlock",
+      "state_fips": "53",
+      "place_fips": "79275",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "winlock_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5379275.geojson",
+      "county_fips": [
+        "53041"
+      ]
+    },
+    {
+      "geoid": "5379380",
+      "name": "Winthrop town",
+      "basename": "Winthrop",
+      "slug": "winthrop",
+      "state_fips": "53",
+      "place_fips": "79380",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "winthrop_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5379380.geojson",
+      "county_fips": [
+        "53047"
+      ]
+    },
+    {
+      "geoid": "5379590",
+      "name": "Woodinville city",
+      "basename": "Woodinville",
+      "slug": "woodinville",
+      "state_fips": "53",
+      "place_fips": "79590",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "woodinville_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5379590.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5379625",
+      "name": "Woodland city",
+      "basename": "Woodland",
+      "slug": "woodland",
+      "state_fips": "53",
+      "place_fips": "79625",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "woodland_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5379625.geojson",
+      "county_fips": [
+        "53011",
+        "53015"
+      ]
+    },
+    {
+      "geoid": "5379835",
+      "name": "Woodway city",
+      "basename": "Woodway",
+      "slug": "woodway",
+      "state_fips": "53",
+      "place_fips": "79835",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "woodway_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5379835.geojson",
+      "county_fips": [
+        "53061"
+      ]
+    },
+    {
+      "geoid": "5379975",
+      "name": "Yacolt town",
+      "basename": "Yacolt",
+      "slug": "yacolt",
+      "state_fips": "53",
+      "place_fips": "79975",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "yacolt_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5379975.geojson",
+      "county_fips": [
+        "53011"
+      ]
+    },
+    {
+      "geoid": "5380010",
+      "name": "Yakima city",
+      "basename": "Yakima",
+      "slug": "yakima",
+      "state_fips": "53",
+      "place_fips": "80010",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "yakima_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5380010.geojson",
+      "county_fips": [
+        "53077"
+      ]
+    },
+    {
+      "geoid": "5380150",
+      "name": "Yarrow Point town",
+      "basename": "Yarrow Point",
+      "slug": "yarrow_point",
+      "state_fips": "53",
+      "place_fips": "80150",
+      "lsadc": "43",
+      "funcstat": "A",
+      "jurisdiction_key": "yarrow_point_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5380150.geojson",
+      "county_fips": [
+        "53033"
+      ]
+    },
+    {
+      "geoid": "5380220",
+      "name": "Yelm city",
+      "basename": "Yelm",
+      "slug": "yelm",
+      "state_fips": "53",
+      "place_fips": "80220",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "yelm_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5380220.geojson",
+      "county_fips": [
+        "53067"
+      ]
+    },
+    {
+      "geoid": "5380500",
+      "name": "Zillah city",
+      "basename": "Zillah",
+      "slug": "zillah",
+      "state_fips": "53",
+      "place_fips": "80500",
+      "lsadc": "25",
+      "funcstat": "A",
+      "jurisdiction_key": "zillah_city",
+      "boundary_path": "data/boundaries/wa/by_geoid/5380500.geojson",
+      "county_fips": [
+        "53077"
+      ]
+    }
+  ]
+}

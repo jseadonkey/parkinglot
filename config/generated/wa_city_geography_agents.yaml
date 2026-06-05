@@ -1,0 +1,4338 @@
+generated_at: '2026-06-04T19:55:18+00:00'
+source_url: https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/4/query
+geographies:
+- key: wa_5300100_aberdeen
+  name: Aberdeen city
+  type: city
+  state_fips: '53'
+  county_fips: '53027'
+  jurisdiction_key: aberdeen_city
+  boundary_path: data/boundaries/wa/by_geoid/5300100.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5300905_airway_heights
+  name: Airway Heights city
+  type: city
+  state_fips: '53'
+  county_fips: '53063'
+  jurisdiction_key: airway_heights_city
+  boundary_path: data/boundaries/wa/by_geoid/5300905.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5301010_albion
+  name: Albion town
+  type: city
+  state_fips: '53'
+  county_fips: '53075'
+  jurisdiction_key: albion_city
+  boundary_path: data/boundaries/wa/by_geoid/5301010.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5301290_algona
+  name: Algona city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: algona_city
+  boundary_path: data/boundaries/wa/by_geoid/5301290.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5301500_almira
+  name: Almira town
+  type: city
+  state_fips: '53'
+  county_fips: '53043'
+  jurisdiction_key: almira_city
+  boundary_path: data/boundaries/wa/by_geoid/5301500.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5301990_anacortes
+  name: Anacortes city
+  type: city
+  state_fips: '53'
+  county_fips: '53057'
+  jurisdiction_key: anacortes_city
+  boundary_path: data/boundaries/wa/by_geoid/5301990.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5302585_arlington
+  name: Arlington city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: arlington_city
+  boundary_path: data/boundaries/wa/by_geoid/5302585.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5303075_asotin
+  name: Asotin city
+  type: city
+  state_fips: '53'
+  county_fips: '53003'
+  jurisdiction_key: asotin_city
+  boundary_path: data/boundaries/wa/by_geoid/5303075.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5303180_auburn_53033
+  name: Auburn city (53033)
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: auburn_city
+  boundary_path: data/boundaries/wa/by_geoid/5303180.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5303180_auburn_53053
+  name: Auburn city (53053)
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: auburn_city
+  boundary_path: data/boundaries/wa/by_geoid/5303180.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5303736_bainbridge_island
+  name: Bainbridge Island city
+  type: city
+  state_fips: '53'
+  county_fips: '53035'
+  jurisdiction_key: bainbridge_island_city
+  boundary_path: data/boundaries/wa/by_geoid/5303736.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5304475_battle_ground
+  name: Battle Ground city
+  type: city
+  state_fips: '53'
+  county_fips: '53011'
+  jurisdiction_key: battle_ground_city
+  boundary_path: data/boundaries/wa/by_geoid/5304475.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5304895_beaux_arts_village
+  name: Beaux Arts Village town
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: beaux_arts_village_city
+  boundary_path: data/boundaries/wa/by_geoid/5304895.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5305210_bellevue
+  name: Bellevue city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: bellevue_city
+  boundary_path: data/boundaries/wa/by_geoid/5305210.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5305280_bellingham
+  name: Bellingham city
+  type: city
+  state_fips: '53'
+  county_fips: '53073'
+  jurisdiction_key: bellingham_city
+  boundary_path: data/boundaries/wa/by_geoid/5305280.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5305560_benton_city
+  name: Benton City city
+  type: city
+  state_fips: '53'
+  county_fips: '53005'
+  jurisdiction_key: benton_city_city
+  boundary_path: data/boundaries/wa/by_geoid/5305560.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5306085_bingen
+  name: Bingen city
+  type: city
+  state_fips: '53'
+  county_fips: '53039'
+  jurisdiction_key: bingen_city
+  boundary_path: data/boundaries/wa/by_geoid/5306085.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5306330_black_diamond
+  name: Black Diamond city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: black_diamond_city
+  boundary_path: data/boundaries/wa/by_geoid/5306330.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5306505_blaine
+  name: Blaine city
+  type: city
+  state_fips: '53'
+  county_fips: '53073'
+  jurisdiction_key: blaine_city
+  boundary_path: data/boundaries/wa/by_geoid/5306505.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5307170_bonney_lake
+  name: Bonney Lake city
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: bonney_lake_city
+  boundary_path: data/boundaries/wa/by_geoid/5307170.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5307380_bothell_53033
+  name: Bothell city (53033)
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: bothell_city
+  boundary_path: data/boundaries/wa/by_geoid/5307380.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5307380_bothell_53061
+  name: Bothell city (53061)
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: bothell_city
+  boundary_path: data/boundaries/wa/by_geoid/5307380.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5307695_bremerton
+  name: Bremerton city
+  type: city
+  state_fips: '53'
+  county_fips: '53035'
+  jurisdiction_key: bremerton_city
+  boundary_path: data/boundaries/wa/by_geoid/5307695.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5307835_brewster
+  name: Brewster city
+  type: city
+  state_fips: '53'
+  county_fips: '53047'
+  jurisdiction_key: brewster_city
+  boundary_path: data/boundaries/wa/by_geoid/5307835.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5307870_bridgeport
+  name: Bridgeport city
+  type: city
+  state_fips: '53'
+  county_fips: '53017'
+  jurisdiction_key: bridgeport_city
+  boundary_path: data/boundaries/wa/by_geoid/5307870.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5307940_brier
+  name: Brier city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: brier_city
+  boundary_path: data/boundaries/wa/by_geoid/5307940.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5308570_buckley
+  name: Buckley city
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: buckley_city
+  boundary_path: data/boundaries/wa/by_geoid/5308570.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5308605_bucoda
+  name: Bucoda town
+  type: city
+  state_fips: '53'
+  county_fips: '53067'
+  jurisdiction_key: bucoda_city
+  boundary_path: data/boundaries/wa/by_geoid/5308605.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5308850_burien
+  name: Burien city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: burien_city
+  boundary_path: data/boundaries/wa/by_geoid/5308850.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5308920_burlington
+  name: Burlington city
+  type: city
+  state_fips: '53'
+  county_fips: '53057'
+  jurisdiction_key: burlington_city
+  boundary_path: data/boundaries/wa/by_geoid/5308920.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5309480_camas
+  name: Camas city
+  type: city
+  state_fips: '53'
+  county_fips: '53011'
+  jurisdiction_key: camas_city
+  boundary_path: data/boundaries/wa/by_geoid/5309480.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5309970_carbonado
+  name: Carbonado town
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: carbonado_city
+  boundary_path: data/boundaries/wa/by_geoid/5309970.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5310215_carnation
+  name: Carnation city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: carnation_city
+  boundary_path: data/boundaries/wa/by_geoid/5310215.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5310495_cashmere
+  name: Cashmere city
+  type: city
+  state_fips: '53'
+  county_fips: '53007'
+  jurisdiction_key: cashmere_city
+  boundary_path: data/boundaries/wa/by_geoid/5310495.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5310565_castle_rock
+  name: Castle Rock city
+  type: city
+  state_fips: '53'
+  county_fips: '53015'
+  jurisdiction_key: castle_rock_city
+  boundary_path: data/boundaries/wa/by_geoid/5310565.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5310635_cathlamet
+  name: Cathlamet town
+  type: city
+  state_fips: '53'
+  county_fips: '53069'
+  jurisdiction_key: cathlamet_city
+  boundary_path: data/boundaries/wa/by_geoid/5310635.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5311160_centralia
+  name: Centralia city
+  type: city
+  state_fips: '53'
+  county_fips: '53041'
+  jurisdiction_key: centralia_city
+  boundary_path: data/boundaries/wa/by_geoid/5311160.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5311475_chehalis
+  name: Chehalis city
+  type: city
+  state_fips: '53'
+  county_fips: '53041'
+  jurisdiction_key: chehalis_city
+  boundary_path: data/boundaries/wa/by_geoid/5311475.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5311615_chelan
+  name: Chelan city
+  type: city
+  state_fips: '53'
+  county_fips: '53007'
+  jurisdiction_key: chelan_city
+  boundary_path: data/boundaries/wa/by_geoid/5311615.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5311825_cheney
+  name: Cheney city
+  type: city
+  state_fips: '53'
+  county_fips: '53063'
+  jurisdiction_key: cheney_city
+  boundary_path: data/boundaries/wa/by_geoid/5311825.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5312140_chewelah
+  name: Chewelah city
+  type: city
+  state_fips: '53'
+  county_fips: '53065'
+  jurisdiction_key: chewelah_city
+  boundary_path: data/boundaries/wa/by_geoid/5312140.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5312630_clarkston
+  name: Clarkston city
+  type: city
+  state_fips: '53'
+  county_fips: '53003'
+  jurisdiction_key: clarkston_city
+  boundary_path: data/boundaries/wa/by_geoid/5312630.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5312945_cle_elum
+  name: Cle Elum city
+  type: city
+  state_fips: '53'
+  county_fips: '53037'
+  jurisdiction_key: cle_elum_city
+  boundary_path: data/boundaries/wa/by_geoid/5312945.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5313365_clyde_hill
+  name: Clyde Hill city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: clyde_hill_city
+  boundary_path: data/boundaries/wa/by_geoid/5313365.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5313785_colfax
+  name: Colfax city
+  type: city
+  state_fips: '53'
+  county_fips: '53075'
+  jurisdiction_key: colfax_city
+  boundary_path: data/boundaries/wa/by_geoid/5313785.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5313855_college_place
+  name: College Place city
+  type: city
+  state_fips: '53'
+  county_fips: '53071'
+  jurisdiction_key: college_place_city
+  boundary_path: data/boundaries/wa/by_geoid/5313855.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5313890_colton
+  name: Colton town
+  type: city
+  state_fips: '53'
+  county_fips: '53075'
+  jurisdiction_key: colton_city
+  boundary_path: data/boundaries/wa/by_geoid/5313890.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5314170_colville
+  name: Colville city
+  type: city
+  state_fips: '53'
+  county_fips: '53065'
+  jurisdiction_key: colville_city
+  boundary_path: data/boundaries/wa/by_geoid/5314170.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5314310_conconully
+  name: Conconully town
+  type: city
+  state_fips: '53'
+  county_fips: '53047'
+  jurisdiction_key: conconully_city
+  boundary_path: data/boundaries/wa/by_geoid/5314310.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5314380_concrete
+  name: Concrete town
+  type: city
+  state_fips: '53'
+  county_fips: '53057'
+  jurisdiction_key: concrete_city
+  boundary_path: data/boundaries/wa/by_geoid/5314380.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5314485_connell
+  name: Connell city
+  type: city
+  state_fips: '53'
+  county_fips: '53021'
+  jurisdiction_key: connell_city
+  boundary_path: data/boundaries/wa/by_geoid/5314485.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5314870_cosmopolis
+  name: Cosmopolis city
+  type: city
+  state_fips: '53'
+  county_fips: '53027'
+  jurisdiction_key: cosmopolis_city
+  boundary_path: data/boundaries/wa/by_geoid/5314870.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5315080_coulee_city
+  name: Coulee City town
+  type: city
+  state_fips: '53'
+  county_fips: '53025'
+  jurisdiction_key: coulee_city_city
+  boundary_path: data/boundaries/wa/by_geoid/5315080.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5315115_coulee_dam_53017
+  name: Coulee Dam town (53017)
+  type: city
+  state_fips: '53'
+  county_fips: '53017'
+  jurisdiction_key: coulee_dam_city
+  boundary_path: data/boundaries/wa/by_geoid/5315115.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5315115_coulee_dam_53025
+  name: Coulee Dam town (53025)
+  type: city
+  state_fips: '53'
+  county_fips: '53025'
+  jurisdiction_key: coulee_dam_city
+  boundary_path: data/boundaries/wa/by_geoid/5315115.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5315115_coulee_dam_53047
+  name: Coulee Dam town (53047)
+  type: city
+  state_fips: '53'
+  county_fips: '53047'
+  jurisdiction_key: coulee_dam_city
+  boundary_path: data/boundaries/wa/by_geoid/5315115.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5315185_coupeville
+  name: Coupeville town
+  type: city
+  state_fips: '53'
+  county_fips: '53029'
+  jurisdiction_key: coupeville_city
+  boundary_path: data/boundaries/wa/by_geoid/5315185.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5315290_covington
+  name: Covington city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: covington_city
+  boundary_path: data/boundaries/wa/by_geoid/5315290.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5315710_creston
+  name: Creston town
+  type: city
+  state_fips: '53'
+  county_fips: '53043'
+  jurisdiction_key: creston_city
+  boundary_path: data/boundaries/wa/by_geoid/5315710.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5316340_cusick
+  name: Cusick town
+  type: city
+  state_fips: '53'
+  county_fips: '53051'
+  jurisdiction_key: cusick_city
+  boundary_path: data/boundaries/wa/by_geoid/5316340.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5316690_darrington
+  name: Darrington town
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: darrington_city
+  boundary_path: data/boundaries/wa/by_geoid/5316690.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5316795_davenport
+  name: Davenport city
+  type: city
+  state_fips: '53'
+  county_fips: '53043'
+  jurisdiction_key: davenport_city
+  boundary_path: data/boundaries/wa/by_geoid/5316795.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5316970_dayton
+  name: Dayton city
+  type: city
+  state_fips: '53'
+  county_fips: '53013'
+  jurisdiction_key: dayton_city
+  boundary_path: data/boundaries/wa/by_geoid/5316970.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5317320_deer_park
+  name: Deer Park city
+  type: city
+  state_fips: '53'
+  county_fips: '53063'
+  jurisdiction_key: deer_park_city
+  boundary_path: data/boundaries/wa/by_geoid/5317320.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5317635_des_moines
+  name: Des Moines city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: des_moines_city
+  boundary_path: data/boundaries/wa/by_geoid/5317635.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5318965_dupont
+  name: DuPont city
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: dupont_city
+  boundary_path: data/boundaries/wa/by_geoid/5318965.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5319035_duvall
+  name: Duvall city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: duvall_city
+  boundary_path: data/boundaries/wa/by_geoid/5319035.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5320155_east_wenatchee
+  name: East Wenatchee city
+  type: city
+  state_fips: '53'
+  county_fips: '53017'
+  jurisdiction_key: east_wenatchee_city
+  boundary_path: data/boundaries/wa/by_geoid/5320155.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5320260_eatonville
+  name: Eatonville town
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: eatonville_city
+  boundary_path: data/boundaries/wa/by_geoid/5320260.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5320645_edgewood
+  name: Edgewood city
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: edgewood_city
+  boundary_path: data/boundaries/wa/by_geoid/5320645.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5320750_edmonds
+  name: Edmonds city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: edmonds_city
+  boundary_path: data/boundaries/wa/by_geoid/5320750.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5321030_electric_city
+  name: Electric City city
+  type: city
+  state_fips: '53'
+  county_fips: '53025'
+  jurisdiction_key: electric_city_city
+  boundary_path: data/boundaries/wa/by_geoid/5321030.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5321240_ellensburg
+  name: Ellensburg city
+  type: city
+  state_fips: '53'
+  county_fips: '53037'
+  jurisdiction_key: ellensburg_city
+  boundary_path: data/boundaries/wa/by_geoid/5321240.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5321450_elma
+  name: Elma city
+  type: city
+  state_fips: '53'
+  county_fips: '53027'
+  jurisdiction_key: elma_city
+  boundary_path: data/boundaries/wa/by_geoid/5321450.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5321485_elmer_city
+  name: Elmer City town
+  type: city
+  state_fips: '53'
+  county_fips: '53047'
+  jurisdiction_key: elmer_city_city
+  boundary_path: data/boundaries/wa/by_geoid/5321485.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5321730_endicott
+  name: Endicott town
+  type: city
+  state_fips: '53'
+  county_fips: '53075'
+  jurisdiction_key: endicott_city
+  boundary_path: data/boundaries/wa/by_geoid/5321730.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5322010_entiat
+  name: Entiat city
+  type: city
+  state_fips: '53'
+  county_fips: '53007'
+  jurisdiction_key: entiat_city
+  boundary_path: data/boundaries/wa/by_geoid/5322010.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5322045_enumclaw_53033
+  name: Enumclaw city (53033)
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: enumclaw_city
+  boundary_path: data/boundaries/wa/by_geoid/5322045.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5322045_enumclaw_53053
+  name: Enumclaw city (53053)
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: enumclaw_city
+  boundary_path: data/boundaries/wa/by_geoid/5322045.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5322080_ephrata
+  name: Ephrata city
+  type: city
+  state_fips: '53'
+  county_fips: '53025'
+  jurisdiction_key: ephrata_city
+  boundary_path: data/boundaries/wa/by_geoid/5322080.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5322640_everett
+  name: Everett city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: everett_city
+  boundary_path: data/boundaries/wa/by_geoid/5322640.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5322745_everson
+  name: Everson city
+  type: city
+  state_fips: '53'
+  county_fips: '53073'
+  jurisdiction_key: everson_city
+  boundary_path: data/boundaries/wa/by_geoid/5322745.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5322990_fairfield
+  name: Fairfield town
+  type: city
+  state_fips: '53'
+  county_fips: '53063'
+  jurisdiction_key: fairfield_city
+  boundary_path: data/boundaries/wa/by_geoid/5322990.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5323340_farmington
+  name: Farmington town
+  type: city
+  state_fips: '53'
+  county_fips: '53075'
+  jurisdiction_key: farmington_city
+  boundary_path: data/boundaries/wa/by_geoid/5323340.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5323515_federal_way
+  name: Federal Way city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: federal_way_city
+  boundary_path: data/boundaries/wa/by_geoid/5323515.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5323620_ferndale
+  name: Ferndale city
+  type: city
+  state_fips: '53'
+  county_fips: '53073'
+  jurisdiction_key: ferndale_city
+  boundary_path: data/boundaries/wa/by_geoid/5323620.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5323795_fife
+  name: Fife city
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: fife_city
+  boundary_path: data/boundaries/wa/by_geoid/5323795.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5323970_fircrest
+  name: Fircrest city
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: fircrest_city
+  boundary_path: data/boundaries/wa/by_geoid/5323970.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5324810_forks
+  name: Forks city
+  type: city
+  state_fips: '53'
+  county_fips: '53009'
+  jurisdiction_key: forks_city
+  boundary_path: data/boundaries/wa/by_geoid/5324810.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5325615_friday_harbor
+  name: Friday Harbor town
+  type: city
+  state_fips: '53'
+  county_fips: '53055'
+  jurisdiction_key: friday_harbor_city
+  boundary_path: data/boundaries/wa/by_geoid/5325615.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5326140_garfield
+  name: Garfield town
+  type: city
+  state_fips: '53'
+  county_fips: '53075'
+  jurisdiction_key: garfield_city
+  boundary_path: data/boundaries/wa/by_geoid/5326140.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5326455_george
+  name: George city
+  type: city
+  state_fips: '53'
+  county_fips: '53025'
+  jurisdiction_key: george_city
+  boundary_path: data/boundaries/wa/by_geoid/5326455.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5326735_gig_harbor
+  name: Gig Harbor city
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: gig_harbor_city
+  boundary_path: data/boundaries/wa/by_geoid/5326735.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5327365_gold_bar
+  name: Gold Bar city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: gold_bar_city
+  boundary_path: data/boundaries/wa/by_geoid/5327365.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5327435_goldendale
+  name: Goldendale city
+  type: city
+  state_fips: '53'
+  county_fips: '53039'
+  jurisdiction_key: goldendale_city
+  boundary_path: data/boundaries/wa/by_geoid/5327435.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5327855_grand_coulee
+  name: Grand Coulee city
+  type: city
+  state_fips: '53'
+  county_fips: '53025'
+  jurisdiction_key: grand_coulee_city
+  boundary_path: data/boundaries/wa/by_geoid/5327855.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5327925_grandview
+  name: Grandview city
+  type: city
+  state_fips: '53'
+  county_fips: '53077'
+  jurisdiction_key: grandview_city
+  boundary_path: data/boundaries/wa/by_geoid/5327925.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5327960_granger
+  name: Granger city
+  type: city
+  state_fips: '53'
+  county_fips: '53077'
+  jurisdiction_key: granger_city
+  boundary_path: data/boundaries/wa/by_geoid/5327960.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5327995_granite_falls
+  name: Granite Falls city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: granite_falls_city
+  boundary_path: data/boundaries/wa/by_geoid/5327995.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5329255_hamilton
+  name: Hamilton town
+  type: city
+  state_fips: '53'
+  county_fips: '53057'
+  jurisdiction_key: hamilton_city
+  boundary_path: data/boundaries/wa/by_geoid/5329255.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5329710_harrah
+  name: Harrah town
+  type: city
+  state_fips: '53'
+  county_fips: '53077'
+  jurisdiction_key: harrah_city
+  boundary_path: data/boundaries/wa/by_geoid/5329710.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5329745_harrington
+  name: Harrington city
+  type: city
+  state_fips: '53'
+  county_fips: '53043'
+  jurisdiction_key: harrington_city
+  boundary_path: data/boundaries/wa/by_geoid/5329745.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5329920_hartline
+  name: Hartline town
+  type: city
+  state_fips: '53'
+  county_fips: '53025'
+  jurisdiction_key: hartline_city
+  boundary_path: data/boundaries/wa/by_geoid/5329920.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5330060_hatton
+  name: Hatton town
+  type: city
+  state_fips: '53'
+  county_fips: '53001'
+  jurisdiction_key: hatton_city
+  boundary_path: data/boundaries/wa/by_geoid/5330060.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5332300_hoquiam
+  name: Hoquiam city
+  type: city
+  state_fips: '53'
+  county_fips: '53027'
+  jurisdiction_key: hoquiam_city
+  boundary_path: data/boundaries/wa/by_geoid/5332300.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5332755_hunts_point
+  name: Hunts Point town
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: hunts_point_city
+  boundary_path: data/boundaries/wa/by_geoid/5332755.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5333000_ilwaco
+  name: Ilwaco city
+  type: city
+  state_fips: '53'
+  county_fips: '53049'
+  jurisdiction_key: ilwaco_city
+  boundary_path: data/boundaries/wa/by_geoid/5333000.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5333175_index
+  name: Index town
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: index_city
+  boundary_path: data/boundaries/wa/by_geoid/5333175.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5333560_ione
+  name: Ione town
+  type: city
+  state_fips: '53'
+  county_fips: '53051'
+  jurisdiction_key: ione_city
+  boundary_path: data/boundaries/wa/by_geoid/5333560.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5333805_issaquah
+  name: Issaquah city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: issaquah_city
+  boundary_path: data/boundaries/wa/by_geoid/5333805.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5334575_kahlotus
+  name: Kahlotus city
+  type: city
+  state_fips: '53'
+  county_fips: '53021'
+  jurisdiction_key: kahlotus_city
+  boundary_path: data/boundaries/wa/by_geoid/5334575.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5334645_kalama
+  name: Kalama city
+  type: city
+  state_fips: '53'
+  county_fips: '53015'
+  jurisdiction_key: kalama_city
+  boundary_path: data/boundaries/wa/by_geoid/5334645.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5335065_kelso
+  name: Kelso city
+  type: city
+  state_fips: '53'
+  county_fips: '53015'
+  jurisdiction_key: kelso_city
+  boundary_path: data/boundaries/wa/by_geoid/5335065.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5335170_kenmore
+  name: Kenmore city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: kenmore_city
+  boundary_path: data/boundaries/wa/by_geoid/5335170.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5335275_kennewick
+  name: Kennewick city
+  type: city
+  state_fips: '53'
+  county_fips: '53005'
+  jurisdiction_key: kennewick_city
+  boundary_path: data/boundaries/wa/by_geoid/5335275.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5335415_kent
+  name: Kent city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: kent_city
+  boundary_path: data/boundaries/wa/by_geoid/5335415.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5335485_kettle_falls
+  name: Kettle Falls city
+  type: city
+  state_fips: '53'
+  county_fips: '53065'
+  jurisdiction_key: kettle_falls_city
+  boundary_path: data/boundaries/wa/by_geoid/5335485.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5335940_kirkland
+  name: Kirkland city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: kirkland_city
+  boundary_path: data/boundaries/wa/by_geoid/5335940.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5336045_kittitas
+  name: Kittitas city
+  type: city
+  state_fips: '53'
+  county_fips: '53037'
+  jurisdiction_key: kittitas_city
+  boundary_path: data/boundaries/wa/by_geoid/5336045.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5336395_krupp
+  name: Krupp town
+  type: city
+  state_fips: '53'
+  county_fips: '53025'
+  jurisdiction_key: krupp_city
+  boundary_path: data/boundaries/wa/by_geoid/5336395.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5336710_la_center
+  name: La Center city
+  type: city
+  state_fips: '53'
+  county_fips: '53011'
+  jurisdiction_key: la_center_city
+  boundary_path: data/boundaries/wa/by_geoid/5336710.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5336780_la_conner
+  name: La Conner town
+  type: city
+  state_fips: '53'
+  county_fips: '53057'
+  jurisdiction_key: la_conner_city
+  boundary_path: data/boundaries/wa/by_geoid/5336780.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5336850_lacrosse
+  name: LaCrosse town
+  type: city
+  state_fips: '53'
+  county_fips: '53075'
+  jurisdiction_key: lacrosse_city
+  boundary_path: data/boundaries/wa/by_geoid/5336850.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5336745_lacey
+  name: Lacey city
+  type: city
+  state_fips: '53'
+  county_fips: '53067'
+  jurisdiction_key: lacey_city
+  boundary_path: data/boundaries/wa/by_geoid/5336745.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5337270_lake_forest_park
+  name: Lake Forest Park city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: lake_forest_park_city
+  boundary_path: data/boundaries/wa/by_geoid/5337270.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5337900_lake_stevens
+  name: Lake Stevens city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: lake_stevens_city
+  boundary_path: data/boundaries/wa/by_geoid/5337900.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5338038_lakewood
+  name: Lakewood city
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: lakewood_city
+  boundary_path: data/boundaries/wa/by_geoid/5338038.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5338215_lamont
+  name: Lamont town
+  type: city
+  state_fips: '53'
+  county_fips: '53075'
+  jurisdiction_key: lamont_city
+  boundary_path: data/boundaries/wa/by_geoid/5338215.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5338355_langley
+  name: Langley city
+  type: city
+  state_fips: '53'
+  county_fips: '53029'
+  jurisdiction_key: langley_city
+  boundary_path: data/boundaries/wa/by_geoid/5338355.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5338495_latah
+  name: Latah town
+  type: city
+  state_fips: '53'
+  county_fips: '53063'
+  jurisdiction_key: latah_city
+  boundary_path: data/boundaries/wa/by_geoid/5338495.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5338845_leavenworth
+  name: Leavenworth city
+  type: city
+  state_fips: '53'
+  county_fips: '53007'
+  jurisdiction_key: leavenworth_city
+  boundary_path: data/boundaries/wa/by_geoid/5338845.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5339335_liberty_lake
+  name: Liberty Lake city
+  type: city
+  state_fips: '53'
+  county_fips: '53063'
+  jurisdiction_key: liberty_lake_city
+  boundary_path: data/boundaries/wa/by_geoid/5339335.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5339510_lind
+  name: Lind town
+  type: city
+  state_fips: '53'
+  county_fips: '53001'
+  jurisdiction_key: lind_city
+  boundary_path: data/boundaries/wa/by_geoid/5339510.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5340070_long_beach
+  name: Long Beach city
+  type: city
+  state_fips: '53'
+  county_fips: '53049'
+  jurisdiction_key: long_beach_city
+  boundary_path: data/boundaries/wa/by_geoid/5340070.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5340245_longview
+  name: Longview city
+  type: city
+  state_fips: '53'
+  county_fips: '53015'
+  jurisdiction_key: longview_city
+  boundary_path: data/boundaries/wa/by_geoid/5340245.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5340770_lyman
+  name: Lyman town
+  type: city
+  state_fips: '53'
+  county_fips: '53057'
+  jurisdiction_key: lyman_city
+  boundary_path: data/boundaries/wa/by_geoid/5340770.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5340805_lynden
+  name: Lynden city
+  type: city
+  state_fips: '53'
+  county_fips: '53073'
+  jurisdiction_key: lynden_city
+  boundary_path: data/boundaries/wa/by_geoid/5340805.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5340840_lynnwood
+  name: Lynnwood city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: lynnwood_city
+  boundary_path: data/boundaries/wa/by_geoid/5340840.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5340980_mabton
+  name: Mabton city
+  type: city
+  state_fips: '53'
+  county_fips: '53077'
+  jurisdiction_key: mabton_city
+  boundary_path: data/boundaries/wa/by_geoid/5340980.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5342275_malden
+  name: Malden town
+  type: city
+  state_fips: '53'
+  county_fips: '53075'
+  jurisdiction_key: malden_city
+  boundary_path: data/boundaries/wa/by_geoid/5342275.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5342800_mansfield
+  name: Mansfield town
+  type: city
+  state_fips: '53'
+  county_fips: '53017'
+  jurisdiction_key: mansfield_city
+  boundary_path: data/boundaries/wa/by_geoid/5342800.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5343150_maple_valley
+  name: Maple Valley city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: maple_valley_city
+  boundary_path: data/boundaries/wa/by_geoid/5343150.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5343395_marcus
+  name: Marcus town
+  type: city
+  state_fips: '53'
+  county_fips: '53065'
+  jurisdiction_key: marcus_city
+  boundary_path: data/boundaries/wa/by_geoid/5343395.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5343955_marysville
+  name: Marysville city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: marysville_city
+  boundary_path: data/boundaries/wa/by_geoid/5343955.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5344165_mattawa
+  name: Mattawa city
+  type: city
+  state_fips: '53'
+  county_fips: '53025'
+  jurisdiction_key: mattawa_city
+  boundary_path: data/boundaries/wa/by_geoid/5344165.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5341225_mccleary
+  name: McCleary city
+  type: city
+  state_fips: '53'
+  county_fips: '53027'
+  jurisdiction_key: mccleary_city
+  boundary_path: data/boundaries/wa/by_geoid/5341225.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5344690_medical_lake
+  name: Medical Lake city
+  type: city
+  state_fips: '53'
+  county_fips: '53063'
+  jurisdiction_key: medical_lake_city
+  boundary_path: data/boundaries/wa/by_geoid/5344690.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5344725_medina
+  name: Medina city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: medina_city
+  boundary_path: data/boundaries/wa/by_geoid/5344725.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5345005_mercer_island
+  name: Mercer Island city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: mercer_island_city
+  boundary_path: data/boundaries/wa/by_geoid/5345005.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5345180_mesa
+  name: Mesa city
+  type: city
+  state_fips: '53'
+  county_fips: '53021'
+  jurisdiction_key: mesa_city
+  boundary_path: data/boundaries/wa/by_geoid/5345180.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5345285_metaline
+  name: Metaline town
+  type: city
+  state_fips: '53'
+  county_fips: '53051'
+  jurisdiction_key: metaline_city
+  boundary_path: data/boundaries/wa/by_geoid/5345285.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5345320_metaline_falls
+  name: Metaline Falls town
+  type: city
+  state_fips: '53'
+  county_fips: '53051'
+  jurisdiction_key: metaline_falls_city
+  boundary_path: data/boundaries/wa/by_geoid/5345320.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5345865_mill_creek
+  name: Mill Creek city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: mill_creek_city
+  boundary_path: data/boundaries/wa/by_geoid/5345865.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5345985_millwood
+  name: Millwood city
+  type: city
+  state_fips: '53'
+  county_fips: '53063'
+  jurisdiction_key: millwood_city
+  boundary_path: data/boundaries/wa/by_geoid/5345985.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5346020_milton_53033
+  name: Milton city (53033)
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: milton_city
+  boundary_path: data/boundaries/wa/by_geoid/5346020.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5346020_milton_53053
+  name: Milton city (53053)
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: milton_city
+  boundary_path: data/boundaries/wa/by_geoid/5346020.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5346685_monroe
+  name: Monroe city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: monroe_city
+  boundary_path: data/boundaries/wa/by_geoid/5346685.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5346895_montesano
+  name: Montesano city
+  type: city
+  state_fips: '53'
+  county_fips: '53027'
+  jurisdiction_key: montesano_city
+  boundary_path: data/boundaries/wa/by_geoid/5346895.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5347175_morton
+  name: Morton city
+  type: city
+  state_fips: '53'
+  county_fips: '53041'
+  jurisdiction_key: morton_city
+  boundary_path: data/boundaries/wa/by_geoid/5347175.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5347245_moses_lake
+  name: Moses Lake city
+  type: city
+  state_fips: '53'
+  county_fips: '53025'
+  jurisdiction_key: moses_lake_city
+  boundary_path: data/boundaries/wa/by_geoid/5347245.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5347315_mossyrock
+  name: Mossyrock city
+  type: city
+  state_fips: '53'
+  county_fips: '53041'
+  jurisdiction_key: mossyrock_city
+  boundary_path: data/boundaries/wa/by_geoid/5347315.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5347560_mount_vernon
+  name: Mount Vernon city
+  type: city
+  state_fips: '53'
+  county_fips: '53057'
+  jurisdiction_key: mount_vernon_city
+  boundary_path: data/boundaries/wa/by_geoid/5347560.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5347490_mountlake_terrace
+  name: Mountlake Terrace city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: mountlake_terrace_city
+  boundary_path: data/boundaries/wa/by_geoid/5347490.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5347665_moxee
+  name: Moxee city
+  type: city
+  state_fips: '53'
+  county_fips: '53077'
+  jurisdiction_key: moxee_city
+  boundary_path: data/boundaries/wa/by_geoid/5347665.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5347735_mukilteo
+  name: Mukilteo city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: mukilteo_city
+  boundary_path: data/boundaries/wa/by_geoid/5347735.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5347805_naches
+  name: Naches town
+  type: city
+  state_fips: '53'
+  county_fips: '53077'
+  jurisdiction_key: naches_city
+  boundary_path: data/boundaries/wa/by_geoid/5347805.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5347980_napavine
+  name: Napavine city
+  type: city
+  state_fips: '53'
+  county_fips: '53041'
+  jurisdiction_key: napavine_city
+  boundary_path: data/boundaries/wa/by_geoid/5347980.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5348540_nespelem
+  name: Nespelem town
+  type: city
+  state_fips: '53'
+  county_fips: '53047'
+  jurisdiction_key: nespelem_city
+  boundary_path: data/boundaries/wa/by_geoid/5348540.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5348645_newcastle
+  name: Newcastle city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: newcastle_city
+  boundary_path: data/boundaries/wa/by_geoid/5348645.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5348820_newport
+  name: Newport city
+  type: city
+  state_fips: '53'
+  county_fips: '53051'
+  jurisdiction_key: newport_city
+  boundary_path: data/boundaries/wa/by_geoid/5348820.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5349275_nooksack
+  name: Nooksack city
+  type: city
+  state_fips: '53'
+  county_fips: '53073'
+  jurisdiction_key: nooksack_city
+  boundary_path: data/boundaries/wa/by_geoid/5349275.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5349415_normandy_park
+  name: Normandy Park city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: normandy_park_city
+  boundary_path: data/boundaries/wa/by_geoid/5349415.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5349485_north_bend
+  name: North Bend city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: north_bend_city
+  boundary_path: data/boundaries/wa/by_geoid/5349485.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5349555_north_bonneville
+  name: North Bonneville city
+  type: city
+  state_fips: '53'
+  county_fips: '53059'
+  jurisdiction_key: north_bonneville_city
+  boundary_path: data/boundaries/wa/by_geoid/5349555.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5350045_northport
+  name: Northport town
+  type: city
+  state_fips: '53'
+  county_fips: '53065'
+  jurisdiction_key: northport_city
+  boundary_path: data/boundaries/wa/by_geoid/5350045.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5350360_oak_harbor
+  name: Oak Harbor city
+  type: city
+  state_fips: '53'
+  county_fips: '53029'
+  jurisdiction_key: oak_harbor_city
+  boundary_path: data/boundaries/wa/by_geoid/5350360.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5350325_oakesdale
+  name: Oakesdale town
+  type: city
+  state_fips: '53'
+  county_fips: '53075'
+  jurisdiction_key: oakesdale_city
+  boundary_path: data/boundaries/wa/by_geoid/5350325.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5350430_oakville
+  name: Oakville city
+  type: city
+  state_fips: '53'
+  county_fips: '53027'
+  jurisdiction_key: oakville_city
+  boundary_path: data/boundaries/wa/by_geoid/5350430.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5350570_ocean_shores
+  name: Ocean Shores city
+  type: city
+  state_fips: '53'
+  county_fips: '53027'
+  jurisdiction_key: ocean_shores_city
+  boundary_path: data/boundaries/wa/by_geoid/5350570.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5350745_odessa
+  name: Odessa town
+  type: city
+  state_fips: '53'
+  county_fips: '53043'
+  jurisdiction_key: odessa_city
+  boundary_path: data/boundaries/wa/by_geoid/5350745.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5350920_okanogan
+  name: Okanogan city
+  type: city
+  state_fips: '53'
+  county_fips: '53047'
+  jurisdiction_key: okanogan_city
+  boundary_path: data/boundaries/wa/by_geoid/5350920.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5351300_olympia
+  name: Olympia city
+  type: city
+  state_fips: '53'
+  county_fips: '53067'
+  jurisdiction_key: olympia_city
+  boundary_path: data/boundaries/wa/by_geoid/5351300.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5351340_omak
+  name: Omak city
+  type: city
+  state_fips: '53'
+  county_fips: '53047'
+  jurisdiction_key: omak_city
+  boundary_path: data/boundaries/wa/by_geoid/5351340.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5351970_oroville
+  name: Oroville city
+  type: city
+  state_fips: '53'
+  county_fips: '53047'
+  jurisdiction_key: oroville_city
+  boundary_path: data/boundaries/wa/by_geoid/5351970.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5352005_orting
+  name: Orting city
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: orting_city
+  boundary_path: data/boundaries/wa/by_geoid/5352005.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5352215_othello
+  name: Othello city
+  type: city
+  state_fips: '53'
+  county_fips: '53001'
+  jurisdiction_key: othello_city
+  boundary_path: data/boundaries/wa/by_geoid/5352215.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5352495_pacific_53033
+  name: Pacific city (53033)
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: pacific_city
+  boundary_path: data/boundaries/wa/by_geoid/5352495.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5352495_pacific_53053
+  name: Pacific city (53053)
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: pacific_city
+  boundary_path: data/boundaries/wa/by_geoid/5352495.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5352950_palouse
+  name: Palouse city
+  type: city
+  state_fips: '53'
+  county_fips: '53075'
+  jurisdiction_key: palouse_city
+  boundary_path: data/boundaries/wa/by_geoid/5352950.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5353545_pasco
+  name: Pasco city
+  type: city
+  state_fips: '53'
+  county_fips: '53021'
+  jurisdiction_key: pasco_city
+  boundary_path: data/boundaries/wa/by_geoid/5353545.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5353720_pateros
+  name: Pateros city
+  type: city
+  state_fips: '53'
+  county_fips: '53047'
+  jurisdiction_key: pateros_city
+  boundary_path: data/boundaries/wa/by_geoid/5353720.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5353930_pe_ell
+  name: Pe Ell town
+  type: city
+  state_fips: '53'
+  county_fips: '53041'
+  jurisdiction_key: pe_ell_city
+  boundary_path: data/boundaries/wa/by_geoid/5353930.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5355120_pomeroy
+  name: Pomeroy city
+  type: city
+  state_fips: '53'
+  county_fips: '53023'
+  jurisdiction_key: pomeroy_city
+  boundary_path: data/boundaries/wa/by_geoid/5355120.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5355365_port_angeles
+  name: Port Angeles city
+  type: city
+  state_fips: '53'
+  county_fips: '53009'
+  jurisdiction_key: port_angeles_city
+  boundary_path: data/boundaries/wa/by_geoid/5355365.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5355785_port_orchard
+  name: Port Orchard city
+  type: city
+  state_fips: '53'
+  county_fips: '53035'
+  jurisdiction_key: port_orchard_city
+  boundary_path: data/boundaries/wa/by_geoid/5355785.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5355855_port_townsend
+  name: Port Townsend city
+  type: city
+  state_fips: '53'
+  county_fips: '53031'
+  jurisdiction_key: port_townsend_city
+  boundary_path: data/boundaries/wa/by_geoid/5355855.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5355995_poulsbo
+  name: Poulsbo city
+  type: city
+  state_fips: '53'
+  county_fips: '53035'
+  jurisdiction_key: poulsbo_city
+  boundary_path: data/boundaries/wa/by_geoid/5355995.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5356240_prescott
+  name: Prescott city
+  type: city
+  state_fips: '53'
+  county_fips: '53071'
+  jurisdiction_key: prescott_city
+  boundary_path: data/boundaries/wa/by_geoid/5356240.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5356450_prosser
+  name: Prosser city
+  type: city
+  state_fips: '53'
+  county_fips: '53005'
+  jurisdiction_key: prosser_city
+  boundary_path: data/boundaries/wa/by_geoid/5356450.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5356625_pullman
+  name: Pullman city
+  type: city
+  state_fips: '53'
+  county_fips: '53075'
+  jurisdiction_key: pullman_city
+  boundary_path: data/boundaries/wa/by_geoid/5356625.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5356695_puyallup
+  name: Puyallup city
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: puyallup_city
+  boundary_path: data/boundaries/wa/by_geoid/5356695.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5357115_quincy
+  name: Quincy city
+  type: city
+  state_fips: '53'
+  county_fips: '53025'
+  jurisdiction_key: quincy_city
+  boundary_path: data/boundaries/wa/by_geoid/5357115.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5357220_rainier
+  name: Rainier city
+  type: city
+  state_fips: '53'
+  county_fips: '53067'
+  jurisdiction_key: rainier_city
+  boundary_path: data/boundaries/wa/by_geoid/5357220.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5357430_raymond
+  name: Raymond city
+  type: city
+  state_fips: '53'
+  county_fips: '53049'
+  jurisdiction_key: raymond_city
+  boundary_path: data/boundaries/wa/by_geoid/5357430.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5357465_reardan
+  name: Reardan town
+  type: city
+  state_fips: '53'
+  county_fips: '53043'
+  jurisdiction_key: reardan_city
+  boundary_path: data/boundaries/wa/by_geoid/5357465.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5357535_redmond
+  name: Redmond city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: redmond_city
+  boundary_path: data/boundaries/wa/by_geoid/5357535.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5357745_renton
+  name: Renton city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: renton_city
+  boundary_path: data/boundaries/wa/by_geoid/5357745.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5357850_republic
+  name: Republic city
+  type: city
+  state_fips: '53'
+  county_fips: '53019'
+  jurisdiction_key: republic_city
+  boundary_path: data/boundaries/wa/by_geoid/5357850.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5358235_richland
+  name: Richland city
+  type: city
+  state_fips: '53'
+  county_fips: '53005'
+  jurisdiction_key: richland_city
+  boundary_path: data/boundaries/wa/by_geoid/5358235.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5358410_ridgefield
+  name: Ridgefield city
+  type: city
+  state_fips: '53'
+  county_fips: '53011'
+  jurisdiction_key: ridgefield_city
+  boundary_path: data/boundaries/wa/by_geoid/5358410.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5358725_ritzville
+  name: Ritzville city
+  type: city
+  state_fips: '53'
+  county_fips: '53001'
+  jurisdiction_key: ritzville_city
+  boundary_path: data/boundaries/wa/by_geoid/5358725.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5358795_riverside
+  name: Riverside town
+  type: city
+  state_fips: '53'
+  county_fips: '53047'
+  jurisdiction_key: riverside_city
+  boundary_path: data/boundaries/wa/by_geoid/5358795.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5359180_rock_island
+  name: Rock Island city
+  type: city
+  state_fips: '53'
+  county_fips: '53017'
+  jurisdiction_key: rock_island_city
+  boundary_path: data/boundaries/wa/by_geoid/5359180.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5359145_rockford
+  name: Rockford town
+  type: city
+  state_fips: '53'
+  county_fips: '53063'
+  jurisdiction_key: rockford_city
+  boundary_path: data/boundaries/wa/by_geoid/5359145.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5359775_rosalia
+  name: Rosalia town
+  type: city
+  state_fips: '53'
+  county_fips: '53075'
+  jurisdiction_key: rosalia_city
+  boundary_path: data/boundaries/wa/by_geoid/5359775.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5360055_roslyn
+  name: Roslyn city
+  type: city
+  state_fips: '53'
+  county_fips: '53037'
+  jurisdiction_key: roslyn_city
+  boundary_path: data/boundaries/wa/by_geoid/5360055.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5360160_roy
+  name: Roy city
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: roy_city
+  boundary_path: data/boundaries/wa/by_geoid/5360160.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5360230_royal_city
+  name: Royal City city
+  type: city
+  state_fips: '53'
+  county_fips: '53025'
+  jurisdiction_key: royal_city_city
+  boundary_path: data/boundaries/wa/by_geoid/5360230.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5360510_ruston
+  name: Ruston city
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: ruston_city
+  boundary_path: data/boundaries/wa/by_geoid/5360510.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5361115_sammamish
+  name: Sammamish city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: sammamish_city
+  boundary_path: data/boundaries/wa/by_geoid/5361115.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5362288_seatac
+  name: SeaTac city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: seatac_city
+  boundary_path: data/boundaries/wa/by_geoid/5362288.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5363000_seattle
+  name: Seattle city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: seattle_city
+  boundary_path: data/boundaries/wa/by_geoid/5363000.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5363210_sedro_woolley
+  name: Sedro-Woolley city
+  type: city
+  state_fips: '53'
+  county_fips: '53057'
+  jurisdiction_key: sedro_woolley_city
+  boundary_path: data/boundaries/wa/by_geoid/5363210.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5363280_selah
+  name: Selah city
+  type: city
+  state_fips: '53'
+  county_fips: '53077'
+  jurisdiction_key: selah_city
+  boundary_path: data/boundaries/wa/by_geoid/5363280.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5363385_sequim
+  name: Sequim city
+  type: city
+  state_fips: '53'
+  county_fips: '53009'
+  jurisdiction_key: sequim_city
+  boundary_path: data/boundaries/wa/by_geoid/5363385.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5363735_shelton
+  name: Shelton city
+  type: city
+  state_fips: '53'
+  county_fips: '53045'
+  jurisdiction_key: shelton_city
+  boundary_path: data/boundaries/wa/by_geoid/5363735.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5363960_shoreline
+  name: Shoreline city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: shoreline_city
+  boundary_path: data/boundaries/wa/by_geoid/5363960.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5364855_skykomish
+  name: Skykomish town
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: skykomish_city
+  boundary_path: data/boundaries/wa/by_geoid/5364855.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5365170_snohomish
+  name: Snohomish city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: snohomish_city
+  boundary_path: data/boundaries/wa/by_geoid/5365170.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5365205_snoqualmie
+  name: Snoqualmie city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: snoqualmie_city
+  boundary_path: data/boundaries/wa/by_geoid/5365205.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5365345_soap_lake
+  name: Soap Lake city
+  type: city
+  state_fips: '53'
+  county_fips: '53025'
+  jurisdiction_key: soap_lake_city
+  boundary_path: data/boundaries/wa/by_geoid/5365345.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5365625_south_bend
+  name: South Bend city
+  type: city
+  state_fips: '53'
+  county_fips: '53049'
+  jurisdiction_key: south_bend_city
+  boundary_path: data/boundaries/wa/by_geoid/5365625.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5365765_south_cle_elum
+  name: South Cle Elum town
+  type: city
+  state_fips: '53'
+  county_fips: '53037'
+  jurisdiction_key: south_cle_elum_city
+  boundary_path: data/boundaries/wa/by_geoid/5365765.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5366045_south_prairie
+  name: South Prairie town
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: south_prairie_city
+  boundary_path: data/boundaries/wa/by_geoid/5366045.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5366290_spangle
+  name: Spangle city
+  type: city
+  state_fips: '53'
+  county_fips: '53063'
+  jurisdiction_key: spangle_city
+  boundary_path: data/boundaries/wa/by_geoid/5366290.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5367000_spokane
+  name: Spokane city
+  type: city
+  state_fips: '53'
+  county_fips: '53063'
+  jurisdiction_key: spokane_city
+  boundary_path: data/boundaries/wa/by_geoid/5367000.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5367167_spokane_valley
+  name: Spokane Valley city
+  type: city
+  state_fips: '53'
+  county_fips: '53063'
+  jurisdiction_key: spokane_valley_city
+  boundary_path: data/boundaries/wa/by_geoid/5367167.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5367175_sprague
+  name: Sprague city
+  type: city
+  state_fips: '53'
+  county_fips: '53043'
+  jurisdiction_key: sprague_city
+  boundary_path: data/boundaries/wa/by_geoid/5367175.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5367210_springdale
+  name: Springdale town
+  type: city
+  state_fips: '53'
+  county_fips: '53065'
+  jurisdiction_key: springdale_city
+  boundary_path: data/boundaries/wa/by_geoid/5367210.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5360860_st_john
+  name: St. John town
+  type: city
+  state_fips: '53'
+  county_fips: '53075'
+  jurisdiction_key: st_john_city
+  boundary_path: data/boundaries/wa/by_geoid/5360860.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5367455_stanwood
+  name: Stanwood city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: stanwood_city
+  boundary_path: data/boundaries/wa/by_geoid/5367455.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5367490_starbuck
+  name: Starbuck town
+  type: city
+  state_fips: '53'
+  county_fips: '53013'
+  jurisdiction_key: starbuck_city
+  boundary_path: data/boundaries/wa/by_geoid/5367490.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5367770_steilacoom
+  name: Steilacoom town
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: steilacoom_city
+  boundary_path: data/boundaries/wa/by_geoid/5367770.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5367875_stevenson
+  name: Stevenson city
+  type: city
+  state_fips: '53'
+  county_fips: '53059'
+  jurisdiction_key: stevenson_city
+  boundary_path: data/boundaries/wa/by_geoid/5367875.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5368260_sultan
+  name: Sultan city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: sultan_city
+  boundary_path: data/boundaries/wa/by_geoid/5368260.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5368330_sumas
+  name: Sumas city
+  type: city
+  state_fips: '53'
+  county_fips: '53073'
+  jurisdiction_key: sumas_city
+  boundary_path: data/boundaries/wa/by_geoid/5368330.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5368435_sumner
+  name: Sumner city
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: sumner_city
+  boundary_path: data/boundaries/wa/by_geoid/5368435.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5368750_sunnyside
+  name: Sunnyside city
+  type: city
+  state_fips: '53'
+  county_fips: '53077'
+  jurisdiction_key: sunnyside_city
+  boundary_path: data/boundaries/wa/by_geoid/5368750.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5370000_tacoma
+  name: Tacoma city
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: tacoma_city
+  boundary_path: data/boundaries/wa/by_geoid/5370000.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5370560_tekoa
+  name: Tekoa city
+  type: city
+  state_fips: '53'
+  county_fips: '53075'
+  jurisdiction_key: tekoa_city
+  boundary_path: data/boundaries/wa/by_geoid/5370560.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5370630_tenino
+  name: Tenino city
+  type: city
+  state_fips: '53'
+  county_fips: '53067'
+  jurisdiction_key: tenino_city
+  boundary_path: data/boundaries/wa/by_geoid/5370630.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5371400_tieton
+  name: Tieton city
+  type: city
+  state_fips: '53'
+  county_fips: '53077'
+  jurisdiction_key: tieton_city
+  boundary_path: data/boundaries/wa/by_geoid/5371400.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5371785_toledo
+  name: Toledo city
+  type: city
+  state_fips: '53'
+  county_fips: '53041'
+  jurisdiction_key: toledo_city
+  boundary_path: data/boundaries/wa/by_geoid/5371785.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5371890_tonasket
+  name: Tonasket city
+  type: city
+  state_fips: '53'
+  county_fips: '53047'
+  jurisdiction_key: tonasket_city
+  boundary_path: data/boundaries/wa/by_geoid/5371890.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5371960_toppenish
+  name: Toppenish city
+  type: city
+  state_fips: '53'
+  county_fips: '53077'
+  jurisdiction_key: toppenish_city
+  boundary_path: data/boundaries/wa/by_geoid/5371960.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5372625_tukwila
+  name: Tukwila city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: tukwila_city
+  boundary_path: data/boundaries/wa/by_geoid/5372625.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5372905_tumwater
+  name: Tumwater city
+  type: city
+  state_fips: '53'
+  county_fips: '53067'
+  jurisdiction_key: tumwater_city
+  boundary_path: data/boundaries/wa/by_geoid/5372905.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5373080_twisp
+  name: Twisp town
+  type: city
+  state_fips: '53'
+  county_fips: '53047'
+  jurisdiction_key: twisp_city
+  boundary_path: data/boundaries/wa/by_geoid/5373080.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5373290_union_gap
+  name: Union Gap city
+  type: city
+  state_fips: '53'
+  county_fips: '53077'
+  jurisdiction_key: union_gap_city
+  boundary_path: data/boundaries/wa/by_geoid/5373290.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5373360_uniontown
+  name: Uniontown town
+  type: city
+  state_fips: '53'
+  county_fips: '53075'
+  jurisdiction_key: uniontown_city
+  boundary_path: data/boundaries/wa/by_geoid/5373360.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5373465_university_place
+  name: University Place city
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: university_place_city
+  boundary_path: data/boundaries/wa/by_geoid/5373465.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5373780_vader
+  name: Vader city
+  type: city
+  state_fips: '53'
+  county_fips: '53041'
+  jurisdiction_key: vader_city
+  boundary_path: data/boundaries/wa/by_geoid/5373780.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5374060_vancouver
+  name: Vancouver city
+  type: city
+  state_fips: '53'
+  county_fips: '53011'
+  jurisdiction_key: vancouver_city
+  boundary_path: data/boundaries/wa/by_geoid/5374060.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5375565_waitsburg
+  name: Waitsburg city
+  type: city
+  state_fips: '53'
+  county_fips: '53071'
+  jurisdiction_key: waitsburg_city
+  boundary_path: data/boundaries/wa/by_geoid/5375565.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5375775_walla_walla
+  name: Walla Walla city
+  type: city
+  state_fips: '53'
+  county_fips: '53071'
+  jurisdiction_key: walla_walla_city
+  boundary_path: data/boundaries/wa/by_geoid/5375775.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5376125_wapato
+  name: Wapato city
+  type: city
+  state_fips: '53'
+  county_fips: '53077'
+  jurisdiction_key: wapato_city
+  boundary_path: data/boundaries/wa/by_geoid/5376125.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5376160_warden
+  name: Warden city
+  type: city
+  state_fips: '53'
+  county_fips: '53025'
+  jurisdiction_key: warden_city
+  boundary_path: data/boundaries/wa/by_geoid/5376160.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5376405_washougal
+  name: Washougal city
+  type: city
+  state_fips: '53'
+  county_fips: '53011'
+  jurisdiction_key: washougal_city
+  boundary_path: data/boundaries/wa/by_geoid/5376405.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5376440_washtucna
+  name: Washtucna town
+  type: city
+  state_fips: '53'
+  county_fips: '53001'
+  jurisdiction_key: washtucna_city
+  boundary_path: data/boundaries/wa/by_geoid/5376440.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5376510_waterville
+  name: Waterville town
+  type: city
+  state_fips: '53'
+  county_fips: '53017'
+  jurisdiction_key: waterville_city
+  boundary_path: data/boundaries/wa/by_geoid/5376510.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5376720_waverly
+  name: Waverly town
+  type: city
+  state_fips: '53'
+  county_fips: '53063'
+  jurisdiction_key: waverly_city
+  boundary_path: data/boundaries/wa/by_geoid/5376720.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5377105_wenatchee
+  name: Wenatchee city
+  type: city
+  state_fips: '53'
+  county_fips: '53007'
+  jurisdiction_key: wenatchee_city
+  boundary_path: data/boundaries/wa/by_geoid/5377105.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5377665_west_richland
+  name: West Richland city
+  type: city
+  state_fips: '53'
+  county_fips: '53005'
+  jurisdiction_key: west_richland_city
+  boundary_path: data/boundaries/wa/by_geoid/5377665.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5377630_westport
+  name: Westport city
+  type: city
+  state_fips: '53'
+  county_fips: '53027'
+  jurisdiction_key: westport_city
+  boundary_path: data/boundaries/wa/by_geoid/5377630.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5378330_white_salmon
+  name: White Salmon city
+  type: city
+  state_fips: '53'
+  county_fips: '53039'
+  jurisdiction_key: white_salmon_city
+  boundary_path: data/boundaries/wa/by_geoid/5378330.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5378680_wilbur
+  name: Wilbur town
+  type: city
+  state_fips: '53'
+  county_fips: '53043'
+  jurisdiction_key: wilbur_city
+  boundary_path: data/boundaries/wa/by_geoid/5378680.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5378925_wilkeson
+  name: Wilkeson town
+  type: city
+  state_fips: '53'
+  county_fips: '53053'
+  jurisdiction_key: wilkeson_city
+  boundary_path: data/boundaries/wa/by_geoid/5378925.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5379135_wilson_creek
+  name: Wilson Creek town
+  type: city
+  state_fips: '53'
+  county_fips: '53025'
+  jurisdiction_key: wilson_creek_city
+  boundary_path: data/boundaries/wa/by_geoid/5379135.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5379275_winlock
+  name: Winlock city
+  type: city
+  state_fips: '53'
+  county_fips: '53041'
+  jurisdiction_key: winlock_city
+  boundary_path: data/boundaries/wa/by_geoid/5379275.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5379380_winthrop
+  name: Winthrop town
+  type: city
+  state_fips: '53'
+  county_fips: '53047'
+  jurisdiction_key: winthrop_city
+  boundary_path: data/boundaries/wa/by_geoid/5379380.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5379590_woodinville
+  name: Woodinville city
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: woodinville_city
+  boundary_path: data/boundaries/wa/by_geoid/5379590.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5379625_woodland_53011
+  name: Woodland city (53011)
+  type: city
+  state_fips: '53'
+  county_fips: '53011'
+  jurisdiction_key: woodland_city
+  boundary_path: data/boundaries/wa/by_geoid/5379625.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5379625_woodland_53015
+  name: Woodland city (53015)
+  type: city
+  state_fips: '53'
+  county_fips: '53015'
+  jurisdiction_key: woodland_city
+  boundary_path: data/boundaries/wa/by_geoid/5379625.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5379835_woodway
+  name: Woodway city
+  type: city
+  state_fips: '53'
+  county_fips: '53061'
+  jurisdiction_key: woodway_city
+  boundary_path: data/boundaries/wa/by_geoid/5379835.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5379975_yacolt
+  name: Yacolt town
+  type: city
+  state_fips: '53'
+  county_fips: '53011'
+  jurisdiction_key: yacolt_city
+  boundary_path: data/boundaries/wa/by_geoid/5379975.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5380010_yakima
+  name: Yakima city
+  type: city
+  state_fips: '53'
+  county_fips: '53077'
+  jurisdiction_key: yakima_city
+  boundary_path: data/boundaries/wa/by_geoid/5380010.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5380150_yarrow_point
+  name: Yarrow Point town
+  type: city
+  state_fips: '53'
+  county_fips: '53033'
+  jurisdiction_key: yarrow_point_city
+  boundary_path: data/boundaries/wa/by_geoid/5380150.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5380220_yelm
+  name: Yelm city
+  type: city
+  state_fips: '53'
+  county_fips: '53067'
+  jurisdiction_key: yelm_city
+  boundary_path: data/boundaries/wa/by_geoid/5380220.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.
+- key: wa_5380500_zillah
+  name: Zillah city
+  type: city
+  state_fips: '53'
+  county_fips: '53077'
+  jurisdiction_key: zillah_city
+  boundary_path: data/boundaries/wa/by_geoid/5380500.geojson
+  source_refs:
+  - watech_statewide_parcels
+  - census_tiger_incorporated_places_wa
+  - wa_city_zoning_inventory_template
+  - wa_city_rules_skeleton
+  zoning_rules_paths:
+  - data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+  notes: Generated from Census TIGERweb incorporated places; zoning entries are conservative until curated.

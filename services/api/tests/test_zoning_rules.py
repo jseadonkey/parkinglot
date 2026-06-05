@@ -9,7 +9,9 @@ from parking_ingestion.zoning_rules import (
     load_zoning_rules,
     merge_zoning_rules,
     normalize_zone_code,
+    resolve_principal_use_symbol,
     resolve_surface_parking,
+    zoning_entitlement_tier,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -112,7 +114,7 @@ jurisdictions:
 def test_infer_zoning_jurisdiction_baltimore_city() -> None:
     assert infer_zoning_jurisdiction("24510", None) == "baltimore_city"
     assert infer_zoning_jurisdiction("24510", "custom") == "custom"
-    assert infer_zoning_jurisdiction("53033", None) is None
+    assert infer_zoning_jurisdiction("53033", None) == "king_unincorporated"
 
 
 def test_merge_zoning_rules_combines_jurisdictions() -> None:
@@ -162,3 +164,17 @@ jurisdictions:
     }
     attrs, _ = list(iter_parcels_from_geojson_dict(fc, rules_path=rules_yaml))[0]
     assert attrs["zoning_allows_surface_parking"] is True
+
+
+def test_baltimore_county_rules_are_conservative_review() -> None:
+    rules = load_effective_zoning_rules()
+    assert resolve_surface_parking("BM", "baltimore_county_unincorporated", None, rules) is False
+    assert resolve_principal_use_symbol("BM", "baltimore_county_unincorporated", rules) == "CB"
+    assert (
+        zoning_entitlement_tier(resolve_principal_use_symbol("BM", "baltimore_county_unincorporated", rules))
+        == "conditional"
+    )
+    assert (
+        zoning_entitlement_tier(resolve_principal_use_symbol("DR 5.5", "baltimore_county_unincorporated", rules))
+        == "excluded"
+    )

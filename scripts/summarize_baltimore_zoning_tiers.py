@@ -27,6 +27,11 @@ def main() -> None:
         type=Path,
         default=ROOT / "data/baltimore/baltimore_city_zoning_overlay.geojson",
     )
+    parser.add_argument(
+        "--jurisdiction",
+        default="baltimore_city",
+        help="Zoning jurisdiction key for rules lookup",
+    )
     args = parser.parse_args()
     data = json.loads(args.input.read_text(encoding="utf-8"))
     rules = load_effective_zoning_rules()
@@ -35,7 +40,7 @@ def main() -> None:
     for feat in data.get("features") or []:
         props = feat.get("properties") or {}
         z = str(props.get("ZONING") or props.get("Zoning") or "").strip()
-        sym = resolve_principal_use_symbol(z, "baltimore_city", rules)
+        sym = resolve_principal_use_symbol(z, args.jurisdiction, rules)
         tier = zoning_entitlement_tier(sym)
         tiers[tier] += 1
         if tier == "permitted":

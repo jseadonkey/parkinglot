@@ -50,6 +50,14 @@ Exit criteria:
 - “qualified” parcels correlate with zoning evidence fields
 - scoring notes explain *why* (not just a number)
 
+Implementation note: the registry and resolver foundation now lives in
+[`GEOGRAPHY-AGENTS.md`](GEOGRAPHY-AGENTS.md), `config/geography_registry.yaml`,
+`config/generated/wa_city_geography_agents.yaml`, and
+`parking_ingestion.jurisdiction_resolver`. Washington incorporated-place
+boundaries are refreshed with `scripts/sync_wa_incorporated_places.py`; the
+remaining Phase 2 data work is curating ordinance-backed zoning source/rule
+entries for each jurisdiction.
+
 ## Phase 3 — Tier C/D: demand + ROW/access proxies (ranking)
 
 Deliverables:

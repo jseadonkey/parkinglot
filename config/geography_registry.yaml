@@ -1,0 +1,577 @@
+version: 1
+description: >
+  Geography-agent registry for parcel acquisition. Each record binds a city,
+  county, or county-unincorporated area to authoritative data sources, zoning
+  jurisdiction keys, rules files, and validation checks.
+
+generated_geography_paths:
+  - config/generated/wa_city_geography_agents.yaml
+
+sources:
+  - key: watech_statewide_parcels
+    name: Washington State Geospatial Open Data - Tax Parcels
+    type: parcel
+    url: https://geo.wa.gov/datasets/watech::tax-parcels/about
+    cadence: nightly_or_weekly
+    coverage: all_washington_counties
+    notes: Used by fetch_watech_county_and_ingest for county-filtered parcel anchors.
+
+  - key: census_tiger_incorporated_places_wa
+    name: US Census TIGERweb Incorporated Places - Washington
+    type: boundary
+    url: https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/4/query
+    cadence: annual
+    coverage: all_washington_incorporated_places
+    notes: Authoritative inventory for city-level agents and municipal boundary resolution.
+
+  - key: census_tiger_counties_wa
+    name: US Census TIGERweb Counties - Washington
+    type: boundary
+    url: https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1/query
+    cadence: annual
+    coverage: all_washington_counties
+    notes: Used by the WA incorporated-place sync to assign city/town boundaries to counties.
+
+  - key: census_tiger_incorporated_places_md
+    name: US Census TIGERweb Incorporated Places - Maryland
+    type: boundary
+    url: https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/25/query
+    cadence: annual
+    coverage: all_maryland_incorporated_places
+    notes: Authoritative inventory for Maryland municipal boundaries where applicable.
+
+  - key: wa_county_zoning_inventory_template
+    name: Washington county/city zoning source inventory
+    type: zoning
+    path: docs/washington-data.md
+    cadence: weekly_review
+    coverage: all_washington_counties_plus_municipal_jurisdictions
+    notes: Washington zoning is municipal; city and county layers must be resolved per parcel.
+
+  - key: wa_city_zoning_inventory_template
+    name: Washington city zoning source inventory
+    type: zoning
+    path: docs/washington-data.md
+    cadence: weekly_review
+    coverage: all_washington_incorporated_places
+    notes: Placeholder source inventory for generated city agents; replace per city as zoning layers are curated.
+
+  - key: wa_city_rules_skeleton
+    name: Washington city surface-parking rules skeleton
+    type: zoning_rules
+    path: data/zoning/wa/wa_city_surface_parking_rules_skeleton.yaml
+    cadence: as_ordinances_change
+    coverage: all_washington_incorporated_places
+    notes: Conservative false-by-default skeleton for generated city jurisdiction keys.
+
+  - key: wa_unincorporated_rules
+    name: Washington pilot county unincorporated surface-parking rules
+    type: zoning_rules
+    path: data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml
+    cadence: as_ordinances_change
+    coverage: all_washington_pilot_county_unincorporated_jurisdictions
+    notes: Conservative false-by-default skeleton until local ordinance entries are curated.
+
+  - key: kent_city_boundary
+    name: Kent city Census place boundary
+    type: boundary
+    path: data/boundaries/wa/kent_city_census_places.geojson
+    cadence: annual
+    coverage: kent_city
+
+  - key: kent_city_zoning
+    name: Kent zoning districts
+    type: zoning
+    url: https://gis-cityofkent.opendata.arcgis.com/datasets/kent-zoning-districts
+    path: docs/zoning-sources-kent.md
+    coverage: kent_city
+
+  - key: kent_king_rules
+    name: Kent city and King unincorporated surface-parking rules
+    type: zoning_rules
+    path: data/zoning/wa/kent_king_surface_parking_rules.yaml
+    coverage: kent_city_and_king_unincorporated
+
+  - key: king_unincorporated_zoning
+    name: King County unincorporated zoning
+    type: zoning
+    url: https://gis-kingcounty.opendata.arcgis.com/datasets/kingcounty::zoning-for-unincorporated-king-county
+    path: docs/zoning-sources-kent.md
+    coverage: king_county_unincorporated
+
+  - key: baltimore_city_parcels
+    name: Baltimore City parcel source
+    type: parcel
+    url: https://egis.baltimorecity.gov/egis/rest/services/Parcel_Information/Parcel/FeatureServer/0
+    path: docs/zoning-sources-baltimore.md
+    coverage: baltimore_city
+
+  - key: baltimore_city_zoning
+    name: Baltimore City zoning districts
+    type: zoning
+    url: https://geodata.baltimorecity.gov/egis/rest/services/CityView/Zoning_New/MapServer/0
+    path: docs/zoning-sources-baltimore.md
+    coverage: baltimore_city
+
+  - key: baltimore_city_rules
+    name: Baltimore City surface-parking rules
+    type: zoning_rules
+    path: data/zoning/md/baltimore_city_surface_parking_rules.yaml
+    coverage: baltimore_city
+
+  - key: baltimore_county_parcels
+    name: Baltimore County parcel source
+    type: parcel
+    url: https://bcgisdata.baltimorecountymd.gov/arcgis/rest/services/Property/Property/MapServer/1
+    path: docs/zoning-sources-baltimore-county.md
+    coverage: baltimore_county
+
+  - key: baltimore_county_zoning
+    name: Baltimore County zoning source
+    type: zoning
+    url: https://bcgisapps.baltimorecountymd.gov/arcgis/rest/services/MyNeighborhood/MapServer/51
+    path: docs/zoning-sources-baltimore-county.md
+    coverage: baltimore_county
+
+  - key: baltimore_county_rules
+    name: Baltimore County surface-parking rules
+    type: zoning_rules
+    path: data/zoning/md/baltimore_county_surface_parking_rules.yaml
+    coverage: baltimore_county
+    notes: Conservative false-by-default skeleton until ordinance entries are curated.
+
+city_inventory_sources:
+  - state_fips: "53"
+    state: WA
+    source_ref: census_tiger_incorporated_places_wa
+    coverage: all_incorporated_places
+    agent_key_template: "wa_{place_geoid}_{slug}"
+    jurisdiction_key_template: "{slug}_city"
+    manifest_path: data/boundaries/wa/manifest/wa_incorporated_places.json
+  - state_fips: "24"
+    state: MD
+    source_ref: census_tiger_incorporated_places_md
+    coverage: all_incorporated_places
+    agent_key_template: "md_{place_geoid}_{slug}"
+    jurisdiction_key_template: "{slug}_city"
+
+geographies:
+  - key: baltimore_city
+    name: Baltimore City, MD
+    type: consolidated_city_county
+    state_fips: "24"
+    county_fips: "24510"
+    jurisdiction_key: baltimore_city
+    default_for_county: true
+    source_refs: [baltimore_city_parcels, baltimore_city_zoning, baltimore_city_rules]
+    zoning_rules_paths: [data/zoning/md/baltimore_city_surface_parking_rules.yaml]
+
+  - key: baltimore_county_unincorporated
+    name: Baltimore County unincorporated, MD
+    type: county_unincorporated
+    state_fips: "24"
+    county_fips: "24005"
+    jurisdiction_key: baltimore_county_unincorporated
+    default_for_county: true
+    source_refs: [baltimore_county_parcels, baltimore_county_zoning, baltimore_county_rules]
+    zoning_rules_paths: [data/zoning/md/baltimore_county_surface_parking_rules.yaml]
+
+  - key: kent_city
+    name: Kent city, WA
+    type: city
+    state_fips: "53"
+    county_fips: "53033"
+    jurisdiction_key: kent_city
+    boundary_path: data/boundaries/wa/kent_city_census_places.geojson
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, kent_city_boundary, kent_city_zoning, kent_king_rules]
+    zoning_rules_paths: [data/zoning/wa/kent_king_surface_parking_rules.yaml]
+
+  - key: wa_adams_unincorporated
+    name: Adams County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53001"
+    jurisdiction_key: wa_53001_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_asotin_unincorporated
+    name: Asotin County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53003"
+    jurisdiction_key: wa_53003_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_benton_unincorporated
+    name: Benton County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53005"
+    jurisdiction_key: wa_53005_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_chelan_unincorporated
+    name: Chelan County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53007"
+    jurisdiction_key: wa_53007_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_clallam_unincorporated
+    name: Clallam County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53009"
+    jurisdiction_key: wa_53009_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_clark_unincorporated
+    name: Clark County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53011"
+    jurisdiction_key: wa_53011_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_columbia_unincorporated
+    name: Columbia County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53013"
+    jurisdiction_key: wa_53013_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_cowlitz_unincorporated
+    name: Cowlitz County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53015"
+    jurisdiction_key: wa_53015_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_douglas_unincorporated
+    name: Douglas County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53017"
+    jurisdiction_key: wa_53017_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_ferry_unincorporated
+    name: Ferry County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53019"
+    jurisdiction_key: wa_53019_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_franklin_unincorporated
+    name: Franklin County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53021"
+    jurisdiction_key: wa_53021_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_garfield_unincorporated
+    name: Garfield County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53023"
+    jurisdiction_key: wa_53023_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_grant_unincorporated
+    name: Grant County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53025"
+    jurisdiction_key: wa_53025_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_grays_harbor_unincorporated
+    name: Grays Harbor County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53027"
+    jurisdiction_key: wa_53027_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_island_unincorporated
+    name: Island County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53029"
+    jurisdiction_key: wa_53029_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_jefferson_unincorporated
+    name: Jefferson County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53031"
+    jurisdiction_key: wa_53031_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: king_county_unincorporated
+    name: King County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53033"
+    jurisdiction_key: king_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, king_unincorporated_zoning, kent_king_rules]
+    zoning_rules_paths: [data/zoning/wa/kent_king_surface_parking_rules.yaml]
+
+  - key: wa_kitsap_unincorporated
+    name: Kitsap County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53035"
+    jurisdiction_key: wa_53035_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_kittitas_unincorporated
+    name: Kittitas County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53037"
+    jurisdiction_key: wa_53037_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_klickitat_unincorporated
+    name: Klickitat County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53039"
+    jurisdiction_key: wa_53039_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_lewis_unincorporated
+    name: Lewis County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53041"
+    jurisdiction_key: wa_53041_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_lincoln_unincorporated
+    name: Lincoln County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53043"
+    jurisdiction_key: wa_53043_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_mason_unincorporated
+    name: Mason County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53045"
+    jurisdiction_key: wa_53045_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_okanogan_unincorporated
+    name: Okanogan County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53047"
+    jurisdiction_key: wa_53047_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_pacific_unincorporated
+    name: Pacific County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53049"
+    jurisdiction_key: wa_53049_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_pend_oreille_unincorporated
+    name: Pend Oreille County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53051"
+    jurisdiction_key: wa_53051_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_pierce_unincorporated
+    name: Pierce County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53053"
+    jurisdiction_key: wa_53053_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_san_juan_unincorporated
+    name: San Juan County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53055"
+    jurisdiction_key: wa_53055_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_skagit_unincorporated
+    name: Skagit County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53057"
+    jurisdiction_key: wa_53057_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_skamania_unincorporated
+    name: Skamania County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53059"
+    jurisdiction_key: wa_53059_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_snohomish_unincorporated
+    name: Snohomish County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53061"
+    jurisdiction_key: wa_53061_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_spokane_unincorporated
+    name: Spokane County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53063"
+    jurisdiction_key: wa_53063_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_stevens_unincorporated
+    name: Stevens County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53065"
+    jurisdiction_key: wa_53065_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_thurston_unincorporated
+    name: Thurston County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53067"
+    jurisdiction_key: wa_53067_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_wahkiakum_unincorporated
+    name: Wahkiakum County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53069"
+    jurisdiction_key: wa_53069_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_walla_walla_unincorporated
+    name: Walla Walla County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53071"
+    jurisdiction_key: wa_53071_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_whatcom_unincorporated
+    name: Whatcom County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53073"
+    jurisdiction_key: wa_53073_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_whitman_unincorporated
+    name: Whitman County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53075"
+    jurisdiction_key: wa_53075_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
+
+  - key: wa_yakima_unincorporated
+    name: Yakima County unincorporated, WA
+    type: county_unincorporated
+    state_fips: "53"
+    county_fips: "53077"
+    jurisdiction_key: wa_53077_unincorporated
+    default_for_county: true
+    source_refs: [watech_statewide_parcels, census_tiger_incorporated_places_wa, wa_county_zoning_inventory_template, wa_unincorporated_rules]
+    zoning_rules_paths: [data/zoning/wa/pilot_county_unincorporated_surface_parking_rules.yaml]
