@@ -148,7 +148,7 @@ class Settings(BaseSettings):
         ),
     )
     scheduled_enqueue_unscored_limit: int = Field(
-        default=150,
+        default=50,
         ge=1,
         le=500,
         validation_alias=AliasChoices(
@@ -165,9 +165,9 @@ class Settings(BaseSettings):
             "scheduled_enqueue_unscored_crontab_minute",
         ),
     )
-    # Celery crontab hour: int hour, "*", or "*/n" (e.g. "*/4" = every 4 hours UTC).
+    # Celery crontab hour: int hour, "*", or "*/n" (e.g. "*/12" = every 12 hours UTC).
     scheduled_enqueue_unscored_crontab_hour: str = Field(
-        default="*/4",
+        default="*/12",
         validation_alias=AliasChoices(
             "SCHEDULED_ENQUEUE_UNSCORED_CRONTAB_HOUR",
             "scheduled_enqueue_unscored_crontab_hour",
@@ -579,7 +579,7 @@ class Settings(BaseSettings):
         ),
     )
     ops_remediation_pipeline_enqueue_limit: int = Field(
-        default=75,
+        default=50,
         ge=10,
         le=500,
         validation_alias=AliasChoices(
@@ -613,7 +613,7 @@ class Settings(BaseSettings):
         ),
     )
     ops_remediation_crontab_hour: str = Field(
-        default="*/2",
+        default="*/6",
         validation_alias=AliasChoices(
             "OPS_REMEDIATION_CRONTAB_HOUR",
             "ops_remediation_crontab_hour",

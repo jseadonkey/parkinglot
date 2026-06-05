@@ -88,7 +88,7 @@ Exit criteria:
 - **Tier 1 parcel/roll refresh**: nightly (cadastre changes are usually low-frequency)
 - **Tier 2 zoning refresh**: weekly (changes more often around rezones, but not hourly)
 - **Tier 4 SOS refresh**: weekly + on-demand when owner string changes
-- **Slack digest**: every 4 hours UTC (already configured via Celery Beat)
+- **Slack digest**: hourly UTC by default (already configured via Celery Beat)
 
 ## Human gates (should remain last)
 
