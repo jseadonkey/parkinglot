@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.db.models import ApprovalRequest, AuditLog, Parcel, ParcelScore, WorkflowRun
+from app.export_readiness import export_readiness_summary
 from app.scoring_profiles import (
     AGENT_ENTITLEMENT_NAME,
     AGENT_ENTITLEMENT_TAGLINE,
@@ -173,6 +174,126 @@ def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict
                     "text": (
                         "_This is a scheduled digest. Replying here does not reach the agents yet; "
                         "see docs/SLACK.md for two-way options._"
+                    ),
+                },
+            ],
+        },
+    ]
+    return blocks, fallback
+
+
+def _gap_text(summary: dict[str, Any], key: str) -> str:
+    gap = summary.get(key) or {}
+    return f"*{int(gap.get('count') or 0)}* ({float(gap.get('pct') or 0):.1f}%)"
+
+
+def _phase_status(*gaps: dict[str, Any], total: int) -> str:
+    if total <= 0:
+        return "waiting for parcels"
+    worst_pct = max((float(g.get("pct") or 0) for g in gaps), default=0.0)
+    if worst_pct <= 0:
+        return "production-proved"
+    if worst_pct <= 5:
+        return "monitoring"
+    return "needs execution"
+
+
+def _gap(summary: dict[str, Any], key: str) -> dict[str, Any]:
+    raw = summary.get(key)
+    return raw if isinstance(raw, dict) else {}
+
+
+def build_plan_progress_report_blocks(db: Session) -> tuple[list[dict[str, Any]], str]:
+    """Block Kit report for the A-E execution plan, derived from export-readiness gaps."""
+    summary = export_readiness_summary(db)
+    total = int(summary.get("parcel_row_total") or 0)
+    ts = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
+
+    phase_a_gaps = [
+        _gap(summary, "parcels_missing_score_identification"),
+        _gap(summary, "parcels_missing_score_entitlement"),
+        _gap(summary, "parcels_missing_score_strategic"),
+        _gap(summary, "parcels_missing_distance_to_nearest_demand_m"),
+    ]
+    phase_b_gaps = [_gap(summary, "parcels_missing_zoning_code")]
+    phase_c_gaps = [_gap(summary, "parcels_missing_owner_outreach_brief")]
+    backlog = _gap(summary, "parcels_pipeline_funnel_backlog")
+    prescreen = _gap(summary, "parcels_prescreen_qualified")
+
+    a_status = _phase_status(*phase_a_gaps, total=total)
+    b_status = _phase_status(*phase_b_gaps, total=total)
+    c_status = _phase_status(*phase_c_gaps, total=total)
+    d_status = "blocked-external" if total > 0 else "waiting for parcels"
+    e_status = "monitoring" if total > 0 else "waiting for parcels"
+
+    next_steps = list(summary.get("recommended_next_steps") or [])
+    next_step_lines = "\n".join(f"• {step}" for step in next_steps[:4])
+    if not next_step_lines:
+        next_step_lines = "• No readiness recommendations returned."
+
+    fallback = (
+        f"A-E plan progress — parcels={total}; "
+        f"A={a_status}; B={b_status}; C={c_status}; "
+        f"pipeline backlog={int(backlog.get('count') or 0)} — {ts}"
+    )
+
+    phase_text = (
+        f"*A - scores, demand, readiness* — _{a_status}_\n"
+        f"• Missing identification score: {_gap_text(summary, 'parcels_missing_score_identification')}\n"
+        f"• Missing entitlement / strategic: "
+        f"{_gap_text(summary, 'parcels_missing_score_entitlement')} / "
+        f"{_gap_text(summary, 'parcels_missing_score_strategic')}\n"
+        f"• Missing demand distance: {_gap_text(summary, 'parcels_missing_distance_to_nearest_demand_m')}\n"
+        f"• Prescreen-qualified / pipeline backlog: "
+        f"*{int(prescreen.get('count') or 0)}* / *{int(backlog.get('count') or 0)}*\n\n"
+        f"*B - zoning overlay* — _{b_status}_\n"
+        f"• Missing zoning code: {_gap_text(summary, 'parcels_missing_zoning_code')}\n\n"
+        f"*C - owner / outreach* — _{c_status}_\n"
+        f"• Missing owner outreach brief: {_gap_text(summary, 'parcels_missing_owner_outreach_brief')}\n\n"
+        f"*D - corner / richer demand* — _{d_status}_\n"
+        "• Requires road/adjacency or richer demand inputs before stronger jobs can be production-proved.\n\n"
+        f"*E - county scale* — _{e_status}_\n"
+        "• Repeat the A->B->C evidence loop for each county after ingest."
+    )
+
+    blocks: list[dict[str, Any]] = [
+        {
+            "type": "header",
+            "text": {"type": "plain_text", "text": "A-E plan progress", "emoji": True},
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": (
+                        f"_Hourly execution tracker_ · total parcels *{total}* · _{ts}_ · "
+                        "`docs/PHASED-EXECUTION-PLAN-A-E.md`"
+                    ),
+                },
+            ],
+        },
+        {"type": "divider"},
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": _trim_mrkdwn(phase_text, 2900)},
+        },
+        {"type": "divider"},
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*Next unblocked actions from readiness*\n" + _trim_mrkdwn(next_step_lines, 2800),
+            },
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": (
+                        "_Source: `GET /internal/stats/export-readiness`. "
+                        "Update the execution tracker when a phase is production-proved or blocked-external._"
                     ),
                 },
             ],

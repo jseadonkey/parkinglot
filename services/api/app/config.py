@@ -91,6 +91,23 @@ class Settings(BaseSettings):
         le=24,
         validation_alias=AliasChoices("SLACK_DIGEST_WINDOW_HOURS", "slack_digest_window_hours"),
     )
+    # Celery Beat: A-E execution plan progress report (default hourly at :05 UTC).
+    slack_plan_progress_crontab_minute: int = Field(
+        default=5,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "SLACK_PLAN_PROGRESS_CRONTAB_MINUTE",
+            "slack_plan_progress_crontab_minute",
+        ),
+    )
+    slack_plan_progress_crontab_hour: str = Field(
+        default="*",
+        validation_alias=AliasChoices(
+            "SLACK_PLAN_PROGRESS_CRONTAB_HOUR",
+            "slack_plan_progress_crontab_hour",
+        ),
+    )
 
     # Optional Celery Beat: ingest GeoJSON from a path on the API container (e.g. rsync county export).
     scheduled_geojson_ingest_path: str = Field(

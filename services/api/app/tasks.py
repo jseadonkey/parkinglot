@@ -46,6 +46,7 @@ from app.scoring_profiles import (
 )
 from app.slack_digest import (
     build_dual_agent_discussion_posts,
+    build_plan_progress_report_blocks,
     build_qualified_parcels_report_blocks,
     build_slack_digest_blocks,
     post_agent_event_to_slack,
@@ -1610,6 +1611,29 @@ def slack_qualified_parcels_report() -> dict[str, Any]:
         return {"skipped": False, **posted}
     except Exception:
         logger.exception("slack_qualified_parcels_report failed")
+        raise
+    finally:
+        db.close()
+
+
+@celery.task(name="app.tasks.slack_plan_progress_report")
+def slack_plan_progress_report() -> dict[str, Any]:
+    """Post hourly A-E plan progress to the same channel as the regular Slack updates."""
+    settings = get_settings()
+    token = (settings.slack_bot_token or "").strip()
+    channel = (settings.slack_digest_channel_id or "").strip()
+    if not token or not channel:
+        logger.warning(
+            "slack_plan_progress_report SKIPPED: missing SLACK_BOT_TOKEN or SLACK_DIGEST_CHANNEL_ID",
+        )
+        return {"skipped": True, "reason": "slack not configured"}
+    db = _session()
+    try:
+        blocks, fallback = build_plan_progress_report_blocks(db)
+        posted = post_digest_to_slack(settings, blocks, fallback)
+        return {"skipped": False, **posted}
+    except Exception:
+        logger.exception("slack_plan_progress_report failed")
         raise
     finally:
         db.close()
