@@ -155,10 +155,10 @@ class IngestBaltimoreCityRequest(BaseModel):
     """Fetch Baltimore City EGIS parcels (Maryland), then enqueue ingest (Celery worker)."""
 
     max_features: int | None = Field(
-        default=5000,
+        default=None,
         ge=1,
         le=750000,
-        description="Cap returned parcels per job.",
+        description="Optional cap for test pulls. Omit/null to fetch all Baltimore City parcels.",
     )
     auto_run_pipeline: bool = True
     max_auto_pipeline: int = Field(default=100, ge=1, le=5000)

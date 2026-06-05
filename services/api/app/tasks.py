@@ -843,7 +843,7 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
 
 @celery.task(name="app.tasks.fetch_baltimore_city_and_ingest")
 def fetch_baltimore_city_and_ingest(
-    max_features: int | None = 5000,
+    max_features: int | None = None,
     auto_run_pipeline: bool = True,
     max_auto_pipeline: int = 100,
 ) -> dict[str, Any]:

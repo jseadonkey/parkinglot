@@ -92,7 +92,7 @@ validate-phase-b-overlay:
 
 build-baltimore-zoning-overlay:
 	@chmod +x scripts/fetch_baltimore_city_parcels.py scripts/fetch_baltimore_zoning_districts.py scripts/build_baltimore_zoning_overlay.py
-	@python3 scripts/fetch_baltimore_city_parcels.py -o data/baltimore/baltimore_city_parcels.geojson --max-features 20000
+	@python3 scripts/fetch_baltimore_city_parcels.py -o data/baltimore/baltimore_city_parcels.geojson
 	@python3 scripts/fetch_baltimore_zoning_districts.py -o data/baltimore/baltimore_city_zoning_districts.geojson
 	@python3 scripts/build_baltimore_zoning_overlay.py
 

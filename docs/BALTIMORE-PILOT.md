@@ -28,8 +28,11 @@ Queue a worker job (requires internal auth):
 POST /internal/ingest/baltimore-city
 Content-Type: application/json
 
-{"max_features": 20000, "auto_run_pipeline": true, "max_auto_pipeline": 100}
+{"auto_run_pipeline": true, "max_auto_pipeline": 100}
 ```
+
+Omit `max_features` (or send `null`) for the normal full-city pull. Use `max_features`
+only for explicit test slices.
 
 Or upload / server-path GeoJSON with `default_county_fips=24510`.
 
@@ -48,7 +51,7 @@ python3 scripts/fetch_baltimore_city_parcels.py -o data/baltimore_city_parcels.g
 GitHub Actions → **Droplet resources**:
 
 - `prioritize_baltimore_market` — geo config + priority pipeline; kicks **city** ingest only
-- `baltimore_ingest_now` — city ingest only (20k cap)
+- `baltimore_ingest_now` — full city ingest
 - Do **not** use county ingest until county is re-enabled in `geo_markets.yaml`
 
 ## Zoning (Maryland — Article 32)

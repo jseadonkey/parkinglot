@@ -908,7 +908,7 @@ PY
     if [ -n "$KEY" ]; then
       echo "=== POST /internal/ingest/baltimore-city (kickstart city parcels) ==="
       _internal_api_post "/internal/ingest/baltimore-city" \
-        '{"max_features":20000,"auto_run_pipeline":true,"max_auto_pipeline":100}' \
+        '{"auto_run_pipeline":true,"max_auto_pipeline":100}' \
         || echo "baltimore-city ingest skipped or failed"
       echo "=== (Baltimore County ingest paused — city only) ==="
       echo "=== POST /internal/pipeline/enqueue-priority?limit=75 ==="
@@ -919,17 +919,17 @@ PY
     echo "=== POST /internal/ingest/baltimore-city ==="
     if [ -n "$KEY" ]; then
       _internal_api_post "/internal/ingest/baltimore-city" \
-        '{"max_features":20000,"auto_run_pipeline":true,"max_auto_pipeline":100}' \
+        '{"auto_run_pipeline":true,"max_auto_pipeline":100}' \
         || echo "baltimore-city ingest failed"
     else
       echo "INTERNAL_API_KEY not set"
     fi
     ;;
   baltimore-markets-ingest)
-    echo "=== POST Baltimore City ingest only (20k cap; county paused) ==="
+    echo "=== POST Baltimore City full ingest only (county paused) ==="
     if [ -n "$KEY" ]; then
       _internal_api_post "/internal/ingest/baltimore-city" \
-        '{"max_features":20000,"auto_run_pipeline":true,"max_auto_pipeline":100}'
+        '{"auto_run_pipeline":true,"max_auto_pipeline":100}'
       _internal_api_post "/internal/pipeline/enqueue-priority?limit=75" || true
     else
       echo "INTERNAL_API_KEY not set"
@@ -950,8 +950,8 @@ PY
 
     export PYTHONPATH="${ROOT}/services/ingestion${PYTHONPATH:+:$PYTHONPATH}"
 
-    echo "=== fetch Baltimore City parcels (20k cap) ==="
-    python3 scripts/fetch_baltimore_city_parcels.py -o "$PARCELS" --max-features 20000
+    echo "=== fetch Baltimore City parcels (full city) ==="
+    python3 scripts/fetch_baltimore_city_parcels.py -o "$PARCELS"
     echo "=== fetch Baltimore City zoning districts ==="
     python3 scripts/fetch_baltimore_zoning_districts.py -o "$ZONING"
 

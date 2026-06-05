@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.schemas import IngestBaltimoreCityRequest
 
 
 def _schema_ref200(paths: dict, path: str, method: str) -> dict:
@@ -156,3 +157,10 @@ def test_openapi_lists_required_paths_and_response_models() -> None:
     # Nested models used by owner portfolio responses (documented via parents)
     for nested in ("PeerParcelSummary", "OwnerPortfolioRankRow"):
         assert nested in schemas
+
+
+def test_baltimore_city_ingest_defaults_to_full_city() -> None:
+    req = IngestBaltimoreCityRequest()
+
+    assert req.max_features is None
+    assert req.auto_run_pipeline is True
