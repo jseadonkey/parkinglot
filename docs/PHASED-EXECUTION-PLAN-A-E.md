@@ -22,7 +22,7 @@ This document breaks the **parcel CSV completeness**, **scoring**, **enrichment*
 | **B** | `POST /internal/ingest/merge-geojson-attributes`, `scripts/execute-phase-b.sh`, `scripts/validate_phase_b_overlay.py`, `make validate-phase-b-overlay`, zoning rules YAML path (`ZONING_RULES_PATH`) | **Produce & stage zoning overlay GeoJSON** (spatial join); counsel review of surface-parking rules as jurisdictions change |
 | **C** | `scripts/execute-phase-c.sh`, `make phase-c-run`, `GET /internal/owners/*`, outreach brief + memo paths in pipeline, **`parcels_missing_owner_outreach_brief`** in export-readiness | Run pipelines so briefs fill; optional **vendor / SOS** contracts + env; portfolio prioritization in your process |
 | **D** | Baseline **`distance_to_nearest_demand_m`** (centroid→POI), **`is_corner_lot`** / **`DIST_DEMAND_M`** via ingest or merge overlay; strategic + identification YAML tuning | **GIS inputs** for defensible corner logic or richer demand (roads, adjacency, surfaces) — dedicated batch jobs **not** implemented until inputs exist (see Phase D backlog below) |
-| **E** | Multi-county **`region.county_fips`** in `pilot.yaml`, ingest/WaTech routes, same phase scripts per county | Add each county to pilot + ingest + repeat **A→B→C** checklist; monitor **`export-readiness`** per rollout |
+| **E** | Multi-county **`region.county_fips`** in `pilot.yaml`, ingest/WaTech routes, same phase scripts per county, jurisdiction quality/parity report | Add each county to pilot + ingest + repeat **A→B→C** checklist; monitor **`export-readiness`** and **`jurisdiction-quality`** per rollout |
 
 **Bottom line:** Phases **A–C** are **tool-complete** in code; **production proof** is running the scripts on real infra and closing **data** gaps (Phase **B** overlay is the largest recurring external dependency). Phases **D–E** are **partially** automated (D needs GIS investment; E is process + config repeating A–C).
 
@@ -267,19 +267,21 @@ Repeat Phases A–D for **new counties** and eventually **new states** without f
 
 6. **Monitoring**  
    - `export-readiness` + **`GET /internal/stats/scoring-summary`** per release train.
+   - **`GET /internal/stats/jurisdiction-quality`** to compare counties/cities, find stale 24h/7d data gaps, and rank fixes that make weaker markets comparable to the best-covered market.
 
 ### Exit criteria (Phase E)
 
-- New county reaches **same checklist** as pilot: readiness stats green enough → CSV export → stakeholder review.
+- New county reaches **same checklist** as pilot: readiness stats green enough → jurisdiction-quality gaps triaged → CSV export → stakeholder review.
 
 ### References
 
 - `config/pilot.yaml`, `deploy/env.production.example`  
 - `services/enrichment/parking_enrichment/owner_normalize.py`
+- `docs/JURISDICTION-DATA-QUALITY-PARITY.md`
 
 ### Repeat per county (same automation)
 
-After **`region.county_fips`** and ingest for a new county, run the same operational scripts as the pilot: **`make readiness`** ([`check_export_readiness.py`](../scripts/check_export_readiness.py)), **[`scripts/execute-phase-a.sh`](../scripts/execute-phase-a.sh)**, **[`scripts/execute-phase-b.sh`](../scripts/execute-phase-b.sh)** when a zoning overlay exists, **[`scripts/execute-phase-c.sh`](../scripts/execute-phase-c.sh)** for portfolio smoke — then **`export-readiness`** until gaps are acceptable.
+After **`region.county_fips`** and ingest for a new county, run the same operational scripts as the pilot: **`make readiness`** ([`check_export_readiness.py`](../scripts/check_export_readiness.py)), **[`scripts/execute-phase-a.sh`](../scripts/execute-phase-a.sh)**, **[`scripts/execute-phase-b.sh`](../scripts/execute-phase-b.sh)** when a zoning overlay exists, **[`scripts/execute-phase-c.sh`](../scripts/execute-phase-c.sh)** for portfolio smoke — then **`export-readiness`** plus **`GET /internal/stats/jurisdiction-quality`** until gaps are acceptable.
 
 ---
 
@@ -288,6 +290,7 @@ After **`region.county_fips`** and ingest for a new county, run the same operati
 | Purpose | Method & path |
 |--------|----------------|
 | Export readiness gaps | `GET /internal/stats/export-readiness` |
+| Jurisdiction quality / parity gaps | `GET /internal/stats/jurisdiction-quality` |
 | Enqueue missing entitlement **or** strategic | `POST /internal/pipeline/enqueue-incomplete` |
 | Enqueue missing entitlement only | `POST /internal/pipeline/enqueue-unscored` |
 | Refresh demand distances | `POST /internal/metrics/refresh-demand-distances` |

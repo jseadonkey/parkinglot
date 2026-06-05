@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.db.models import ApprovalRequest, AuditLog, Parcel, ParcelScore, WorkflowRun
+from app.jurisdiction_quality import jurisdiction_quality_summary
 from app.scoring_profiles import (
     AGENT_ENTITLEMENT_NAME,
     AGENT_ENTITLEMENT_TAGLINE,
@@ -90,6 +91,11 @@ def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict
         .where(and_(WorkflowRun.updated_at >= cutoff, WorkflowRun.status == "failed")),
     )
     failed_n = int(failed_n or 0)
+    try:
+        jurisdiction_quality = jurisdiction_quality_summary(db, limit=3)
+    except Exception:
+        logger.exception("Could not build jurisdiction quality summary for Slack digest")
+        jurisdiction_quality = None
 
     if wf_by_status:
         wf_lines = [f"• `{k}`: {v}" for k, v in sorted(wf_by_status.items())]
@@ -100,6 +106,17 @@ def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict
     score_summary = ", ".join(score_parts) if score_parts else "none"
 
     audit_block = "\n".join(audit_lines) if audit_lines else "_(no audit events in this window)_"
+    quality_lines: list[str] = []
+    if isinstance(jurisdiction_quality, dict):
+        for row in jurisdiction_quality.get("rows") or []:
+            actions = row.get("recommended_actions") or []
+            action = actions[0] if actions else "Review opportunity and spot-check."
+            quality_lines.append(
+                f"• *{row.get('label')}* — quality *{float(row.get('quality_score') or 0):.0f}/100*, "
+                f"stale 24h gaps *{int(row.get('unresolved_core_gaps_older_24h') or 0)}*, "
+                f"opportunity *{float(row.get('opportunity_score') or 0):.0f}*: {action}"
+            )
+    quality_block = "\n".join(quality_lines) if quality_lines else "_(no jurisdiction quality rows yet)_"
 
     header = f"Parking acquisition — {hours}h standup ({cutoff:%Y-%m-%d %H:%M} → now UTC)"
     fallback = (
@@ -134,6 +151,18 @@ def build_slack_digest_blocks(db: Session, *, hours: int = 4) -> tuple[list[dict
                     "`/internal/ingest/geojson-server-path`, or set `SCHEDULED_GEOJSON_INGEST_PATH` "
                     "(Beat). Re-ingesting existing APNs updates rows but does **not** change `created_at`, "
                     "so use ingest batch count above for refresh activity._"
+                ),
+            },
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    "*Data quality / parity agent*\n"
+                    + quality_block
+                    + "\n\n_This re-inspects loaded parcel data on each digest; 24h/7d counters catch rows that "
+                    "remain incomplete after arrival._"
                 ),
             },
         },
