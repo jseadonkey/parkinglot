@@ -1,11 +1,14 @@
 # Ops remediation: Baltimore data gaps + Celery health.
-# Manual-only escape hatch; Celery Beat owns the routine remediation cadence.
+# Daily GitHub safety-net; Celery Beat owns the routine remediation cadence.
 #
 # Secrets: DROPLET_* for SSH; uses deploy/.env INTERNAL_API_KEY on the Droplet.
 
 name: Ops remediation
 
 on:
+  schedule:
+    # Daily 03:25 UTC safety-net. Avoid the old every-2h duplicate remediation loop.
+    - cron: "25 3 * * *"
   workflow_dispatch:
 
 permissions:
