@@ -317,9 +317,9 @@ export default function OverviewPage() {
       {
         key: "brief",
         label: "Owner outreach brief",
-        detail: ready
+        detail: readinessView
           ? "Deep enrichment: owners, registry stub, vendor lookup, contact points, memo + contract draft."
-          : "Deep enrichment counts load when you expand Export readiness below.",
+          : "Deep enrichment counts load with export readiness.",
         count: withBrief,
       },
     ];
