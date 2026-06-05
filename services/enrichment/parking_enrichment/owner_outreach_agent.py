@@ -57,6 +57,13 @@ def _values_from_props(
     prefix_keys: tuple[str, ...] = (),
 ) -> list[str]:
     found: list[str] = []
+
+    def should_split_commas(key: str, value: str) -> bool:
+        upper_key = key.upper()
+        if any(token in upper_key for token in ("ADDR", "ADDRESS", "MAIL", "SITUS", "STREET")):
+            return False
+        return "," in value and "@" not in value and not any(ch.isdigit() for ch in value[:6])
+
     for k in single_keys:
         raw = props.get(k)
         if raw is None:
@@ -72,7 +79,7 @@ def _values_from_props(
             continue
         if any(sep in s for sep in (";", "|", "\n")):
             found.extend(part.strip() for part in _LIST_SEP_RE.split(s) if part.strip())
-        elif "," in s and "@" not in s and not any(ch.isdigit() for ch in s[:6]):
+        elif should_split_commas(k, s):
             found.extend(part.strip() for part in s.split(",") if part.strip())
         else:
             found.append(s)
