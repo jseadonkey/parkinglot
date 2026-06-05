@@ -80,6 +80,7 @@ Do these when you have GIS/legal/vendor bandwidth — **not** every deploy:
 |--------|--------|
 | Health, logs, CSV export, internal routes | [OPERATIONS.md](OPERATIONS.md) |
 | Phase A–E meaning, exit criteria, **repo vs ops status** | [PHASED-EXECUTION-PLAN-A-E.md](PHASED-EXECUTION-PLAN-A-E.md) |
+| City/county zoning inventory, value sources, jurisdiction QA feedback loop | [JURISDICTION-ZONING-COMPLETENESS-PLAN.md](JURISDICTION-ZONING-COMPLETENESS-PLAN.md) |
 | Env var template | `deploy/env.production.example` |
 | Phase runners | `scripts/execute-phase-a.sh`, `execute-phase-b.sh`, `execute-phase-c.sh`, **`make readiness`** |
 
