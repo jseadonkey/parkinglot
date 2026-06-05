@@ -1097,6 +1097,11 @@ PY
     echo "=== Phase 1 status before ==="
     STATUS="$(_baltimore_phase1_status_json)"
     printf '%s\n' "$STATUS" | python3 -m json.tool 2>/dev/null || printf '%s\n' "$STATUS"
+    COMPLETE="$(printf '%s' "$STATUS" | _json_value phase1_complete_for_source)"
+    if [ "$COMPLETE" = "True" ] || [ "$COMPLETE" = "true" ]; then
+      echo "Baltimore City Phase 1 is already complete for full source parcel count."
+      exit 0
+    fi
 
     echo "=== POST /internal/ingest/baltimore-city (full city cap 750k; pipeline off) ==="
     FETCH_RESP="$(_internal_api_post "/internal/ingest/baltimore-city" \
