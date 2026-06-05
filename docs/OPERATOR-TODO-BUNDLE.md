@@ -4,6 +4,19 @@ Use this as a **single checklist** when you sit down to finish Droplet work, ins
 
 ---
 
+## Start every resumed session here
+
+The durable execution loop lives in [PHASED-EXECUTION-PLAN-A-E.md](PHASED-EXECUTION-PLAN-A-E.md#execution-operating-system). Before running phase scripts:
+
+- [ ] Confirm the next unblocked item in the **Execution tracker**.
+- [ ] Run `make ae-setup-check` and `make readiness` as the baseline.
+- [ ] Save before/after evidence: readiness counts, Celery task IDs, overlay path, county FIPS, export path.
+- [ ] Update the tracker status/blocker after the session so the next operator or agent does not restart from memory.
+
+If the next item is blocked by GIS, counsel, vendor, or missing source data, record that exact artifact as the blocker and move to the next unblocked phase/county.
+
+---
+
 ## Session 0 — Infra & DNS (fix once per environment or when TLS/DNS breaks)
 
 - [ ] **`deploy/.env` is real**, not examples: `DATABASE_URL`, `INTERNAL_API_KEY`, Redis URLs, optional `STORAGE_*`, Slack tokens/channels if you use Slack.
