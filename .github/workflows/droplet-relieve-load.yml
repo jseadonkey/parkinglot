@@ -25,14 +25,21 @@ jobs:
           ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
+      - name: Validate parkinglot droplet target
+        run: |
+          if [ "${{ secrets.DROPLET_HOST }}" != "209.38.142.108" ]; then
+            echo "error: this workflow is locked to parkinglot (209.38.142.108); DROPLET_HOST points elsewhere" >&2
+            exit 1
+          fi
+
       - name: Relieve load on Droplet
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
         run: |
           set -euo pipefail
-          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
           cat scripts/remote/droplet-relieve-load.sh | ssh -oBatchMode=yes \
             "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             "cd $(printf '%q' "$REMOTE_PATH") && COMPOSE_FILE=deploy/docker-compose.production.ghcr.yml bash -s"

@@ -42,6 +42,13 @@ jobs:
           ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
+      - name: Validate parkinglot droplet target
+        run: |
+          if [ "${{ secrets.DROPLET_HOST }}" != "209.38.142.108" ]; then
+            echo "error: this workflow is locked to parkinglot (209.38.142.108); DROPLET_HOST points elsewhere" >&2
+            exit 1
+          fi
+
       - name: Droplet server checks
         id: server
         continue-on-error: true
@@ -49,9 +56,9 @@ jobs:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
         run: |
           set -euo pipefail
-          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
           LOG="$(mktemp)"
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
             "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
@@ -66,9 +73,9 @@ jobs:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
         run: |
           set -euo pipefail
-          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
             "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             "cd $(printf '%q' "$REMOTE_PATH") && bash -s -- ops-remediation-run-now" || true
@@ -95,9 +102,9 @@ jobs:
             echo "disk_root ok — skip auto maintenance"
             exit 0
           fi
-          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
           echo "disk_root unhealthy — running disk maintenance on Droplet"
           cat scripts/remote/droplet-disk-maintenance.sh | ssh -oBatchMode=yes \
             "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
@@ -123,9 +130,9 @@ jobs:
           SERVER_STEP: ${{ steps.server.outcome }}
         run: |
           set -euo pipefail
-          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
           MSG="$(python3 scripts/site-watchdog/report-watchdog.py --print-text 2>/dev/null || true)"
           if [ -z "$MSG" ]; then
             echo "No Slack message needed (checks passed)."

@@ -42,15 +42,22 @@ jobs:
           ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
+      - name: Validate parkinglot droplet target
+        run: |
+          if [ "${{ secrets.DROPLET_HOST }}" != "209.38.142.108" ]; then
+            echo "error: this workflow is locked to parkinglot (209.38.142.108); DROPLET_HOST points elsewhere" >&2
+            exit 1
+          fi
+
       - name: Curl /health, /ready, optional Slack status
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
           SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
         run: |
           set -euo pipefail
-          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
           KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
           CURL_HEALTH="${{ inputs.curl_health }}"
           CURL_READY="${{ inputs.curl_ready }}"

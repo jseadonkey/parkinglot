@@ -71,7 +71,7 @@ apt-get install -y git rsync
 docker version
 ```
 
-Clone or rsync this repository to `/opt/parking-acquisition-agents` (or your path). Example:
+Clone or rsync this repository to `/opt/workspaces/parkinglot` (or your path). Example:
 
 ```bash
 mkdir -p /opt && cd /opt

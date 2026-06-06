@@ -2,7 +2,7 @@
 #
 # Requires repository secrets (same as Deploy to Droplet):
 #   DROPLET_HOST, DROPLET_USER, DROPLET_SSH_PRIVATE_KEY
-# Optional variable: DROPLET_REMOTE_PATH (default /opt/parking-acquisition-agents)
+# Optional variable: DROPLET_REMOTE_PATH (default /opt/workspaces/parkinglot)
 #
 # Uses deploy/.env SLACK_* on the server — no GitHub Slack secrets required.
 
@@ -40,6 +40,13 @@ jobs:
           ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
+      - name: Validate parkinglot droplet target
+        run: |
+          if [ "${{ secrets.DROPLET_HOST }}" != "209.38.142.108" ]; then
+            echo "error: this workflow is locked to parkinglot (209.38.142.108); DROPLET_HOST points elsewhere" >&2
+            exit 1
+          fi
+
       - name: Post test message via Droplet
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
@@ -52,9 +59,9 @@ jobs:
           TEXT_INPUT="${{ inputs.message_text }}"
           if [ -n "$TEXT_INPUT" ]; then NOTIFY_TEXT="$TEXT_INPUT"; else NOTIFY_TEXT="$DEFAULT_MSG"; fi
           NOTIFY_CHANNEL="${{ inputs.channel_id }}"
-          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
           B64="$(printf '%s' "$NOTIFY_TEXT" | base64 | tr -d '\n')"
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
             "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \

@@ -27,13 +27,20 @@ jobs:
           ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
+      - name: Validate parkinglot droplet target
+        run: |
+          if [ "${{ secrets.DROPLET_HOST }}" != "209.38.142.108" ]; then
+            echo "error: this workflow is locked to parkinglot (209.38.142.108); DROPLET_HOST points elsewhere" >&2
+            exit 1
+          fi
+
       - name: POST /internal/slack/qualified-parcels-now from Droplet
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
           SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             bash -s -- "$REMOTE_PATH" "$KEY" <<'EOS'

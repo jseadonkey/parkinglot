@@ -633,6 +633,11 @@ class SlackLastDigestResponse(BaseModel):
 class SlackConfigStatusResponse(BaseModel):
     """GET /internal/slack/status — booleans only (no secrets)."""
 
+    app_project_id: str
+    project_is_parkinglot: bool
+    allowed_channel_ids: list[str]
+    configured_channel_ids: list[str]
+    has_allowed_channel_ids: bool
     slack_digest_configured: bool
     has_bot_token: bool
     has_digest_channel_id: bool

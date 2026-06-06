@@ -41,7 +41,7 @@ Infrastructure as code: [infra/terraform/README.md](infra/terraform/README.md) (
 
 **Washington go-live runbook** (DNS, TLS, `.env`, compose): [docs/GO-LIVE-WASHINGTON-DO.md](docs/GO-LIVE-WASHINGTON-DO.md).
 
-Production compose (no laptop required): [deploy/README.md](deploy/README.md). **On the Droplet** use repo root **`/opt/parking-acquisition-agents`** ([docs/DROPLET_REPO_PATH.md](docs/DROPLET_REPO_PATH.md); override with `REMOTE_PATH` / `DROPLET_REMOTE_PATH` if needed).
+Production compose (no laptop required): [deploy/README.md](deploy/README.md). **On the Droplet** use repo root **`/opt/workspaces/parkinglot`** ([docs/DROPLET_REPO_PATH.md](docs/DROPLET_REPO_PATH.md); override with `REMOTE_PATH` / `DROPLET_REMOTE_PATH` if needed).
 
 Closest DO region to Washington is **`sfo3`** (no Seattle datacenter); use the same region for Droplet, Postgres, and Spaces.
 

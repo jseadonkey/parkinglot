@@ -32,7 +32,7 @@ Use this as a **single checklist** when you sit down to finish Droplet work, ins
 Do **not** re-export secrets repeatedly — one shell block:
 
 ```bash
-cd /opt/parking-acquisition-agents
+cd /opt/workspaces/parkinglot
 set -a && source deploy/.env && set +a
 export DATABASE_URL INTERNAL_API_KEY
 ```

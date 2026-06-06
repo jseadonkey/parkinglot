@@ -1,7 +1,7 @@
 # Production stack on a single DigitalOcean Droplet (24/7).
 # Uses Managed Postgres + Spaces (not container Postgres/MinIO). Redis runs on the Droplet.
 #
-# On the server: copy repo to e.g. /opt/parking-acquisition-agents, create deploy/.env from
+# On the server: copy repo to e.g. /opt/workspaces/parkinglot, create deploy/.env from
 # env.production.example (must live next to this file). UI containers load deploy/.env via env_file.
 # Then:
 #   docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env up -d --build
@@ -21,6 +21,7 @@ x-worker-slack-cmd: &worker-slack-cmd
 # Shared env for Celery worker + beat (imports app + DB at startup).
 x-worker-beat-env: &worker-beat-env
   APP_VERSION: ${APP_VERSION:-dev}
+  APP_PROJECT_ID: ${APP_PROJECT_ID:-parkinglot}
   DATABASE_URL: ${DATABASE_URL}
   REDIS_URL: ${REDIS_URL}
   CELERY_BROKER_URL: ${CELERY_BROKER_URL}
@@ -37,6 +38,7 @@ x-worker-beat-env: &worker-beat-env
   SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
   SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
   SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
+  SLACK_ALLOWED_CHANNEL_IDS: ${SLACK_ALLOWED_CHANNEL_IDS:-C0B0VPSAH44}
   SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
   SLACK_DIGEST_CRONTAB_MINUTE: ${SLACK_DIGEST_CRONTAB_MINUTE:-0}
   SLACK_DIGEST_CRONTAB_HOUR: "${SLACK_DIGEST_CRONTAB_HOUR:-*}"
@@ -113,6 +115,7 @@ services:
       dockerfile: Dockerfile.backend
       args:
         APP_VERSION: ${APP_VERSION:-dev}
+      APP_PROJECT_ID: ${APP_PROJECT_ID:-parkinglot}
     restart: always
     environment:
       APP_VERSION: ${APP_VERSION:-dev}
@@ -135,6 +138,7 @@ services:
       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
       SLACK_DIGEST_CHANNEL_ID: ${SLACK_DIGEST_CHANNEL_ID:-}
       SLACK_AGENT_DISCUSSION_CHANNEL_ID: ${SLACK_AGENT_DISCUSSION_CHANNEL_ID:-}
+      SLACK_ALLOWED_CHANNEL_IDS: ${SLACK_ALLOWED_CHANNEL_IDS:-C0B0VPSAH44}
       SLACK_AGENT_EVENT_UPDATES: ${SLACK_AGENT_EVENT_UPDATES:-}
       SCHEDULED_GEOJSON_INGEST_PATH: ${SCHEDULED_GEOJSON_INGEST_PATH:-}
       SCHEDULED_GEOJSON_INGEST_DEFAULT_COUNTY_FIPS: ${SCHEDULED_GEOJSON_INGEST_DEFAULT_COUNTY_FIPS:-}

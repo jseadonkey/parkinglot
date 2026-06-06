@@ -2,11 +2,13 @@
 # On the Droplet: allow Caddy alternate HTTP/HTTPS host ports through UFW (idempotent).
 # Defaults match deploy/.env examples (9080 / 9443).
 #
-#   DROPLET=203.0.113.10 HTTP_PORT=9080 HTTPS_PORT=9443 ./scripts/droplet-open-caddy-alt-ports-ufw.sh
+#   HTTP_PORT=9080 HTTPS_PORT=9443 ./scripts/droplet-open-caddy-alt-ports-ufw.sh
 set -euo pipefail
 
-: "${DROPLET:?Set DROPLET to the Droplet IPv4 or hostname}"
-SSH_USER="${SSH_USER:-root}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/droplet-target.sh
+source "$ROOT/scripts/lib/droplet-target.sh"
+assert_droplet_target "$ROOT/scripts/droplet-open-caddy-alt-ports-ufw.sh" "${DROPLET:-}" "${REMOTE_PATH:-}" "${SSH_USER:-}" || exit 1
 HTTP_PORT="${HTTP_PORT:-9080}"
 HTTPS_PORT="${HTTPS_PORT:-9443}"
 

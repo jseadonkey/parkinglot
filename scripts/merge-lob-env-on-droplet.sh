@@ -3,10 +3,15 @@
 # Requires LOB_API_KEY in the environment (GitHub Actions secret).
 set -euo pipefail
 
-REMOTE_PATH="${1:?remote path}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/droplet-target.sh
+source "$ROOT/scripts/lib/droplet-target.sh"
+
+REMOTE_PATH="${1:-}"
+assert_droplet_target "$ROOT/scripts/merge-lob-env-on-droplet.sh" "${DROPLET_HOST:-}" "$REMOTE_PATH" "${DROPLET_USER:-}" || exit 1
 LOB_API_KEY="${LOB_API_KEY:?LOB_API_KEY required}"
 
-ssh -oBatchMode=yes "${DROPLET_USER}@${DROPLET_HOST}" \
+ssh -oBatchMode=yes "${SSH_USER}@${DROPLET}" \
   REMOTE_PATH="$(printf '%q' "$REMOTE_PATH")" \
   ENC_LOB_API_KEY="$(printf '%s' "$LOB_API_KEY" | base64 | tr -d '\n')" \
   bash -s <<'EOS'

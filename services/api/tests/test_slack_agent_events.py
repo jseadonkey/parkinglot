@@ -7,7 +7,13 @@ from unittest.mock import patch
 import pytest
 
 from app.config import Settings
-from app.slack_digest import post_agent_event_to_slack, slack_agent_event_updates_enabled
+from app.slack_digest import (
+    SlackSafetyError,
+    allowed_slack_channel_ids,
+    post_agent_event_to_slack,
+    post_text_to_slack,
+    slack_agent_event_updates_enabled,
+)
 
 
 @pytest.mark.parametrize(
@@ -64,3 +70,56 @@ def test_post_agent_event_calls_post_text_when_enabled() -> None:
         m.assert_called_once()
         args, kwargs = m.call_args
         assert "Ingest agent" in kwargs.get("text", "")
+
+
+def test_allowed_slack_channels_ignore_non_parkinglot_configured_channels() -> None:
+    settings = Settings(
+        slack_allowed_channel_ids="",
+        slack_digest_channel_id="C_DIGEST",
+        slack_agent_discussion_channel_id="C_AGENT",
+        site_watchdog_slack_channel_id="C_WATCHDOG",
+        ops_remediation_slack_channel_id="C_OPS",
+    )
+    assert allowed_slack_channel_ids(settings) == {"C0B0VPSAH44"}
+
+
+def test_allowed_slack_channels_default_to_parkinglot_channel() -> None:
+    assert allowed_slack_channel_ids(Settings()) == {"C0B0VPSAH44"}
+
+
+def test_allowed_slack_channels_reject_explicit_non_parkinglot_allowlist() -> None:
+    settings = Settings(
+        slack_digest_channel_id="C_DIGEST",
+        slack_allowed_channel_ids="C_ALLOWED_1, C_ALLOWED_2",
+    )
+    assert allowed_slack_channel_ids(settings) == set()
+
+
+def test_allowed_slack_channels_keep_parkinglot_from_explicit_allowlist() -> None:
+    settings = Settings(slack_allowed_channel_ids="C_ALLOWED_1, C0B0VPSAH44")
+    assert allowed_slack_channel_ids(settings) == {"C0B0VPSAH44"}
+
+
+def test_post_text_rejects_non_parkinglot_project_before_slack_api() -> None:
+    settings = Settings(
+        app_project_id="mobile-home-parks",
+        slack_bot_token="xoxb-fake",
+        slack_digest_channel_id="C_DIGEST",
+    )
+    with patch("app.slack_digest.WebClient") as client:
+        with pytest.raises(SlackSafetyError, match="APP_PROJECT_ID"):
+            post_text_to_slack(settings, text="hello")
+        client.assert_not_called()
+
+
+def test_post_text_rejects_channel_outside_allowlist_before_slack_api() -> None:
+    settings = Settings(
+        app_project_id="parkinglot",
+        slack_bot_token="xoxb-fake",
+        slack_digest_channel_id="C_DIGEST",
+        slack_allowed_channel_ids="C0B0VPSAH44",
+    )
+    with patch("app.slack_digest.WebClient") as client:
+        with pytest.raises(SlackSafetyError, match="not the parkinglot Slack channel"):
+            post_text_to_slack(settings, text="hello", channel_id="C_OTHER")
+        client.assert_not_called()

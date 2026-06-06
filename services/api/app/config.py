@@ -19,6 +19,8 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("INTERNAL_API_KEY", "internal_api_key"),
     )
+    # Runtime project identity. Slack posting code fails closed unless this is "parkinglot".
+    app_project_id: str = Field(default="parkinglot", validation_alias=AliasChoices("APP_PROJECT_ID", "app_project_id"))
     app_version: str = Field(default="dev", validation_alias=AliasChoices("APP_VERSION", "app_version"))
 
     database_url: str = "postgresql+psycopg://parking:parking@localhost:5432/parking"
@@ -73,6 +75,12 @@ class Settings(BaseSettings):
     slack_agent_event_updates: str = Field(
         default="",
         validation_alias=AliasChoices("SLACK_AGENT_EVENT_UPDATES", "slack_agent_event_updates"),
+    )
+    # Comma-separated channel ID allowlist. Defaults to the documented parkinglot channel
+    # (#gf-parkinglot-agents-chat, C0B0VPSAH44) so copied env cannot post elsewhere.
+    slack_allowed_channel_ids: str = Field(
+        default="C0B0VPSAH44",
+        validation_alias=AliasChoices("SLACK_ALLOWED_CHANNEL_IDS", "slack_allowed_channel_ids"),
     )
     # Celery Beat: pipeline standup digest (default hourly at :00 UTC).
     slack_digest_crontab_minute: int = Field(

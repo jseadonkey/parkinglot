@@ -19,6 +19,39 @@ The data agents work on here (parcel attributes, scores, workflow status, sample
 
 If Slack env is unset, tasks **no-op** (return `skipped` in the task result) so stacks without Slack keep working. The dual-agent discussion needs **`SLACK_BOT_TOKEN`** and **`SLACK_AGENT_DISCUSSION_CHANNEL_ID`**.
 
+## Parkinglot-only routing and guardrails
+
+This repository is locked to the **parkinglot** Slack destination:
+
+| Item | Value |
+|------|-------|
+| **Slack channel name** | `#gf-parkinglot-agents-chat` |
+| **Slack channel ID** | `C0B0VPSAH44` |
+| **Repo** | `github.com/jseadonkey/parkinglot` |
+| **Droplet** | `209.38.142.108` (`parkinglot`) |
+| **Droplet path** | `/opt/workspaces/parkinglot` |
+| **Runtime project guard** | `APP_PROJECT_ID=parkinglot` |
+| **Slack channel allowlist** | `SLACK_ALLOWED_CHANNEL_IDS=C0B0VPSAH44` (only this ID is accepted) |
+
+Runtime Slack sends pass through a central guard before calling Slack:
+
+1. `APP_PROJECT_ID` must equal **`parkinglot`**.
+2. The target channel ID must be **`C0B0VPSAH44`**.
+3. Production compose defaults `SLACK_ALLOWED_CHANNEL_IDS` to **`C0B0VPSAH44`** for API, `worker`, `worker-slack`, and `beat`.
+4. GitHub Actions that SSH to the Droplet fail before SSH unless `DROPLET_HOST` is **`209.38.142.108`**.
+5. `deploy/droplet.target` locks deploy scripts to project `parkinglot`, host `parkinglot` / `209.38.142.108`, and path `/opt/workspaces/parkinglot`.
+
+Routing map:
+
+| Message source | Trigger | Final Slack channel |
+|----------------|---------|---------------------|
+| Hourly standup digest | Celery Beat → `worker-slack` task `slack_agent_digest` | `#gf-parkinglot-agents-chat` (`C0B0VPSAH44`) |
+| Qualified parcels report | Celery Beat or `POST /internal/slack/qualified-parcels-now` | `#gf-parkinglot-agents-chat` (`C0B0VPSAH44`) |
+| Dual-agent discussion | Celery Beat or `POST /internal/slack/agent-discussion-now` | `#gf-parkinglot-agents-chat` (`C0B0VPSAH44`) |
+| Optional per-task agent updates | `SLACK_AGENT_EVENT_UPDATES=1` in workers | `#gf-parkinglot-agents-chat` (`C0B0VPSAH44`) |
+| Site watchdog / ops remediation | Beat/manual checks | `#gf-parkinglot-agents-chat` (`C0B0VPSAH44`) |
+| GitHub deploy/test Slack ping | Actions → parkinglot Droplet → API `POST /internal/slack/test-message` | `#gf-parkinglot-agents-chat` (`C0B0VPSAH44`) |
+
 ### Per-task “agent” updates (optional)
 
 Set **`SLACK_AGENT_EVENT_UPDATES=1`** (or `true` / `yes` / `on`) in the same env as the **Celery worker** (and API if you want `GET /internal/slack/status` to report the flag). When Slack is fully configured, the worker posts short messages for:
@@ -36,7 +69,7 @@ Leave unset in production if you only want the **scheduled digest** (hourly UTC 
 2. **OAuth & Permissions** → **Bot Token Scopes** → add **`chat:write`** (post messages).
 3. **Install to Workspace** → copy **Bot User OAuth Token** (`xoxb-…`) → set as **`SLACK_BOT_TOKEN`** in `deploy/.env` (or local `.env` for Docker Compose).
 4. Open the target channel, run **`/invite @YourBotName`**, or add the app under **Integrations** for that channel.
-5. Copy the **channel ID** (e.g. from channel details / URL) → **`SLACK_DIGEST_CHANNEL_ID`** (usually starts with `C`).
+5. Copy the **channel ID** (for parkinglot: **`C0B0VPSAH44`**) → **`SLACK_DIGEST_CHANNEL_ID`**.
 
 Redeploy so **worker**, **worker-slack**, and **beat** pick up env vars. Rebuild or pull a **new API image** that includes the `slack-sdk` dependency (`services/api/pyproject.toml`).
 
@@ -47,9 +80,8 @@ If the repo is already on the Droplet at `REMOTE_PATH` and **`deploy/.env` exist
 ```bash
 chmod +x scripts/set-slack-env-on-droplet.sh
 export SLACK_BOT_TOKEN='xoxb-…'
-export SLACK_DIGEST_CHANNEL_ID='C…'
-export DROPLET='YOUR_DROPLET_IP_OR_HOST'
-# optional: export REMOTE_PATH=/opt/parking-acquisition-agents
+export SLACK_DIGEST_CHANNEL_ID='C0B0VPSAH44'
+# optional: export REMOTE_PATH=/opt/workspaces/parkinglot
 # optional: export COMPOSE_FILE=deploy/docker-compose.production.ghcr.yml
 ./scripts/set-slack-env-on-droplet.sh
 ```
@@ -75,7 +107,16 @@ Creates **`.env`** from **`.env.example`** if missing, then merges Slack lines.
 
 With **`X-Internal-Key`** set as for other `/internal/*` routes:
 
-`GET /internal/slack/status` → `{"slack_digest_configured": true/false, "has_bot_token": ..., "has_digest_channel_id": ...}` (no secrets in the body).
+`GET /internal/slack/status` → includes `app_project_id`, `project_is_parkinglot`, `allowed_channel_ids`, `configured_channel_ids`, `slack_digest_configured`, `has_bot_token`, and channel booleans (no token value in the body). Expected parkinglot values include:
+
+```json
+{
+  "app_project_id": "parkinglot",
+  "project_is_parkinglot": true,
+  "allowed_channel_ids": ["C0B0VPSAH44"],
+  "configured_channel_ids": ["C0B0VPSAH44"]
+}
+```
 
 `GET /internal/slack/last-digest` → when the **worker** last posted a digest (`audit_log` action `slack_digest_posted`). Use this to confirm Beat → worker → Slack without watching the channel.
 
@@ -98,7 +139,7 @@ GitHub Actions **Droplet diagnostics** and **Slack digest now** call `scripts/re
 - **Logs:** `docker compose … logs -f beat worker-slack` — Beat logs schedule ticks; worker-slack logs Slack posts and errors.
 - **Send a one-off test message:**  
   `curl -sS -X POST "https://$API_HOST/internal/slack/test-message" -H "X-Internal-Key: $INTERNAL_API_KEY" -H "Content-Type: application/json" -d '{"text":"hello from parking agents"}'`  
-  Notes: Slack requires a **channel ID** (not a name). If you want to override the default digest channel, pass `"channel_id":"C…"` (or `G…` for private).
+  Notes: Slack requires a **channel ID** (not a name). Any `"channel_id"` override is rejected unless it is exactly `C0B0VPSAH44`.
 - **Manual fire:**  
   `curl -sS -X POST "https://$API_HOST/internal/slack/digest-now" -H "X-Internal-Key: $INTERNAL_API_KEY"`  
   Then check **`GET /internal/tasks/{task_id}`** for Celery state.
@@ -116,7 +157,7 @@ The **Deploy to Droplet** workflow can call **`POST /internal/slack/test-message
 
 1. Ensure **`SLACK_BOT_TOKEN`**, **`SLACK_DIGEST_CHANNEL_ID`**, and (recommended) **`INTERNAL_API_KEY`** are set in **`deploy/.env`** on the server.
 2. In GitHub → **Actions secrets**, add **`SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY`** with the **same** value as **`INTERNAL_API_KEY`** on the Droplet (so the workflow can send **`X-Internal-Key`**). If the API does not use an internal key, you can omit this secret.
-3. Run **Deploy to Droplet** with **slack notify** turned **on**. Leave **slack notify text** empty for a default message (repo, short SHA, link to the workflow run), or set custom text (max 2000 characters). Optional **slack notify channel id** sends to a different channel for that ping only. Whenever you rotate **`INTERNAL_API_KEY`** on the Droplet (for example via [`scripts/droplet-provision-internal-api-key.sh`](../scripts/droplet-provision-internal-api-key.sh)), update GitHub secret **`SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY`** to the **same** value so Actions can still call **`POST /internal/slack/test-message`**.
+3. Run **Deploy to Droplet** with **slack notify** turned **on**. Leave **slack notify text** empty for a default message (repo, short SHA, link to the workflow run), or set custom text (max 2000 characters). Optional **slack notify channel id** is still checked by the API; only `C0B0VPSAH44` is accepted. Whenever you rotate **`INTERNAL_API_KEY`** on the Droplet (for example via [`scripts/droplet-provision-internal-api-key.sh`](../scripts/droplet-provision-internal-api-key.sh)), update GitHub secret **`SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY`** to the **same** value so Actions can still call **`POST /internal/slack/test-message`**.
 
 Details: [GITHUB-DEPLOY.md](GITHUB-DEPLOY.md).
 
@@ -138,7 +179,7 @@ Workflow file: [`.github/workflows/slack-digest-now-via-droplet.yml`](../.github
 |--------|----------------|
 | Digest never appears | **`GET /internal/slack/status`** — both flags should be true. Worker logs for `slack_agent_digest`. **Beat** container running (`docker compose ps beat`). |
 | `not_in_channel` | Bot not invited: **`/invite @YourApp`** in that channel. |
-| `channel_not_found` (token OK) | **Wrong channel for this workspace** — copy the ID from Slack (**About / channel details**), or set **`SLACK_DIGEST_CHANNEL_ID=gf-parkinglot-agents-chat`**. |
+| `channel_not_found` (token OK) | **Wrong channel for this workspace** — copy the ID from Slack (**About / channel details**), or set **`SLACK_DIGEST_CHANNEL_ID=C0B0VPSAH44`** for `#gf-parkinglot-agents-chat`. |
 | `invalid_auth` / `token_revoked` | Regenerate token in Slack app **OAuth** page; update **`SLACK_BOT_TOKEN`** and restart **worker** + **beat**. |
 | `missing_scope` | Re-add **`chat:write`** (and reinstall app to workspace). |
 | Task returns `skipped` | One of **`SLACK_BOT_TOKEN`** / **`SLACK_DIGEST_CHANNEL_ID`** is empty in the **worker-slack** environment. |

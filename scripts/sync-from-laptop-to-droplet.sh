@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 # Run on your LAPTOP from your local clone root (same layout as this repo).
-# Syncs working tree to the DigitalOcean droplet. Does not delete remote-only files
-# unless you pass --delete (see below).
+# Syncs working tree to the locked parkinglot Droplet target. Does not delete
+# remote-only files unless you pass --delete (see below).
 set -euo pipefail
 
-DROPLET_HOST="${DROPLET_HOST:-209.38.142.108}"
-DROPLET_USER="${DROPLET_USER:-root}"
-REMOTE_PATH="${REMOTE_PATH:-/opt/parking-acquisition-agents}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/droplet-target.sh
+source "$ROOT/scripts/lib/droplet-target.sh"
+
+# Backward-compatible env names for older laptop notes.
+DROPLET="${DROPLET:-${DROPLET_HOST:-}}"
+SSH_USER="${SSH_USER:-${DROPLET_USER:-}}"
+assert_droplet_target "$ROOT/scripts/sync-from-laptop-to-droplet.sh" "$DROPLET" "${REMOTE_PATH:-}" "$SSH_USER" || exit 1
 
 RSYNC_DELETE=()
 if [[ "${1:-}" == "--delete" ]]; then
@@ -14,7 +19,7 @@ if [[ "${1:-}" == "--delete" ]]; then
   shift
 fi
 
-echo "Using ${DROPLET_USER}@${DROPLET_HOST}:${REMOTE_PATH}"
+echo "Using ${SSH_USER}@${DROPLET}:${REMOTE_PATH}"
 echo "Local dir: $(pwd)"
 echo "Tip: keep .env on the server — it is excluded. Use --delete only if you want exact mirror (removes remote files missing locally)."
 sleep 1
@@ -26,6 +31,6 @@ rsync -avz --progress "${RSYNC_DELETE[@]}" \
   --exclude '.env' \
   --exclude 'node_modules/' \
   --exclude '.venv/' \
-  ./ "${DROPLET_USER}@${DROPLET_HOST}:${REMOTE_PATH}/"
+  ./ "${SSH_USER}@${DROPLET}:${REMOTE_PATH}/"
 
 echo "Done. On droplet: sudo chown -R nobody:nogroup '${REMOTE_PATH}' && cd '${REMOTE_PATH}' && docker compose ps"
