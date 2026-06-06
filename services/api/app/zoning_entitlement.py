@@ -39,7 +39,9 @@ def parcel_zoning_tier(
     raw = raw_properties or {}
     cached = raw.get("zoning_entitlement_tier")
     if cached is not None and str(cached).strip():
-        return str(cached).strip().lower()
+        cached_s = str(cached).strip().lower()
+        if cached_s != "unknown" or not zoning_code or not str(zoning_code).strip():
+            return cached_s
     sym = parcel_zoning_symbol(
         county_fips=county_fips,
         zoning_code=zoning_code,
