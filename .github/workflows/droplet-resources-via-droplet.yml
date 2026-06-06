@@ -202,7 +202,8 @@ jobs:
           elif [ "${{ inputs.corner_lot_stats }}" = "true" ]; then
             MODE="corner-lot-stats"
           fi
-          ENQUEUE_LIMIT="${{ inputs.enqueue_limit || '50' }}"
+          ENQUEUE_LIMIT="${{ inputs.enqueue_limit }}"
+          [ -n "$ENQUEUE_LIMIT" ] || ENQUEUE_LIMIT="50"
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
             "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             "cd $(printf '%q' "$REMOTE_PATH") && ENQUEUE_LIMIT=$(printf '%q' "$ENQUEUE_LIMIT") bash -s -- ${MODE} deploy/docker-compose.production.ghcr.yml"
