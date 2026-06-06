@@ -1,0 +1,67 @@
+version: 1
+
+policy:
+  full_credit_symbols: ["P"]
+  conditional_symbols: ["CB"]
+  council_symbols: ["CO"]
+  unknown_default_must_be_false: true
+  note: >
+    Surface-parking entitlement is jurisdiction-specific. Each market must map
+    zoning codes to Article/ordinance symbols before scores are trusted.
+
+county_coverage:
+  "24510":
+    county_name: "Baltimore City, MD"
+    status: curated
+    jurisdiction_keys: ["baltimore_city"]
+    note: "Priority market. Article 32 principal-use parking table curated for current pilot."
+  "24005":
+    county_name: "Baltimore County, MD"
+    status: paused
+    jurisdiction_keys: []
+    note: "Paused; curate Baltimore County zoning before ingest/pipeline activation."
+  "53":
+    state_name: "Washington"
+    status: not_started
+    jurisdiction_keys: ["kent_city", "king_unincorporated"]
+    note: >
+      Statewide parcel ingest can load geometry, but zoning entitlement must be
+      curated by city/unincorporated jurisdiction before scores are trusted.
+
+jurisdictions:
+  baltimore_city:
+    display_name: "Baltimore City"
+    status: curated
+    state_fips: "24"
+    county_fips: ["24510"]
+    authority: "Baltimore City Article 32"
+    rules_file: "data/zoning/md/baltimore_city_surface_parking_rules.yaml"
+    source_doc: "docs/zoning-sources-baltimore.md"
+    legal_review_required: true
+    scoring_policy: "Only P gets full credit; CB/CO require parcel-specific override or counsel-approved path."
+    last_reviewed: "2026-06-06"
+    reviewed_by: "Cursor agent; counsel still required before acquisition/outreach decisions"
+  kent_city:
+    display_name: "Kent, WA"
+    status: not_started
+    state_fips: "53"
+    county_fips: ["53033"]
+    authority: "Kent zoning code"
+    rules_file: "data/zoning/wa/kent_king_surface_parking_rules.yaml"
+    source_doc: "docs/zoning-sources-kent.md"
+    legal_review_required: true
+    scoring_policy: "Do not trust zoning score until Kent ordinance use table is curated."
+    last_reviewed: null
+    reviewed_by: null
+  king_unincorporated:
+    display_name: "Unincorporated King County, WA"
+    status: not_started
+    state_fips: "53"
+    county_fips: ["53033"]
+    authority: "King County Title 21A"
+    rules_file: "data/zoning/wa/kent_king_surface_parking_rules.yaml"
+    source_doc: "docs/zoning-sources-kent.md"
+    legal_review_required: true
+    scoring_policy: "Do not trust zoning score until King County parking-use rules are curated."
+    last_reviewed: null
+    reviewed_by: null
