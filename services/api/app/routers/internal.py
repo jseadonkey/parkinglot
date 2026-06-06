@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.backlog_eta import backlog_eta_summary
 from app.baltimore_zoning_stats import baltimore_zoning_tiers_summary
 from app.celery_app import celery
 from app.config import get_settings
@@ -28,6 +29,7 @@ from app.pilot_scope import pilot_scope_summary
 from app.platform_showcase import build_platform_showcase
 from app.rate_comp_seed import seed_baltimore_parking_rate_comps, seed_king_county_parking_rate_comps
 from app.schemas import (
+    BacklogEtaResponse,
     BaltimoreZoningTiersResponse,
     BaltimoreZoningTierZoneRow,
     CeleryTaskIdResponse,
@@ -270,6 +272,13 @@ def export_readiness(db: Session = Depends(get_db)) -> ExportReadinessResponse:
     """Null/gap counts for CSV columns and score rows — run before stakeholder exports."""
     raw = export_readiness_summary(db)
     return ExportReadinessResponse(**raw)
+
+
+@router.get("/stats/backlog-eta", response_model=BacklogEtaResponse)
+def backlog_eta(db: Session = Depends(get_db)) -> BacklogEtaResponse:
+    """Backlog size, value, and rough completion estimates for operational decisions."""
+    raw = backlog_eta_summary(db, get_settings())
+    return BacklogEtaResponse(**raw)
 
 
 @router.get("/stats/pilot-scope", response_model=PilotScopeResponse)
