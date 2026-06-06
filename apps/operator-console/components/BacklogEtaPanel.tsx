@@ -34,6 +34,7 @@ type BacklogEta = {
     decision: string;
   };
   items: BacklogEtaItem[];
+  degraded?: boolean;
 };
 
 function isBacklogEta(s: unknown): s is BacklogEta {
@@ -106,6 +107,12 @@ export function BacklogEtaPanel() {
       <p className="muted" style={{ marginTop: "0.75rem" }}>
         {backlogView.summary.decision}
       </p>
+      {backlogView.degraded ? (
+        <div className="error" style={{ marginTop: "0.75rem" }}>
+          Live backlog details are temporarily unavailable. This page will recover when the API bridge can reach the
+          stats endpoint again.
+        </div>
+      ) : null}
       <table className="data" style={{ marginTop: "1rem" }}>
         <thead>
           <tr>
@@ -117,6 +124,13 @@ export function BacklogEtaPanel() {
           </tr>
         </thead>
         <tbody>
+          {backlogView.items.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="muted">
+                No backlog rows available right now.
+              </td>
+            </tr>
+          ) : null}
           {backlogView.items.map((item) => (
             <tr key={item.key}>
               <td>

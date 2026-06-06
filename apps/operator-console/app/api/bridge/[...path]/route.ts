@@ -29,6 +29,31 @@ function isInternalPath(path: string): boolean {
   return path.startsWith("internal/");
 }
 
+function backlogEtaFallback(status = 503): NextResponse {
+  return NextResponse.json(
+    {
+      generated_at: new Date().toISOString(),
+      summary: {
+        active_parking_queue_depth: 0,
+        active_slack_queue_depth: 0,
+        workers_online: false,
+        worker_detail: `Backlog ETA temporarily unavailable (upstream ${status}).`,
+        ops_auto_fix_enabled: false,
+        high_value_remaining: 0,
+        decision: "Backlog ETA is temporarily unavailable. Health checks may still be OK; refresh in a minute.",
+      },
+      items: [],
+      degraded: true,
+    },
+    {
+      status: 200,
+      headers: {
+        "X-Bridge-Degraded": "true",
+      },
+    },
+  );
+}
+
 async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }, method: string) {
   const parts = (await ctx.params).path;
   const subpath = parts.join("/");
@@ -79,6 +104,9 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     res = await fetch(url, init);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    if (subpath === "internal/stats/backlog-eta") {
+      return backlogEtaFallback();
+    }
     return NextResponse.json(
       { detail: `API unreachable at ${baseClean}: ${msg}` },
       { status: 503 },
@@ -87,6 +115,9 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     clearTimeout(timeout);
   }
   const body = await res.text();
+  if (subpath === "internal/stats/backlog-eta" && !res.ok) {
+    return backlogEtaFallback(res.status);
+  }
   if (statsCacheKey && res.ok) {
     writeBridgeCache(statsCacheKey, res.status, body, statsCacheTtlMs(subpath));
   }
