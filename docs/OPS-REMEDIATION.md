@@ -57,6 +57,18 @@ curl -sS https://api.vspecialist.com/internal/ops/status \
   -H "X-Internal-Key: $INTERNAL_API_KEY"
 ```
 
+## DigitalOcean Postgres CPU alerts
+
+When DigitalOcean reports high CPU on Managed Postgres, first pause automatic DB writers:
+
+1. Run GitHub Actions **Droplet resources (via Droplet)** with `relieve_load=true`.
+2. Confirm queue depth is near zero with **Droplet resources** → `probe_pipeline_velocity=true`.
+3. Leave watchdog/reporting enabled, but keep `OPS_REMEDIATION_AUTO_FIX=false` until CPU returns to normal.
+
+The relief action purges the parking Celery queue and disables scheduled enqueue, priority
+pipeline, refresh, WA rollout, exploration campaign, and ops auto-fix loops. Resize Postgres only
+if CPU remains high after these writers are paused and queues are quiet.
+
 ## When more DigitalOcean resources help
 
 This loop fixes **configuration and backlog** problems. Resize the droplet or Postgres when watchdog shows sustained CPU/RAM/disk pressure, not only because remediation reported missing data.

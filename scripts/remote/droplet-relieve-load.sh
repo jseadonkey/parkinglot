@@ -27,20 +27,31 @@ docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN slack 2>/dev/null || ec
 docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN celery 2>/dev/null || echo "celery: (n/a)"
 echo ""
 
-echo "=== disable SCHEDULED_ENQUEUE_UNSCORED in deploy/.env ==="
+echo "=== pause heavy scheduled DB writers in deploy/.env ==="
 python3 <<'PY'
 import pathlib
 import re
 
 path = pathlib.Path("deploy/.env")
 text = path.read_text(encoding="utf-8")
-key = "SCHEDULED_ENQUEUE_UNSCORED_ENABLED"
-if re.search(rf"^{re.escape(key)}=", text, re.M):
-    text = re.sub(rf"^{re.escape(key)}=.*$", f"{key}=false", text, count=1, flags=re.M)
-else:
-    text = text.rstrip() + f"\n{key}=false\n"
+updates = {
+    # Keep watchdog/reporting alive, but stop automatic write-heavy repairs while DB CPU recovers.
+    "OPS_REMEDIATION_AUTO_FIX": "false",
+    "SCHEDULED_ENQUEUE_UNSCORED_ENABLED": "false",
+    "SCHEDULED_PRIORITY_PIPELINE_ENABLED": "false",
+    "SCHEDULED_REFRESH_IDENTIFICATION_ENABLED": "false",
+    "SCHEDULED_REFRESH_DEMAND_ENABLED": "false",
+    "WA_STATEWIDE_ROLLOUT_ENABLED": "false",
+    "EXPLORATION_CAMPAIGN_ENABLED": "false",
+}
+for key, value in updates.items():
+    if re.search(rf"^{re.escape(key)}=", text, re.M):
+        text = re.sub(rf"^{re.escape(key)}=.*$", f"{key}={value}", text, count=1, flags=re.M)
+    else:
+        text = text.rstrip() + f"\n{key}={value}\n"
 path.write_text(text, encoding="utf-8")
-print(f"Set {key}=false")
+for key, value in updates.items():
+    print(f"Set {key}={value}")
 PY
 
 echo ""
@@ -63,4 +74,4 @@ echo "=== docker stats snapshot ==="
 docker stats --no-stream "${ARGS[@]}" 2>/dev/null | head -12 || docker stats --no-stream | head -12
 
 echo ""
-echo "Done. Re-enable enqueue later with SCHEDULED_ENQUEUE_UNSCORED_ENABLED=true in deploy/.env and recreate beat."
+echo "Done. Re-enable selected schedulers later in deploy/.env and recreate beat when DB CPU is normal."
