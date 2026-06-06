@@ -29,6 +29,20 @@ def test_baltimore_c5_base_is_council_not_permitted() -> None:
     assert zoning_entitlement_tier("CO") == "council"
 
 
+def test_baltimore_compact_downtown_aliases_are_not_unknown() -> None:
+    rules = load_effective_zoning_rules(REPO_ROOT / "data/zoning/md/baltimore_city_surface_parking_rules.yaml")
+    for code in ("DCE", "C-5DC", "C5DC*", "C-5DE", "C-5IH", "C-5HT"):
+        assert resolve_principal_use_symbol(code, "baltimore_city", rules) == "CB"
+        assert zoning_entitlement_tier(resolve_principal_use_symbol(code, "baltimore_city", rules)) == "conditional"
+
+
+def test_baltimore_compact_permitted_aliases() -> None:
+    rules = load_effective_zoning_rules(REPO_ROOT / "data/zoning/md/baltimore_city_surface_parking_rules.yaml")
+    for code in ("C-5TO", "C5TO*", "C-5HS"):
+        assert resolve_principal_use_symbol(code, "baltimore_city", rules) == "P"
+        assert zoning_entitlement_tier(resolve_principal_use_symbol(code, "baltimore_city", rules)) == "permitted"
+
+
 def test_baltimore_cb_gets_partial_zoning_credit() -> None:
     pilot = PilotConfig(
         region={"name": "t", "state_fips": "24", "county_fips": ["24510"]},

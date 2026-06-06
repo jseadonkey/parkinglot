@@ -91,10 +91,22 @@ jurisdictions:
         allows_surface_parking: true
         principal_use_symbol: P
         note: "C-5 Transit-Oriented subdistrict — P for principal parking lot."
+      "C-5TO":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "Assessor/GIS shorthand for C-5-TO — P for principal parking lot."
+      "C5TO*":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "Assessor shorthand for C-5-TO with overlay marker — P for principal parking lot."
       "C-5-HS":
         allows_surface_parking: true
         principal_use_symbol: P
         note: "C-5 Howard Street subdistrict — P for principal parking lot."
+      "C-5HS":
+        allows_surface_parking: true
+        principal_use_symbol: P
+        note: "Assessor/GIS shorthand for C-5-HS — P for principal parking lot."
 
       # --- Tier 2: CB (BMZA conditional) — not scored unless overlay override ---
       "C-1":
@@ -145,18 +157,42 @@ jurisdictions:
         allows_surface_parking: false
         principal_use_symbol: CB
         note: "C-5 Downtown Core — CB for principal parking lot."
+      "C-5DC":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Assessor/GIS shorthand for C-5-DC Downtown Core — CB for principal parking lot."
+      "C5DC*":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Assessor shorthand for C-5-DC with overlay marker — CB for principal parking lot."
+      "DCE":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Unofficial downtown C-5 shorthand seen on parcel records; treat as CB until counsel/GIS confirms exact subdistrict."
       "C-5-IH":
         allows_surface_parking: false
         principal_use_symbol: CB
         note: "C-5 Inner Harbor — CB."
+      "C-5IH":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Assessor/GIS shorthand for C-5-IH — CB."
       "C-5-DE":
         allows_surface_parking: false
         principal_use_symbol: CB
-        note: "C-5 Downtown Entertainment — CB."
+        note: "C-5 Downtown East — CB."
+      "C-5DE":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Assessor/GIS shorthand for C-5-DE Downtown East — CB."
       "C-5-HT":
         allows_surface_parking: false
         principal_use_symbol: CB
         note: "C-5 Historic/Traditional — CB."
+      "C-5HT":
+        allows_surface_parking: false
+        principal_use_symbol: CB
+        note: "Assessor/GIS shorthand for C-5-HT — CB."
 
       # --- Tier 3: CO (Mayor & City Council ordinance) — deprioritize ---
       "C-5":
