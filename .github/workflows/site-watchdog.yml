@@ -2,6 +2,7 @@
 #
 # Posts to Slack on failure (same channel as admin UI smoke / agents chat).
 # Complements Celery Beat task site_watchdog_check on the Droplet (every 30 min).
+# Only invokes remediation when external or server checks fail.
 #
 # Secrets: SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY or SLACK_BOT_TOKEN + channel id
 #          DROPLET_* for SSH server checks
@@ -60,7 +61,7 @@ jobs:
           grep '^WATCHDOG_JSON=' "$LOG" | sed 's/^WATCHDOG_JSON=//' > scripts/site-watchdog/server-checks.json || echo '{"ok":false,"checks":[],"runner":"github-ssh","failure_count":1}' > scripts/site-watchdog/server-checks.json
 
       - name: Ops remediation (Baltimore gaps + worker health)
-        if: always()
+        if: always() && (steps.external.outcome != 'success' || steps.server.outcome != 'success')
         continue-on-error: true
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}

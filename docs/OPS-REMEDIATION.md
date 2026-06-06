@@ -9,7 +9,7 @@ An automated **listen → diagnose → fix** agent that complements the [site wa
 
 ## Schedule (UTC)
 
-Runs on the **Slack Celery queue** every **2 hours** at **:15** (`OPS_REMEDIATION_CRONTAB_HOUR=*/2`, `OPS_REMEDIATION_CRONTAB_MINUTE=15`), alongside the hourly site watchdog.
+Runs on the **Slack Celery queue** every **6 hours** at **:15** (`OPS_REMEDIATION_CRONTAB_HOUR=*/6`, `OPS_REMEDIATION_CRONTAB_MINUTE=15`), alongside the hourly site watchdog.
 
 Requires **`worker-slack`** and **`beat`** containers running.
 
@@ -28,7 +28,7 @@ Requires **`worker-slack`** and **`beat`** containers running.
 | `refresh_demand_process_all` | 1h | Celery: demand distances, no identification rescore |
 | `refresh_entitlement_process_all` | 1h | Celery: entitlement rescore for city |
 | `refresh_poi_batch` | 1h | Celery: 50 parcels POI/Overpass (slow; repeats each run) |
-| `enqueue_incomplete_limited` | 1h | Inline: up to 75 pipeline jobs |
+| `enqueue_incomplete_limited` | 1h | Inline: up to 50 pipeline jobs |
 | `run_site_watchdog` | 1h | Celery: site watchdog |
 
 Set `OPS_REMEDIATION_AUTO_FIX=false` to **report only** (Slack still alerts on critical issues).
@@ -43,6 +43,9 @@ OPS_REMEDIATION_AUTO_FIX=true
 OPS_REMEDIATION_PRIORITY_COUNTY_FIPS=24510
 OPS_REMEDIATION_COOLDOWN_SEC=3600
 OPS_REMEDIATION_POI_BATCH_LIMIT=50
+OPS_REMEDIATION_PIPELINE_ENQUEUE_LIMIT=50
+OPS_REMEDIATION_CRONTAB_HOUR=*/6
+OPS_REMEDIATION_CRONTAB_MINUTE=15
 # Optional dedicated Slack channel; else agents/digest channel
 # OPS_REMEDIATION_SLACK_CHANNEL_ID=C...
 ```
