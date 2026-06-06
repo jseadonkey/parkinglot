@@ -30,6 +30,7 @@ export function isStatsCachePath(subpath: string): boolean {
   return (
     subpath === "internal/stats/pilot-scope" ||
     subpath === "internal/stats/scoring-summary" ||
+    subpath === "internal/stats/backlog-eta" ||
     subpath === "internal/stats/export-readiness"
   );
 }

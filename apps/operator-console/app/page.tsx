@@ -31,6 +31,39 @@ type ExportReadiness = {
   parcels_missing_owner_outreach_brief: { count: number; pct: number };
 };
 
+type BacklogEtaItem = {
+  key: string;
+  label: string;
+  status: string;
+  active_now: boolean;
+  backlog_count: number;
+  total_count: number;
+  backlog_pct: number;
+  unit: string;
+  value: string;
+  work_type: string;
+  assumed_units_per_day: number | null;
+  eta_days: number | null;
+  eta_label: string;
+  eta_confidence: string;
+  recommendation: string;
+  why: string;
+};
+
+type BacklogEta = {
+  generated_at: string;
+  summary: {
+    active_parking_queue_depth: number;
+    active_slack_queue_depth: number;
+    workers_online: boolean;
+    worker_detail: string | null;
+    ops_auto_fix_enabled: boolean;
+    high_value_remaining: number;
+    decision: string;
+  };
+  items: BacklogEtaItem[];
+};
+
 type PilotCounty = {
   county_fips: string;
   county_name: string;
@@ -82,9 +115,20 @@ function isExportReadiness(s: unknown): s is ExportReadiness {
   return typeof s === "object" && s !== null && "parcel_row_total" in s;
 }
 
+function isBacklogEta(s: unknown): s is BacklogEta {
+  return typeof s === "object" && s !== null && "summary" in s && Array.isArray((s as BacklogEta).items);
+}
+
 function formatCount(n: number | null): string {
   if (n === null) return "—";
   return n.toLocaleString();
+}
+
+function valueLabel(value: string): string {
+  if (value === "high") return "High value";
+  if (value === "medium") return "Medium value";
+  if (value === "selective") return "Selective value";
+  return value;
 }
 
 function funnelWidthPct(count: number, base: number): number {
@@ -102,11 +146,14 @@ export default function OverviewPage() {
   const [readiness, setReadiness] = useState<unknown>(null);
   const [summary, setSummary] = useState<unknown>(null);
   const [scope, setScope] = useState<unknown>(null);
+  const [backlogEta, setBacklogEta] = useState<unknown>(null);
   const [scopeLoading, setScopeLoading] = useState(true);
   const [summaryLoading, setSummaryLoading] = useState(true);
+  const [backlogLoading, setBacklogLoading] = useState(true);
   const [readinessLoading, setReadinessLoading] = useState(false);
   const [scopeErr, setScopeErr] = useState<string | null>(null);
   const [summaryErr, setSummaryErr] = useState<string | null>(null);
+  const [backlogErr, setBacklogErr] = useState<string | null>(null);
   const [readinessErr, setReadinessErr] = useState<string | null>(null);
   const [showAllCounties, setShowAllCounties] = useState(false);
   const [exportDetailsOpen, setExportDetailsOpen] = useState(false);
@@ -143,6 +190,25 @@ export default function OverviewPage() {
       })
       .finally(() => {
         if (!cancelled) setSummaryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setBacklogLoading(true);
+    setBacklogErr(null);
+    fetchJson("internal/stats/backlog-eta")
+      .then((data) => {
+        if (!cancelled) setBacklogEta(data);
+      })
+      .catch((e) => {
+        if (!cancelled) setBacklogErr(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setBacklogLoading(false);
       });
     return () => {
       cancelled = true;
@@ -253,6 +319,7 @@ export default function OverviewPage() {
   }, [scopeView]);
 
   const funnelBase = funnelSteps[0]?.count ?? 0;
+  const backlogView = isBacklogEta(backlogEta) ? backlogEta : null;
 
   return (
     <div className="page-content">
@@ -406,6 +473,74 @@ export default function OverviewPage() {
           <p className="muted">Loading scoring totals…</p>
         ) : null}
       </div>
+
+      <h2>Backlog value & ETA</h2>
+      {backlogErr ? <div className="error">{backlogErr}</div> : null}
+      {backlogView ? (
+        <div className="panel">
+          <div className="cols pipeline-stats">
+            <div className="stat">
+              <div className="muted">Parking queue now</div>
+              <div className="n">{backlogView.summary.active_parking_queue_depth.toLocaleString()}</div>
+            </div>
+            <div className="stat">
+              <div className="muted">High-value remaining</div>
+              <div className="n">{backlogView.summary.high_value_remaining.toLocaleString()}</div>
+            </div>
+            <div className="stat">
+              <div className="muted">Workers</div>
+              <div className="n">{backlogView.summary.workers_online ? "Online" : "Offline"}</div>
+            </div>
+            <div className="stat">
+              <div className="muted">Auto-fix</div>
+              <div className="n">{backlogView.summary.ops_auto_fix_enabled ? "On" : "Off"}</div>
+            </div>
+          </div>
+          <p className="muted" style={{ marginTop: "0.75rem" }}>
+            {backlogView.summary.decision}
+          </p>
+          <table className="data" style={{ marginTop: "1rem" }}>
+            <thead>
+              <tr>
+                <th>Work</th>
+                <th>Value</th>
+                <th>Remaining</th>
+                <th>ETA</th>
+                <th>Recommendation</th>
+              </tr>
+            </thead>
+            <tbody>
+              {backlogView.items.map((item) => (
+                <tr key={item.key}>
+                  <td>
+                    <strong>{item.label}</strong>
+                    <div className="muted">{item.why}</div>
+                  </td>
+                  <td>
+                    <span className={item.value === "high" ? "badge badge-priority" : "badge"}>
+                      {valueLabel(item.value)}
+                    </span>
+                  </td>
+                  <td>
+                    {item.backlog_count.toLocaleString()} / {item.total_count.toLocaleString()} {item.unit}
+                    <div className="muted">{item.backlog_pct}% remaining</div>
+                  </td>
+                  <td>
+                    {item.eta_label}
+                    <div className="muted">Confidence: {item.eta_confidence}</div>
+                    {item.assumed_units_per_day ? (
+                      <div className="muted">Assumes ~{Math.round(item.assumed_units_per_day).toLocaleString()} / day</div>
+                    ) : null}
+                  </td>
+                  <td>{item.recommendation}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : backlogLoading ? (
+        <p className="muted">Loading backlog ETA…</p>
+      ) : null}
 
       <h2>Outreach candidates</h2>
       <p className="muted">

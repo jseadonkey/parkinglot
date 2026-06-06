@@ -312,6 +312,47 @@ class ExportReadinessResponse(BaseModel):
     recommended_next_steps: list[str]
 
 
+class BacklogEtaItem(BaseModel):
+    """One workstream with backlog count, value, and rough completion estimate."""
+
+    key: str
+    label: str
+    status: str
+    active_now: bool = False
+    backlog_count: int
+    total_count: int
+    backlog_pct: float
+    unit: str
+    value: str
+    work_type: str
+    assumed_batch_size: int | None = None
+    assumed_batches_per_day: float | None = None
+    assumed_units_per_day: float | None = None
+    eta_days: float | None = None
+    eta_label: str
+    eta_confidence: str
+    recommendation: str
+    why: str
+
+
+class BacklogEtaSummary(BaseModel):
+    active_parking_queue_depth: int
+    active_slack_queue_depth: int
+    workers_online: bool
+    worker_detail: str | None = None
+    ops_auto_fix_enabled: bool
+    high_value_remaining: int
+    decision: str
+
+
+class BacklogEtaResponse(BaseModel):
+    """GET /internal/stats/backlog-eta — decision view for backlog value and estimated time."""
+
+    generated_at: datetime
+    summary: BacklogEtaSummary
+    items: list[BacklogEtaItem]
+
+
 class ParcelRevenueSummaryRead(BaseModel):
     """Illustrative revenue from weighted nearby comps + layout-based stalls."""
 
