@@ -17,10 +17,6 @@ on:
         description: "Pause auto-enqueue and purge parking Celery backlog"
         type: boolean
         default: false
-      probe_outreach_drafts:
-        description: "Probe parcel outreach drafts endpoint and DB tables"
-        type: boolean
-        default: false
       enable_enqueue:
         description: "Re-enable scheduled incomplete-pipeline enqueue (safe default limit 50)"
         type: boolean
@@ -31,18 +27,6 @@ on:
         default: "50"
       probe_pipeline_velocity:
         description: "Report enqueue settings, queue depth, and export-readiness backlog"
-        type: boolean
-        default: false
-      fix_watchdog_env:
-        description: "Set SITE_WATCHDOG_UI_BASE_URL in deploy/.env and restart worker-slack + beat"
-        type: boolean
-        default: false
-      sync_slack_channels:
-        description: "Point watchdog + agent-discussion channels at SLACK_DIGEST_CHANNEL_ID"
-        type: boolean
-        default: false
-      fix_hourly_slack_reports:
-        description: "Hourly pipeline digest + site watchdog Slack (env + restart beat/worker-slack)"
         type: boolean
         default: false
       enable_wa_statewide_rollout:
@@ -153,18 +137,10 @@ jobs:
             MODE="disk-maintenance"
           elif [ "${{ inputs.relieve_load }}" = "true" ]; then
             MODE="relieve-load"
-          elif [ "${{ inputs.probe_outreach_drafts }}" = "true" ]; then
-            MODE="outreach-drafts"
           elif [ "${{ inputs.enable_enqueue }}" = "true" ]; then
             MODE="enable-enqueue"
           elif [ "${{ inputs.probe_pipeline_velocity }}" = "true" ]; then
             MODE="pipeline-velocity"
-          elif [ "${{ inputs.fix_watchdog_env }}" = "true" ]; then
-            MODE="fix-watchdog-env"
-          elif [ "${{ inputs.sync_slack_channels }}" = "true" ]; then
-            MODE="sync-slack-channels"
-          elif [ "${{ inputs.fix_hourly_slack_reports }}" = "true" ]; then
-            MODE="fix-hourly-slack-reports"
           elif [ "${{ inputs.enable_wa_statewide_rollout }}" = "true" ]; then
             MODE="enable-wa-statewide-rollout"
           elif [ "${{ inputs.prioritize_baltimore_market }}" = "true" ]; then
