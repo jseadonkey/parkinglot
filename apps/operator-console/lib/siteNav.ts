@@ -47,6 +47,11 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Overview",
         purpose: "Multi-state pilot scope (Baltimore + Washington), scoring totals, and data funnel.",
       },
+      {
+        href: "/backlog",
+        label: "Backlog ETA",
+        purpose: "Which jobs are worth running, how much remains, and rough completion estimates.",
+      },
     ],
   },
   {
