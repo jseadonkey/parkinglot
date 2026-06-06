@@ -9,13 +9,11 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.db.schema_compat import column_exists
-from app.export_readiness import export_readiness_summary
 from app.ops_remediation import (
-    county_data_gaps,
     effective_auto_fix_enabled,
     inspect_celery_workers,
     inspect_redis_queues,
+    load_last_report,
 )
 from app.pipeline_funnel import entitlement_qualified_floor
 
@@ -58,46 +56,20 @@ def _status(count: int) -> str:
     return "backlog"
 
 
-def _address_present_sql() -> str:
-    fields = (
-        "PROPERTY_ADDRESS",
-        "property_address",
-        "SITUS_ADDRESS",
-        "situs_address",
-        "ADDR_FULL",
-        "addr_full",
-        "FULLADDR",
-    )
-    return " OR ".join(f"(raw_properties ? '{field}')" for field in fields)
-
-
-def count_baltimore_missing_property_address(db: Session) -> tuple[int, int]:
-    """Return (missing, total) for Baltimore rows with no known property/situs address alias."""
-    total = int(
+def _cheap_count_baltimore(db: Session) -> int:
+    """Cheap fallback when no cached ops snapshot exists."""
+    return int(
         db.scalar(
             text("select count(*) from parcels where county_fips = :county_fips"),
             {"county_fips": BALTIMORE_CITY_FIPS},
         )
         or 0
     )
-    if total <= 0:
-        return 0, 0
-    if not column_exists(db, "parcels", "raw_properties"):
-        return total, total
-    missing = int(
-        db.scalar(
-            text(
-                "select count(*) from parcels "
-                "where county_fips = :county_fips "
-                "and (raw_properties is null or not ("
-                + _address_present_sql()
-                + "))"
-            ),
-            {"county_fips": BALTIMORE_CITY_FIPS},
-        )
-        or 0
-    )
-    return missing, total
+
+
+def _gap_count(export: dict[str, Any], key: str) -> int:
+    raw = export.get(key) or {}
+    return int(raw.get("count") or 0) if isinstance(raw, dict) else 0
 
 
 def _item(
@@ -146,16 +118,26 @@ def _item(
 
 def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
     """Decision-oriented backlog summary: value, pace, and rough ETA by workstream."""
-    export = export_readiness_summary(db)
-    total = int(export.get("parcel_row_total") or 0)
-    priority = county_data_gaps(db, BALTIMORE_CITY_FIPS)
+    # This endpoint backs an operator page. Avoid live full-table readiness scans here;
+    # Postgres CPU alerts are exactly when operators need the page to load. The ops
+    # remediation loop already caches the heavy gap snapshot in Redis.
+    report = load_last_report(settings) or {}
+    export = report.get("export_readiness") if isinstance(report.get("export_readiness"), dict) else {}
+    priorities = report.get("priority_counties") if isinstance(report.get("priority_counties"), dict) else {}
+    priority = priorities.get(BALTIMORE_CITY_FIPS) if isinstance(priorities.get(BALTIMORE_CITY_FIPS), dict) else {}
     priority_total = int(priority.get("total") or 0)
+    if priority_total <= 0:
+        priority_total = _cheap_count_baltimore(db)
+    total = int(export.get("parcel_row_total") or priority_total or 0)
     queues = inspect_redis_queues(settings)
     workers = inspect_celery_workers()
     parking_depth = int(queues.get("parking_depth") or 0)
     slack_depth = int(queues.get("slack_depth") or 0)
     active_work = parking_depth > 0
-    address_missing, address_total = count_baltimore_missing_property_address(db)
+    address_total = priority_total
+    # We intentionally do not scan raw_properties here. Until the measured backfill
+    # runs, treat existing Baltimore rows as needing address association.
+    address_missing = priority_total
 
     poi_missing = int(priority.get("missing_poi") or 0)
     auto_fix = effective_auto_fix_enabled(settings)
@@ -170,11 +152,27 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
             "Throttle or narrow. Auto-fix can chip away slowly, but all-parcel completion is not urgent."
         )
 
-    pipeline_backlog = int((export.get("parcels_pipeline_funnel_backlog") or {}).get("count") or 0)
-    demand_missing = int((export.get("parcels_missing_distance_to_nearest_demand_m") or {}).get("count") or 0)
-    ident_missing = int((export.get("parcels_missing_score_identification") or {}).get("count") or 0)
-    ent_missing = int((export.get("parcels_missing_score_entitlement") or {}).get("count") or 0)
-    brief_missing = int((export.get("parcels_missing_owner_outreach_brief") or {}).get("count") or 0)
+    pipeline_backlog = int(
+        priority.get("pipeline_funnel_backlog")
+        or _gap_count(export, "parcels_pipeline_funnel_backlog")
+        or 0
+    )
+    demand_missing = int(
+        priority.get("missing_demand_m")
+        or _gap_count(export, "parcels_missing_distance_to_nearest_demand_m")
+        or 0
+    )
+    ident_missing = int(
+        priority.get("missing_identification_score")
+        or _gap_count(export, "parcels_missing_score_identification")
+        or 0
+    )
+    ent_missing = int(
+        priority.get("missing_entitlement_score")
+        or _gap_count(export, "parcels_missing_score_entitlement")
+        or 0
+    )
+    brief_missing = _gap_count(export, "parcels_missing_owner_outreach_brief")
 
     items = [
         _item(

@@ -66,7 +66,10 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   const contentType = req.headers.get("Content-Type");
   if (contentType) headers["Content-Type"] = contentType;
 
-  const init: RequestInit = { method, headers, cache: "no-store" };
+  const controller = new AbortController();
+  const timeoutMs = statsCacheKey ? 15_000 : 45_000;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const init: RequestInit = { method, headers, cache: "no-store", signal: controller.signal };
   if (method !== "GET" && method !== "HEAD") {
     init.body = await req.text();
   }
@@ -80,6 +83,8 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
       { detail: `API unreachable at ${baseClean}: ${msg}` },
       { status: 503 },
     );
+  } finally {
+    clearTimeout(timeout);
   }
   const body = await res.text();
   if (statsCacheKey && res.ok) {

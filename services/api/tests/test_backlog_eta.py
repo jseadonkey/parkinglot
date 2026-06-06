@@ -20,22 +20,25 @@ def _export_payload() -> dict:
 def test_backlog_eta_prioritizes_address_backfill_and_throttles_poi() -> None:
     settings = SimpleNamespace(ops_remediation_auto_fix=False, ops_remediation_allow_db_writes=False)
     with (
-        patch("app.backlog_eta.export_readiness_summary", return_value=_export_payload()),
         patch(
-            "app.backlog_eta.county_data_gaps",
+            "app.backlog_eta.load_last_report",
             return_value={
-                "county_fips": "24510",
-                "total": 223139,
-                "missing_demand_m": 0,
-                "missing_poi": 202100,
-                "missing_entitlement_score": 0,
-                "missing_identification_score": 0,
-                "pipeline_funnel_backlog": 0,
+                "export_readiness": _export_payload(),
+                "priority_counties": {
+                    "24510": {
+                        "county_fips": "24510",
+                        "total": 223139,
+                        "missing_demand_m": 0,
+                        "missing_poi": 202100,
+                        "missing_entitlement_score": 0,
+                        "missing_identification_score": 0,
+                        "pipeline_funnel_backlog": 0,
+                    },
+                },
             },
         ),
         patch("app.backlog_eta.inspect_redis_queues", return_value={"parking_depth": 0, "slack_depth": 0}),
         patch("app.backlog_eta.inspect_celery_workers", return_value={"ok": True, "detail": "2 workers"}),
-        patch("app.backlog_eta.count_baltimore_missing_property_address", return_value=(223139, 223139)),
         patch("app.backlog_eta.entitlement_qualified_floor", return_value=55.0),
     ):
         out = backlog_eta_summary(MagicMock(), settings)  # type: ignore[arg-type]
@@ -53,11 +56,15 @@ def test_backlog_eta_prioritizes_address_backfill_and_throttles_poi() -> None:
 def test_backlog_eta_estimates_poi_when_auto_fix_enabled() -> None:
     settings = SimpleNamespace(ops_remediation_auto_fix=True, ops_remediation_allow_db_writes=True)
     with (
-        patch("app.backlog_eta.export_readiness_summary", return_value=_export_payload()),
-        patch("app.backlog_eta.county_data_gaps", return_value={"total": 1000, "missing_poi": 1200}),
+        patch(
+            "app.backlog_eta.load_last_report",
+            return_value={
+                "export_readiness": _export_payload(),
+                "priority_counties": {"24510": {"total": 1000, "missing_poi": 1200}},
+            },
+        ),
         patch("app.backlog_eta.inspect_redis_queues", return_value={"parking_depth": 0, "slack_depth": 0}),
         patch("app.backlog_eta.inspect_celery_workers", return_value={"ok": True, "detail": "2 workers"}),
-        patch("app.backlog_eta.count_baltimore_missing_property_address", return_value=(0, 1000)),
         patch("app.backlog_eta.entitlement_qualified_floor", return_value=55.0),
     ):
         out = backlog_eta_summary(MagicMock(), settings)  # type: ignore[arg-type]
