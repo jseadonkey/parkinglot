@@ -30,7 +30,8 @@ jobs:
           ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Enable ops remediation env (idempotent)
+      - name: Enable ops remediation env (manual only)
+        if: github.event_name == 'workflow_dispatch'
         continue-on-error: true
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
