@@ -80,10 +80,11 @@ if _s.ops_remediation_enabled:
         "options": _SLACK_BEAT_OPTIONS,
     }
     logger.info(
-        "Beat: ops remediation loop — hour=%s minute=%s auto_fix=%s (slack queue)",
+        "Beat: ops remediation loop — hour=%s minute=%s auto_fix=%s db_writes_allowed=%s (slack queue)",
         _s.ops_remediation_crontab_hour,
         _s.ops_remediation_crontab_minute,
-        _s.ops_remediation_auto_fix,
+        bool(_s.ops_remediation_auto_fix and _s.ops_remediation_allow_db_writes),
+        _s.ops_remediation_allow_db_writes,
     )
 
 _ingest_path = (_s.scheduled_geojson_ingest_path or "").strip()

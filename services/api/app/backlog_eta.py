@@ -11,7 +11,12 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.db.schema_compat import column_exists
 from app.export_readiness import export_readiness_summary
-from app.ops_remediation import county_data_gaps, inspect_celery_workers, inspect_redis_queues
+from app.ops_remediation import (
+    county_data_gaps,
+    effective_auto_fix_enabled,
+    inspect_celery_workers,
+    inspect_redis_queues,
+)
 from app.pipeline_funnel import entitlement_qualified_floor
 
 BALTIMORE_CITY_FIPS = "24510"
@@ -153,13 +158,14 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
     address_missing, address_total = count_baltimore_missing_property_address(db)
 
     poi_missing = int(priority.get("missing_poi") or 0)
-    poi_daily = POI_SAFE_BATCHES_PER_DAY if settings.ops_remediation_auto_fix else 0
+    auto_fix = effective_auto_fix_enabled(settings)
+    poi_daily = POI_SAFE_BATCHES_PER_DAY if auto_fix else 0
     poi_recommendation = (
         "Keep paused or narrow to high-score parcels; all-parcel POI fill is long-running."
         if poi_missing > 0
         else "No action needed."
     )
-    if settings.ops_remediation_auto_fix and poi_missing > 0:
+    if auto_fix and poi_missing > 0:
         poi_recommendation = (
             "Throttle or narrow. Auto-fix can chip away slowly, but all-parcel completion is not urgent."
         )
@@ -286,7 +292,7 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
             "active_slack_queue_depth": slack_depth,
             "workers_online": bool(workers.get("ok")),
             "worker_detail": workers.get("detail"),
-            "ops_auto_fix_enabled": settings.ops_remediation_auto_fix,
+            "ops_auto_fix_enabled": auto_fix,
             "high_value_remaining": high_value_remaining,
             "decision": (
                 "No active heavy queue. High-value scoring backlog is clear; "

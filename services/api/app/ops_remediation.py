@@ -33,6 +33,11 @@ REDIS_STATE_KEY = "ops_remediation:last"
 REDIS_COOLDOWN_PREFIX = "ops_remediation:cooldown:"
 
 
+def effective_auto_fix_enabled(settings: Settings) -> bool:
+    """Fail-safe: auto-fix may diagnose by default, but DB writes need explicit opt-in."""
+    return bool(settings.ops_remediation_auto_fix and settings.ops_remediation_allow_db_writes)
+
+
 @dataclass
 class OpsIssue:
     code: str
@@ -461,7 +466,9 @@ def build_report(
         "ok": critical == 0,
         "issue_count": len(issues),
         "critical_count": critical,
-        "auto_fix_enabled": settings.ops_remediation_auto_fix,
+        "auto_fix_enabled": effective_auto_fix_enabled(settings),
+        "auto_fix_requested": settings.ops_remediation_auto_fix,
+        "db_writes_allowed": settings.ops_remediation_allow_db_writes,
         "celery_workers": workers,
         "redis_queues": queues,
         "priority_counties": counties,
@@ -549,7 +556,7 @@ def run_ops_remediation_loop(db: Session) -> dict[str, Any]:
         db,
         settings,
         issues,
-        auto_fix=settings.ops_remediation_auto_fix,
+        auto_fix=effective_auto_fix_enabled(settings),
     )
     report = build_report(db, settings, issues=issues, actions=actions)
     save_report(settings, report)

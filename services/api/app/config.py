@@ -549,6 +549,13 @@ class Settings(BaseSettings):
         default=True,
         validation_alias=AliasChoices("OPS_REMEDIATION_AUTO_FIX", "ops_remediation_auto_fix"),
     )
+    ops_remediation_allow_db_writes: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "OPS_REMEDIATION_ALLOW_DB_WRITES",
+            "ops_remediation_allow_db_writes",
+        ),
+    )
     ops_remediation_notify_on_warnings: bool = Field(
         default=True,
         validation_alias=AliasChoices(

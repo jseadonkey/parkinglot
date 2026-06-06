@@ -7,6 +7,7 @@ from app.ops_remediation import (
     apply_remediation,
     build_slack_text,
     diagnose,
+    effective_auto_fix_enabled,
     should_post_slack,
 )
 
@@ -38,6 +39,15 @@ def test_should_post_slack_on_critical() -> None:
     post, recovered = should_post_slack(settings, report, None)
     assert post is True
     assert recovered is False
+
+
+def test_effective_auto_fix_requires_explicit_db_write_opt_in() -> None:
+    assert effective_auto_fix_enabled(
+        MagicMock(ops_remediation_auto_fix=True, ops_remediation_allow_db_writes=False),
+    ) is False
+    assert effective_auto_fix_enabled(
+        MagicMock(ops_remediation_auto_fix=True, ops_remediation_allow_db_writes=True),
+    ) is True
 
 
 def test_apply_remediation_respects_cooldown(monkeypatch) -> None:

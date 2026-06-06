@@ -31,7 +31,12 @@ Requires **`worker-slack`** and **`beat`** containers running.
 | `enqueue_incomplete_limited` | 1h | Inline: up to 75 pipeline jobs |
 | `run_site_watchdog` | 1h | Celery: site watchdog |
 
-Set `OPS_REMEDIATION_AUTO_FIX=false` to **report only** (Slack still alerts on critical issues).
+By default, remediation reports only. DB-writing fixes require both:
+
+- `OPS_REMEDIATION_AUTO_FIX=true`
+- `OPS_REMEDIATION_ALLOW_DB_WRITES=true`
+
+Leave `OPS_REMEDIATION_ALLOW_DB_WRITES=false` during DigitalOcean Postgres CPU alerts.
 
 POI refresh uses **per-parcel commits + deadlock retry** — safe while other workers are active.
 
@@ -40,6 +45,7 @@ POI refresh uses **per-parcel commits + deadlock retry** — safe while other wo
 ```bash
 OPS_REMEDIATION_ENABLED=true
 OPS_REMEDIATION_AUTO_FIX=true
+OPS_REMEDIATION_ALLOW_DB_WRITES=false
 OPS_REMEDIATION_PRIORITY_COUNTY_FIPS=24510
 OPS_REMEDIATION_COOLDOWN_SEC=3600
 OPS_REMEDIATION_POI_BATCH_LIMIT=50
@@ -63,7 +69,7 @@ When DigitalOcean reports high CPU on Managed Postgres, first pause automatic DB
 
 1. Run GitHub Actions **Droplet resources (via Droplet)** with `relieve_load=true`.
 2. Confirm queue depth is near zero with **Droplet resources** → `probe_pipeline_velocity=true`.
-3. Leave watchdog/reporting enabled, but keep `OPS_REMEDIATION_AUTO_FIX=false` until CPU returns to normal.
+3. Leave watchdog/reporting enabled, but keep `OPS_REMEDIATION_ALLOW_DB_WRITES=false` until CPU returns to normal.
 
 The relief action purges the parking Celery queue and disables scheduled enqueue, priority
 pipeline, refresh, WA rollout, exploration campaign, and ops auto-fix loops. Resize Postgres only

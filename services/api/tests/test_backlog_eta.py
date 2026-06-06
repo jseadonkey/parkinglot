@@ -18,7 +18,7 @@ def _export_payload() -> dict:
 
 
 def test_backlog_eta_prioritizes_address_backfill_and_throttles_poi() -> None:
-    settings = SimpleNamespace(ops_remediation_auto_fix=False)
+    settings = SimpleNamespace(ops_remediation_auto_fix=False, ops_remediation_allow_db_writes=False)
     with (
         patch("app.backlog_eta.export_readiness_summary", return_value=_export_payload()),
         patch(
@@ -51,7 +51,7 @@ def test_backlog_eta_prioritizes_address_backfill_and_throttles_poi() -> None:
 
 
 def test_backlog_eta_estimates_poi_when_auto_fix_enabled() -> None:
-    settings = SimpleNamespace(ops_remediation_auto_fix=True)
+    settings = SimpleNamespace(ops_remediation_auto_fix=True, ops_remediation_allow_db_writes=True)
     with (
         patch("app.backlog_eta.export_readiness_summary", return_value=_export_payload()),
         patch("app.backlog_eta.county_data_gaps", return_value={"total": 1000, "missing_poi": 1200}),
