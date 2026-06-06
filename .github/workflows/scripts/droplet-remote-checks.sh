@@ -192,7 +192,7 @@ print("slack_posted", posted)
 PY
     ;;
   sync-slack-channels)
-    echo "=== align alert channel IDs with SLACK_DIGEST_CHANNEL_ID ==="
+    echo "=== fill missing alert channel IDs from SLACK_DIGEST_CHANNEL_ID ==="
     python3 - <<'PY'
 import pathlib
 
@@ -207,7 +207,7 @@ for line in text.splitlines():
 
 digest = values.get("SLACK_DIGEST_CHANNEL_ID", "") or "C0B0VPSAH44"
 updates = {
-    "SITE_WATCHDOG_SLACK_CHANNEL_ID": digest,
+    "SITE_WATCHDOG_SLACK_CHANNEL_ID": values.get("SITE_WATCHDOG_SLACK_CHANNEL_ID", "") or digest,
     "SLACK_AGENT_DISCUSSION_CHANNEL_ID": values.get("SLACK_AGENT_DISCUSSION_CHANNEL_ID", "") or digest,
 }
 out: list[str] = []
@@ -225,7 +225,8 @@ for key, val in updates.items():
 path.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
 print(f"digest_channel={digest}")
 for k, v in updates.items():
-    print(f"{k}={v}")
+    action = "kept" if values.get(k, "") else "defaulted"
+    print(f"{k}={v} ({action})")
 PY
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
     docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps api worker worker-slack beat

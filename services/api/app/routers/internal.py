@@ -170,14 +170,30 @@ def slack_config_status() -> SlackConfigStatusResponse:
     """Whether Slack digest env is set (no token values returned)."""
     s = get_settings()
     has_token = bool((s.slack_bot_token or "").strip())
+    has_app_token = bool((s.slack_app_token or "").strip())
+    has_signing_secret = bool((s.slack_signing_secret or "").strip())
     has_channel = bool((s.slack_digest_channel_id or "").strip())
     has_agent_ch = bool((s.slack_agent_discussion_channel_id or "").strip())
+    has_watchdog_ch = bool((s.site_watchdog_slack_channel_id or "").strip())
+    configured_channels = {
+        ch
+        for ch in (
+            (s.slack_digest_channel_id or "").strip(),
+            (s.slack_agent_discussion_channel_id or "").strip(),
+            (s.site_watchdog_slack_channel_id or "").strip(),
+        )
+        if ch
+    }
     return SlackConfigStatusResponse(
         slack_digest_configured=has_token and has_channel,
         has_bot_token=has_token,
+        has_socket_app_token=has_app_token,
+        has_signing_secret=has_signing_secret,
         has_digest_channel_id=has_channel,
         slack_dual_agent_configured=has_token and has_agent_ch,
         has_agent_discussion_channel_id=has_agent_ch,
+        has_site_watchdog_channel_id=has_watchdog_ch,
+        slack_channels_distinct=len(configured_channels) > 1,
         slack_agent_event_updates_enabled=slack_agent_event_updates_enabled(s),
     )
 

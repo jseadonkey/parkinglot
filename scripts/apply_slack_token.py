@@ -14,6 +14,10 @@ ENV_PATH = ROOT / "deploy" / ".env"
 FALLBACK_ENV = ROOT / ".env"
 # Purveyors of Leisure — #gf-parkinglot-agents-chat (copy from Slack channel details if yours differs).
 DEFAULT_CHANNEL = "C0B0VPSAH44"
+OPTIONAL_CHANNEL_KEYS = (
+    "SLACK_AGENT_DISCUSSION_CHANNEL_ID",
+    "SITE_WATCHDOG_SLACK_CHANNEL_ID",
+)
 
 COMPOSE_FILES = [
     "deploy/docker-compose.production.ghcr.yml",
@@ -28,6 +32,16 @@ def _drop_slack_assignment(line: str) -> bool:
     return t.startswith("SLACK_BOT_TOKEN=") or t.startswith("SLACK_DIGEST_CHANNEL_ID=") or t.startswith(
         "SLACK_AGENT_DISCUSSION_CHANNEL_ID="
     ) or t.startswith("SITE_WATCHDOG_SLACK_CHANNEL_ID=")
+
+
+def _env_assignments(text: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for line in text.splitlines():
+        if not line or line.lstrip().startswith("#") or "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        values[key.strip()] = val.strip().strip('"').strip("'")
+    return values
 
 
 def _resolve_env_path() -> Path:
@@ -70,10 +84,19 @@ def main() -> int:
         )
         return 1
 
-    chan = os.environ.get("SLACK_DIGEST_CHANNEL_ID", DEFAULT_CHANNEL).strip()
     env_path = _resolve_env_path()
 
     text = env_path.read_text(encoding="utf-8") if env_path.is_file() else ""
+    existing = _env_assignments(text)
+    chan = (
+        os.environ.get("SLACK_DIGEST_CHANNEL_ID")
+        or existing.get("SLACK_DIGEST_CHANNEL_ID")
+        or DEFAULT_CHANNEL
+    ).strip()
+    optional_channels = {
+        key: (os.environ.get(key) or existing.get(key, "")).strip()
+        for key in OPTIONAL_CHANNEL_KEYS
+    }
     lines: list[str] = []
     for line in text.splitlines():
         if "Optional Slack standup" in line and "docs/SLACK.md" in line:
@@ -86,9 +109,10 @@ def main() -> int:
         "\n\n# Slack — worker digests + API routes (docs/SLACK.md)\n"
         f"SLACK_BOT_TOKEN={token}\n"
         f"SLACK_DIGEST_CHANNEL_ID={chan}\n"
-        f"SLACK_AGENT_DISCUSSION_CHANNEL_ID={chan}\n"
-        f"SITE_WATCHDOG_SLACK_CHANNEL_ID={chan}\n"
     )
+    for key, value in optional_channels.items():
+        if value:
+            block += f"{key}={value}\n"
     env_path.write_text(body + block, encoding="utf-8", newline="\n")
     os.chmod(env_path, 0o600)
 
