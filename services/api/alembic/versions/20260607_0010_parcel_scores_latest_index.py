@@ -1,7 +1,7 @@
 """Add latest-score lookup index for parcel score lists.
 
 Revision ID: 20260607_0010
-Revises: 20260602_0009
+Revises: 0011
 Create Date: 2026-06-07
 """
 
@@ -13,7 +13,7 @@ from app.db.migration_util import index_exists
 
 
 revision = "20260607_0010"
-down_revision = "20260602_0009"
+down_revision = "0011"
 branch_labels = None
 depends_on = None
 
