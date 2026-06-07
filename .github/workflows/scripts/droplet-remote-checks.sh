@@ -228,7 +228,7 @@ for k, v in updates.items():
     print(f"{k}={v}")
 PY
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
-    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps api worker worker-slack beat
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --force-recreate --no-deps api worker worker-slack beat
     ;;
   slack-inspect)
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
@@ -1223,7 +1223,7 @@ for key, val in sorted(updates.items()):
     print(f"Set {key}={val}")
 PY
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
-    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps api worker worker-slack beat
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --force-recreate --no-deps api worker worker-slack beat
     if [ -n "$KEY" ]; then
       echo "=== kickstart ops loop ==="
       _internal_api_post "/internal/ops/run-now" || true
