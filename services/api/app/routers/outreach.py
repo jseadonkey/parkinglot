@@ -19,12 +19,15 @@ from app.outreach_contacts import (
     normalize_contact_value,
     record_outreach_attempt,
 )
+from app.outreach_decisions import require_owner_contact_approved
 from app.outreach_templates import PARCEL_DRAFT_CHANNELS, build_parcel_outreach_drafts
 from app.schemas import (
     ApprovalRead,
     OutreachApprovalRequest,
     OutreachAttemptCreate,
     OutreachAttemptRead,
+    OwnerContactDecisionRead,
+    OwnerContactDecisionUpdate,
     OwnerContactPointCreate,
     OwnerContactPointRead,
     ParcelOutreachDraftRead,
@@ -62,8 +65,50 @@ def get_parcel_outreach(parcel_id: uuid.UUID, db: Session = Depends(get_db)) -> 
     attempts = load_outreach_attempts(db, parcel_id)
     return ParcelOutreachRead(
         brief=merged.model_dump(mode="json"),
+        owner_contact_decision=parcel.owner_contact_decision or "pending",
+        owner_contact_decision_by=parcel.owner_contact_decision_by,
+        owner_contact_decision_at=parcel.owner_contact_decision_at,
+        owner_contact_decision_note=parcel.owner_contact_decision_note,
         contact_points=[OwnerContactPointRead.model_validate(row) for row in persisted],
         attempts=[OutreachAttemptRead.model_validate(row) for row in attempts],
+    )
+
+
+@router.post("/{parcel_id}/outreach/contact-decision", response_model=OwnerContactDecisionRead)
+def set_owner_contact_decision(
+    parcel_id: uuid.UUID,
+    body: OwnerContactDecisionUpdate,
+    db: Session = Depends(get_db),
+) -> OwnerContactDecisionRead:
+    parcel = db.get(Parcel, parcel_id)
+    if parcel is None:
+        raise HTTPException(status_code=404, detail="parcel not found")
+
+    now = datetime.now(tz=UTC)
+    parcel.owner_contact_decision = body.decision
+    parcel.owner_contact_decision_by = body.decided_by
+    parcel.owner_contact_decision_at = now
+    parcel.owner_contact_decision_note = body.note
+    write_audit(
+        db,
+        actor=body.decided_by,
+        action="owner_contact_decision_updated",
+        entity_type="parcel",
+        entity_id=str(parcel_id),
+        meta={
+            "parcel_id": str(parcel_id),
+            "apn": parcel.apn,
+            "decision": body.decision,
+            "note": body.note,
+        },
+    )
+    db.refresh(parcel)
+    return OwnerContactDecisionRead(
+        parcel_id=parcel.id,
+        owner_contact_decision=parcel.owner_contact_decision or "pending",
+        owner_contact_decision_by=parcel.owner_contact_decision_by,
+        owner_contact_decision_at=parcel.owner_contact_decision_at,
+        owner_contact_decision_note=parcel.owner_contact_decision_note,
     )
 
 
@@ -72,11 +117,12 @@ def get_parcel_outreach_drafts(
     parcel_id: uuid.UUID,
     db: Session = Depends(get_db),
 ) -> list[ParcelOutreachDraftRead]:
-    _require_templates_table(db)
     parcel = db.get(Parcel, parcel_id)
     if parcel is None:
         raise HTTPException(status_code=404, detail="parcel not found")
     brief = _require_brief(parcel)
+    require_owner_contact_approved(parcel)
+    _require_templates_table(db)
     persisted = load_persisted_contact_points(db, parcel_id)
     merged = merge_brief_with_persisted_contacts(brief, persisted)
     raw = build_parcel_outreach_drafts(db, parcel=parcel, brief=merged)
@@ -93,7 +139,6 @@ def request_outreach_draft_approval(
     body: OutreachApprovalRequest,
     db: Session = Depends(get_db),
 ) -> ApprovalRead:
-    _require_templates_table(db)
     if channel not in _VALID_DRAFT_CHANNELS:
         raise HTTPException(status_code=400, detail=f"invalid channel: {channel}")
 
@@ -101,6 +146,8 @@ def request_outreach_draft_approval(
     if parcel is None:
         raise HTTPException(status_code=404, detail="parcel not found")
     brief = _require_brief(parcel)
+    require_owner_contact_approved(parcel)
+    _require_templates_table(db)
     persisted = load_persisted_contact_points(db, parcel_id)
     merged = merge_brief_with_persisted_contacts(brief, persisted)
     drafts = build_parcel_outreach_drafts(db, parcel=parcel, brief=merged)

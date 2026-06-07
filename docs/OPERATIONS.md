@@ -113,8 +113,8 @@ This does **not** download assessor data automatically; it only ingests files yo
 - **Recompute without full pipeline:** `POST /parcels/{parcel_id}/outreach/recompute` with JSON body `fetch_sos`, `fetch_sos_detail`, `call_vendor` (booleans). Async variant: `.../outreach/recompute/async` → poll `GET /internal/tasks/{task_id}`.
 - **Pipeline-time HTTP (optional):** set `OUTREACH_PIPELINE_FETCH_SOS`, `OUTREACH_PIPELINE_FETCH_SOS_DETAIL`, and/or `OUTREACH_PIPELINE_CALL_VENDOR_WEBHOOK` to `true` so each `run_pipeline` builds the brief with the same integrations (use sparingly: rate limits and vendor cost).
 - **Vendor webhook:** `OUTREACH_VENDOR_WEBHOOK_URL`, optional `OUTREACH_VENDOR_WEBHOOK_SECRET`, `OUTREACH_VENDOR_TIMEOUT_SEC`. **SOS client:** `OUTREACH_HTTP_USER_AGENT`, `OUTREACH_WA_SOS_TIMEOUT_SEC`.
-- **Draft outbound messages (no sending):** `POST /parcels/{parcel_id}/outreach/message-draft` with JSON body `{ "channels": ["email","certified_mail"], "create_approval": true }`. This stores `parcels.outbound_message_drafts` and (optionally) creates a pending `ApprovalRequest(type=outbound_message)`.
-- **Pipeline-time message draft approvals (optional):** set `OUTREACH_PIPELINE_CREATE_MESSAGE_APPROVAL=true` to automatically create an `outbound_message` approval during `run_pipeline`. Configure sender identity via `OUTREACH_SENDER_NAME`, `OUTREACH_SENDER_COMPANY`, `OUTREACH_SENDER_EMAIL`, `OUTREACH_SENDER_PHONE`.
+- **Owner-contact decision gate:** message drafts are blocked until an operator records `approved` with `POST /parcels/{parcel_id}/outreach/contact-decision`. Use `rejected` to pass on a parcel without generating mail, text, phone, or email copy.
+- **Draft outbound messages (no sending):** after owner contact is approved, `GET /parcels/{parcel_id}/outreach/drafts` renders the current email, SMS, phone, and certified-mail templates. `POST /parcels/{parcel_id}/outreach/drafts/{channel}/request-approval` queues the `outbound_message` approval; it does not send.
 
 ## Deploy updates from your laptop
 

@@ -28,6 +28,10 @@ type Parcel = {
   is_corner_lot: boolean;
   distance_to_nearest_demand_m: number | null;
   owner_outreach_brief: Record<string, unknown> | null;
+  owner_contact_decision: OwnerContactDecision;
+  owner_contact_decision_by: string | null;
+  owner_contact_decision_at: string | null;
+  owner_contact_decision_note: string | null;
   created_at: string;
 };
 
@@ -117,11 +121,19 @@ type OutreachDraft = {
   has_recipient: boolean;
 };
 
+type OwnerContactDecision = "pending" | "approved" | "rejected";
+
 const DRAFT_LABELS: Record<string, string> = {
   email: "Email",
   sms: "Text",
   phone: "Voice",
   certified_mail: "Mail",
+};
+
+const CONTACT_DECISION_LABELS: Record<OwnerContactDecision, string> = {
+  pending: "Needs human contact review",
+  approved: "Approved for owner outreach",
+  rejected: "Passed / do not contact",
 };
 
 export default function ParcelDetailPage() {
@@ -141,6 +153,8 @@ export default function ParcelDetailPage() {
   const [requestActor, setRequestActor] = useState("operator@example.com");
   const [approvalMsg, setApprovalMsg] = useState<string | null>(null);
   const [requesting, setRequesting] = useState(false);
+  const [decisionMsg, setDecisionMsg] = useState<string | null>(null);
+  const [deciding, setDeciding] = useState<OwnerContactDecision | null>(null);
   const [dealContext, setDealContext] = useState<DealContext | null>(null);
   const [dealErr, setDealErr] = useState<string | null>(null);
 
@@ -149,6 +163,10 @@ export default function ParcelDetailPage() {
     let cancelled = false;
     (async () => {
       setErr(null);
+      setDraftErr(null);
+      setDrafts([]);
+      setApprovalMsg(null);
+      setDecisionMsg(null);
       try {
         const [rp, rr] = await Promise.all([
           fetch(bridgeUrl(`parcels/${id}`), { cache: "no-store" }),
@@ -176,7 +194,7 @@ export default function ParcelDetailPage() {
         } else if (!cancelled) {
           setDealErr(`Deal context unavailable (${dc.status})`);
         }
-        if (p.owner_outreach_brief) {
+        if (p.owner_outreach_brief && p.owner_contact_decision === "approved") {
           const rd = await fetch(bridgeUrl(`parcels/${id}/outreach/drafts`), { cache: "no-store" });
           if (rd.ok) {
             const d = (await rd.json()) as OutreachDraft[];
@@ -202,6 +220,9 @@ export default function ParcelDetailPage() {
   const activeDraft = drafts.find((d) => d.channel === draftChannel) ?? drafts[0] ?? null;
   const skipTrace = useMemo(() => parseSkipTraceView(parcel?.owner_outreach_brief), [parcel?.owner_outreach_brief]);
   const latestRun = runs[0] ?? null;
+  const contactDecision = parcel?.owner_contact_decision ?? "pending";
+  const contactApproved = contactDecision === "approved";
+  const contactRejected = contactDecision === "rejected";
 
   const nextStepHint = useMemo(() => {
     if (!parcel) return null;
@@ -209,9 +230,74 @@ export default function ParcelDetailPage() {
     if (latestRun.status === "failed") return "Pipeline failed — check the error below or retry from ops.";
     if (latestRun.status === "running") return `Processing: ${latestRun.current_step?.replaceAll("_", " ") ?? "in progress"}…`;
     if (!parcel.owner_outreach_brief) return "Pipeline running or brief not ready — owner enrichment may still be in progress.";
-    if (drafts.length === 0) return "Brief ready — message drafts will appear when templates and contacts are available.";
+    if (parcel.owner_contact_decision === "rejected") return "Human review passed on this parcel — outreach drafts stay blocked.";
+    if (parcel.owner_contact_decision !== "approved") {
+      return "Brief ready — decide whether this parcel is worth contacting before any mail, text, email, or phone draft is generated.";
+    }
+    if (drafts.length === 0) return "Owner contact approved — message drafts will appear when templates and contacts are available.";
     return "Review message drafts below, then request counsel approval before anything is sent.";
   }, [parcel, latestRun, drafts.length]);
+
+  async function loadDraftsAfterApproval() {
+    if (!id) return;
+    setDraftErr(null);
+    const rd = await fetch(bridgeUrl(`parcels/${id}/outreach/drafts`), { cache: "no-store" });
+    if (!rd.ok) {
+      setDraftErr(`Message drafts unavailable (${rd.status})`);
+      return;
+    }
+    const d = (await rd.json()) as OutreachDraft[];
+    setDrafts(d);
+    if (d.length > 0) {
+      setDraftChannel((prev) => (d.some((x) => x.channel === prev) ? prev : d[0].channel));
+    }
+  }
+
+  async function decideOwnerContact(decision: OwnerContactDecision) {
+    if (!allowActions || !id) return;
+    setDecisionMsg(null);
+    setApprovalMsg(null);
+    setDeciding(decision);
+    try {
+      const res = await fetch(bridgeUrl(`parcels/${id}/outreach/contact-decision`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision, decided_by: requestActor }),
+      });
+      if (!res.ok) {
+        const detail = await res.text();
+        setDecisionMsg(`Decision failed (${res.status}): ${detail}`);
+        return;
+      }
+      const updated = (await res.json()) as {
+        owner_contact_decision: OwnerContactDecision;
+        owner_contact_decision_by: string | null;
+        owner_contact_decision_at: string | null;
+        owner_contact_decision_note: string | null;
+      };
+      setParcel((prev) =>
+        prev
+          ? {
+              ...prev,
+              owner_contact_decision: updated.owner_contact_decision,
+              owner_contact_decision_by: updated.owner_contact_decision_by,
+              owner_contact_decision_at: updated.owner_contact_decision_at,
+              owner_contact_decision_note: updated.owner_contact_decision_note,
+            }
+          : prev,
+      );
+      setDrafts([]);
+      setDraftErr(null);
+      if (updated.owner_contact_decision === "approved") {
+        setDecisionMsg("Owner contact approved. Drafts are now available for review.");
+        await loadDraftsAfterApproval();
+      } else {
+        setDecisionMsg("Parcel marked as pass. Outreach drafts remain blocked.");
+      }
+    } finally {
+      setDeciding(null);
+    }
+  }
 
   async function requestApproval(channel: string) {
     if (!allowActions || !id) return;
@@ -290,9 +376,17 @@ export default function ParcelDetailPage() {
                 : "Needs comps + lot size"}
             </p>
           </div>
-          <div className={`platform-deliverable ${drafts.length > 0 ? "deliverable-done" : ""}`}>
+          <div className={`platform-deliverable ${contactApproved && drafts.length > 0 ? "deliverable-done" : ""}`}>
             <strong>Outreach drafts</strong>
-            <p className="muted">{drafts.length > 0 ? `${drafts.length} channels` : "After brief + templates"}</p>
+            <p className="muted">
+              {drafts.length > 0
+                ? `${drafts.length} channels`
+                : contactRejected
+                  ? "Blocked: passed"
+                  : contactApproved
+                    ? "Approved; loading templates"
+                    : "After human contact review"}
+            </p>
           </div>
           <div className={`platform-deliverable ${runs.some((r) => r.status === "completed") ? "deliverable-done" : ""}`}>
             <strong>Pipeline</strong>
@@ -344,6 +438,19 @@ export default function ParcelDetailPage() {
               <span className="muted">Corner / zoning parking</span>
               <span>
                 corner={String(parcel.is_corner_lot)} · surface_ok={String(parcel.zoning_allows_surface_parking)}
+              </span>
+            </div>
+            <div className="row">
+              <span className="muted">Owner contact decision</span>
+              <span>
+                {CONTACT_DECISION_LABELS[contactDecision]}
+                {parcel.owner_contact_decision_by ? (
+                  <span className="muted">
+                    {" "}
+                    by {parcel.owner_contact_decision_by}
+                    {parcel.owner_contact_decision_at ? ` · ${parcel.owner_contact_decision_at.slice(0, 19)}` : ""}
+                  </span>
+                ) : null}
               </span>
             </div>
           </div>
@@ -713,11 +820,66 @@ export default function ParcelDetailPage() {
 
           <h2>Message drafts</h2>
           <p className="muted">
-            Rendered from admin templates using this parcel&apos;s owner data.{" "}
+            Drafted only after a human marks this parcel worth contacting, then rendered from admin templates.{" "}
             <Link href="/templates">Edit default templates</Link>
           </p>
           {draftErr ? <div className="error">{draftErr}</div> : null}
-          {drafts.length > 0 && activeDraft ? (
+          {parcel.owner_outreach_brief ? (
+            <div className="panel panel-inset" style={{ marginBottom: "1rem" }}>
+              <div className="row">
+                <div>
+                  <strong>{CONTACT_DECISION_LABELS[contactDecision]}</strong>
+                  <p className="muted" style={{ margin: "0.35rem 0 0" }}>
+                    {contactApproved
+                      ? "This parcel is approved for owner contact. Review the generated copy before requesting send approval."
+                      : contactRejected
+                        ? "This parcel was marked as not worth contacting; message drafts stay hidden."
+                        : "Review the deal context, revenue model, and owner brief first. Drafts unlock only if you approve contacting the owner."}
+                  </p>
+                </div>
+              </div>
+              {allowActions ? (
+                <div className="toolbar-row" style={{ marginTop: "0.85rem" }}>
+                  <label className="toolbar-field">
+                    <span className="muted">Decision by</span>
+                    <input
+                      value={requestActor}
+                      onChange={(e) => setRequestActor(e.target.value)}
+                      placeholder="name@company.com"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={deciding !== null || contactApproved}
+                    onClick={() => void decideOwnerContact("approved")}
+                  >
+                    {deciding === "approved" ? "Approving…" : "Approve for owner outreach"}
+                  </button>
+                  <button
+                    type="button"
+                    className="outline"
+                    disabled={deciding !== null || contactRejected}
+                    onClick={() => void decideOwnerContact("rejected")}
+                  >
+                    {deciding === "rejected" ? "Saving…" : "Pass / do not contact"}
+                  </button>
+                </div>
+              ) : (
+                <p className="muted" style={{ marginBottom: 0 }}>
+                  Sign in as an admin to record the contact decision.
+                </p>
+              )}
+              {decisionMsg ? (
+                <div className={decisionMsg.startsWith("Decision failed") ? "error" : "success"}>
+                  {decisionMsg}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <p className="muted">No owner brief yet — drafts remain blocked until enrichment and human contact review.</p>
+          )}
+          {contactApproved && drafts.length > 0 && activeDraft ? (
             <div className="panel">
               <div className="template-tabs" role="tablist" aria-label="Outreach channels">
                 {drafts.map((d) => (
@@ -778,7 +940,7 @@ export default function ParcelDetailPage() {
               ) : null}
               {approvalMsg ? <div className={approvalMsg.startsWith("Sent") ? "success" : "error"}>{approvalMsg}</div> : null}
             </div>
-          ) : parcel.owner_outreach_brief && !draftErr ? (
+          ) : parcel.owner_outreach_brief && contactApproved && !draftErr ? (
             <p className="muted">Loading message drafts…</p>
           ) : null}
         </>

@@ -70,6 +70,7 @@ def test_openapi_lists_required_paths_and_response_models() -> None:
             "/parcels/{parcel_id}/deal-context",
             "/parcels/{parcel_id}/score",
             "/parcels/{parcel_id}/outreach",
+            "/parcels/{parcel_id}/outreach/contact-decision",
             "/parcels/{parcel_id}/outreach/drafts",
             "/parcels/{parcel_id}/outreach/drafts/{channel}/request-approval",
             "/parcels/{parcel_id}/outreach/attempts",
@@ -133,6 +134,7 @@ def test_openapi_lists_required_paths_and_response_models() -> None:
         ("/workflow-runs/{run_id}", "get", "WorkflowRunRead"),
         ("/parcels/{parcel_id}", "get", "ParcelRead"),
         ("/parcels/{parcel_id}/score", "get", "ParcelScoreRead"),
+        ("/parcels/{parcel_id}/outreach/contact-decision", "post", "OwnerContactDecisionRead"),
         ("/approvals/{approval_id}/approve", "post", "ApprovalRead"),
         ("/approvals/{approval_id}/reject", "post", "ApprovalRead"),
     ]

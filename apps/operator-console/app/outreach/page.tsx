@@ -31,6 +31,7 @@ type Row = {
   workflow_error: string | null;
   workflow_updated_at: string | null;
   has_outreach_brief: boolean;
+  owner_contact_decision: string;
   pending_approval_count: number;
   pipeline_stage: string;
   monthly_gross_usd: number | null;
@@ -127,6 +128,7 @@ export default function OutreachPipelinePage() {
       failed: rows.filter((r) => r.pipeline_stage === "failed").length,
       running: rows.filter((r) => r.pipeline_stage === "running").length,
       withApprovals: rows.filter((r) => r.pending_approval_count > 0).length,
+      approvedContact: rows.filter((r) => r.owner_contact_decision === "approved").length,
     };
   }, [board]);
 
@@ -146,7 +148,7 @@ export default function OutreachPipelinePage() {
     { key: "action", label: "Needs action", count: stats.action },
     { key: "all", label: "All", count: stats.total },
     { key: "blocked", label: "Blocked", count: stats.blocked },
-    { key: "completed", label: "Ready", count: stats.completed },
+    { key: "completed", label: "Review", count: stats.completed },
     { key: "failed", label: "Failed", count: stats.failed },
     { key: "running", label: "Running", count: stats.running },
   ];
@@ -173,8 +175,8 @@ export default function OutreachPipelinePage() {
           <div className="muted">Pending approvals</div>
         </div>
         <div className="stat">
-          <div className="n">{stats.completed}</div>
-          <div className="muted">Ready for outreach</div>
+          <div className="n">{stats.approvedContact}</div>
+          <div className="muted">Approved for contact</div>
         </div>
         <div className="stat">
           <div className="n">{board?.qualified_min_entitlement_score ?? "—"}</div>
@@ -314,7 +316,9 @@ export default function OutreachPipelinePage() {
                           <div className={`cell-sub ${r.workflow_error ? "error" : "muted"}`}>{detail}</div>
                         ) : null}
                         {r.has_outreach_brief ? (
-                          <div className="muted cell-sub">Brief ready</div>
+                          <div className="muted cell-sub">
+                            Brief ready · {r.owner_contact_decision.replaceAll("_", " ")}
+                          </div>
                         ) : null}
                       </td>
                       <td className="muted">{formatRelativeTime(r.workflow_updated_at)}</td>
