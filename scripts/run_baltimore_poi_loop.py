@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run multiple Baltimore POI refresh batches inline (no Celery).
+"""Run multiple qualified Baltimore POI refresh batches inline (no Celery).
 
   POI_BATCHES=5 POI_LIMIT=50 python3 scripts/run_baltimore_poi_loop.py
 """
