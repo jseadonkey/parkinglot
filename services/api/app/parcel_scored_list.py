@@ -74,6 +74,56 @@ def _latest_score_subq(parcel_id_col: Any, profile: str) -> Any:
     )
 
 
+def _parcel_scope_subq(
+    *,
+    county_fips: str,
+    state_fips: str,
+    zoning_tier: str,
+) -> Any:
+    scope = select(Parcel.id.label("parcel_id"))
+    if county_fips:
+        scope = scope.where(Parcel.county_fips == county_fips)
+    elif state_fips:
+        scope = scope.where(Parcel.county_fips.startswith(state_fips))
+    if zoning_tier in ("permitted", "conditional", "council", "excluded"):
+        codes = baltimore_zone_codes_for_tier(zoning_tier)
+        if not codes:
+            return None
+        # Baltimore-only filter until WA rules carry principal_use_symbol entries.
+        scope = scope.where(Parcel.county_fips == "24510", func.upper(Parcel.zoning_code).in_(sorted(codes)))
+    return scope.subquery()
+
+
+def _latest_scores_pivot_subq(parcel_scope: Any) -> Any:
+    ranked = (
+        select(
+            ParcelScore.parcel_id.label("parcel_id"),
+            ParcelScore.score_profile.label("score_profile"),
+            ParcelScore.total_score.label("total_score"),
+            func.row_number()
+            .over(
+                partition_by=(ParcelScore.parcel_id, ParcelScore.score_profile),
+                order_by=ParcelScore.created_at.desc(),
+            )
+            .label("rn"),
+        )
+        .join(parcel_scope, ParcelScore.parcel_id == parcel_scope.c.parcel_id)
+        .where(ParcelScore.score_profile.in_((ENTITLEMENT, STRATEGIC, IDENTIFICATION)))
+        .subquery()
+    )
+    return (
+        select(
+            ranked.c.parcel_id,
+            func.max(ranked.c.total_score).filter(ranked.c.score_profile == ENTITLEMENT).label("ent_score"),
+            func.max(ranked.c.total_score).filter(ranked.c.score_profile == STRATEGIC).label("str_score"),
+            func.max(ranked.c.total_score).filter(ranked.c.score_profile == IDENTIFICATION).label("id_score"),
+        )
+        .where(ranked.c.rn == 1)
+        .group_by(ranked.c.parcel_id)
+        .subquery()
+    )
+
+
 def query_parcels_scored_list(
     db: Session,
     *,
@@ -89,9 +139,13 @@ def query_parcels_scored_list(
     cf = (county_fips or "").strip()
     st = (state_fips or "").strip()
     tier = (zoning_tier or "").strip().lower()
-    ent_sub = _latest_score_subq(Parcel.id, ENTITLEMENT)
-    str_sub = _latest_score_subq(Parcel.id, STRATEGIC)
-    id_sub = _latest_score_subq(Parcel.id, IDENTIFICATION)
+    parcel_scope = _parcel_scope_subq(county_fips=cf, state_fips=st, zoning_tier=tier)
+    if parcel_scope is None:
+        return []
+    latest_scores = _latest_scores_pivot_subq(parcel_scope)
+    ent_sub = latest_scores.c.ent_score
+    str_sub = latest_scores.c.str_score
+    id_sub = latest_scores.c.id_score
 
     combined_sub = _combined_score_sql(ent_sub, str_sub, id_sub)
     sort_col = combined_sub
@@ -113,13 +167,12 @@ def query_parcels_scored_list(
         ent_sub.label("ent_score"),
         str_sub.label("str_score"),
         id_sub.label("id_score"),
-    )
+    ).outerjoin(latest_scores, Parcel.id == latest_scores.c.parcel_id)
     if cf:
         stmt = stmt.where(Parcel.county_fips == cf)
     elif st:
         stmt = stmt.where(Parcel.county_fips.startswith(st))
     if tier in ("permitted", "conditional", "council", "excluded"):
-        # Baltimore-only filter until WA rules carry principal_use_symbol entries.
         codes = baltimore_zone_codes_for_tier(tier)
         if codes:
             stmt = stmt.where(Parcel.county_fips == "24510", func.upper(Parcel.zoning_code).in_(sorted(codes)))
