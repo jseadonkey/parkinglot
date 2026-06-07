@@ -88,6 +88,7 @@ from app.slack_digest import (
     slack_agent_event_updates_enabled,
 )
 from app.tasks import (
+    backfill_baltimore_property_addresses_batch,
     enqueue_incomplete_pipeline_jobs,
     enqueue_priority_qualified_pipeline_jobs,
     enqueue_unscored_pipeline_jobs,
@@ -930,6 +931,21 @@ def refresh_rate_comp_scores(
         county_fips=county_fips,
         min_entitlement_score=min_entitlement_score,
     )
+    return CeleryTaskIdResponse(task_id=async_result.id)
+
+
+@router.post("/metrics/backfill-baltimore-addresses", response_model=CeleryTaskIdResponse)
+def backfill_baltimore_addresses(
+    limit: int = Query(
+        default=500,
+        ge=1,
+        le=5000,
+        description="Measured batch size; start small while Postgres CPU is elevated.",
+    ),
+    dry_run: bool = Query(default=False, description="Fetch/match but do not update rows."),
+) -> CeleryTaskIdResponse:
+    """Backfill Baltimore City property/situs addresses from Realproperty_OB in a bounded batch."""
+    async_result = backfill_baltimore_property_addresses_batch.delay(limit=limit, dry_run=dry_run)
     return CeleryTaskIdResponse(task_id=async_result.id)
 
 

@@ -1515,6 +1515,18 @@ def refresh_pipeline_scores_with_rate_comps_batch(
         db.close()
 
 
+@celery.task(name="app.tasks.backfill_baltimore_property_addresses_batch")
+def backfill_baltimore_property_addresses_batch(limit: int = 500, dry_run: bool = False) -> dict[str, Any]:
+    """Measured Baltimore City address backfill batch from Realproperty_OB."""
+    from app.baltimore_address_backfill import backfill_baltimore_property_addresses
+
+    db = _session()
+    try:
+        return backfill_baltimore_property_addresses(db, limit=limit, dry_run=dry_run)
+    finally:
+        db.close()
+
+
 @celery.task(name="app.tasks.refresh_identification_scores_batch")
 def refresh_identification_scores_batch(
     limit: int = 2000,
