@@ -1,0 +1,57 @@
+# Safely continues Baltimore City address backfill in bounded batches.
+
+name: Baltimore address backfill agent
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Parcels selected per batch"
+        type: string
+        default: "5000"
+      max_batches:
+        description: "Batches per workflow run"
+        type: string
+        default: "1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: baltimore-address-backfill-agent
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Run guarded Baltimore address batch
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+          LIMIT_INPUT: ${{ inputs.limit }}
+          MAX_BATCHES_INPUT: ${{ inputs.max_batches }}
+        run: |
+          set -euo pipefail
+          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          LIMIT="${LIMIT_INPUT:-5000}"
+          MAX_BATCHES="${MAX_BATCHES_INPUT:-1}"
+          cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && ADDRESS_BACKFILL_LIMIT=$(printf '%q' "$LIMIT") ADDRESS_BACKFILL_MAX_BATCHES=$(printf '%q' "$MAX_BATCHES") bash -s -- baltimore-address-backfill-agent deploy/docker-compose.production.ghcr.yml"

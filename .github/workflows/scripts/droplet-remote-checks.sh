@@ -1269,6 +1269,76 @@ PY
       _internal_api_get "/internal/stats/export-readiness" || true
     fi
     ;;
+  baltimore-address-backfill-agent)
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    export COMPOSE_REL
+    ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
+    LIMIT="${ADDRESS_BACKFILL_LIMIT:-5000}"
+    MAX_BATCHES="${ADDRESS_BACKFILL_MAX_BATCHES:-1}"
+    SLEEP_BETWEEN="${ADDRESS_BACKFILL_SLEEP_BETWEEN_SEC:-30}"
+    echo "=== Baltimore address backfill agent ==="
+    echo "limit=${LIMIT} max_batches=${MAX_BATCHES} sleep_between=${SLEEP_BETWEEN}"
+    echo "=== health gate ==="
+    if [ -z "$KEY" ]; then
+      echo "INTERNAL_API_KEY not set"
+      exit 1
+    fi
+    READY="$(_internal_api_get "/ready" || true)"
+    echo "ready=${READY}"
+    if ! printf '%s' "$READY" | grep -q '"status"[[:space:]]*:[[:space:]]*"ready"'; then
+      echo "API not ready; skipping address backfill"
+      exit 0
+    fi
+    PARKING_Q="$(docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN parking 2>/dev/null || echo 999999)"
+    SLACK_Q="$(docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN slack 2>/dev/null || echo 999999)"
+    echo "parking_queue=${PARKING_Q} slack_queue=${SLACK_Q}"
+    if [ "${PARKING_Q}" != "0" ]; then
+      echo "parking queue not empty; skipping address backfill"
+      exit 0
+    fi
+    for i in $(seq 1 "$MAX_BATCHES"); do
+      echo "=== batch ${i}/${MAX_BATCHES}: enqueue limit=${LIMIT} ==="
+      RESP="$(_internal_api_post "/internal/metrics/backfill-baltimore-addresses?limit=${LIMIT}&dry_run=false" || true)"
+      echo "$RESP"
+      TASK_ID="$(printf '%s' "$RESP" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("task_id",""))' 2>/dev/null || true)"
+      if [ -z "$TASK_ID" ]; then
+        echo "No task id returned; stopping"
+        exit 1
+      fi
+      for poll in $(seq 1 180); do
+        sleep 5
+        STATUS="$(_internal_api_get "/internal/tasks/${TASK_ID}" || true)"
+        STATE="$(printf '%s' "$STATUS" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("state",""))' 2>/dev/null || true)"
+        READY_STATE="$(printf '%s' "$STATUS" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("ready",""))' 2>/dev/null || true)"
+        echo "poll=${poll} state=${STATE} ready=${READY_STATE}"
+        if [ "$READY_STATE" = "True" ] || [ "$READY_STATE" = "true" ]; then
+          echo "$STATUS"
+          RESULT_SELECTED="$(printf '%s' "$STATUS" | python3 -c 'import json,sys; d=json.load(sys.stdin); r=d.get("result") or {}; print(r.get("selected", ""))' 2>/dev/null || true)"
+          RESULT_UPDATED="$(printf '%s' "$STATUS" | python3 -c 'import json,sys; d=json.load(sys.stdin); r=d.get("result") or {}; print(r.get("updated", ""))' 2>/dev/null || true)"
+          if [ "$STATE" != "SUCCESS" ]; then
+            echo "batch failed; stopping"
+            exit 1
+          fi
+          if [ "${RESULT_SELECTED:-0}" = "0" ]; then
+            echo "No selected rows; Baltimore address backfill appears complete."
+            exit 0
+          fi
+          echo "batch updated=${RESULT_UPDATED}; continuing if configured"
+          break
+        fi
+        if [ "$poll" = "180" ]; then
+          echo "Timed out waiting for task ${TASK_ID}"
+          exit 1
+        fi
+      done
+      if [ "$i" != "$MAX_BATCHES" ]; then
+        sleep "$SLEEP_BETWEEN"
+      fi
+    done
+    echo "=== post-run health ==="
+    _internal_api_get "/ready" || true
+    docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN parking 2>/dev/null || true
+    ;;
   enqueue-priority-now)
     echo "=== POST /internal/pipeline/enqueue-priority?limit=75 ==="
     if [ -n "$KEY" ]; then
