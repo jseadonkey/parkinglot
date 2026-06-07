@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import urllib.parse
+import urllib.request
 from datetime import UTC, datetime
 from time import monotonic
 from typing import Any
@@ -13,11 +16,34 @@ from app.audit import write_audit
 from app.db.models import Parcel
 from parking_ingestion.baltimore_parcels import (
     BALTIMORE_CITY_COUNTY_FIPS,
-    _fetch_realproperty_rows_for_parcels,
     _merge_realproperty_attributes,
 )
 
 REALPROPERTY_LAYER_URL = "https://geodata.baltimorecity.gov/egis/rest/services/CityView/Realproperty_OB/FeatureServer/0"
+REALPROPERTY_FIELDS = (
+    "OBJECTID",
+    "PIN",
+    "PINRELATE",
+    "BLOCKLOT",
+    "FULLADDR",
+    "MAILTOADD",
+    "VACIND",
+    "OWNER_1",
+    "OWNER_2",
+    "OWNER_3",
+    "OWNER_ABBR",
+    "USEGROUP",
+    "SDATCODE",
+    "DHCDUSE1",
+    "DHCDUSE2",
+    "DHCDUSE3",
+    "DHCDUSE4",
+    "DWELUNIT",
+    "LOT_SIZE",
+    "NO_IMPRV",
+    "ZONECODE",
+    "SDATLINK",
+)
 
 ADDRESS_KEYS = (
     "PROPERTY_ADDRESS",
@@ -50,6 +76,47 @@ def _props_for_lookup(parcel: Parcel) -> dict[str, Any]:
     if pin and not str(props.get("PIN") or "").strip():
         props["PIN"] = pin
     return props
+
+
+def _clean_key(value: Any) -> str:
+    return str(value or "").strip().upper()
+
+
+def _lookup_keys(props: dict[str, Any]) -> set[str]:
+    return {_clean_key(props.get(key)) for key in ("PIN", "BLOCKLOT", "PARCELNUM") if _clean_key(props.get(key))}
+
+
+def _sql_string(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _where_for_keys(keys: list[str]) -> str:
+    quoted = ", ".join(_sql_string(key) for key in keys)
+    return f"PIN IN ({quoted}) OR PINRELATE IN ({quoted}) OR BLOCKLOT IN ({quoted})"
+
+
+def _fetch_realproperty_rows(features: list[dict[str, Any]], *, keys_per_query: int = 10) -> list[dict[str, Any]]:
+    keys = sorted({key for feature in features for key in _lookup_keys(feature.get("properties") or {})})
+    rows: list[dict[str, Any]] = []
+    for i in range(0, len(keys), keys_per_query):
+        chunk = keys[i : i + keys_per_query]
+        if not chunk:
+            continue
+        params = {
+            "where": _where_for_keys(chunk),
+            "outFields": ",".join(REALPROPERTY_FIELDS),
+            "returnGeometry": "false",
+            "f": "json",
+            "resultRecordCount": "1000",
+        }
+        url = f"{REALPROPERTY_LAYER_URL}/query?{urllib.parse.urlencode(params)}"
+        req = urllib.request.Request(url, headers={"User-Agent": "parking-acquisition-agents/1.0"})
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        if data.get("error"):
+            raise RuntimeError(f"Baltimore Realproperty query failed: {data['error']}")
+        rows.extend([feature.get("attributes") or {} for feature in data.get("features") or []])
+    return rows
 
 
 def _has_address(props: dict[str, Any]) -> bool:
@@ -87,11 +154,7 @@ def backfill_baltimore_property_addresses(
     ]
     real_rows: list[dict[str, Any]] = []
     if features:
-        real_rows = _fetch_realproperty_rows_for_parcels(
-            features=features,
-            layer_url=REALPROPERTY_LAYER_URL,
-            sleep_sec=0.05,
-        )
+        real_rows = _fetch_realproperty_rows(features)
     matched = _merge_realproperty_attributes(features, real_rows)
 
     updated = 0

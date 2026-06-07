@@ -27,7 +27,7 @@ def test_backfill_baltimore_property_addresses_updates_raw_properties() -> None:
     ]
 
     with (
-        patch("app.baltimore_address_backfill._fetch_realproperty_rows_for_parcels", return_value=rows),
+        patch("app.baltimore_address_backfill._fetch_realproperty_rows", return_value=rows),
         patch("app.baltimore_address_backfill.write_audit") as audit,
     ):
         out = backfill_baltimore_property_addresses(db, limit=1)
@@ -46,7 +46,7 @@ def test_backfill_baltimore_property_addresses_dry_run_rolls_back() -> None:
     db = MagicMock()
     db.scalars.return_value = [parcel]
 
-    with patch("app.baltimore_address_backfill._fetch_realproperty_rows_for_parcels", return_value=[]):
+    with patch("app.baltimore_address_backfill._fetch_realproperty_rows", return_value=[]):
         out = backfill_baltimore_property_addresses(db, limit=1, dry_run=True)
 
     assert out["dry_run"] is True
