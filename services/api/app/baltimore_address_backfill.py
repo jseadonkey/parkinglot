@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.audit import write_audit
 from app.db.models import Parcel
+from app.zoning_entitlement import effective_zoning_code
 from parking_ingestion.baltimore_parcels import (
     BALTIMORE_CITY_COUNTY_FIPS,
     _merge_realproperty_attributes,
@@ -170,6 +171,7 @@ def backfill_baltimore_property_addresses(
                 merged = dict(parcel.raw_properties or {})
                 merged.update({k: v for k, v in props.items() if v is not None})
                 parcel.raw_properties = merged
+                parcel.zoning_code = effective_zoning_code(getattr(parcel, "zoning_code", None), merged)
                 db.add(parcel)
                 updated += 1
 

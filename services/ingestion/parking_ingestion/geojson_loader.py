@@ -116,6 +116,8 @@ def iter_parcels_from_geojson_dict(
             "zoning_code",
             "ZONE",
             "zone",
+            "ZONECODE",
+            "zonecode",
             "ZONING_CLASS",
             "ZONING_CODE",
             "DISTRICT",

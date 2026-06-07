@@ -131,6 +131,7 @@ def _zone_entry(
         return None
 
     z_norm = normalize_zone_code(str(zoning_code))
+    z_without_star = z_norm.rstrip("*").strip()
     jurisdictions = rules.get("jurisdictions") or {}
     block = jurisdictions.get(jk)
     if not isinstance(block, dict):
@@ -141,6 +142,8 @@ def _zone_entry(
         return None
 
     entry = zones.get(z_norm)
+    if entry is None and z_without_star != z_norm:
+        entry = zones.get(z_without_star)
     if entry is None:
         entry = zones.get(str(zoning_code).strip())
     return entry

@@ -12,7 +12,12 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
-from app.zoning_entitlement import baltimore_zone_codes_for_tier, parcel_zoning_symbol, parcel_zoning_tier
+from app.zoning_entitlement import (
+    baltimore_zone_codes_for_tier,
+    effective_zoning_code,
+    parcel_zoning_symbol,
+    parcel_zoning_tier,
+)
 
 ParcelSortProfile = Literal["combined", "entitlement", "strategic", "identification"]
 ZoningTierFilter = Literal["permitted", "conditional", "council", "excluded"]
@@ -102,6 +107,7 @@ def query_parcels_scored_list(
         Parcel.apn,
         Parcel.county_fips,
         Parcel.zoning_code,
+        Parcel.raw_properties,
         Parcel.lot_sqft,
         Parcel.created_at,
         ent_sub.label("ent_score"),
@@ -124,18 +130,20 @@ def query_parcels_scored_list(
     stmt = stmt.order_by(nulls_last(desc(sort_col)), desc(Parcel.created_at)).limit(cap)
     out: list[ParcelScoredRowData] = []
     for r in db.execute(stmt).all():
-        pid, apn, cfips, zoning, sqft, created, ent_f, str_f, id_f = r
+        pid, apn, cfips, zoning, raw_props, sqft, created, ent_f, str_f, id_f = r
         ent_f = float(ent_f) if ent_f is not None else None
         str_f = float(str_f) if str_f is not None else None
         id_f = float(id_f) if id_f is not None else None
-        symbol = parcel_zoning_symbol(county_fips=cfips, zoning_code=zoning, raw_properties=None)
-        ent_tier = parcel_zoning_tier(county_fips=cfips, zoning_code=zoning, raw_properties=None)
+        raw_dict = raw_props if isinstance(raw_props, dict) else None
+        z_code = effective_zoning_code(zoning, raw_dict)
+        symbol = parcel_zoning_symbol(county_fips=cfips, zoning_code=z_code, raw_properties=raw_dict)
+        ent_tier = parcel_zoning_tier(county_fips=cfips, zoning_code=z_code, raw_properties=raw_dict)
         out.append(
             ParcelScoredRowData(
                 parcel_id=pid,
                 apn=apn,
                 county_fips=cfips,
-                zoning_code=zoning,
+                zoning_code=z_code,
                 lot_sqft=float(sqft) if sqft is not None else None,
                 zoning_principal_use_symbol=symbol,
                 zoning_entitlement_tier=ent_tier,

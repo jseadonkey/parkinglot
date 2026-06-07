@@ -23,6 +23,7 @@ def test_backfill_baltimore_property_addresses_updates_raw_properties() -> None:
             "BLOCKLOT": "1786 024",
             "FULLADDR": "2328 FLEET ST",
             "MAILTOADD": "PO BOX 1, BALTIMORE, MD",
+            "ZONECODE": "C-5DC",
         }
     ]
 
@@ -37,6 +38,8 @@ def test_backfill_baltimore_property_addresses_updates_raw_properties() -> None:
     assert out["updated"] == 1
     assert parcel.raw_properties["PROPERTY_ADDRESS"] == "2328 FLEET ST"
     assert parcel.raw_properties["SITUS_ADDRESS"] == "2328 FLEET ST"
+    assert parcel.raw_properties["ZONECODE"] == "C-5DC"
+    assert parcel.zoning_code == "C-5DC"
     db.commit.assert_called_once()
     audit.assert_called_once()
 

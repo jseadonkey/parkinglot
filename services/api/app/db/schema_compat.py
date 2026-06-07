@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, load_only
 
 from app.db.models import Parcel
 from app.schemas import ParcelRead
-from app.zoning_entitlement import parcel_zoning_symbol, parcel_zoning_tier
+from app.zoning_entitlement import effective_zoning_code, parcel_zoning_symbol, parcel_zoning_tier
 
 
 def table_exists(db: Session, name: str) -> bool:
@@ -50,24 +50,26 @@ def parcel_to_read(db: Session, row: Parcel) -> ParcelRead:
     """Build ``ParcelRead`` without touching ORM attrs for missing DB columns."""
     brief = None
     raw = getattr(row, "raw_properties", None)
+    raw_dict = raw if isinstance(raw, dict) else None
+    zoning_code = effective_zoning_code(row.zoning_code, raw_dict)
     if column_exists(db, "parcels", "owner_outreach_brief"):
         brief = getattr(row, "owner_outreach_brief", None)
     symbol = parcel_zoning_symbol(
         county_fips=row.county_fips,
-        zoning_code=row.zoning_code,
-        raw_properties=raw if isinstance(raw, dict) else None,
+        zoning_code=zoning_code,
+        raw_properties=raw_dict,
     )
     tier = parcel_zoning_tier(
         county_fips=row.county_fips,
-        zoning_code=row.zoning_code,
-        raw_properties=raw if isinstance(raw, dict) else None,
+        zoning_code=zoning_code,
+        raw_properties=raw_dict,
     )
     return ParcelRead(
         id=row.id,
         apn=row.apn,
         county_fips=row.county_fips,
         lot_sqft=row.lot_sqft,
-        zoning_code=row.zoning_code,
+        zoning_code=zoning_code,
         zoning_allows_surface_parking=row.zoning_allows_surface_parking,
         zoning_principal_use_symbol=symbol,
         zoning_entitlement_tier=tier,

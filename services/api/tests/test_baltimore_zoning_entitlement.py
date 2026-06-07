@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.zoning_entitlement import parcel_zoning_tier
+from app.zoning_entitlement import effective_zoning_code, parcel_zoning_tier
 from parking_core.models import ParcelFeature
 from parking_core.pilot import PilotConfig, ScoringConfig, ScoringWeights
 from parking_ingestion.zoning_rules import (
@@ -37,6 +37,12 @@ def test_baltimore_compact_downtown_aliases_are_not_unknown() -> None:
         assert zoning_entitlement_tier(resolve_principal_use_symbol(code, "baltimore_city", rules)) == "conditional"
 
 
+def test_baltimore_star_suffix_uses_base_zone() -> None:
+    rules = load_effective_zoning_rules(REPO_ROOT / "data/zoning/md/baltimore_city_surface_parking_rules.yaml")
+    assert resolve_principal_use_symbol("C-2*", "baltimore_city", rules) == "CB"
+    assert zoning_entitlement_tier(resolve_principal_use_symbol("C-2*", "baltimore_city", rules)) == "conditional"
+
+
 def test_cached_unknown_recomputes_for_compact_downtown_alias() -> None:
     assert (
         parcel_zoning_tier(
@@ -46,6 +52,12 @@ def test_cached_unknown_recomputes_for_compact_downtown_alias() -> None:
         )
         == "conditional"
     )
+
+
+def test_baltimore_zonecode_raw_property_recomputes_unknown_zoning() -> None:
+    raw = {"ZONECODE": "C-5DC", "zoning_entitlement_tier": "unknown"}
+    assert effective_zoning_code(None, raw) == "C-5DC"
+    assert parcel_zoning_tier(county_fips="24510", zoning_code=None, raw_properties=raw) == "conditional"
 
 
 def test_baltimore_compact_permitted_aliases() -> None:

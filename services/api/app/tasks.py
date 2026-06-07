@@ -61,7 +61,7 @@ from app.wa_statewide_rollout import (
     parking_queue_depth,
     wa_rollout_cooldown_state,
 )
-from app.zoning_entitlement import parcel_zoning_symbol, parcel_zoning_tier
+from app.zoning_entitlement import effective_zoning_code, parcel_zoning_symbol, parcel_zoning_tier
 from parking_core.models import OwnerCandidate, ParcelFeature, ScoreResult
 from parking_core.pilot import PilotConfig, load_pilot_config
 from parking_enrichment.owner_normalize import scoped_owner_key
@@ -270,26 +270,29 @@ def _write_slack_digest_audit(
 
 def _parcel_feature(parcel: Parcel) -> ParcelFeature:
     raw = parcel.raw_properties if hasattr(parcel, "raw_properties") else None
+    raw_dict = raw if isinstance(raw, dict) else None
+    zoning_code = effective_zoning_code(parcel.zoning_code, raw_dict)
     symbol = parcel_zoning_symbol(
         county_fips=parcel.county_fips,
-        zoning_code=parcel.zoning_code,
-        raw_properties=raw if isinstance(raw, dict) else None,
+        zoning_code=zoning_code,
+        raw_properties=raw_dict,
     )
     tier = parcel_zoning_tier(
         county_fips=parcel.county_fips,
-        zoning_code=parcel.zoning_code,
-        raw_properties=raw if isinstance(raw, dict) else None,
+        zoning_code=zoning_code,
+        raw_properties=raw_dict,
     )
     return ParcelFeature(
         apn=parcel.apn,
         county_fips=parcel.county_fips,
         lot_sqft=parcel.lot_sqft,
-        zoning_code=parcel.zoning_code,
+        zoning_code=zoning_code,
         zoning_allows_surface_parking=parcel.zoning_allows_surface_parking,
         zoning_principal_use_symbol=symbol,
         zoning_entitlement_tier=tier,
         is_corner_lot=parcel.is_corner_lot,
         distance_to_nearest_demand_m=parcel.distance_to_nearest_demand_m,
+        raw_properties=raw_dict,
     )
 
 
