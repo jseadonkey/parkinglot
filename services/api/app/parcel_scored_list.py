@@ -29,8 +29,6 @@ class ParcelScoredRowData:
     parcel_id: uuid.UUID
     apn: str
     county_fips: str
-    situs_address: str | None
-    mailing_address: str | None
     zoning_code: str | None
     lot_sqft: float | None
     zoning_principal_use_symbol: str | None
@@ -40,6 +38,8 @@ class ParcelScoredRowData:
     identification_score: float | None
     combined_score: float | None
     created_at: datetime
+    situs_address: str | None = None
+    mailing_address: str | None = None
 
 
 def _combined_score_value(
