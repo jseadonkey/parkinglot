@@ -13,10 +13,11 @@ from app.audit import write_audit
 from app.db.models import Parcel
 from parking_ingestion.baltimore_parcels import (
     BALTIMORE_CITY_COUNTY_FIPS,
-    BALTIMORE_CITY_REALPROPERTY_LAYER,
     _fetch_realproperty_rows_for_parcels,
     _merge_realproperty_attributes,
 )
+
+REALPROPERTY_LAYER_URL = "https://geodata.baltimorecity.gov/egis/rest/services/CityView/Realproperty_OB/FeatureServer/0"
 
 ADDRESS_KEYS = (
     "PROPERTY_ADDRESS",
@@ -88,7 +89,7 @@ def backfill_baltimore_property_addresses(
     if features:
         real_rows = _fetch_realproperty_rows_for_parcels(
             features=features,
-            layer_url=BALTIMORE_CITY_REALPROPERTY_LAYER,
+            layer_url=REALPROPERTY_LAYER_URL,
             sleep_sec=0.05,
         )
     matched = _merge_realproperty_attributes(features, real_rows)
