@@ -4,7 +4,12 @@ import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from app.baltimore_address_backfill import backfill_baltimore_property_addresses
+from sqlalchemy.dialects import postgresql
+
+from app.baltimore_address_backfill import (
+    _target_address_backfill_stmt,
+    backfill_baltimore_property_addresses,
+)
 
 
 def test_backfill_baltimore_property_addresses_updates_raw_properties() -> None:
@@ -36,6 +41,7 @@ def test_backfill_baltimore_property_addresses_updates_raw_properties() -> None:
     assert out["selected"] == 1
     assert out["matched"] == 1
     assert out["updated"] == 1
+    assert "Targeted batch only" in out["note"]
     assert parcel.raw_properties["PROPERTY_ADDRESS"] == "2328 FLEET ST"
     assert parcel.raw_properties["SITUS_ADDRESS"] == "2328 FLEET ST"
     assert parcel.raw_properties["ZONECODE"] == "C-5DC"
@@ -56,3 +62,21 @@ def test_backfill_baltimore_property_addresses_dry_run_rolls_back() -> None:
     assert out["updated"] == 0
     db.rollback.assert_called_once()
     db.commit.assert_not_called()
+
+
+def test_baltimore_address_backfill_stmt_targets_worthwhile_parcels() -> None:
+    stmt = _target_address_backfill_stmt(25)
+    compiled = str(
+        stmt.compile(
+            dialect=postgresql.dialect(),
+            compile_kwargs={"literal_binds": True},
+        ),
+    )
+
+    assert "parcels.county_fips = '24510'" in compiled
+    assert "score_profile = 'identification'" in compiled
+    assert "score_profile = 'entitlement'" in compiled
+    assert "score_profile = 'strategic'" in compiled
+    assert "parcels.zoning_allows_surface_parking IS true" in compiled
+    assert "VACANT|UNIMPROVED|PARKING|GARAGE|LOT|AUTO" in compiled
+    assert "LIMIT 25" in compiled
