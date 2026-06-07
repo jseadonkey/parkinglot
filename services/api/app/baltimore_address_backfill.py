@@ -9,11 +9,11 @@ from datetime import UTC, datetime
 from time import monotonic
 from typing import Any
 
-from sqlalchemy import select, text
+from sqlalchemy import desc, select, text
 from sqlalchemy.orm import Session
 
 from app.audit import write_audit
-from app.db.models import Parcel
+from app.db.models import Parcel, ParcelScore
 from app.zoning_entitlement import effective_zoning_code
 from parking_ingestion.baltimore_parcels import (
     BALTIMORE_CITY_COUNTY_FIPS,
@@ -137,11 +137,22 @@ def backfill_baltimore_property_addresses(
     """
     started = monotonic()
     cap = min(max(int(limit), 1), 5000)
+    latest_entitlement_score = (
+        select(ParcelScore.total_score)
+        .where(
+            ParcelScore.parcel_id == Parcel.id,
+            ParcelScore.score_profile == "entitlement",
+        )
+        .order_by(ParcelScore.created_at.desc())
+        .limit(1)
+        .correlate(Parcel)
+        .scalar_subquery()
+    )
     stmt = (
         select(Parcel)
         .where(Parcel.county_fips == BALTIMORE_CITY_COUNTY_FIPS)
         .where(text(_missing_address_sql()))
-        .order_by(Parcel.created_at.asc(), Parcel.id.asc())
+        .order_by(desc(latest_entitlement_score).nulls_last(), Parcel.created_at.asc(), Parcel.id.asc())
         .limit(cap)
     )
     parcels = list(db.scalars(stmt))
