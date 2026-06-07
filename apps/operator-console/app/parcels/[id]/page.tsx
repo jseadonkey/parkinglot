@@ -20,6 +20,8 @@ type Parcel = {
   id: string;
   apn: string;
   county_fips: string;
+  situs_address: string | null;
+  mailing_address: string | null;
   lot_sqft: number | null;
   zoning_code: string | null;
   zoning_allows_surface_parking: boolean;
@@ -314,6 +316,21 @@ export default function ParcelDetailPage() {
                 </span>
               </div>
               <span className="badge">{parcel.id}</span>
+            </div>
+            <div className="row">
+              <span className="muted">Property address</span>
+              <span>
+                {parcel.situs_address ? (
+                  <>
+                    {parcel.situs_address}
+                    {parcel.mailing_address ? (
+                      <span className="muted"> · Mailing: {parcel.mailing_address}</span>
+                    ) : null}
+                  </>
+                ) : (
+                  <span className="muted">No property address on file</span>
+                )}
+              </span>
             </div>
             <div className="row">
               <span className="muted">Zoning</span>

@@ -15,6 +15,8 @@ type ParcelRow = {
   parcel_id: string;
   apn: string;
   county_fips: string;
+  situs_address: string | null;
+  mailing_address: string | null;
   zoning_code: string | null;
   zoning_principal_use_symbol: string | null;
   zoning_entitlement_tier: string | null;
@@ -230,6 +232,7 @@ export default function ParcelsPage() {
               <th>Strategic</th>
               <th>Identification</th>
               <th>APN</th>
+              <th>Property address</th>
               <th>County</th>
               <th>Zoning</th>
               <th>Zoning tier</th>
@@ -250,6 +253,20 @@ export default function ParcelsPage() {
                 <td>{fmtScore(p.strategic_score)}</td>
                 <td>{fmtScore(p.identification_score)}</td>
                 <td>{p.apn}</td>
+              <td>
+                {p.situs_address ? (
+                  <>
+                    <span>{p.situs_address}</span>
+                    {p.mailing_address ? (
+                      <div className="muted" style={{ marginTop: "0.2rem", fontSize: "0.8rem" }}>
+                        Mailing: {p.mailing_address}
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <span className="muted">No property address on file</span>
+                )}
+              </td>
                 <td>{countyLine(countyLabel, p.county_fips)}</td>
                 <td>{p.zoning_code ?? "—"}</td>
                 <td>

@@ -29,6 +29,8 @@ class ParcelScoredRowData:
     parcel_id: uuid.UUID
     apn: str
     county_fips: str
+    situs_address: str | None
+    mailing_address: str | None
     zoning_code: str | None
     lot_sqft: float | None
     zoning_principal_use_symbol: str | None
@@ -60,6 +62,78 @@ def _combined_score_sql(ent_sub: Any, str_sub: Any, id_sub: Any) -> Any:
     )
     total = func.coalesce(ent_sub, 0) + func.coalesce(str_sub, 0) + func.coalesce(id_sub, 0)
     return total / func.nullif(n, 0)
+
+
+def _clean_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _first_prop(raw_properties: dict[str, Any] | None, keys: tuple[str, ...]) -> str | None:
+    props = raw_properties or {}
+    for key in keys:
+        value = _clean_text(props.get(key))
+        if value:
+            return value
+    return None
+
+
+def _first_brief_contact(brief: dict[str, Any] | None, kind: str) -> str | None:
+    if not isinstance(brief, dict):
+        return None
+    guess = _clean_text(brief.get(f"{kind}_guess"))
+    if guess:
+        return guess
+    raw_contacts = brief.get("contact_points")
+    if not isinstance(raw_contacts, list):
+        return None
+    for item in raw_contacts:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("kind") or "").strip() != kind:
+            continue
+        value = _clean_text(item.get("value"))
+        if value:
+            return value
+    return None
+
+
+def _situs_address(raw_properties: dict[str, Any] | None, brief: dict[str, Any] | None) -> str | None:
+    return _first_prop(
+        raw_properties,
+        (
+            "PROPERTY_ADDRESS",
+            "property_address",
+            "SITUS_ADDRESS",
+            "situs_address",
+            "SITUS_ADDR",
+            "situs_addr",
+            "ADDR_FULL",
+            "addr_full",
+            "FULLADDR",
+            "fulladdr",
+        ),
+    ) or _first_brief_contact(brief, "situs_address")
+
+
+def _mailing_address(raw_properties: dict[str, Any] | None, brief: dict[str, Any] | None) -> str | None:
+    return _first_prop(
+        raw_properties,
+        (
+            "MAILING_ADDRESS",
+            "mailing_address",
+            "MAIL_ADDR",
+            "mail_addr",
+            "MAILTOADD",
+            "mailtoadd",
+            "OWNER_MAILING",
+            "owner_mailing",
+            "FULL_MAILING",
+            "full_mailing",
+        ),
+    ) or _first_brief_contact(brief, "mailing_address")
 
 
 def _latest_score_subq(parcel_id_col: Any, profile: str) -> Any:
@@ -162,6 +236,7 @@ def query_parcels_scored_list(
         Parcel.county_fips,
         Parcel.zoning_code,
         Parcel.raw_properties,
+        Parcel.owner_outreach_brief,
         Parcel.lot_sqft,
         Parcel.created_at,
         ent_sub.label("ent_score"),
@@ -183,11 +258,12 @@ def query_parcels_scored_list(
     stmt = stmt.order_by(nulls_last(desc(sort_col)), desc(Parcel.created_at)).limit(cap)
     out: list[ParcelScoredRowData] = []
     for r in db.execute(stmt).all():
-        pid, apn, cfips, zoning, raw_props, sqft, created, ent_f, str_f, id_f = r
+        pid, apn, cfips, zoning, raw_props, brief, sqft, created, ent_f, str_f, id_f = r
         ent_f = float(ent_f) if ent_f is not None else None
         str_f = float(str_f) if str_f is not None else None
         id_f = float(id_f) if id_f is not None else None
         raw_dict = raw_props if isinstance(raw_props, dict) else None
+        brief_dict = brief if isinstance(brief, dict) else None
         z_code = effective_zoning_code(zoning, raw_dict)
         symbol = parcel_zoning_symbol(county_fips=cfips, zoning_code=z_code, raw_properties=raw_dict)
         ent_tier = parcel_zoning_tier(county_fips=cfips, zoning_code=z_code, raw_properties=raw_dict)
@@ -196,6 +272,8 @@ def query_parcels_scored_list(
                 parcel_id=pid,
                 apn=apn,
                 county_fips=cfips,
+                situs_address=_situs_address(raw_dict, brief_dict),
+                mailing_address=_mailing_address(raw_dict, brief_dict),
                 zoning_code=z_code,
                 lot_sqft=float(sqft) if sqft is not None else None,
                 zoning_principal_use_symbol=symbol,
