@@ -11,7 +11,7 @@ def test_build_platform_showcase_shape():
         "total_parcels": 100,
         "qualified_count_entitlement": 10,
         "parcels_with_both_profiles_scored": 8,
-        "qualified_min_score": {"entitlement": 55.0, "strategic": 50.0, "identification": 45.0},
+        "qualified_min_score": {"entitlement": 70.0, "strategic": 65.0, "identification": 60.0},
     }
     scope = {
         "region_name": "Baltimore MD (priority) + Washington statewide",

@@ -6,9 +6,11 @@
 crs: EPSG:4326
 
 region:
-  name: "Washington — statewide pilot"
+  name: "Baltimore + Washington — strategic demand screen"
   state_fips: "53"
   county_fips:
+    - "24510" # Baltimore City, MD
+    - "24005" # Baltimore County, MD
     - "53001"
     - "53003"
     - "53005"
@@ -68,9 +70,10 @@ compliance:
 scoring:
   # Slightly smaller minimum — urban pads can still work with entitlement/legal path elsewhere.
   min_lot_sqft: 4000
-  qualified_min_score: 52
+  qualified_min_score: 65
   weights:
     zoning_permitted_surface_parking: 22
+    zoning_conditional_surface_parking: 8
     lot_size: 18
     corner_lot: 13
     near_demand_generator_m: 35

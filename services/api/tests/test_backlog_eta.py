@@ -40,7 +40,7 @@ def test_backlog_eta_prioritizes_address_backfill_and_throttles_poi() -> None:
         ),
         patch("app.backlog_eta.inspect_redis_queues", return_value={"parking_depth": 0, "slack_depth": 0}),
         patch("app.backlog_eta.inspect_celery_workers", return_value={"ok": True, "detail": "2 workers"}),
-        patch("app.backlog_eta.entitlement_qualified_floor", return_value=55.0),
+        patch("app.backlog_eta.entitlement_qualified_floor", return_value=70.0),
     ):
         out = backlog_eta_summary(MagicMock(), settings)  # type: ignore[arg-type]
 
@@ -70,7 +70,7 @@ def test_backlog_eta_estimates_poi_when_auto_fix_enabled() -> None:
         ),
         patch("app.backlog_eta.inspect_redis_queues", return_value={"parking_depth": 0, "slack_depth": 0}),
         patch("app.backlog_eta.inspect_celery_workers", return_value={"ok": True, "detail": "2 workers"}),
-        patch("app.backlog_eta.entitlement_qualified_floor", return_value=55.0),
+        patch("app.backlog_eta.entitlement_qualified_floor", return_value=70.0),
     ):
         out = backlog_eta_summary(MagicMock(), settings)  # type: ignore[arg-type]
 

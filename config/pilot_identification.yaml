@@ -1,5 +1,5 @@
 # Identification / prescreen agent — same PilotConfig schema as pilot.yaml.
-# Used only when parcels are loaded from GeoJSON (ingest). Produces score_profile=identification:
+# Used when parcels are loaded/refreshed. Produces score_profile=identification:
 # a 0–100 estimate from zoning flags, lot size, corner, and demand proximity using only
 # attributes available at ingest (before enrichment / deal memo pipeline).
 #
@@ -8,9 +8,11 @@
 crs: EPSG:4326
 
 region:
-  name: "Washington — statewide pilot"
+  name: "Baltimore + Washington — identification prescreen"
   state_fips: "53"
   county_fips:
+    - "24510" # Baltimore City, MD
+    - "24005" # Baltimore County, MD
     - "53001"
     - "53003"
     - "53005"
@@ -69,10 +71,12 @@ compliance:
 
 scoring:
   min_lot_sqft: 5000
-  # Optional filter if you later expose identification-qualified listings — not used by GET /parcels?qualified_only=
-  qualified_min_score: 45
+  # Prescreen floor for queueing Atlas. Set above the non-zoned max
+  # (lot + corner + demand = 55) so weak/no-zoning parcels do not consume pipeline.
+  qualified_min_score: 60
   weights:
     zoning_permitted_surface_parking: 45
+    zoning_conditional_surface_parking: 12
     lot_size: 25
     corner_lot: 10
     near_demand_generator_m: 20

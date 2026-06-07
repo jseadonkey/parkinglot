@@ -10,7 +10,7 @@ Examples:
   DATABASE_URL=postgresql+psycopg://... python3 scripts/parcel_visual_review_sheet.py -o review.csv
 
   python3 scripts/parcel_visual_review_sheet.py --limit 80 \\
-    --min-score-identification 0.5 --min-score-entitlement 0.4 -o top.csv
+    --min-score-identification 60 --min-score-entitlement 70 -o top.csv
 
 In the API container (scripts copied to ``/app/scripts``; ``PYTHONPATH`` is set):
 

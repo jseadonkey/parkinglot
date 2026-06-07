@@ -16,10 +16,10 @@ from app.pipeline_funnel import (
 def test_funnel_predicates_compile() -> None:
     dialect = postgresql.dialect()
     for expr in (
-        identification_prescreen_qualified(45.0),
+        identification_prescreen_qualified(60.0),
         needs_pipeline_scoring(),
-        pipeline_funnel_backlog(45.0),
-        ruled_out_by_prescreen(45.0),
+        pipeline_funnel_backlog(60.0),
+        ruled_out_by_prescreen(60.0),
         ruled_out_at_atlas(),
     ):
         compiled = str(expr.compile(dialect=dialect, compile_kwargs={"literal_binds": True})).lower()
