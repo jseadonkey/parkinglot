@@ -128,6 +128,7 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
     # Postgres CPU alerts are exactly when operators need the page to load. The ops
     # remediation loop already caches the heavy gap snapshot in Redis.
     report = load_last_report(settings) or {}
+    report_checked_at = report.get("checked_at") if isinstance(report.get("checked_at"), str) else None
     export = report.get("export_readiness") if isinstance(report.get("export_readiness"), dict) else {}
     priorities = report.get("priority_counties") if isinstance(report.get("priority_counties"), dict) else {}
     priority = priorities.get(BALTIMORE_CITY_FIPS) if isinstance(priorities.get(BALTIMORE_CITY_FIPS), dict) else {}
@@ -300,6 +301,8 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
             "workers_online": bool(workers.get("ok")),
             "worker_detail": workers.get("detail"),
             "ops_auto_fix_enabled": auto_fix,
+            "data_checked_at": report_checked_at,
+            "data_source": "ops_remediation_snapshot" if report else "live_fallback",
             "high_value_remaining": high_value_remaining,
             "decision": (
                 "No active heavy queue. High-value scoring backlog is clear; "

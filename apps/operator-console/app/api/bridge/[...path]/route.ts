@@ -39,6 +39,8 @@ function backlogEtaFallback(status = 503): NextResponse {
         workers_online: false,
         worker_detail: `Backlog ETA temporarily unavailable (upstream ${status}).`,
         ops_auto_fix_enabled: false,
+        data_checked_at: null,
+        data_source: "bridge_fallback",
         high_value_remaining: 0,
         decision: "Backlog ETA is temporarily unavailable. Health checks may still be OK; refresh in a minute.",
       },

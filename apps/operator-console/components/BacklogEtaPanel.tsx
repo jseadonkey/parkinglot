@@ -30,6 +30,8 @@ type BacklogEta = {
     workers_online: boolean;
     worker_detail: string | null;
     ops_auto_fix_enabled: boolean;
+    data_checked_at: string | null;
+    data_source: string;
     high_value_remaining: number;
     decision: string;
   };
@@ -46,6 +48,13 @@ function valueLabel(value: string): string {
   if (value === "medium") return "Medium value";
   if (value === "selective") return "Selective value";
   return value;
+}
+
+function formatSnapshotTime(value: string | null): string {
+  if (!value) return "No ops snapshot available";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
 }
 
 async function fetchJson(path: string): Promise<unknown> {
@@ -106,6 +115,11 @@ export function BacklogEtaPanel() {
       </div>
       <p className="muted" style={{ marginTop: "0.75rem" }}>
         {backlogView.summary.decision}
+      </p>
+      <p className="muted" style={{ marginTop: "0.35rem" }}>
+        Data snapshot: {formatSnapshotTime(backlogView.summary.data_checked_at)} · Source:{" "}
+        {backlogView.summary.data_source.replaceAll("_", " ")} · Page generated:{" "}
+        {formatSnapshotTime(backlogView.generated_at)}
       </p>
       {backlogView.degraded ? (
         <div className="error" style={{ marginTop: "0.75rem" }}>

@@ -341,6 +341,8 @@ class BacklogEtaSummary(BaseModel):
     workers_online: bool
     worker_detail: str | None = None
     ops_auto_fix_enabled: bool
+    data_checked_at: datetime | None = None
+    data_source: str
     high_value_remaining: int
     decision: str
 

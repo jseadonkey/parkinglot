@@ -24,6 +24,7 @@ def test_backlog_eta_prioritizes_address_backfill_and_throttles_poi() -> None:
         patch(
             "app.backlog_eta.load_last_report",
             return_value={
+                "checked_at": "2026-06-07T16:00:00+00:00",
                 "export_readiness": _export_payload(),
                 "priority_counties": {
                     "24510": {
@@ -45,6 +46,8 @@ def test_backlog_eta_prioritizes_address_backfill_and_throttles_poi() -> None:
         out = backlog_eta_summary(MagicMock(), settings)  # type: ignore[arg-type]
 
     assert out["summary"]["active_parking_queue_depth"] == 0
+    assert out["summary"]["data_source"] == "ops_remediation_snapshot"
+    assert out["summary"]["data_checked_at"] == "2026-06-07T16:00:00+00:00"
     assert "address backfill" in out["summary"]["decision"]
     by_key = {row["key"]: row for row in out["items"]}
     assert by_key["baltimore_property_addresses"]["value"] == "high"
