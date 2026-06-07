@@ -43,6 +43,14 @@ def parcel_load_only(db: Session):
     attrs: list = list(_PARCEL_BASE)
     if column_exists(db, "parcels", "owner_outreach_brief"):
         attrs.append(Parcel.owner_outreach_brief)
+    for name in (
+        "owner_contact_decision",
+        "owner_contact_decision_by",
+        "owner_contact_decision_at",
+        "owner_contact_decision_note",
+    ):
+        if column_exists(db, "parcels", name):
+            attrs.append(getattr(Parcel, name))
     return load_only(*attrs)
 
 
@@ -54,6 +62,18 @@ def parcel_to_read(db: Session, row: Parcel) -> ParcelRead:
     zoning_code = effective_zoning_code(row.zoning_code, raw_dict)
     if column_exists(db, "parcels", "owner_outreach_brief"):
         brief = getattr(row, "owner_outreach_brief", None)
+    decision = "pending"
+    decision_by = None
+    decision_at = None
+    decision_note = None
+    if column_exists(db, "parcels", "owner_contact_decision"):
+        decision = getattr(row, "owner_contact_decision", None) or "pending"
+    if column_exists(db, "parcels", "owner_contact_decision_by"):
+        decision_by = getattr(row, "owner_contact_decision_by", None)
+    if column_exists(db, "parcels", "owner_contact_decision_at"):
+        decision_at = getattr(row, "owner_contact_decision_at", None)
+    if column_exists(db, "parcels", "owner_contact_decision_note"):
+        decision_note = getattr(row, "owner_contact_decision_note", None)
     symbol = parcel_zoning_symbol(
         county_fips=row.county_fips,
         zoning_code=zoning_code,
@@ -76,5 +96,9 @@ def parcel_to_read(db: Session, row: Parcel) -> ParcelRead:
         is_corner_lot=row.is_corner_lot,
         distance_to_nearest_demand_m=row.distance_to_nearest_demand_m,
         owner_outreach_brief=brief,
+        owner_contact_decision=decision,
+        owner_contact_decision_by=decision_by,
+        owner_contact_decision_at=decision_at,
+        owner_contact_decision_note=decision_note,
         created_at=row.created_at,
     )

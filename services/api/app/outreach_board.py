@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import ApprovalRequest, Parcel, ParcelScore, WorkflowRun
 from app.geo_markets import priority_county_fips
+from app.outreach_decisions import OWNER_CONTACT_PENDING
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION
 from parking_workflows.state import WorkflowStatus
 
@@ -28,6 +29,7 @@ class OutreachPipelineRowData:
     workflow_error: str | None
     workflow_updated_at: datetime | None
     has_outreach_brief: bool
+    owner_contact_decision: str
     pending_approval_count: int
     pipeline_stage: str
 
@@ -50,6 +52,14 @@ def _parcels_have_outreach_brief_column(db: Session) -> bool:
     except Exception:
         return False
     return any(c.get("name") == "owner_outreach_brief" for c in cols)
+
+
+def _parcels_have_owner_contact_decision_column(db: Session) -> bool:
+    try:
+        cols = inspect(db.get_bind()).get_columns("parcels")
+    except Exception:
+        return False
+    return any(c.get("name") == "owner_contact_decision" for c in cols)
 
 
 def _pending_approval_counts(db: Session, parcel_ids: list[uuid.UUID]) -> dict[str, int]:
@@ -103,12 +113,19 @@ def query_outreach_pipeline_board(
     id_sub = _latest_score_subq(Parcel.id, IDENTIFICATION)
     has_brief_col = _parcels_have_outreach_brief_column(db)
     brief_col = Parcel.owner_outreach_brief if has_brief_col else literal(None).label("owner_outreach_brief")
+    has_decision_col = _parcels_have_owner_contact_decision_column(db)
+    decision_col = (
+        Parcel.owner_contact_decision
+        if has_decision_col
+        else literal(OWNER_CONTACT_PENDING).label("owner_contact_decision")
+    )
 
     stmt = select(
         Parcel.id,
         Parcel.apn,
         Parcel.county_fips,
         brief_col,
+        decision_col,
         ent_sub.label("ent_score"),
         id_sub.label("id_score"),
     ).where(ent_sub >= qualified_min_entitlement)
@@ -143,7 +160,7 @@ def query_outreach_pipeline_board(
 
     out: list[OutreachPipelineRowData] = []
     for r in qrows:
-        pid, apn, cfips, brief_json, ent_f, id_f = r[0], r[1], r[2], r[3], r[4], r[5]
+        pid, apn, cfips, brief_json, decision, ent_f, id_f = r[0], r[1], r[2], r[3], r[4], r[5], r[6]
         wr = latest_wr.get(pid)
         has_brief = bool(brief_json) if has_brief_col else False
         stage = _derive_pipeline_stage(wr)
@@ -161,6 +178,7 @@ def query_outreach_pipeline_board(
                 workflow_error=wr.error if wr else None,
                 workflow_updated_at=wr.updated_at if wr else None,
                 has_outreach_brief=has_brief,
+                owner_contact_decision=decision or OWNER_CONTACT_PENDING,
                 pending_approval_count=pcount,
                 pipeline_stage=stage,
             ),

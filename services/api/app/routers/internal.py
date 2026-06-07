@@ -380,6 +380,7 @@ def outreach_pipeline_board(
             workflow_error=r.workflow_error,
             workflow_updated_at=r.workflow_updated_at,
             has_outreach_brief=r.has_outreach_brief,
+            owner_contact_decision=r.owner_contact_decision,
             pending_approval_count=r.pending_approval_count,
             pipeline_stage=r.pipeline_stage,
             monthly_gross_usd=revenue_by_parcel.get(str(r.parcel_id), {}).get("monthly_gross_usd"),

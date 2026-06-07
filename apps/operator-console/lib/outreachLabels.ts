@@ -7,26 +7,34 @@ export type PipelineRowLike = {
   workflow_error: string | null;
   pending_approval_count: number;
   has_outreach_brief: boolean;
+  owner_contact_decision?: string;
 };
 
 export function needsAction(row: PipelineRowLike): boolean {
   if (row.pipeline_stage === "failed") return true;
+  if (row.has_outreach_brief && (row.owner_contact_decision ?? "pending") === "pending") return true;
   if (row.pending_approval_count > 0) return true;
+  if (row.owner_contact_decision === "rejected") return false;
   if (row.pipeline_stage === "blocked") return true;
   return false;
 }
 
 export function statusHeadline(row: PipelineRowLike): string {
   if (row.pipeline_stage === "failed") return "Pipeline failed";
+  if (row.has_outreach_brief && (row.owner_contact_decision ?? "pending") === "pending") {
+    return "Decide owner contact";
+  }
+  if (row.owner_contact_decision === "rejected") return "Passed";
   if (row.pending_approval_count > 0) {
     const n = row.pending_approval_count;
     return n === 1 ? "1 approval waiting" : `${n} approvals waiting`;
   }
+  if (row.owner_contact_decision === "approved") return "Contact approved";
   if (row.pipeline_stage === "blocked") {
     if (row.workflow_step === "awaiting_human") return "Waiting on you";
     return "Blocked";
   }
-  if (row.pipeline_stage === "completed") return "Ready for outreach";
+  if (row.pipeline_stage === "completed") return "Ready for review";
   if (row.pipeline_stage === "running") return "Processing";
   if (row.pipeline_stage === "no_run") return "Not started";
   return row.pipeline_stage;
@@ -34,7 +42,12 @@ export function statusHeadline(row: PipelineRowLike): string {
 
 export function statusDetail(row: PipelineRowLike): string | null {
   if (row.workflow_error) return row.workflow_error.slice(0, 140);
+  if (row.has_outreach_brief && (row.owner_contact_decision ?? "pending") === "pending") {
+    return "Open parcel and approve contact before drafts are generated";
+  }
+  if (row.owner_contact_decision === "rejected") return "No owner outreach drafts will be generated";
   if (row.pending_approval_count > 0) return "Review contract draft on Approvals page";
+  if (row.owner_contact_decision === "approved") return "Message drafts can be reviewed";
   if (row.pipeline_stage === "blocked" && row.workflow_step) {
     return stepLabel(row.workflow_step);
   }

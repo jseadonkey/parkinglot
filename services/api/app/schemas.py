@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -22,6 +22,10 @@ class ParcelRead(BaseModel):
     is_corner_lot: bool
     distance_to_nearest_demand_m: float | None
     owner_outreach_brief: dict[str, Any] | None = None
+    owner_contact_decision: str = "pending"
+    owner_contact_decision_by: str | None = None
+    owner_contact_decision_at: datetime | None = None
+    owner_contact_decision_note: str | None = None
     created_at: datetime
 
 
@@ -391,6 +395,7 @@ class OutreachPipelineRow(BaseModel):
     workflow_error: str | None
     workflow_updated_at: datetime | None
     has_outreach_brief: bool
+    owner_contact_decision: str = "pending"
     pending_approval_count: int
     pipeline_stage: str
     monthly_gross_usd: float | None = None
@@ -835,6 +840,10 @@ class OutreachAttemptRead(BaseModel):
 
 class ParcelOutreachRead(BaseModel):
     brief: dict[str, Any]
+    owner_contact_decision: str = "pending"
+    owner_contact_decision_by: str | None = None
+    owner_contact_decision_at: datetime | None = None
+    owner_contact_decision_note: str | None = None
     contact_points: list[OwnerContactPointRead]
     attempts: list[OutreachAttemptRead]
 
@@ -905,6 +914,20 @@ class ParcelOutreachDraftRead(BaseModel):
 
 class OutreachApprovalRequest(BaseModel):
     requested_by: str = Field(min_length=1, max_length=256)
+
+
+class OwnerContactDecisionUpdate(BaseModel):
+    decision: Literal["pending", "approved", "rejected"]
+    decided_by: str = Field(min_length=1, max_length=256)
+    note: str | None = Field(default=None, max_length=4000)
+
+
+class OwnerContactDecisionRead(BaseModel):
+    parcel_id: uuid.UUID
+    owner_contact_decision: str
+    owner_contact_decision_by: str | None = None
+    owner_contact_decision_at: datetime | None = None
+    owner_contact_decision_note: str | None = None
 
 
 class SlackTestMessageRequest(BaseModel):

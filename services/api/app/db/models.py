@@ -25,6 +25,10 @@ class Parcel(Base):
     poi_commercial_count_400m: Mapped[int | None] = mapped_column(Integer, nullable=True)
     raw_properties: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     owner_outreach_brief: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    owner_contact_decision: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    owner_contact_decision_by: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    owner_contact_decision_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    owner_contact_decision_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     footprint: Mapped[object | None] = mapped_column(
         geoalchemy2.Geometry(geometry_type="MULTIPOLYGON", srid=4326),
         nullable=True,
