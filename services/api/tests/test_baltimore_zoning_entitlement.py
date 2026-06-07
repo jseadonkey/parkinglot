@@ -6,7 +6,7 @@ from pathlib import Path
 
 from app.zoning_entitlement import effective_zoning_code, parcel_zoning_tier
 from parking_core.models import ParcelFeature
-from parking_core.pilot import PilotConfig, ScoringConfig, ScoringWeights
+from parking_core.pilot import ParkingRateCompObservation, PilotConfig, ScoringConfig, ScoringWeights
 from parking_ingestion.zoning_rules import (
     load_effective_zoning_rules,
     resolve_principal_use_symbol,
@@ -95,6 +95,43 @@ def test_baltimore_cb_gets_partial_zoning_credit() -> None:
     result = score_parcel(feat, pilot)
     assert result.breakdown.zoning_component == 12.0
     assert any("BMZA conditional" in n for n in result.breakdown.notes)
+
+
+def test_baltimore_entitlement_floor_excludes_non_zoned_demand_only_sites() -> None:
+    pilot = PilotConfig(
+        region={"name": "t", "state_fips": "24", "county_fips": ["24510"]},
+        deal={"primary_structure": "ground_lease", "allowed_structures": ["ground_lease"]},
+        compliance={"allowed_outreach_channels": [], "require_human_approval_for": []},
+        scoring=ScoringConfig(
+            min_lot_sqft=5000,
+            qualified_min_score=70,
+            weights=ScoringWeights(
+                zoning_permitted_surface_parking=35,
+                zoning_conditional_surface_parking=12,
+                lot_size=18,
+                corner_lot=8,
+                near_demand_generator_m=24,
+                near_paid_parking_comps=15,
+            ),
+        ),
+    )
+    feat = ParcelFeature(
+        apn="x",
+        county_fips="24510",
+        lot_sqft=8000,
+        zoning_code="R-8",
+        zoning_allows_surface_parking=False,
+        zoning_principal_use_symbol=None,
+        is_corner_lot=True,
+        distance_to_nearest_demand_m=100,
+    )
+    comps = [
+        ParkingRateCompObservation(name="Garage A", lat=39.2904, lon=-76.6122, hourly_mid_usd=11.0),
+        ParkingRateCompObservation(name="Surface B", lat=39.2820, lon=-76.5920, hourly_mid_usd=8.5),
+    ]
+    result = score_parcel(feat, pilot, nearby_rate_comps=comps)
+    assert result.total_score == 65.0
+    assert result.total_score < pilot.scoring.qualified_min_score
 
 
 def test_permitted_zone_code_filter_non_empty() -> None:
