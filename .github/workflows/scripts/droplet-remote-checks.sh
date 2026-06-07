@@ -1224,6 +1224,15 @@ for key, val in sorted(updates.items()):
 PY
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
     docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --force-recreate --no-deps api worker worker-slack beat
+    echo "=== wait for API ready after env/container refresh ==="
+    for i in $(seq 1 30); do
+      READY="$(_internal_api_get "/ready" || true)"
+      echo "ready_poll=${i} ready=${READY}"
+      if printf '%s' "$READY" | grep -q '"status"[[:space:]]*:[[:space:]]*"ready"'; then
+        break
+      fi
+      sleep 3
+    done
     if [ -n "$KEY" ]; then
       echo "=== kickstart ops loop ==="
       _internal_api_post "/internal/ops/run-now" || true
