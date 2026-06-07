@@ -1,0 +1,66 @@
+# One-time Baltimore data repair after deploying zoning input fixes.
+# Remove after the repair workflow has run successfully.
+
+name: Baltimore post-deploy data repair
+
+on:
+  workflow_run:
+    workflows: ["Deploy to Droplet"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Enable ops remediation writes
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
+          cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && bash -s -- enable-ops-remediation deploy/docker-compose.production.ghcr.yml"
+
+      - name: Run Baltimore Realproperty backfill batches
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
+          cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && ADDRESS_BACKFILL_LIMIT=5000 ADDRESS_BACKFILL_MAX_BATCHES=3 ADDRESS_BACKFILL_SLEEP_BETWEEN_SEC=20 bash -s -- baltimore-address-backfill-agent deploy/docker-compose.production.ghcr.yml"
+
+      - name: Enqueue Baltimore score and revenue refresh
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
+          cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && DEMAND_LIMIT=5000 POI_LIMIT=50 bash -s -- refresh-baltimore-revenue-signals deploy/docker-compose.production.ghcr.yml"
