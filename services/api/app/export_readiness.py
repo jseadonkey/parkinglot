@@ -18,7 +18,9 @@ from app.pipeline_funnel import (
     pipeline_funnel_backlog,
     ruled_out_at_atlas,
     ruled_out_by_prescreen,
+    strategic_qualified_floor,
 )
+from app.poi_density import POI_DENSITY_CANDIDATE_MODE, count_poi_density_candidates
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
 
 
@@ -33,14 +35,18 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
     total = int(db.scalar(select(func.count()).select_from(Parcel)) or 0)
     floor_i = identification_prescreen_floor()
     floor_ent = entitlement_qualified_floor()
+    floor_str = strategic_qualified_floor()
 
     no_footprint = count_where(db, Parcel.footprint.is_(None))
     no_zoning = count_where(db, Parcel.zoning_code.is_(None))
     no_lot_sqft = count_where(db, Parcel.lot_sqft.is_(None))
     no_demand_m = count_where(db, Parcel.distance_to_nearest_demand_m.is_(None))
     no_poi = 0
+    no_poi_all = 0
+    poi_candidates = count_poi_density_candidates(db)
     if column_exists(db, "parcels", "poi_commercial_count_400m"):
-        no_poi = count_where(db, Parcel.poi_commercial_count_400m.is_(None))
+        no_poi = count_poi_density_candidates(db, missing_only=True)
+        no_poi_all = count_where(db, Parcel.poi_commercial_count_400m.is_(None))
 
     miss_ident = count_where(
         db,
@@ -85,7 +91,8 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
         "use `parcels_pipeline_funnel_backlog` for work that should run `run_pipeline`.",
         "If identification gaps: POST /internal/metrics/refresh-identification-scores?limit=2000 (or re-ingest).",
         "If demand distance gaps: POST /internal/metrics/refresh-demand-distances?limit=2000",
-        "If POI density gaps (revenue occupancy): "
+        "If POI density gaps (revenue occupancy): run only for qualified Atlas + Beacon candidates "
+        "in any city/county; pass county_fips only when intentionally scoping a batch: "
         "nohup bash scripts/refresh_baltimore_poi_loop.sh & (or "
         "POST /internal/metrics/refresh-poi-density?limit=50&county_fips=24510 — one batch at a time)",
         "If zoning gaps: spatial join → GeoJSON overlay → "
@@ -110,7 +117,19 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
         },
         "parcels_missing_poi_commercial_count_400m": {
             "count": no_poi,
-            "pct": _pct(no_poi, total),
+            "pct": _pct(no_poi, poi_candidates),
+            "candidate_mode": POI_DENSITY_CANDIDATE_MODE,
+        },
+        "parcels_poi_density_candidates": {
+            "count": poi_candidates,
+            "pct": _pct(poi_candidates, total),
+            "candidate_mode": POI_DENSITY_CANDIDATE_MODE,
+            "entitlement_floor": floor_ent,
+            "strategic_floor": floor_str,
+        },
+        "parcels_missing_poi_commercial_count_400m_all": {
+            "count": no_poi_all,
+            "pct": _pct(no_poi_all, total),
         },
         "parcels_missing_score_identification": {"count": miss_ident, "pct": _pct(miss_ident, total)},
         "parcels_missing_score_entitlement": {"count": miss_ent, "pct": _pct(miss_ent, total)},

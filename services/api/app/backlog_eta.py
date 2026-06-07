@@ -142,17 +142,26 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
     slack_depth = int(queues.get("slack_depth") or 0)
     active_work = parking_depth > 0
 
-    poi_missing = int(priority.get("missing_poi") or 0)
+    poi_missing = int(
+        _gap_count(export, "parcels_missing_poi_commercial_count_400m")
+        or priority.get("missing_poi")
+        or 0
+    )
+    poi_total = int(
+        _gap_count(export, "parcels_poi_density_candidates")
+        or priority.get("poi_candidate_total")
+        or priority_total
+    )
     auto_fix = effective_auto_fix_enabled(settings)
     poi_daily = POI_SAFE_BATCHES_PER_DAY if auto_fix else 0
     poi_recommendation = (
-        "Keep paused or narrow to high-score parcels; all-parcel POI fill is long-running."
+        "Run only for qualified Atlas + Beacon parcels; all-parcel POI fill is not needed."
         if poi_missing > 0
         else "No action needed."
     )
     if auto_fix and poi_missing > 0:
         poi_recommendation = (
-            "Throttle or narrow. Auto-fix can chip away slowly, but all-parcel completion is not urgent."
+            "Auto-fix should chip away only at qualified Atlas + Beacon parcels."
         )
 
     pipeline_backlog = int(
@@ -204,9 +213,9 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         ),
         _item(
             key="baltimore_poi_density",
-            label="Baltimore POI density",
+            label="Qualified POI density",
             backlog_count=poi_missing,
-            total_count=priority_total,
+            total_count=poi_total,
             unit="parcels",
             value="medium",
             work_type="enrichment",
@@ -216,7 +225,7 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
             recommendation=poi_recommendation,
             why=(
                 "POI density improves demand confidence and revenue assumptions, "
-                "but entitlement/demand scoring already works."
+                "but entitlement/demand scoring already works before this enrichment."
             ),
             active_now=active_work,
         ),

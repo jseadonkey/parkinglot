@@ -38,6 +38,10 @@ from app.pipeline_funnel import (
     parcel_prescreen_qualified,
     strategic_qualified_floor,
 )
+from app.poi_density import (
+    POI_DENSITY_CANDIDATE_MODE,
+    select_poi_density_candidates,
+)
 from app.scoring_profiles import (
     ENTITLEMENT,
     IDENTIFICATION,
@@ -1360,23 +1364,21 @@ def refresh_poi_density_batch(
     skipped = 0
     errors = 0
     last_at: float | None = None
-    last_id: uuid.UUID | None = None
+    attempted_ids: set[uuid.UUID] = set()
     try:
         while True:
-            stmt = select(Parcel).where(Parcel.footprint.isnot(None))
-            if cf:
-                stmt = stmt.where(Parcel.county_fips == cf)
-            if only_missing:
-                stmt = stmt.where(Parcel.poi_commercial_count_400m.is_(None))
-            if last_id is not None:
-                stmt = stmt.where(Parcel.id > last_id)
-            stmt = stmt.order_by(Parcel.id.asc()).limit(chunk)
+            stmt = select_poi_density_candidates(
+                limit=chunk,
+                county_fips=cf,
+                only_missing=only_missing,
+                exclude_ids=attempted_ids,
+            )
             batch = list(db.scalars(stmt))
             if not batch:
                 break
 
             for parcel in batch:
-                last_id = parcel.id
+                attempted_ids.add(parcel.id)
                 geom = to_shape(parcel.footprint)
                 if geom.is_empty:
                     continue
@@ -1432,6 +1434,9 @@ def refresh_poi_density_batch(
             "radius_m": radius_m,
             "only_missing": only_missing,
             "process_all": process_all,
+            "candidate_mode": POI_DENSITY_CANDIDATE_MODE,
+            "entitlement_floor": entitlement_qualified_floor(),
+            "strategic_floor": strategic_qualified_floor(),
         }
     finally:
         db.close()

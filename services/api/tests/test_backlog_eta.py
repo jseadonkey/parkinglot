@@ -12,6 +12,8 @@ def _export_payload() -> dict:
         "parcels_prescreen_qualified": {"count": 12000},
         "parcels_pipeline_funnel_backlog": {"count": 0},
         "parcels_missing_distance_to_nearest_demand_m": {"count": 0},
+        "parcels_missing_poi_commercial_count_400m": {"count": 400},
+        "parcels_poi_density_candidates": {"count": 500},
         "parcels_missing_score_identification": {"count": 0},
         "parcels_missing_score_entitlement": {"count": 0},
         "parcels_missing_owner_outreach_brief": {"count": 223139},
@@ -56,9 +58,12 @@ def test_backlog_eta_prioritizes_address_backfill_and_throttles_poi() -> None:
     assert by_key["baltimore_property_addresses"]["total_count"] == 12000
     assert "deal candidates only" in by_key["baltimore_property_addresses"]["recommendation"]
     assert by_key["baltimore_property_addresses"]["eta_label"] == "Measure one batch first"
+    assert by_key["baltimore_poi_density"]["label"] == "Qualified POI density"
     assert by_key["baltimore_poi_density"]["value"] == "medium"
+    assert by_key["baltimore_poi_density"]["backlog_count"] == 400
+    assert by_key["baltimore_poi_density"]["total_count"] == 500
     assert by_key["baltimore_poi_density"]["eta_label"] == "Measure one batch first"
-    assert "narrow" in by_key["baltimore_poi_density"]["recommendation"].lower()
+    assert "qualified atlas + beacon" in by_key["baltimore_poi_density"]["recommendation"].lower()
 
 
 def test_backlog_eta_estimates_poi_when_auto_fix_enabled() -> None:
@@ -67,7 +72,11 @@ def test_backlog_eta_estimates_poi_when_auto_fix_enabled() -> None:
         patch(
             "app.backlog_eta.load_last_report",
             return_value={
-                "export_readiness": _export_payload(),
+                "export_readiness": {
+                    **_export_payload(),
+                    "parcels_missing_poi_commercial_count_400m": {"count": 1200},
+                    "parcels_poi_density_candidates": {"count": 1200},
+                },
                 "priority_counties": {"24510": {"total": 1000, "missing_poi": 1200}},
             },
         ),

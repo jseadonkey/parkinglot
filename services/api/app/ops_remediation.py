@@ -23,6 +23,7 @@ from app.db.schema_compat import column_exists
 from app.export_readiness import export_readiness_summary
 from app.geo_markets import priority_county_fips
 from app.pipeline_funnel import pipeline_funnel_backlog
+from app.poi_density import POI_DENSITY_CANDIDATE_MODE, count_poi_density_candidates
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION
 from app.site_watchdog import load_last_report as load_watchdog_report
 from app.site_watchdog import watchdog_slack_channel
@@ -158,8 +159,16 @@ def county_data_gaps(db: Session, county_fips: str) -> dict[str, Any]:
         or 0,
     )
     no_poi = 0
+    no_poi_all = 0
+    poi_candidates = count_poi_density_candidates(db, county_fips=cf, require_footprint=True)
     if column_exists(db, "parcels", "poi_commercial_count_400m"):
-        no_poi = int(
+        no_poi = count_poi_density_candidates(
+            db,
+            county_fips=cf,
+            missing_only=True,
+            require_footprint=True,
+        )
+        no_poi_all = int(
             db.scalar(
                 select(func.count()).select_from(Parcel).where(
                     Parcel.county_fips == cf,
@@ -212,8 +221,11 @@ def county_data_gaps(db: Session, county_fips: str) -> dict[str, Any]:
     return {
         "county_fips": cf,
         "total": total,
+        "poi_candidate_total": poi_candidates,
+        "poi_candidate_mode": POI_DENSITY_CANDIDATE_MODE,
         "missing_demand_m": no_demand,
         "missing_poi": no_poi,
+        "missing_poi_all": no_poi_all,
         "missing_entitlement_score": miss_ent,
         "missing_identification_score": miss_ident,
         "pipeline_funnel_backlog": funnel,
@@ -285,13 +297,17 @@ def diagnose(db: Session, settings: Settings) -> list[OpsIssue]:
                 ),
             )
         poi_missing = int(gaps.get("missing_poi") or 0)
-        if poi_missing > max(50, int(total * 0.05)):
-            pct = poi_missing * 100 // total
+        poi_total = int(gaps.get("poi_candidate_total") or 0)
+        if poi_total > 0 and poi_missing > max(50, int(poi_total * 0.05)):
+            pct = poi_missing * 100 // poi_total
             issues.append(
                 OpsIssue(
                     code=f"missing_poi_{cf}",
                     severity="info",
-                    message=f"{poi_missing} parcels in {cf} missing OSM POI ({pct}%)",
+                    message=(
+                        f"{poi_missing} qualified POI candidates in {cf} "
+                        f"missing OSM POI ({pct}%)"
+                    ),
                     metric=gaps,
                     fix_action="refresh_poi_batch",
                 ),
