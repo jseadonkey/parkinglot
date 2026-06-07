@@ -41,6 +41,10 @@ on:
         description: "POST /internal/ingest/baltimore-city on the Droplet now"
         type: boolean
         default: false
+      baltimore_full_city_phase1:
+        description: "Full Baltimore City Phase 1: fetch all city parcels and backfill identification prescreen"
+        type: boolean
+        default: false
       baltimore_markets_ingest:
         description: "Ingest all Baltimore City parcels (county paused) and enqueue priority pipeline"
         type: boolean
@@ -155,6 +159,8 @@ jobs:
             MODE="pilot-scope-snapshot"
           elif [ "${{ inputs.baltimore_ingest_now }}" = "true" ]; then
             MODE="baltimore-ingest-now"
+          elif [ "${{ inputs.baltimore_full_city_phase1 }}" = "true" ]; then
+            MODE="baltimore-full-city-phase1"
           elif [ "${{ inputs.enable_slow_statewide_expansion }}" = "true" ]; then
             MODE="enable-slow-statewide-expansion"
           elif [ "${{ inputs.wa_rollout_now }}" = "true" ]; then

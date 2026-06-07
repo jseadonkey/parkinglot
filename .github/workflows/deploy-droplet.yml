@@ -247,6 +247,15 @@ jobs:
           ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             "set -euo pipefail && cd '$REMOTE_PATH' && $UP_CMD && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env ps api worker worker-slack beat approval-ui operator-console && (docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env logs api --tail 40 || true)"
 
+      - name: Baltimore full-city Phase 1
+        if: github.event_name == 'workflow_run'
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          COMPOSE_FILE="deploy/${{ steps.opts.outputs.compose_file }}"
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "set -euo pipefail && cd '$REMOTE_PATH' && bash .github/workflows/scripts/droplet-remote-checks.sh baltimore-full-city-phase1 '$COMPOSE_FILE'"
+
       # Do not fail the whole deploy if Slack enqueue fails (containers are already updated).
       - name: Enqueue Slack tasks (post-deploy script)
         id: post_slack

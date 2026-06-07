@@ -891,11 +891,16 @@ def refresh_poi_density(
 def refresh_identification_scores(
     limit: int = 2000,
     county_fips: str | None = None,
+    process_all: bool = Query(
+        False,
+        description="When true, keep processing missing identification scores in chunks until no gaps remain.",
+    ),
 ) -> CeleryTaskIdResponse:
     """Upsert identification (Cartographer) scores where missing — no full re-ingest required (Celery)."""
     async_result = refresh_identification_scores_batch.delay(
         limit=limit,
         county_fips=county_fips,
+        process_all=process_all,
     )
     return CeleryTaskIdResponse(task_id=async_result.id)
 

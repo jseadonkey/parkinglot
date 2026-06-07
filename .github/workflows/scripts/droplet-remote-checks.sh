@@ -127,6 +127,162 @@ _internal_api_post() {
   _internal_api_post_via_container "$path" "$payload"
 }
 
+_json_value() {
+  local path="$1"
+  python3 -c '
+import json
+import sys
+
+parts = sys.argv[1].split(".") if len(sys.argv) > 1 and sys.argv[1] else []
+try:
+    data = json.load(sys.stdin)
+    for part in parts:
+        if isinstance(data, dict):
+            data = data.get(part)
+        else:
+            data = None
+            break
+    if data is None:
+        print("")
+    elif isinstance(data, (dict, list)):
+        print(json.dumps(data))
+    else:
+        print(data)
+except Exception:
+    print("")
+' "$path"
+}
+
+WAIT_TASK_RESPONSE=""
+_wait_internal_task() {
+  local task_id="$1"
+  local label="$2"
+  local timeout="${3:-7200}"
+  local interval="${4:-10}"
+  local elapsed=0
+  local body=""
+  local state=""
+  WAIT_TASK_RESPONSE=""
+  if [ -z "$task_id" ]; then
+    echo "FAIL: missing task id for ${label}" >&2
+    return 1
+  fi
+  echo "=== wait for ${label} (${task_id}, timeout ${timeout}s) ==="
+  while [ "$elapsed" -le "$timeout" ]; do
+    body="$(_internal_api_get "/internal/tasks/${task_id}")"
+    state="$(printf '%s' "$body" | _json_value state)"
+    if [ "$state" = "SUCCESS" ]; then
+      echo "${label} SUCCESS after ${elapsed}s"
+      printf '%s\n' "$body" | python3 -m json.tool 2>/dev/null || printf '%s\n' "$body"
+      WAIT_TASK_RESPONSE="$body"
+      return 0
+    fi
+    if [ "$state" = "FAILURE" ]; then
+      echo "${label} FAILURE after ${elapsed}s" >&2
+      printf '%s\n' "$body" | python3 -m json.tool 2>/dev/null || printf '%s\n' "$body"
+      WAIT_TASK_RESPONSE="$body"
+      return 1
+    fi
+    printf '  [%s] state=%s elapsed=%ss/%ss\n' "$label" "${state:-UNKNOWN}" "$elapsed" "$timeout"
+    sleep "$interval"
+    elapsed=$((elapsed + interval))
+  done
+  echo "FAIL: ${label} timed out after ${timeout}s" >&2
+  WAIT_TASK_RESPONSE="$body"
+  return 1
+}
+
+_baltimore_phase1_status_json() {
+  local compose_rel="${COMPOSE_REL:-deploy/docker-compose.production.ghcr.yml}"
+  docker compose -f "$compose_rel" --env-file deploy/.env exec -T api python - <<'PY'
+import json
+import os
+import urllib.parse
+import urllib.request
+
+from sqlalchemy import create_engine, text
+
+COUNTY = "24510"
+SOURCE_LAYER = "https://egis.baltimorecity.gov/egis/rest/services/Parcel_Information/Parcel/FeatureServer/0"
+
+
+def source_count():
+    params = urllib.parse.urlencode({"where": "1=1", "returnCountOnly": "true", "f": "json"})
+    req = urllib.request.Request(
+        f"{SOURCE_LAYER}/query?{params}",
+        headers={"User-Agent": "parking-baltimore-phase1-status/1.0"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return None
+    return int(payload["count"]) if payload.get("count") is not None else None
+
+
+def pct(num, den):
+    return round((num / den) * 100, 2) if den else None
+
+
+engine = create_engine(os.environ["DATABASE_URL"])
+source = source_count()
+with engine.connect() as conn:
+    row = conn.execute(
+        text(
+            """
+            with latest_ident as (
+              select distinct on (s.parcel_id)
+                s.parcel_id,
+                s.total_score,
+                s.created_at
+              from parcel_scores s
+              join parcels p on p.id = s.parcel_id
+              where p.county_fips = :cf
+                and s.score_profile = 'identification'
+              order by s.parcel_id, s.created_at desc
+            )
+            select
+              count(p.*)::int as parcel_total,
+              count(distinct p.apn)::int as distinct_apns,
+              (count(p.*) - count(distinct p.apn))::int as duplicate_apn_rows,
+              count(p.*) filter (where nullif(trim(p.apn), '') is null)::int as missing_apn,
+              count(p.*) filter (where p.footprint is null)::int as missing_footprint,
+              count(li.parcel_id)::int as identification_score_count,
+              count(p.*) filter (where li.parcel_id is null)::int as missing_identification_score,
+              count(li.parcel_id) filter (where li.total_score >= 45)::int as prescreen_qualified_45,
+              max(li.created_at)::text as latest_identification_score_at
+            from parcels p
+            left join latest_ident li on li.parcel_id = p.id
+            where p.county_fips = :cf
+            """,
+        ),
+        {"cf": COUNTY},
+    ).mappings().one()
+
+parcel_total = int(row["parcel_total"] or 0)
+missing_ident = int(row["missing_identification_score"] or 0)
+source_gap = max((source or 0) - parcel_total, 0) if source is not None else None
+status = {
+    "county_fips": COUNTY,
+    "source_parcel_count": source,
+    "parcel_total": parcel_total,
+    "source_gap": source_gap,
+    "source_coverage_pct": pct(parcel_total, source),
+    "distinct_apns": int(row["distinct_apns"] or 0),
+    "duplicate_apn_rows": int(row["duplicate_apn_rows"] or 0),
+    "missing_apn": int(row["missing_apn"] or 0),
+    "missing_footprint": int(row["missing_footprint"] or 0),
+    "identification_score_count": int(row["identification_score_count"] or 0),
+    "missing_identification_score": missing_ident,
+    "identification_coverage_pct": pct(parcel_total - missing_ident, parcel_total),
+    "prescreen_qualified_45": int(row["prescreen_qualified_45"] or 0),
+    "latest_identification_score_at": row["latest_identification_score_at"],
+    "phase1_complete_for_source": source is not None and source_gap == 0 and missing_ident == 0,
+}
+print(json.dumps(status, sort_keys=True))
+PY
+}
+
 case "$MODE" in
   endpoints)
     CURL_HEALTH="${1:-true}"
@@ -935,6 +1091,88 @@ PY
     else
       echo "INTERNAL_API_KEY not set"
     fi
+    ;;
+  baltimore-full-city-phase1)
+    echo "=== Baltimore City full Phase 1: all city parcels + identification prescreen ==="
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    export COMPOSE_REL
+    if [ -z "$KEY" ]; then
+      echo "FAIL: INTERNAL_API_KEY not set" >&2
+      exit 1
+    fi
+    if ! docker compose -f "$COMPOSE_REL" --env-file deploy/.env ps -q api 2>/dev/null | grep -q .; then
+      echo "=== starting api/worker/beat ==="
+      docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d api worker beat
+    fi
+
+    echo "=== Phase 1 status before ==="
+    STATUS="$(_baltimore_phase1_status_json)"
+    printf '%s\n' "$STATUS" | python3 -m json.tool 2>/dev/null || printf '%s\n' "$STATUS"
+    COMPLETE="$(printf '%s' "$STATUS" | _json_value phase1_complete_for_source)"
+    if [ "$COMPLETE" = "True" ] || [ "$COMPLETE" = "true" ]; then
+      echo "Baltimore City Phase 1 is already complete for full source parcel count."
+      exit 0
+    fi
+
+    echo "=== POST /internal/ingest/baltimore-city (full city cap 750k; pipeline off) ==="
+    FETCH_RESP="$(_internal_api_post "/internal/ingest/baltimore-city" \
+      '{"max_features":750000,"auto_run_pipeline":false,"max_auto_pipeline":1}')"
+    printf '%s\n' "$FETCH_RESP" | python3 -m json.tool 2>/dev/null || printf '%s\n' "$FETCH_RESP"
+    FETCH_TASK_ID="$(printf '%s' "$FETCH_RESP" | _json_value task_id)"
+    _wait_internal_task "$FETCH_TASK_ID" "Baltimore full-city fetch" "${BALTIMORE_FULL_CITY_FETCH_TIMEOUT_SEC:-10800}" 15
+
+    INGEST_TASK_ID="$(printf '%s' "$WAIT_TASK_RESPONSE" | _json_value result.ingest_task_id)"
+    if [ -z "$INGEST_TASK_ID" ]; then
+      echo "FAIL: fetch task did not return ingest_task_id" >&2
+      exit 1
+    fi
+    _wait_internal_task "$INGEST_TASK_ID" "Baltimore full-city ingest" "${BALTIMORE_FULL_CITY_INGEST_TIMEOUT_SEC:-10800}" 15
+
+    echo "=== Phase 1 status after ingest ==="
+    STATUS="$(_baltimore_phase1_status_json)"
+    printf '%s\n' "$STATUS" | python3 -m json.tool 2>/dev/null || printf '%s\n' "$STATUS"
+
+    MAX_ROUNDS="${BALTIMORE_FULL_CITY_IDENT_ROUNDS:-80}"
+    IDENT_TIMEOUT="${BALTIMORE_FULL_CITY_IDENT_TIMEOUT_SEC:-7200}"
+    for round in $(seq 1 "$MAX_ROUNDS"); do
+      MISSING_IDENT="$(printf '%s' "$STATUS" | _json_value missing_identification_score)"
+      if [ "${MISSING_IDENT:-0}" = "0" ]; then
+        echo "No missing identification scores remain."
+        break
+      fi
+      echo "=== identification backfill round ${round}/${MAX_ROUNDS}; missing=${MISSING_IDENT} ==="
+      IDENT_RESP="$(_internal_api_post "/internal/metrics/refresh-identification-scores?limit=5000&county_fips=24510&process_all=true")"
+      printf '%s\n' "$IDENT_RESP" | python3 -m json.tool 2>/dev/null || printf '%s\n' "$IDENT_RESP"
+      IDENT_TASK_ID="$(printf '%s' "$IDENT_RESP" | _json_value task_id)"
+      _wait_internal_task "$IDENT_TASK_ID" "Baltimore identification backfill round ${round}" "$IDENT_TIMEOUT" 10
+      UPDATED="$(printf '%s' "$WAIT_TASK_RESPONSE" | _json_value result.updated)"
+
+      STATUS="$(_baltimore_phase1_status_json)"
+      printf '%s\n' "$STATUS" | python3 -m json.tool 2>/dev/null || printf '%s\n' "$STATUS"
+      MISSING_AFTER="$(printf '%s' "$STATUS" | _json_value missing_identification_score)"
+      if [ "${MISSING_AFTER:-0}" = "0" ]; then
+        echo "Identification backfill complete."
+        break
+      fi
+      if [ "${UPDATED:-0}" = "0" ]; then
+        echo "FAIL: identification backfill updated 0 rows but ${MISSING_AFTER} are still missing" >&2
+        exit 1
+      fi
+      if [ "$round" = "$MAX_ROUNDS" ]; then
+        echo "FAIL: identification backfill still missing ${MISSING_AFTER} rows after ${MAX_ROUNDS} rounds" >&2
+        exit 1
+      fi
+    done
+
+    echo "=== Final Baltimore City Phase 1 status ==="
+    STATUS="$(_baltimore_phase1_status_json)"
+    printf '%s\n' "$STATUS" | python3 -m json.tool 2>/dev/null || printf '%s\n' "$STATUS"
+    COMPLETE="$(printf '%s' "$STATUS" | _json_value phase1_complete_for_source)"
+    if [ "$COMPLETE" != "True" ] && [ "$COMPLETE" != "true" ]; then
+      echo "FAIL: Baltimore City Phase 1 is not complete for source parcel count" >&2
+      exit 1
+    fi
+    echo "Baltimore City Phase 1 complete for full source parcel count."
     ;;
   baltimore-markets-ingest)
     echo "=== POST Baltimore City full ingest only (county paused) ==="
