@@ -94,8 +94,9 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
     if miss_brief > 0:
         recommended_next_steps.append(
             "If owner outreach brief gaps: enqueue prescreen-qualified parcels only, "
-            "per-parcel POST /parcels/{id}/outreach/recompute, or scripts/execute-phase-c.sh (smoke) "
-            "— see docs/OPERATIONS.md (owner outreach)."
+            "per-parcel POST /parcels/{id}/outreach/recompute, or scripts/execute-phase-c.sh (smoke). "
+            "Street/situs address enrichment is also candidate-only; do not treat missing addresses "
+            "on low-score parcels as market incompleteness — see docs/OPERATIONS.md (owner outreach)."
         )
 
     return {

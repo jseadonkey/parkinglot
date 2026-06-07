@@ -9,6 +9,7 @@ from app.backlog_eta import backlog_eta_summary
 def _export_payload() -> dict:
     return {
         "parcel_row_total": 223139,
+        "parcels_prescreen_qualified": {"count": 12000},
         "parcels_pipeline_funnel_backlog": {"count": 0},
         "parcels_missing_distance_to_nearest_demand_m": {"count": 0},
         "parcels_missing_score_identification": {"count": 0},
@@ -47,6 +48,10 @@ def test_backlog_eta_prioritizes_address_backfill_and_throttles_poi() -> None:
     assert "address backfill" in out["summary"]["decision"]
     by_key = {row["key"]: row for row in out["items"]}
     assert by_key["baltimore_property_addresses"]["value"] == "high"
+    assert by_key["baltimore_property_addresses"]["label"] == "Candidate street address backfill"
+    assert by_key["baltimore_property_addresses"]["backlog_count"] == 12000
+    assert by_key["baltimore_property_addresses"]["total_count"] == 12000
+    assert "deal candidates only" in by_key["baltimore_property_addresses"]["recommendation"]
     assert by_key["baltimore_property_addresses"]["eta_label"] == "Measure one batch first"
     assert by_key["baltimore_poi_density"]["value"] == "medium"
     assert by_key["baltimore_poi_density"]["eta_label"] == "Measure one batch first"

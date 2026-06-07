@@ -164,6 +164,7 @@ Operators can see **recorded owner**, **contact hints from roll**, **multi-parce
 2. **Run pipeline for enriched parcels**  
    - Owner candidates + **`owner_outreach_brief`** are written in **`run_pipeline`** (`services/api/app/tasks.py`).  
    - Ensure pipelines have run for parcels you care about (Phase A enqueue).
+   - Street / situs addresses are **deal-candidate enrichment only**. Backfill them for parcels that score well or look vacant/suitable; do not treat missing addresses on low-score parcels as city/county incompleteness.
 
 3. **Portfolio rollup**  
    - `GET /internal/owners/peers-by-key?normalized_owner_key=53:ACME`  
@@ -179,6 +180,7 @@ Operators can see **recorded owner**, **contact hints from roll**, **multi-parce
 
 6. **Smoke readiness + portfolio APIs**  
    - **`scripts/execute-phase-c.sh`** — prints **`parcels_missing_owner_outreach_brief`** (via **`check_export_readiness.py`**), **`GET /internal/owners/portfolios-ranked`**, optional **`GET /internal/owners/peers-by-key`** when **`PHASE_C_OWNER_KEY`** is set (`make phase-c-run`). Use after pipelines have run for parcels you care about.
+   - Interpret remaining owner/address gaps as candidate-only work; broad market coverage does not require street addresses for every APN.
 
 ### Exit criteria (Phase C)
 

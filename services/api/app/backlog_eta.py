@@ -72,6 +72,12 @@ def _gap_count(export: dict[str, Any], key: str) -> int:
     return int(raw.get("count") or 0) if isinstance(raw, dict) else 0
 
 
+def _candidate_count(export: dict[str, Any], fallback: int = 0) -> int:
+    """Address/owner enrichment is only required for deal candidates, not every APN."""
+    candidates = _gap_count(export, "parcels_prescreen_qualified")
+    return candidates if candidates > 0 else max(0, int(fallback or 0))
+
+
 def _item(
     *,
     key: str,
@@ -134,10 +140,6 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
     parking_depth = int(queues.get("parking_depth") or 0)
     slack_depth = int(queues.get("slack_depth") or 0)
     active_work = parking_depth > 0
-    address_total = priority_total
-    # We intentionally do not scan raw_properties here. Until the measured backfill
-    # runs, treat existing Baltimore rows as needing address association.
-    address_missing = priority_total
 
     poi_missing = int(priority.get("missing_poi") or 0)
     auto_fix = effective_auto_fix_enabled(settings)
@@ -173,22 +175,29 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         or 0
     )
     brief_missing = _gap_count(export, "parcels_missing_owner_outreach_brief")
+    address_total = _candidate_count(export, pipeline_backlog)
+    # Address jobs should select from this candidate pool only. Avoid scanning
+    # raw_properties here so the operator page stays cheap under DB load.
+    address_missing = address_total
 
     items = [
         _item(
             key="baltimore_property_addresses",
-            label="Baltimore street address backfill",
+            label="Candidate street address backfill",
             backlog_count=address_missing,
             total_count=address_total,
             unit="parcels",
             value="high",
             work_type="data_backfill",
             recommendation=(
-                "Run a measured pilot batch first, then full backfill if DB CPU stays calm."
+                "Run measured batches for deal candidates only; do not citywide-backfill low-score parcels."
                 if address_missing > 0
                 else "No action needed."
             ),
-            why="Street addresses make parcel review, owner outreach, maps, and operator conversations usable.",
+            why=(
+                "Street addresses make parcel review, maps, visits, and owner conversations usable, "
+                "but only for parcels that pass scoring or look vacant/suitable."
+            ),
             eta_confidence="unknown",
             active_now=False,
         ),
@@ -273,7 +282,7 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
             value="selective",
             work_type="deep_enrichment",
             recommendation=(
-                "Do not run for every parcel; only run for qualified/high-score candidates."
+                "Do not run for every parcel; only run for qualified/high-score/vacant-looking candidates."
                 if brief_missing > 0
                 else "No action needed."
             ),
@@ -294,7 +303,7 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
             "high_value_remaining": high_value_remaining,
             "decision": (
                 "No active heavy queue. High-value scoring backlog is clear; "
-                "next measured work should be Baltimore address backfill."
+                "next measured work should be candidate-only street address backfill."
                 if (
                     parking_depth == 0
                     and pipeline_backlog == 0

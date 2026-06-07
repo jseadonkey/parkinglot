@@ -312,7 +312,10 @@ def build_owner_outreach_brief(
     if not mail_addrs:
         gaps.append("No mailing address on ingest payload — pull from assessor full roll or vendor.")
     if not situs_addrs:
-        gaps.append("No situs / property address on ingest payload — optional for site visit planning.")
+        gaps.append(
+            "No situs / property address on ingest payload — needed only for deal candidates "
+            "that merit map, site-visit, or door-notice review."
+        )
     if primary and primary.kind == OwnerKind.entity and not mail_addrs:
         gaps.append("Entity owner without mail on file — SOS registered agent address is the usual path.")
     if len(mail_addrs) > 1:
