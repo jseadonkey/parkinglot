@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refresh OSM commercial POI counts for Baltimore City (no Celery).
+"""Refresh OSM commercial POI counts for qualified Baltimore City candidates (no Celery).
 
 Safe alongside live workers: short per-parcel commits + deadlock retry in the API task.
 
