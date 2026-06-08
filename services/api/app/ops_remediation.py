@@ -22,7 +22,7 @@ from app.db.models import Parcel, ParcelScore
 from app.db.schema_compat import column_exists
 from app.export_readiness import export_readiness_summary
 from app.geo_markets import priority_county_fips
-from app.pipeline_funnel import pipeline_funnel_backlog
+from app.pipeline_funnel import identification_prescreen_qualified, pipeline_funnel_backlog
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION
 from app.site_watchdog import load_last_report as load_watchdog_report
 from app.site_watchdog import watchdog_slack_channel
@@ -158,12 +158,23 @@ def county_data_gaps(db: Session, county_fips: str) -> dict[str, Any]:
         or 0,
     )
     no_poi = 0
+    candidate_no_poi = 0
     if column_exists(db, "parcels", "poi_commercial_count_400m"):
         no_poi = int(
             db.scalar(
                 select(func.count()).select_from(Parcel).where(
                     Parcel.county_fips == cf,
                     Parcel.poi_commercial_count_400m.is_(None),
+                ),
+            )
+            or 0,
+        )
+        candidate_no_poi = int(
+            db.scalar(
+                select(func.count()).select_from(Parcel).where(
+                    Parcel.county_fips == cf,
+                    Parcel.poi_commercial_count_400m.is_(None),
+                    identification_prescreen_qualified(45.0),
                 ),
             )
             or 0,
@@ -214,6 +225,7 @@ def county_data_gaps(db: Session, county_fips: str) -> dict[str, Any]:
         "total": total,
         "missing_demand_m": no_demand,
         "missing_poi": no_poi,
+        "candidate_missing_poi": candidate_no_poi,
         "missing_entitlement_score": miss_ent,
         "missing_identification_score": miss_ident,
         "pipeline_funnel_backlog": funnel,

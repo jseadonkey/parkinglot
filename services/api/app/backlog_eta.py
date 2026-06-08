@@ -78,6 +78,15 @@ def _candidate_count(export: dict[str, Any], fallback: int = 0) -> int:
     return candidates if candidates > 0 else max(0, int(fallback or 0))
 
 
+def _optional_int(raw: Any) -> int | None:
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
 def _item(
     *,
     key: str,
@@ -142,18 +151,10 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
     slack_depth = int(queues.get("slack_depth") or 0)
     active_work = parking_depth > 0
 
-    poi_missing = int(priority.get("missing_poi") or 0)
+    poi_citywide_missing = int(priority.get("missing_poi") or 0)
+    poi_candidate_missing = _optional_int(priority.get("candidate_missing_poi"))
     auto_fix = effective_auto_fix_enabled(settings)
     poi_daily = POI_SAFE_BATCHES_PER_DAY if auto_fix else 0
-    poi_recommendation = (
-        "Keep paused or narrow to high-score parcels; all-parcel POI fill is long-running."
-        if poi_missing > 0
-        else "No action needed."
-    )
-    if auto_fix and poi_missing > 0:
-        poi_recommendation = (
-            "Throttle or narrow. Auto-fix can chip away slowly, but all-parcel completion is not urgent."
-        )
 
     pipeline_backlog = int(
         priority.get("pipeline_funnel_backlog")
@@ -177,6 +178,19 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
     )
     brief_missing = _gap_count(export, "parcels_missing_owner_outreach_brief")
     address_total = _candidate_count(export, pipeline_backlog)
+    # Older ops snapshots only contain the citywide optional POI gap. Do not
+    # present that as actionable backlog on the operator decision page.
+    poi_missing = max(0, int(poi_candidate_missing or 0))
+    if address_total > 0:
+        poi_missing = min(poi_missing, address_total)
+    poi_total = address_total or priority_total
+    poi_recommendation = (
+        "Run only for candidate parcels if revenue confidence is needed; ignore citywide optional gaps."
+        if poi_missing > 0
+        else "No action needed; citywide POI coverage is optional."
+    )
+    if auto_fix and poi_missing > 0:
+        poi_recommendation = "Throttle to candidate parcels; do not citywide-fill optional POI density."
     # Address jobs should select from this candidate pool only. Avoid scanning
     # raw_properties here so the operator page stays cheap under DB load.
     address_missing = address_total
@@ -204,9 +218,9 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         ),
         _item(
             key="baltimore_poi_density",
-            label="Baltimore POI density",
+            label="Candidate POI density",
             backlog_count=poi_missing,
-            total_count=priority_total,
+            total_count=poi_total,
             unit="parcels",
             value="medium",
             work_type="enrichment",
@@ -215,8 +229,8 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
             eta_confidence="low",
             recommendation=poi_recommendation,
             why=(
-                "POI density improves demand confidence and revenue assumptions, "
-                "but entitlement/demand scoring already works."
+                "POI density improves revenue assumptions for deal candidates only; "
+                f"citywide optional gap is {poi_citywide_missing:,} parcels and is not backlog."
             ),
             active_now=active_work,
         ),
