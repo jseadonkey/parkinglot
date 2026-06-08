@@ -12,13 +12,15 @@ def _export_payload() -> dict:
         "parcels_prescreen_qualified": {"count": 12000},
         "parcels_pipeline_funnel_backlog": {"count": 0},
         "parcels_missing_distance_to_nearest_demand_m": {"count": 0},
+        "parcels_missing_poi_commercial_count_400m": {"count": 400},
+        "parcels_poi_density_candidates": {"count": 500},
         "parcels_missing_score_identification": {"count": 0},
         "parcels_missing_score_entitlement": {"count": 0},
         "parcels_missing_owner_outreach_brief": {"count": 223139},
     }
 
 
-def test_backlog_eta_prioritizes_address_backfill_and_throttles_poi() -> None:
+def test_backlog_eta_prioritizes_address_backfill_and_ignores_citywide_poi() -> None:
     settings = SimpleNamespace(ops_remediation_auto_fix=False, ops_remediation_allow_db_writes=False)
     with (
         patch(
@@ -56,9 +58,12 @@ def test_backlog_eta_prioritizes_address_backfill_and_throttles_poi() -> None:
     assert by_key["baltimore_property_addresses"]["total_count"] == 12000
     assert "deal candidates only" in by_key["baltimore_property_addresses"]["recommendation"]
     assert by_key["baltimore_property_addresses"]["eta_label"] == "Measure one batch first"
+    assert by_key["baltimore_poi_density"]["label"] == "Candidate POI density"
     assert by_key["baltimore_poi_density"]["value"] == "medium"
-    assert by_key["baltimore_poi_density"]["eta_label"] == "Measure one batch first"
-    assert "narrow" in by_key["baltimore_poi_density"]["recommendation"].lower()
+    assert by_key["baltimore_poi_density"]["backlog_count"] == 0
+    assert by_key["baltimore_poi_density"]["eta_label"] == "Done"
+    assert "citywide POI coverage is optional" in by_key["baltimore_poi_density"]["recommendation"]
+    assert "202,100" in by_key["baltimore_poi_density"]["why"]
 
 
 def test_backlog_eta_estimates_poi_when_auto_fix_enabled() -> None:
@@ -68,7 +73,13 @@ def test_backlog_eta_estimates_poi_when_auto_fix_enabled() -> None:
             "app.backlog_eta.load_last_report",
             return_value={
                 "export_readiness": _export_payload(),
-                "priority_counties": {"24510": {"total": 1000, "missing_poi": 1200}},
+                "priority_counties": {
+                    "24510": {
+                        "total": 1000,
+                        "missing_poi": 9000,
+                        "candidate_missing_poi": 1200,
+                    },
+                },
             },
         ),
         patch("app.backlog_eta.inspect_redis_queues", return_value={"parking_depth": 0, "slack_depth": 0}),
@@ -78,5 +89,6 @@ def test_backlog_eta_estimates_poi_when_auto_fix_enabled() -> None:
         out = backlog_eta_summary(MagicMock(), settings)  # type: ignore[arg-type]
 
     poi = next(row for row in out["items"] if row["key"] == "baltimore_poi_density")
+    assert poi["backlog_count"] == 1200
     assert poi["assumed_units_per_day"] == 1200.0
     assert poi["eta_days"] == 1.0

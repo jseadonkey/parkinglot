@@ -268,6 +268,17 @@ def ops_remediation_run_now() -> CeleryTaskIdResponse:
     return CeleryTaskIdResponse(task_id=async_result.id)
 
 
+@router.post("/ops/prune-poi-queue")
+def ops_prune_poi_queue(
+    dry_run: bool = Query(False, description="Inspect only; do not remove queued POI refresh tasks."),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Remove queued POI refresh tasks that no longer have matching missing POI work."""
+    from app.ops_remediation import prune_queued_poi_refresh_tasks
+
+    return prune_queued_poi_refresh_tasks(db, get_settings(), dry_run=dry_run)
+
+
 @router.get("/stats/export-readiness", response_model=ExportReadinessResponse)
 def export_readiness(db: Session = Depends(get_db)) -> ExportReadinessResponse:
     """Null/gap counts for CSV columns and score rows — run before stakeholder exports."""
@@ -877,7 +888,7 @@ def refresh_poi_density(
         description="When true with county_fips, process all matching parcels in chunked batches.",
     ),
 ) -> CeleryTaskIdResponse:
-    """Count OSM commercial POIs near parcel centroids for demand-based revenue (Celery, rate-limited)."""
+    """Count OSM commercial POIs for qualified parcels, optionally scoped to one county."""
     async_result = refresh_poi_density_batch.delay(
         limit=limit,
         county_fips=county_fips,
