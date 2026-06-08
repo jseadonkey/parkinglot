@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import exists, func, select
+from sqlalchemy import and_, exists, func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore
@@ -82,6 +82,13 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
     atlas_ruled_out = count_where(db, ruled_out_at_atlas())
 
     miss_brief = count_where(db, Parcel.owner_outreach_brief.is_(None))
+    miss_brief_prescreen = count_where(
+        db,
+        and_(
+            identification_prescreen_qualified(floor_i),
+            Parcel.owner_outreach_brief.is_(None),
+        ),
+    )
 
     recommended_next_steps: list[str] = [
         f"Funnel backlog (prescreen ≥ {floor_i:.0f}, needs Atlas and/or Beacon): "
@@ -98,7 +105,7 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
         "If zoning gaps: spatial join → GeoJSON overlay → "
         "POST /internal/ingest/merge-geojson-attributes (or scripts/execute-phase-b.sh).",
     ]
-    if miss_brief > 0:
+    if miss_brief_prescreen > 0:
         recommended_next_steps.append(
             "If owner outreach brief gaps: enqueue prescreen-qualified parcels only, "
             "per-parcel POST /parcels/{id}/outreach/recompute, or scripts/execute-phase-c.sh (smoke). "
@@ -156,5 +163,10 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
             "floor": floor_ent,
         },
         "parcels_missing_owner_outreach_brief": {"count": miss_brief, "pct": _pct(miss_brief, total)},
+        "parcels_prescreen_qualified_missing_owner_outreach_brief": {
+            "count": miss_brief_prescreen,
+            "pct": _pct(miss_brief_prescreen, prescreen_qualified),
+            "floor": floor_i,
+        },
         "recommended_next_steps": recommended_next_steps,
     }

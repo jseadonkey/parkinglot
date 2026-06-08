@@ -309,6 +309,7 @@ class ExportReadinessResponse(BaseModel):
     parcels_ruled_out_by_prescreen: PrescreenGapStat
     parcels_ruled_out_at_atlas: PrescreenGapStat
     parcels_missing_owner_outreach_brief: GapStat
+    parcels_prescreen_qualified_missing_owner_outreach_brief: PrescreenGapStat
     recommended_next_steps: list[str]
 
 

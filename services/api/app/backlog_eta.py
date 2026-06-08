@@ -78,6 +78,17 @@ def _candidate_count(export: dict[str, Any], fallback: int = 0) -> int:
     return candidates if candidates > 0 else max(0, int(fallback or 0))
 
 
+def _candidate_owner_brief_missing(export: dict[str, Any], candidate_total: int) -> int:
+    """Return the candidate-only owner brief gap, tolerating older cached snapshots."""
+    scoped = export.get("parcels_prescreen_qualified_missing_owner_outreach_brief")
+    if isinstance(scoped, dict):
+        return min(_gap_count(export, "parcels_prescreen_qualified_missing_owner_outreach_brief"), candidate_total)
+    # Older ops snapshots only have the citywide owner-brief gap. Cap it to the
+    # candidate pool so the operator page never presents failed-prescreen parcels
+    # as actionable outreach backlog.
+    return min(_gap_count(export, "parcels_missing_owner_outreach_brief"), candidate_total)
+
+
 def _optional_int(raw: Any) -> int | None:
     if raw is None:
         return None
@@ -177,8 +188,8 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         or _gap_count(export, "parcels_missing_score_entitlement")
         or 0
     )
-    brief_missing = _gap_count(export, "parcels_missing_owner_outreach_brief")
     address_total = _candidate_count(export, pipeline_backlog)
+    brief_missing = _candidate_owner_brief_missing(export, address_total)
     poi_candidate_export = export.get("parcels_missing_poi_commercial_count_400m")
     poi_candidate_total_export = export.get("parcels_poi_density_candidates")
     export_has_candidate_mode = (
@@ -310,12 +321,12 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
             key="owner_outreach_briefs",
             label="Owner outreach briefs",
             backlog_count=brief_missing,
-            total_count=total,
+            total_count=address_total,
             unit="parcels",
             value="selective",
             work_type="deep_enrichment",
             recommendation=(
-                "Do not run for every parcel; only run for qualified/high-score/vacant-looking candidates."
+                "Queue qualified candidates only; ignore citywide brief gaps on failed-prescreen parcels."
                 if brief_missing > 0
                 else "No action needed."
             ),
