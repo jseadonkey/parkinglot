@@ -517,6 +517,15 @@ class Settings(BaseSettings):
             "site_watchdog_heartbeat_hours",
         ),
     )
+    site_watchdog_failure_repeat_hours: int = Field(
+        default=6,
+        ge=0,
+        le=168,
+        validation_alias=AliasChoices(
+            "SITE_WATCHDOG_FAILURE_REPEAT_HOURS",
+            "site_watchdog_failure_repeat_hours",
+        ),
+    )
     site_watchdog_crontab_minute: str = Field(
         default="0",
         validation_alias=AliasChoices(

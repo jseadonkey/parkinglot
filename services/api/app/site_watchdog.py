@@ -260,6 +260,39 @@ def watchdog_slack_channel(settings: Settings) -> str:
     return ""
 
 
+def _failed_check_signature(report: dict[str, Any] | None) -> tuple[tuple[str, str, str], ...]:
+    """Stable signature for deciding whether a watchdog failure is new or unchanged."""
+    if not report:
+        return ()
+    failures: list[tuple[str, str, str]] = []
+    for item in report.get("checks") or []:
+        if item.get("ok"):
+            continue
+        failures.append(
+            (
+                str(item.get("name") or "?"),
+                str(item.get("source") or "?"),
+                str(item.get("detail") or "?")[:240],
+            ),
+        )
+    return tuple(sorted(failures))
+
+
+def _checked_at(report: dict[str, Any] | None) -> datetime | None:
+    if not report:
+        return None
+    raw = report.get("checked_at")
+    if not isinstance(raw, str) or not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt
+
+
 def build_slack_text(report: dict[str, Any], *, recovered: bool = False) -> str:
     checked = report.get("checked_at", "?")
     runner = report.get("runner", "?")
@@ -300,6 +333,15 @@ def should_post_slack(
     prev_ok = previous.get("ok") if previous else None
 
     if not now_ok:
+        if prev_ok is False:
+            if _failed_check_signature(report) != _failed_check_signature(previous):
+                return True, False
+            repeat_hours = settings.site_watchdog_failure_repeat_hours
+            if repeat_hours <= 0:
+                return False, False
+            prev_dt = _checked_at(previous)
+            if prev_dt is not None and (datetime.now(tz=UTC) - prev_dt).total_seconds() < repeat_hours * 3600:
+                return False, False
         return True, False
 
     if prev_ok is False and now_ok:
@@ -308,12 +350,11 @@ def should_post_slack(
     hours = settings.site_watchdog_heartbeat_hours
     if hours > 0 and now_ok and (prev_ok is None or prev_ok is True):
         try:
-            prev_at = previous.get("checked_at") if previous else None
-            if prev_at:
-                prev_dt = datetime.fromisoformat(prev_at.replace("Z", "+00:00"))
+            prev_dt = _checked_at(previous)
+            if prev_dt is not None:
                 if (datetime.now(tz=UTC) - prev_dt).total_seconds() < hours * 3600:
                     return False, False
-        except (TypeError, ValueError):
+        except TypeError:
             pass
         return True, False
 
