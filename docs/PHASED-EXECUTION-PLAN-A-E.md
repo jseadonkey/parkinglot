@@ -1,6 +1,6 @@
 # Phased execution plan (A–E)
 
-This document breaks the **parcel CSV completeness**, **scoring**, **enrichment**, and **multi-county** work into five phases with **concrete tasks**, **commands/tools**, and **exit criteria**. It assumes the repo layout and internal APIs described in [OPERATIONS.md](OPERATIONS.md). For a **single batched operator checklist** (minimize repeat Droplet sessions), see [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md). For a **compact “is A–E configured?”** verification list (env + compose + per-phase prerequisites), see **[A-E-SETUP-CHECKLIST.md](A-E-SETUP-CHECKLIST.md)**.
+This document breaks the **parcel CSV completeness**, **scoring**, **enrichment**, and **multi-county** work into five phases with **concrete tasks**, **commands/tools**, and **exit criteria**. It assumes the repo layout and internal APIs described in [OPERATIONS.md](OPERATIONS.md). For a **single batched operator checklist** (minimize repeat Droplet sessions), see [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md). For a **compact “is A–E configured?”** verification list (env + compose + per-phase prerequisites), see **[A-E-SETUP-CHECKLIST.md](A-E-SETUP-CHECKLIST.md)**. For the deeper city/county source inventory, zoning nuance, value-data, and post-adjustment QA loop, use **[JURISDICTION-ZONING-COMPLETENESS-PLAN.md](JURISDICTION-ZONING-COMPLETENESS-PLAN.md)**.
 
 ---
 
@@ -195,7 +195,7 @@ Populate **`zoning_code`** and **`zoning_allows_surface_parking`** (and optional
 
 ### Backlog — merge a **real** zoning overlay (tracked deliverable)
 
-The codebase includes merge endpoints, **`scripts/execute-phase-b.sh`**, and **`scripts/validate_phase_b_overlay.py`**. What is **not** done until ops/GIS completes it is the **authoritative overlay GeoJSON per pilot county**: spatial join parcel polygons to jurisdiction zoning GIS (outside this repo), properties aligned with **`geojson_loader`** aliases and **`kent_king_surface_parking_rules.yaml`**, staged on the Droplet under **`data/`** (worker path **`/app/data/...`**), then merge + verify **`parcels_missing_zoning_code`** drops and counsel spot-checks **`zoning_allows_surface_parking`**. Treat **“implement Phase B for production parcels”** as **shipping that file + running merge**, not only enabling the automation.
+The codebase includes merge endpoints, **`scripts/execute-phase-b.sh`**, and **`scripts/validate_phase_b_overlay.py`**. What is **not** done until ops/GIS completes it is the **authoritative overlay GeoJSON per pilot county**: spatial join parcel polygons to jurisdiction zoning GIS (outside this repo), properties aligned with **`geojson_loader`** aliases and **`kent_king_surface_parking_rules.yaml`**, staged on the Droplet under **`data/`** (worker path **`/app/data/...`**), then merge + verify **`parcels_missing_zoning_code`** drops and counsel spot-checks **`zoning_allows_surface_parking`**. Treat **“implement Phase B for production parcels”** as **shipping that file + running merge**, not only enabling the automation. Use the jurisdiction completeness plan for the repeatable registry/source-catalog, city-vs-county resolver, value-source, and feedback-loop requirements.
 
 ---
 
