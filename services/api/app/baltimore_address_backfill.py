@@ -443,7 +443,11 @@ def backfill_baltimore_property_addresses(
         if not dry_run:
             merged = dict(parcel.raw_properties or {})
             merged.update({k: v for k, v in props.items() if v is not None})
-            source = ADDRESS_POINT_FALLBACK_SOURCE if status == ADDRESS_BACKFILL_FALLBACK_ADDRESS_FOUND else ADDRESS_BACKFILL_SOURCE
+            source = (
+                ADDRESS_POINT_FALLBACK_SOURCE
+                if status == ADDRESS_BACKFILL_FALLBACK_ADDRESS_FOUND
+                else ADDRESS_BACKFILL_SOURCE
+            )
             _mark_attempted(merged, status=status, measured_at=measured_at, source=source)
             parcel.raw_properties = merged
             parcel.zoning_code = effective_zoning_code(getattr(parcel, "zoning_code", None), merged)
