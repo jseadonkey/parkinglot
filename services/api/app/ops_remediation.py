@@ -6,6 +6,8 @@ Runs on a schedule (Celery Beat) and can be triggered manually. Complements site
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import logging
 from dataclasses import asdict, dataclass
@@ -32,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 REDIS_STATE_KEY = "ops_remediation:last"
 REDIS_COOLDOWN_PREFIX = "ops_remediation:cooldown:"
+POI_REFRESH_TASK_NAME = "app.tasks.refresh_poi_density_batch"
 
 
 def effective_auto_fix_enabled(settings: Settings) -> bool:
@@ -54,6 +57,16 @@ class RemediationAction:
     status: str  # enqueued | skipped_cooldown | skipped_disabled | failed
     detail: str
     task_id: str | None = None
+
+
+@dataclass
+class QueuedPoiRefreshTask:
+    raw: str
+    task_id: str | None
+    limit: int
+    county_fips: str | None
+    only_missing: bool
+    process_all: bool
 
 
 def _redis_client(settings: Settings) -> redis.Redis:
@@ -138,6 +151,234 @@ def inspect_redis_queues(settings: Settings) -> dict[str, Any]:
         }
     except Exception as exc:
         return {"ok": False, "detail": str(exc)[:240]}
+
+
+def _bool_from_task_value(value: Any, *, default: bool) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
+
+def _decode_celery_body(envelope: dict[str, Any]) -> Any:
+    body = envelope.get("body")
+    if isinstance(body, str):
+        try:
+            body_bytes = base64.b64decode(body)
+        except (binascii.Error, ValueError):
+            return None
+        encoding = envelope.get("content-encoding") or "utf-8"
+        try:
+            return json.loads(body_bytes.decode(str(encoding)))
+        except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError):
+            return None
+    return body
+
+
+def _parse_queued_poi_refresh(raw: str) -> QueuedPoiRefreshTask | None:
+    try:
+        envelope = json.loads(raw)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return None
+    if not isinstance(envelope, dict):
+        return None
+
+    headers = envelope.get("headers") if isinstance(envelope.get("headers"), dict) else {}
+    properties = envelope.get("properties") if isinstance(envelope.get("properties"), dict) else {}
+    task_name = headers.get("task")
+    task_id = headers.get("id") or properties.get("correlation_id")
+
+    decoded = _decode_celery_body(envelope)
+    args: list[Any] = []
+    kwargs: dict[str, Any] = {}
+    if isinstance(decoded, list) and len(decoded) >= 2:
+        args = decoded[0] if isinstance(decoded[0], list) else []
+        kwargs = decoded[1] if isinstance(decoded[1], dict) else {}
+    elif isinstance(decoded, dict):
+        task_name = task_name or decoded.get("task")
+        task_id = task_id or decoded.get("id")
+        raw_args = decoded.get("args")
+        raw_kwargs = decoded.get("kwargs")
+        args = raw_args if isinstance(raw_args, list) else []
+        kwargs = raw_kwargs if isinstance(raw_kwargs, dict) else {}
+
+    if task_name != POI_REFRESH_TASK_NAME:
+        return None
+
+    def arg_or_kw(index: int, key: str, default: Any) -> Any:
+        if key in kwargs:
+            return kwargs[key]
+        return args[index] if len(args) > index else default
+
+    limit = arg_or_kw(0, "limit", 50)
+    try:
+        parsed_limit = min(max(int(limit), 1), 200)
+    except (TypeError, ValueError):
+        parsed_limit = 50
+    county_fips_raw = arg_or_kw(1, "county_fips", None)
+    county_fips = str(county_fips_raw).strip() if county_fips_raw is not None else None
+    return QueuedPoiRefreshTask(
+        raw=raw,
+        task_id=str(task_id) if task_id else None,
+        limit=parsed_limit,
+        county_fips=county_fips or None,
+        only_missing=_bool_from_task_value(arg_or_kw(2, "only_missing", True), default=True),
+        process_all=_bool_from_task_value(arg_or_kw(3, "process_all", False), default=False),
+    )
+
+
+def _missing_poi_refresh_count(db: Session, county_fips: str | None) -> int:
+    if not column_exists(db, "parcels", "poi_commercial_count_400m"):
+        return 0
+    stmt = (
+        select(func.count())
+        .select_from(Parcel)
+        .where(
+            Parcel.footprint.isnot(None),
+            Parcel.poi_commercial_count_400m.is_(None),
+        )
+    )
+    if county_fips:
+        stmt = stmt.where(Parcel.county_fips == county_fips)
+    return int(db.scalar(stmt) or 0)
+
+
+def _plan_poi_queue_prune(db: Session, messages: list[str]) -> dict[str, Any]:
+    kept_messages: list[str] = []
+    removals: list[dict[str, Any]] = []
+    missing_by_scope: dict[str | None, int] = {}
+    covered_capacity: dict[str | None, int] = {}
+    process_all_seen: set[str | None] = set()
+    parsed = 0
+
+    def missing_count(county_fips: str | None) -> int:
+        if county_fips not in missing_by_scope:
+            missing_by_scope[county_fips] = _missing_poi_refresh_count(db, county_fips)
+        return missing_by_scope[county_fips]
+
+    for raw in messages:
+        task = _parse_queued_poi_refresh(raw)
+        if task is None:
+            kept_messages.append(raw)
+            continue
+        parsed += 1
+        if not task.only_missing:
+            kept_messages.append(raw)
+            continue
+
+        missing = missing_count(task.county_fips)
+        capacity = covered_capacity.get(task.county_fips, 0)
+        reason: str | None = None
+        if missing <= 0:
+            reason = "no_matching_parcels_missing_poi"
+        elif task.county_fips in process_all_seen or capacity >= missing:
+            reason = "covered_by_earlier_queued_poi_refresh"
+
+        if reason is not None:
+            removals.append(
+                {
+                    "task_id": task.task_id,
+                    "county_fips": task.county_fips,
+                    "limit": task.limit,
+                    "process_all": task.process_all,
+                    "missing_poi": missing,
+                    "reason": reason,
+                },
+            )
+            continue
+
+        kept_messages.append(raw)
+        if task.process_all:
+            process_all_seen.add(task.county_fips)
+            covered_capacity[task.county_fips] = missing
+        else:
+            covered_capacity[task.county_fips] = capacity + task.limit
+
+    return {
+        "ok": True,
+        "scanned": len(messages),
+        "poi_refresh_tasks": parsed,
+        "removable": len(removals),
+        "kept": len(kept_messages),
+        "missing_poi_by_scope": {
+            ("*" if county_fips is None else county_fips): count
+            for county_fips, count in missing_by_scope.items()
+        },
+        "removals": removals,
+        "_kept_messages": kept_messages,
+    }
+
+
+def inspect_poi_refresh_queue(
+    db: Session,
+    settings: Settings,
+    *,
+    queue_name: str = "parking",
+) -> dict[str, Any]:
+    try:
+        messages = list(_redis_client(settings).lrange(queue_name, 0, -1) or [])
+        plan = _plan_poi_queue_prune(db, messages)
+        plan["queue"] = queue_name
+        plan.pop("_kept_messages", None)
+        return plan
+    except Exception as exc:
+        return {"ok": False, "queue": queue_name, "detail": str(exc)[:240]}
+
+
+def prune_queued_poi_refresh_tasks(
+    db: Session,
+    settings: Settings,
+    *,
+    queue_name: str = "parking",
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    client = _redis_client(settings)
+    removed_task_ids: list[str] = []
+    for _attempt in range(3):
+        with client.pipeline() as pipe:
+            try:
+                pipe.watch(queue_name)
+                messages = list(pipe.lrange(queue_name, 0, -1) or [])
+                plan = _plan_poi_queue_prune(db, messages)
+                kept_messages = list(plan.pop("_kept_messages"))
+                plan["queue"] = queue_name
+                plan["dry_run"] = dry_run
+                if dry_run or not plan["removable"]:
+                    pipe.unwatch()
+                    plan["revoked_task_ids"] = []
+                    return plan
+
+                pipe.multi()
+                pipe.delete(queue_name)
+                if kept_messages:
+                    pipe.rpush(queue_name, *kept_messages)
+                pipe.execute()
+                removed_task_ids = [
+                    str(r["task_id"])
+                    for r in plan["removals"]
+                    if r.get("task_id")
+                ]
+                break
+            except redis.WatchError:
+                continue
+    else:
+        return {
+            "ok": False,
+            "queue": queue_name,
+            "dry_run": dry_run,
+            "detail": "Redis queue changed while pruning; retry later",
+        }
+
+    if removed_task_ids:
+        try:
+            celery.control.revoke(removed_task_ids, terminate=False)
+        except Exception:
+            logger.exception("ops_remediation: could not revoke removed POI refresh tasks")
+    plan["revoked_task_ids"] = removed_task_ids
+    return plan
 
 
 def county_data_gaps(db: Session, county_fips: str) -> dict[str, Any]:
@@ -257,6 +498,20 @@ def diagnose(db: Session, settings: Settings) -> list[OpsIssue]:
                 fix_action="enqueue_incomplete_limited",
             ),
         )
+    if int(queues.get("parking_depth") or 0) > 0:
+        poi_queue = inspect_poi_refresh_queue(db, settings)
+        if poi_queue.get("ok") and int(poi_queue.get("removable") or 0) > 0:
+            issues.append(
+                OpsIssue(
+                    code="unneeded_poi_refresh_queue",
+                    severity="info",
+                    message=(
+                        f"{poi_queue['removable']} queued POI refresh task(s) are no longer needed"
+                    ),
+                    metric=poi_queue,
+                    fix_action="prune_poi_refresh_queue",
+                ),
+            )
 
     wd = load_watchdog_report(settings)
     if wd and not wd.get("ok"):
@@ -441,6 +696,15 @@ def apply_remediation(
                     )
                     detail = json.dumps(result)[:200]
                     status = "completed"
+            elif action == "prune_poi_refresh_queue":
+                result = prune_queued_poi_refresh_tasks(db, settings)
+                detail = json.dumps(
+                    {
+                        "removed": result.get("removable"),
+                        "revoked_task_ids": result.get("revoked_task_ids"),
+                    },
+                )[:200]
+                status = "completed" if result.get("ok") else "failed"
             elif action == "enqueue_incomplete_limited":
                 result = enqueue_incomplete_pipeline_jobs(pipeline_limit)
                 detail = json.dumps(result)[:200]

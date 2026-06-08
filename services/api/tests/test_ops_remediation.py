@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import json
 from unittest.mock import MagicMock, patch
 
 from app.ops_remediation import (
@@ -8,6 +10,8 @@ from app.ops_remediation import (
     build_slack_text,
     diagnose,
     effective_auto_fix_enabled,
+    inspect_poi_refresh_queue,
+    prune_queued_poi_refresh_tasks,
     should_post_slack,
 )
 
@@ -86,3 +90,99 @@ def test_diagnose_flags_missing_workers() -> None:
     ):
         issues = diagnose(MagicMock(), settings)
     assert any(i.code == "celery_workers_down" for i in issues)
+
+
+def _celery_message(task_id: str, kwargs: dict) -> str:
+    body = base64.b64encode(json.dumps([[], kwargs, {}]).encode()).decode()
+    return json.dumps(
+        {
+            "body": body,
+            "content-encoding": "utf-8",
+            "content-type": "application/json",
+            "headers": {"task": "app.tasks.refresh_poi_density_batch", "id": task_id},
+            "properties": {"correlation_id": task_id},
+        },
+    )
+
+
+class _FakeRedis:
+    def __init__(self, messages: list[str]) -> None:
+        self.messages = messages
+
+    def lrange(self, _key: str, _start: int, _end: int) -> list[str]:
+        return list(self.messages)
+
+    def pipeline(self) -> _FakePipeline:
+        return _FakePipeline(self)
+
+
+class _FakePipeline:
+    def __init__(self, client: _FakeRedis) -> None:
+        self.client = client
+        self.ops: list[tuple[str, tuple]] = []
+
+    def __enter__(self) -> _FakePipeline:
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        return None
+
+    def watch(self, _key: str) -> None:
+        return None
+
+    def unwatch(self) -> None:
+        return None
+
+    def lrange(self, key: str, start: int, end: int) -> list[str]:
+        return self.client.lrange(key, start, end)
+
+    def multi(self) -> None:
+        return None
+
+    def delete(self, key: str) -> None:
+        self.ops.append(("delete", (key,)))
+
+    def rpush(self, key: str, *messages: str) -> None:
+        self.ops.append(("rpush", (key, *messages)))
+
+    def execute(self) -> None:
+        for op, args in self.ops:
+            if op == "delete":
+                self.client.messages = []
+            elif op == "rpush":
+                self.client.messages.extend(args[1:])
+
+
+def test_inspect_poi_refresh_queue_marks_excess_batches_removable(monkeypatch) -> None:
+    redis_client = _FakeRedis(
+        [
+            _celery_message("task-1", {"limit": 50, "county_fips": "24510"}),
+            _celery_message("task-2", {"limit": 50, "county_fips": "24510"}),
+            _celery_message("task-3", {"limit": 50, "county_fips": "24510"}),
+        ],
+    )
+    monkeypatch.setattr("app.ops_remediation._redis_client", lambda _settings: redis_client)
+    monkeypatch.setattr("app.ops_remediation._missing_poi_refresh_count", lambda _db, _cf: 75)
+
+    out = inspect_poi_refresh_queue(MagicMock(), MagicMock())
+
+    assert out["poi_refresh_tasks"] == 3
+    assert out["removable"] == 1
+    assert out["removals"][0]["task_id"] == "task-3"
+    assert out["removals"][0]["reason"] == "covered_by_earlier_queued_poi_refresh"
+
+
+def test_prune_queued_poi_refresh_tasks_removes_noop_tasks(monkeypatch) -> None:
+    keep = json.dumps({"headers": {"task": "app.tasks.run_pipeline", "id": "pipeline-1"}})
+    remove = _celery_message("poi-1", {"limit": 50, "county_fips": "24510"})
+    redis_client = _FakeRedis([keep, remove])
+    revoke = MagicMock()
+    monkeypatch.setattr("app.ops_remediation._redis_client", lambda _settings: redis_client)
+    monkeypatch.setattr("app.ops_remediation._missing_poi_refresh_count", lambda _db, _cf: 0)
+    monkeypatch.setattr("app.ops_remediation.celery.control.revoke", revoke)
+
+    out = prune_queued_poi_refresh_tasks(MagicMock(), MagicMock())
+
+    assert out["removable"] == 1
+    assert redis_client.messages == [keep]
+    revoke.assert_called_once_with(["poi-1"], terminate=False)
