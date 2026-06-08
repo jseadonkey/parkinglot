@@ -631,9 +631,10 @@ class IngestGeojsonPathQueuedResponse(BaseModel):
 
 
 class FullSlackUpdateResponse(BaseModel):
-    """POST /internal/slack/full-update-now — three Slack-related Celery tasks."""
+    """POST /internal/slack/full-update-now — Slack-related Celery tasks."""
 
     digest_task_id: str
+    plan_progress_task_id: str
     qualified_parcels_task_id: str
     agent_discussion_task_id: str
 
@@ -642,6 +643,15 @@ class SlackDigestPreviewResponse(BaseModel):
     """GET /internal/slack/digest-preview — Block Kit payload built from DB without posting."""
 
     hours: int = Field(ge=1, le=24)
+    slack_digest_configured: bool
+    digest_channel_id_set: bool
+    fallback_preview: str
+    blocks: list[dict[str, Any]]
+
+
+class SlackPlanProgressPreviewResponse(BaseModel):
+    """GET /internal/slack/plan-progress-preview — A-E progress payload without posting."""
+
     slack_digest_configured: bool
     digest_channel_id_set: bool
     fallback_preview: str

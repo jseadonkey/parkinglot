@@ -74,6 +74,7 @@ from app.schemas import (
     SlackConfigStatusResponse,
     SlackDigestPreviewResponse,
     SlackLastDigestResponse,
+    SlackPlanProgressPreviewResponse,
     SlackTestMessagePostResponse,
     SlackTestMessageRequest,
     WaRolloutCountyRow,
@@ -83,6 +84,7 @@ from app.schemas import (
 from app.scoring_summary import scoring_summary_stats
 from app.slack_digest import (
     build_dual_agent_discussion_posts,
+    build_plan_progress_report_blocks,
     build_slack_digest_blocks,
     post_text_to_slack,
     slack_agent_event_updates_enabled,
@@ -106,6 +108,7 @@ from app.tasks import (
     site_watchdog_check,
     slack_agent_digest,
     slack_dual_agent_discussion,
+    slack_plan_progress_report,
     slack_qualified_parcels_report,
     wa_statewide_rollout_tick,
 )
@@ -584,6 +587,27 @@ def trigger_slack_digest() -> CeleryTaskIdResponse:
     return CeleryTaskIdResponse(task_id=async_result.id)
 
 
+@router.get("/slack/plan-progress-preview", response_model=SlackPlanProgressPreviewResponse)
+def slack_plan_progress_preview(db: Session = Depends(get_db)) -> SlackPlanProgressPreviewResponse:
+    """Build the A-E plan progress Slack payload without posting."""
+    blocks, fallback = build_plan_progress_report_blocks(db)
+    s = get_settings()
+    ch = (s.slack_digest_channel_id or "").strip()
+    return SlackPlanProgressPreviewResponse(
+        slack_digest_configured=bool((s.slack_bot_token or "").strip() and ch),
+        digest_channel_id_set=bool(ch),
+        fallback_preview=fallback,
+        blocks=blocks,
+    )
+
+
+@router.post("/slack/plan-progress-now", response_model=CeleryTaskIdResponse)
+def trigger_plan_progress_report() -> CeleryTaskIdResponse:
+    """Enqueue the hourly A-E plan progress report (same task Beat runs)."""
+    async_result = slack_plan_progress_report.delay()
+    return CeleryTaskIdResponse(task_id=async_result.id)
+
+
 @router.post("/slack/qualified-parcels-now", response_model=CeleryTaskIdResponse)
 def trigger_qualified_parcels_report() -> CeleryTaskIdResponse:
     """Enqueue qualified-parcels Slack report (same task Beat runs daily)."""
@@ -614,12 +638,14 @@ def trigger_agent_discussion() -> CeleryTaskIdResponse:
 
 @router.post("/slack/full-update-now", response_model=FullSlackUpdateResponse)
 def trigger_full_slack_update() -> FullSlackUpdateResponse:
-    """Enqueue digest, qualified-parcels report, and dual-agent discussion (one POST)."""
+    """Enqueue digest, plan progress, qualified-parcels report, and dual-agent discussion."""
     d = slack_agent_digest.delay()
+    p = slack_plan_progress_report.delay()
     q = slack_qualified_parcels_report.delay()
     a = slack_dual_agent_discussion.delay()
     return FullSlackUpdateResponse(
         digest_task_id=d.id,
+        plan_progress_task_id=p.id,
         qualified_parcels_task_id=q.id,
         agent_discussion_task_id=a.id,
     )
