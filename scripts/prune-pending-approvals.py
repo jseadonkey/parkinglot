@@ -86,7 +86,7 @@ def main() -> int:
     base = args.api_url.rstrip("/")
 
     try:
-        pending = _get(f"{base}/approvals?status=pending")
+        pending = _get(f"{base}/approvals?status=pending&limit=2000")
     except urllib.error.URLError as exc:
         print(f"FAIL: could not fetch pending approvals: {exc}", file=sys.stderr)
         return 1
@@ -125,7 +125,7 @@ def main() -> int:
                 if "approval is not pending" not in str(exc):
                     print(f"WARN reject {approval_id}: {exc}", file=sys.stderr)
 
-        remaining = _get(f"{base}/approvals?status=pending")
+        remaining = _get(f"{base}/approvals?status=pending&limit=2000")
         print(f"Round {round_num}: acted={acted}, pending={len(remaining)}")
         if len(remaining) <= 10 or acted == 0:
             print(f"Done. Pending remaining: {len(remaining)}")
