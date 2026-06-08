@@ -93,6 +93,18 @@ def _candidate_owner_brief_missing(export: dict[str, Any], candidate_total: int)
     return min(_gap_count(export, "parcels_missing_owner_outreach_brief"), candidate_total)
 
 
+def _candidate_address_missing(export: dict[str, Any], candidate_total: int) -> tuple[int, int]:
+    """Return actionable candidate street-address gap, tolerating older cached snapshots."""
+    scoped = export.get("parcels_missing_baltimore_candidate_street_address")
+    if isinstance(scoped, dict):
+        target_total = int(scoped.get("target_count") or candidate_total or 0)
+        missing = min(int(scoped.get("count") or 0), target_total or candidate_total)
+        return missing, target_total or candidate_total
+    # Older snapshots did not track actual address lookup gaps. Preserve the
+    # previous candidate-pool fallback rather than accidentally showing done.
+    return candidate_total, candidate_total
+
+
 def _optional_int(raw: Any) -> int | None:
     if raw is None:
         return None
@@ -198,8 +210,9 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         if isinstance(brief_gap, dict)
         else 0
     )
-    address_total = _candidate_count(export, pipeline_backlog)
-    brief_missing = _candidate_owner_brief_missing(export, address_total)
+    address_candidate_total = _candidate_count(export, pipeline_backlog)
+    address_missing, address_total = _candidate_address_missing(export, address_candidate_total)
+    brief_missing = _candidate_owner_brief_missing(export, address_candidate_total)
     brief_total = brief_target or address_total
     brief_recommendation = (
         "Do not run for every parcel; only run for parcels above the owner-outreach score floors."
@@ -236,10 +249,6 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
     )
     if auto_fix and poi_missing > 0:
         poi_recommendation = "Throttle to candidate parcels; do not citywide-fill optional POI density."
-    # Address jobs should select from this candidate pool only. Avoid scanning
-    # raw_properties here so the operator page stays cheap under DB load.
-    address_missing = address_total
-
     items = [
         _item(
             key="baltimore_property_addresses",

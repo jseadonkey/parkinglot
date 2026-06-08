@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import and_, exists, func, select
 from sqlalchemy.orm import Session
 
+from app.baltimore_address_backfill import count_target_baltimore_address_backfill_parcels
 from app.db.models import Parcel, ParcelScore
 from app.db.schema_compat import column_exists
 from app.pipeline_funnel import (
@@ -102,6 +103,7 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
         strategic_floor=owner_str_floor,
     )
     owner_target_count = count_where(db, owner_target)
+    candidate_address_backfill_count = count_target_baltimore_address_backfill_parcels(db)
     if has_owner_brief_col:
         miss_brief = count_where(
             db,
@@ -192,6 +194,12 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
             "pct": _pct(owner_target_count, total),
             "entitlement_floor": owner_ent_floor,
             "strategic_floor": owner_str_floor,
+        },
+        "parcels_missing_baltimore_candidate_street_address": {
+            "count": candidate_address_backfill_count,
+            "pct": _pct(candidate_address_backfill_count, prescreen_qualified),
+            "target_count": prescreen_qualified,
+            "floor": floor_i,
         },
         "parcels_missing_owner_outreach_brief": {
             "count": miss_brief,
