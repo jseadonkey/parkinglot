@@ -6,6 +6,7 @@ from sqlalchemy import inspect
 from sqlalchemy.orm import Session, load_only
 
 from app.db.models import Parcel
+from app.parcel_scored_list import _mailing_address, _situs_address
 from app.schemas import ParcelRead
 from app.zoning_entitlement import effective_zoning_code, parcel_zoning_symbol, parcel_zoning_tier
 
@@ -31,6 +32,7 @@ _PARCEL_BASE = (
     Parcel.county_fips,
     Parcel.lot_sqft,
     Parcel.zoning_code,
+    Parcel.raw_properties,
     Parcel.zoning_allows_surface_parking,
     Parcel.is_corner_lot,
     Parcel.distance_to_nearest_demand_m,
@@ -54,6 +56,7 @@ def parcel_to_read(db: Session, row: Parcel) -> ParcelRead:
     zoning_code = effective_zoning_code(row.zoning_code, raw_dict)
     if column_exists(db, "parcels", "owner_outreach_brief"):
         brief = getattr(row, "owner_outreach_brief", None)
+    brief_dict = brief if isinstance(brief, dict) else None
     symbol = parcel_zoning_symbol(
         county_fips=row.county_fips,
         zoning_code=zoning_code,
@@ -68,6 +71,8 @@ def parcel_to_read(db: Session, row: Parcel) -> ParcelRead:
         id=row.id,
         apn=row.apn,
         county_fips=row.county_fips,
+        situs_address=_situs_address(raw_dict, brief_dict),
+        mailing_address=_mailing_address(raw_dict, brief_dict),
         lot_sqft=row.lot_sqft,
         zoning_code=zoning_code,
         zoning_allows_surface_parking=row.zoning_allows_surface_parking,

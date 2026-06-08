@@ -14,6 +14,8 @@ class ParcelRead(BaseModel):
     id: uuid.UUID
     apn: str
     county_fips: str
+    situs_address: str | None = None
+    mailing_address: str | None = None
     lot_sqft: float | None
     zoning_code: str | None
     zoning_allows_surface_parking: bool
@@ -448,6 +450,8 @@ class ParcelScoredListRow(BaseModel):
     parcel_id: str
     apn: str
     county_fips: str
+    situs_address: str | None = None
+    mailing_address: str | None = None
     zoning_code: str | None
     lot_sqft: float | None
     zoning_principal_use_symbol: str | None = None
