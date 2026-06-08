@@ -31,6 +31,9 @@ type GapStat = {
   count: number;
   pct: number;
   floor?: number;
+  target_count?: number;
+  entitlement_floor?: number;
+  strategic_floor?: number;
 };
 
 type ExportReadiness = {
@@ -40,6 +43,8 @@ type ExportReadiness = {
   parcels_missing_lot_sqft: GapStat;
   parcels_missing_distance_to_nearest_demand_m: GapStat;
   parcels_missing_poi_commercial_count_400m: GapStat;
+  parcels_poi_density_candidates: GapStat;
+  parcels_missing_poi_commercial_count_400m_all?: GapStat;
   parcels_missing_score_identification: GapStat;
   parcels_missing_score_entitlement: GapStat;
   parcels_missing_score_strategic: GapStat;
@@ -48,6 +53,7 @@ type ExportReadiness = {
   parcels_pipeline_funnel_backlog: GapStat;
   parcels_ruled_out_by_prescreen: GapStat;
   parcels_ruled_out_at_atlas: GapStat;
+  parcels_owner_outreach_targets: GapStat;
   parcels_missing_owner_outreach_brief: GapStat;
   recommended_next_steps: string[];
 };
@@ -63,6 +69,8 @@ type OutreachRow = {
 
 type OutreachBoard = {
   qualified_min_entitlement_score: number;
+  owner_outreach_min_entitlement_score: number;
+  owner_outreach_min_strategic_score: number;
   row_count: number;
   rows: OutreachRow[];
 };
@@ -281,8 +289,14 @@ export default function OverviewPage() {
 
   const funnelSteps = useMemo((): FunnelStep[] => {
     if (!summaryView) return [];
+    const ownerTargetTotal = readinessView?.parcels_owner_outreach_targets?.count ?? null;
     const withBrief = readinessView
-      ? Math.max(0, readinessView.parcel_row_total - readinessView.parcels_missing_owner_outreach_brief.count)
+      ? Math.max(
+          0,
+          (readinessView.parcels_missing_owner_outreach_brief.target_count ??
+            ownerTargetTotal ??
+            readinessView.parcel_row_total) - readinessView.parcels_missing_owner_outreach_brief.count,
+        )
       : null;
     const floors = summaryView.qualified_min_score;
 
@@ -316,9 +330,9 @@ export default function OverviewPage() {
       },
       {
         key: "brief",
-        label: "Owner outreach brief",
+        label: "Target owner outreach brief",
         detail: readinessView
-          ? "Deep enrichment: owners, registry stub, vendor lookup, contact points, memo + contract draft."
+          ? "Deep enrichment only for dual-high-score owner outreach targets: owners, registry stub, vendor lookup, contact points, memo + contract draft."
           : "Deep enrichment counts load with export readiness.",
         count: withBrief,
       },
@@ -343,6 +357,10 @@ export default function OverviewPage() {
   const coverageCards = useMemo(() => {
     if (!readinessView) return [];
     const total = readinessView.parcel_row_total;
+    const ownerTargetTotal =
+      readinessView.parcels_missing_owner_outreach_brief.target_count ??
+      readinessView.parcels_owner_outreach_targets?.count ??
+      total;
     return [
       {
         key: "zoning",
@@ -361,15 +379,18 @@ export default function OverviewPage() {
       {
         key: "poi",
         label: "POI density",
-        detail: "Occupancy confidence layer",
-        value: coveragePct(total, readinessView.parcels_missing_poi_commercial_count_400m),
+        detail: "Occupancy confidence for qualified POI candidates",
+        value: coveragePct(
+          readinessView.parcels_poi_density_candidates?.count ?? total,
+          readinessView.parcels_missing_poi_commercial_count_400m,
+        ),
         missing: readinessView.parcels_missing_poi_commercial_count_400m,
       },
       {
         key: "brief",
-        label: "Owner briefs",
-        detail: "Phase C outreach readiness",
-        value: coveragePct(total, readinessView.parcels_missing_owner_outreach_brief),
+        label: "Target owner briefs",
+        detail: "Phase C readiness for owner outreach target lots",
+        value: coveragePct(ownerTargetTotal, readinessView.parcels_missing_owner_outreach_brief),
         missing: readinessView.parcels_missing_owner_outreach_brief,
       },
     ];
@@ -560,11 +581,17 @@ export default function OverviewPage() {
             <div className="cell-sub muted">Prescreen-qualified parcels needing Atlas/Beacon</div>
           </div>
           <div className="stat stat-emphasis">
-            <div className="muted">Qualified floor</div>
+            <div className="muted">Owner outreach floor</div>
             <div className="n">
-              {outreachLoading ? "…" : formatCount(outreachView?.qualified_min_entitlement_score ?? null)}
+              {outreachLoading
+                ? "…"
+                : outreachView
+                  ? `${formatCount(outreachView.owner_outreach_min_entitlement_score ?? null)} / ${formatCount(
+                      outreachView.owner_outreach_min_strategic_score ?? null,
+                    )}`
+                  : "—"}
             </div>
-            <div className="cell-sub muted">Entitlement score threshold for outreach board</div>
+            <div className="cell-sub muted">Atlas / Beacon thresholds for outreach board</div>
           </div>
         </div>
 

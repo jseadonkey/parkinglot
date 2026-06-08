@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from app.config import Settings
 from app.site_watchdog import _api_base_url, _ui_base_url, should_post_slack
+from app.tasks import site_watchdog_check
 
 
 def test_api_base_prefers_internal() -> None:
@@ -119,3 +122,29 @@ def test_should_not_spam_when_still_ok() -> None:
     previous = {"ok": True, "checked_at": (now - timedelta(hours=1)).isoformat()}
     post, _ = should_post_slack(settings, report, previous)
     assert post is False
+
+
+def test_watchdog_runs_without_slack_configuration() -> None:
+    settings = SimpleNamespace(
+        slack_bot_token="",
+        site_watchdog_slack_channel_id="",
+        slack_agent_discussion_channel_id="",
+        slack_digest_channel_id="",
+    )
+    db = MagicMock()
+    report = {"ok": True, "failure_count": 0, "checks": []}
+
+    with (
+        patch("app.tasks.get_settings", return_value=settings),
+        patch("app.tasks._session", return_value=db),
+        patch("app.site_watchdog.load_last_report", return_value=None),
+        patch("app.site_watchdog.run_droplet_watchdog", return_value=report) as run_watchdog,
+        patch("app.site_watchdog.should_post_slack", return_value=(True, False)),
+        patch("app.tasks.post_text_to_slack") as post_text,
+    ):
+        out = site_watchdog_check()
+
+    assert out == {"skipped": False, "ok": True, "posted": False, "slack_configured": False}
+    run_watchdog.assert_called_once_with(db)
+    post_text.assert_not_called()
+    db.close.assert_called_once()

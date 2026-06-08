@@ -39,8 +39,6 @@ jobs:
     env:
       BASE_BRANCH: main
       CI_WORKFLOW_NAME: CI
-      CONTAINER_WORKFLOW_FILE: container-images.yml
-      DEPLOY_WORKFLOW_FILE: deploy-droplet.yml
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
       MANUAL_PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || '' }}
@@ -115,9 +113,9 @@ jobs:
             fi
 
             if [ "$(jq -r '.isDraft' <<<"$pr_json")" = "true" ]; then
-              echo "Marking #$pr_number ready for review so GitHub can merge it."
-              gh pr ready "$pr_number"
-              sleep 5
+              echo "Skipping #$pr_number because it is still a draft."
+              echo "::endgroup::"
+              continue
             fi
 
             merge_state="UNKNOWN"
@@ -143,15 +141,27 @@ jobs:
 
             changed_files="$(gh pr diff "$pr_number" --name-only)"
             touches_workflows=false
+            touches_high_risk_ops=false
             while IFS= read -r changed_file; do
               if [[ "$changed_file" == .github/workflows/* ]]; then
                 touches_workflows=true
                 break
               fi
+              if [[ "$changed_file" == .github/* ]] ||
+                 [[ "$changed_file" == deploy/* ]] ||
+                 [[ "$changed_file" == scripts/* ]] ||
+                 [[ "$changed_file" == docker-compose.yml ]]; then
+                touches_high_risk_ops=true
+              fi
             done <<<"$changed_files"
 
             if [ "$touches_workflows" = "true" ]; then
               echo "Skipping #$pr_number because GitHub Actions tokens cannot merge workflow-file changes."
+              echo "::endgroup::"
+              continue
+            fi
+            if [ "$touches_high_risk_ops" = "true" ]; then
+              echo "Skipping #$pr_number because it changes deploy, script, or repository automation files."
               echo "::endgroup::"
               continue
             fi
@@ -182,46 +192,3 @@ jobs:
           if [ "${#failed_numbers[@]}" -gt 0 ]; then
             echo "::warning::One or more otherwise eligible Cursor PRs could not be merged: ${failed_numbers[*]}"
           fi
-
-      - name: Build images and deploy after merge
-        if: steps.merge.outputs.merged_numbers != ''
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          before_run_id="$(gh run list \
-            --workflow "Container images" \
-            --branch "$BASE_BRANCH" \
-            --limit 1 \
-            --json databaseId \
-            --jq '.[0].databaseId // ""')"
-
-          gh workflow run "$CONTAINER_WORKFLOW_FILE" --ref "$BASE_BRANCH"
-
-          image_run_id=""
-          for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
-            image_run_id="$(gh run list \
-              --workflow "Container images" \
-              --branch "$BASE_BRANCH" \
-              --limit 1 \
-              --json databaseId \
-              --jq '.[0].databaseId // ""')"
-            if [ -n "$image_run_id" ] && [ "$image_run_id" != "$before_run_id" ]; then
-              break
-            fi
-            sleep 5
-          done
-
-          if [ -z "$image_run_id" ] || [ "$image_run_id" = "$before_run_id" ]; then
-            echo "Could not find the dispatched Container images run." >&2
-            exit 1
-          fi
-
-          gh run watch "$image_run_id" --exit-status
-          gh workflow run "$DEPLOY_WORKFLOW_FILE" \
-            --ref "$BASE_BRANCH" \
-            -f compose_file=docker-compose.production.ghcr.yml \
-            -f verify_public_ready=false \
-            -f slack_notify=false \
-            -f post_slack_tasks=all \
-            -f use_local_postgis=false

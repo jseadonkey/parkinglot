@@ -84,13 +84,17 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
     prescreen_ruled_out = count_where(db, ruled_out_by_prescreen(floor_i))
     atlas_ruled_out = count_where(db, ruled_out_at_atlas())
 
-    miss_brief_prescreen = count_where(
-        db,
-        and_(
-            identification_prescreen_qualified(floor_i),
-            Parcel.owner_outreach_brief.is_(None),
-        ),
-    )
+    has_owner_brief_col = column_exists(db, "parcels", "owner_outreach_brief")
+    if has_owner_brief_col:
+        miss_brief_prescreen = count_where(
+            db,
+            and_(
+                identification_prescreen_qualified(floor_i),
+                Parcel.owner_outreach_brief.is_(None),
+            ),
+        )
+    else:
+        miss_brief_prescreen = prescreen_qualified
     owner_ent_floor = owner_outreach_min_entitlement_score()
     owner_str_floor = owner_outreach_min_strategic_score()
     owner_target = owner_outreach_target(
@@ -98,13 +102,16 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
         strategic_floor=owner_str_floor,
     )
     owner_target_count = count_where(db, owner_target)
-    miss_brief = count_where(
-        db,
-        and_(
-            owner_target,
-            Parcel.owner_outreach_brief.is_(None),
-        ),
-    )
+    if has_owner_brief_col:
+        miss_brief = count_where(
+            db,
+            and_(
+                owner_target,
+                Parcel.owner_outreach_brief.is_(None),
+            ),
+        )
+    else:
+        miss_brief = owner_target_count
 
     recommended_next_steps: list[str] = [
         f"Funnel backlog (prescreen ≥ {floor_i:.0f}, needs Atlas and/or Beacon): "

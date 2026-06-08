@@ -306,6 +306,19 @@ class OwnerOutreachBriefGapStat(OwnerOutreachTargetStat):
     target_count: int = Field(description="Number of parcels eligible for owner outreach briefs")
 
 
+class PoiDensityGapStat(GapStat):
+    candidate_mode: str | None = Field(
+        default=None,
+        description="POI enrichment candidate scope used for this gap count",
+    )
+
+
+class PoiDensityCandidateStat(GapStat):
+    candidate_mode: str
+    entitlement_floor: float
+    strategic_floor: float
+
+
 class ExportReadinessResponse(BaseModel):
     """Shape returned by GET /internal/stats/export-readiness (Phase A–C gap diagnostics)."""
 
@@ -314,6 +327,9 @@ class ExportReadinessResponse(BaseModel):
     parcels_missing_zoning_code: GapStat
     parcels_missing_lot_sqft: GapStat
     parcels_missing_distance_to_nearest_demand_m: GapStat
+    parcels_missing_poi_commercial_count_400m: PoiDensityGapStat
+    parcels_poi_density_candidates: PoiDensityCandidateStat
+    parcels_missing_poi_commercial_count_400m_all: GapStat
     parcels_missing_score_identification: GapStat
     parcels_missing_score_entitlement: GapStat
     parcels_missing_score_strategic: GapStat

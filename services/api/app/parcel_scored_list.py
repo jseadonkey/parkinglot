@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
 
-from sqlalchemy import case, desc, func, nulls_last, select
+from sqlalchemy import case, desc, func, inspect, literal, nulls_last, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore
@@ -22,6 +22,14 @@ from app.zoning_entitlement import (
 ParcelSortProfile = Literal["combined", "entitlement", "strategic", "identification"]
 ZoningTierFilter = Literal["permitted", "conditional", "council", "excluded"]
 COMBINED: str = "combined"
+
+
+def _parcel_column_exists(db: Session, column: str) -> bool:
+    try:
+        cols = inspect(db.get_bind()).get_columns("parcels")
+    except Exception:
+        return False
+    return any(c.get("name") == column for c in cols)
 
 
 @dataclass(frozen=True)
@@ -230,13 +238,20 @@ def query_parcels_scored_list(
     elif sort == IDENTIFICATION:
         sort_col = id_sub
 
+    has_owner_brief_col = _parcel_column_exists(db, "owner_outreach_brief")
+    brief_col = (
+        Parcel.owner_outreach_brief
+        if has_owner_brief_col
+        else literal(None).label("owner_outreach_brief")
+    )
+
     stmt = select(
         Parcel.id,
         Parcel.apn,
         Parcel.county_fips,
         Parcel.zoning_code,
         Parcel.raw_properties,
-        Parcel.owner_outreach_brief,
+        brief_col,
         Parcel.lot_sqft,
         Parcel.created_at,
         ent_sub.label("ent_score"),

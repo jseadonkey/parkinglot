@@ -8,7 +8,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.db.models import ContractDraft, DealMemo, Parcel
-from app.db.schema_compat import parcel_load_only
+from app.db.schema_compat import column_exists, parcel_load_only
 from app.outreach_templates import build_parcel_outreach_drafts
 from app.partner_redact import excerpt_markdown, redact_partner_text
 from app.storage import get_text_object
@@ -29,7 +29,7 @@ def _sample_memo(db: Session) -> dict[str, Any] | None:
     memo = db.scalars(select(DealMemo).order_by(desc(DealMemo.created_at)).limit(1)).first()
     if memo is None:
         return None
-    parcel = db.get(Parcel, memo.parcel_id)
+    parcel = db.get(Parcel, memo.parcel_id, options=[parcel_load_only(db)])
     apn = parcel.apn if parcel else "—"
     body = excerpt_markdown(redact_partner_text(memo.body_md))
     return {
@@ -45,7 +45,7 @@ def _sample_contract(db: Session) -> dict[str, Any] | None:
     draft = db.scalars(select(ContractDraft).order_by(desc(ContractDraft.created_at)).limit(1)).first()
     if draft is None:
         return None
-    parcel = db.get(Parcel, draft.parcel_id)
+    parcel = db.get(Parcel, draft.parcel_id, options=[parcel_load_only(db)])
     if parcel is None:
         return None
     body = ""
@@ -55,7 +55,7 @@ def _sample_contract(db: Session) -> dict[str, Any] | None:
         from app.contract_render import render_ground_lease_draft
 
         owner = "Property Owner"
-        brief = _brief_from_parcel(parcel)
+        brief = _brief_from_parcel(parcel) if column_exists(db, "parcels", "owner_outreach_brief") else None
         if brief and brief.recorded_owner_one_liner:
             owner = brief.recorded_owner_one_liner.split("—")[0].strip()[:80]
         body = render_ground_lease_draft(
@@ -75,6 +75,8 @@ def _sample_contract(db: Session) -> dict[str, Any] | None:
 
 
 def _sample_outreach(db: Session) -> dict[str, Any] | None:
+    if not column_exists(db, "parcels", "owner_outreach_brief"):
+        return None
     parcel = db.scalars(
         select(Parcel)
         .options(parcel_load_only(db))

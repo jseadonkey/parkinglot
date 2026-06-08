@@ -24,7 +24,11 @@ from app.db.models import Parcel, ParcelScore
 from app.db.schema_compat import column_exists
 from app.export_readiness import export_readiness_summary
 from app.geo_markets import priority_county_fips
-from app.pipeline_funnel import pipeline_funnel_backlog
+from app.pipeline_funnel import (
+    identification_prescreen_floor,
+    identification_prescreen_qualified,
+    pipeline_funnel_backlog,
+)
 from app.poi_density import POI_DENSITY_CANDIDATE_MODE, count_poi_density_candidates
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION
 from app.site_watchdog import load_last_report as load_watchdog_report
@@ -233,17 +237,12 @@ def _parse_queued_poi_refresh(raw: str) -> QueuedPoiRefreshTask | None:
 def _missing_poi_refresh_count(db: Session, county_fips: str | None) -> int:
     if not column_exists(db, "parcels", "poi_commercial_count_400m"):
         return 0
-    stmt = (
-        select(func.count())
-        .select_from(Parcel)
-        .where(
-            Parcel.footprint.isnot(None),
-            Parcel.poi_commercial_count_400m.is_(None),
-        )
+    return count_poi_density_candidates(
+        db,
+        county_fips=county_fips,
+        missing_only=True,
+        require_footprint=True,
     )
-    if county_fips:
-        stmt = stmt.where(Parcel.county_fips == county_fips)
-    return int(db.scalar(stmt) or 0)
 
 
 def _plan_poi_queue_prune(db: Session, messages: list[str]) -> dict[str, Any]:
@@ -418,12 +417,14 @@ def county_data_gaps(db: Session, county_fips: str) -> dict[str, Any]:
             )
             or 0,
         )
+    prescreen_floor = identification_prescreen_floor()
     miss_ent = int(
         db.scalar(
             select(func.count())
             .select_from(Parcel)
             .where(
                 Parcel.county_fips == cf,
+                identification_prescreen_qualified(prescreen_floor),
                 ~exists(
                     select(1).where(
                         ParcelScore.parcel_id == Parcel.id,
@@ -454,7 +455,7 @@ def county_data_gaps(db: Session, county_fips: str) -> dict[str, Any]:
         db.scalar(
             select(func.count())
             .select_from(Parcel)
-            .where(and_(Parcel.county_fips == cf, pipeline_funnel_backlog(45.0))),
+            .where(and_(Parcel.county_fips == cf, pipeline_funnel_backlog(prescreen_floor))),
         )
         or 0,
     )
@@ -666,7 +667,7 @@ def apply_remediation(
                     limit=settings.ops_remediation_batch_limit,
                     county_fips=cf,
                     process_all=True,
-                    refresh_identification=False,
+                    refresh_identification=True,
                 )
                 status = "enqueued" if task_id else "failed"
             elif action == "refresh_entitlement_process_all":
@@ -675,6 +676,7 @@ def apply_remediation(
                     limit=settings.ops_remediation_batch_limit,
                     county_fips=cf,
                     process_all=True,
+                    prescreen_qualified_only=True,
                 )
                 status = "enqueued" if task_id else "failed"
             elif action == "refresh_poi_batch":

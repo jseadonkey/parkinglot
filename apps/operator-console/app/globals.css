@@ -197,6 +197,10 @@ body {
   max-width: 1280px;
 }
 
+.app-main:has(.main-wide) {
+  max-width: none;
+}
+
 .app-page-meta {
   margin-bottom: 1.25rem;
   padding-bottom: 1rem;
@@ -453,6 +457,18 @@ main.main-wide {
   background: #142a3d;
   border-color: #2a5a8a;
   color: #a0d0ff;
+}
+
+.badge-muted {
+  background: #222632;
+  border-color: #3a4254;
+  color: #c3cad8;
+}
+
+.badge-bad {
+  background: #3d1818;
+  border-color: #8a3030;
+  color: #ffaaaa;
 }
 
 .funnel-panel {

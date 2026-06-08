@@ -34,6 +34,7 @@ from app.pipeline_funnel import (
     entitlement_qualified_floor,
     filter_prescreen_qualified_ids,
     identification_prescreen_floor,
+    identification_prescreen_qualified,
     needs_pipeline_scoring,
     owner_outreach_min_entitlement_score,
     owner_outreach_min_strategic_score,
@@ -1650,6 +1651,7 @@ def refresh_entitlement_scores_batch(
     limit: int = 2000,
     county_fips: str | None = None,
     process_all: bool = False,
+    prescreen_qualified_only: bool = False,
 ) -> dict[str, Any]:
     """Recompute Atlas entitlement scores from current parcel features (zoning, lot, demand, comps)."""
     chunk = min(max(limit, 1), 5000)
@@ -1662,6 +1664,8 @@ def refresh_entitlement_scores_batch(
             stmt = select(Parcel)
             if cf:
                 stmt = stmt.where(Parcel.county_fips == cf)
+            if prescreen_qualified_only:
+                stmt = stmt.where(identification_prescreen_qualified())
             if last_id is not None:
                 stmt = stmt.where(Parcel.id > last_id)
             stmt = stmt.order_by(Parcel.id.asc()).limit(chunk)
@@ -1680,7 +1684,13 @@ def refresh_entitlement_scores_batch(
             agent="Atlas (entitlement refresh)",
             detail=f"Refreshed entitlement score for *{n}* parcel(s)" + (f" in `{cf}`." if cf else "."),
         )
-        return {"updated": n, "county_fips": cf or None, "limit": chunk, "process_all": process_all}
+        return {
+            "updated": n,
+            "county_fips": cf or None,
+            "limit": chunk,
+            "process_all": process_all,
+            "prescreen_qualified_only": prescreen_qualified_only,
+        }
     finally:
         db.close()
 
@@ -1826,28 +1836,33 @@ def site_watchdog_check() -> dict[str, Any]:
     settings = get_settings()
     token = (settings.slack_bot_token or "").strip()
     channel = watchdog_slack_channel(settings)
-    if not token or not channel:
+    slack_configured = bool(token and channel)
+    if not slack_configured:
         logger.warning(
-            "site_watchdog_check SKIPPED: missing SLACK_BOT_TOKEN or watchdog channel "
+            "site_watchdog_check: Slack alerting disabled because SLACK_BOT_TOKEN or watchdog channel is missing "
             "(SITE_WATCHDOG_SLACK_CHANNEL_ID / SLACK_AGENT_DISCUSSION_CHANNEL_ID / SLACK_DIGEST_CHANNEL_ID)",
         )
-        return {"skipped": True, "reason": "slack not configured for watchdog"}
 
     db = _session()
     try:
         previous = load_last_report(settings)
         report = run_droplet_watchdog(db)
         post, recovered = should_post_slack(settings, report, previous)
-        result: dict[str, Any] = {"skipped": False, "ok": report.get("ok"), "posted": False}
-        if post:
+        result: dict[str, Any] = {
+            "skipped": False,
+            "ok": report.get("ok"),
+            "posted": False,
+            "slack_configured": slack_configured,
+        }
+        if slack_configured and post:
             text = build_slack_text(report, recovered=recovered)
-            post_text_to_slack(settings, text=text, channel_id=channel)
+            post_text_to_slack(settings, text=text, channel_id=str(channel))
             write_audit(
                 db,
                 actor="celery:site_watchdog",
                 action="site_watchdog_alert" if not report.get("ok") else "site_watchdog_ok",
                 entity_type="slack_channel",
-                entity_id=channel,
+                entity_id=str(channel),
                 meta={"ok": report.get("ok"), "failure_count": report.get("failure_count"), "recovered": recovered},
             )
             result["posted"] = True

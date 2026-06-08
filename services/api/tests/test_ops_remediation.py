@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from app.ops_remediation import (
     OpsIssue,
+    _missing_poi_refresh_count,
     apply_remediation,
     build_slack_text,
     diagnose,
@@ -14,6 +15,23 @@ from app.ops_remediation import (
     prune_queued_poi_refresh_tasks,
     should_post_slack,
 )
+
+
+def test_missing_poi_refresh_count_uses_candidate_scope() -> None:
+    db = MagicMock()
+    with (
+        patch("app.ops_remediation.column_exists", return_value=True),
+        patch("app.ops_remediation.count_poi_density_candidates", return_value=0) as count_candidates,
+    ):
+        out = _missing_poi_refresh_count(db, "24510")
+
+    assert out == 0
+    count_candidates.assert_called_once_with(
+        db,
+        county_fips="24510",
+        missing_only=True,
+        require_footprint=True,
+    )
 
 
 def test_build_slack_text_lists_critical_issues() -> None:
