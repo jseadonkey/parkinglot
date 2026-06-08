@@ -79,7 +79,11 @@ def _candidate_count(export: dict[str, Any], fallback: int = 0) -> int:
 
 
 def _candidate_owner_brief_missing(export: dict[str, Any], candidate_total: int) -> int:
-    """Return the candidate-only owner brief gap, tolerating older cached snapshots."""
+    """Return the targeted owner brief gap, tolerating older cached snapshots."""
+    target_gap = export.get("parcels_missing_owner_outreach_brief")
+    if isinstance(target_gap, dict) and "target_count" in target_gap:
+        target_total = int(target_gap.get("target_count") or 0)
+        return min(_gap_count(export, "parcels_missing_owner_outreach_brief"), target_total or candidate_total)
     scoped = export.get("parcels_prescreen_qualified_missing_owner_outreach_brief")
     if isinstance(scoped, dict):
         return min(_gap_count(export, "parcels_prescreen_qualified_missing_owner_outreach_brief"), candidate_total)
@@ -188,8 +192,20 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         or _gap_count(export, "parcels_missing_score_entitlement")
         or 0
     )
+    brief_gap = export.get("parcels_missing_owner_outreach_brief")
+    brief_target = (
+        int(brief_gap.get("target_count") or 0)
+        if isinstance(brief_gap, dict)
+        else 0
+    )
     address_total = _candidate_count(export, pipeline_backlog)
     brief_missing = _candidate_owner_brief_missing(export, address_total)
+    brief_total = brief_target or address_total
+    brief_recommendation = (
+        "Do not run for every parcel; only run for parcels above the owner-outreach score floors."
+        if brief_target > 0
+        else "Queue qualified candidates only; ignore citywide brief gaps on failed-prescreen parcels."
+    )
     poi_candidate_export = export.get("parcels_missing_poi_commercial_count_400m")
     poi_candidate_total_export = export.get("parcels_poi_density_candidates")
     export_has_candidate_mode = (
@@ -319,18 +335,18 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         ),
         _item(
             key="owner_outreach_briefs",
-            label="Owner outreach briefs",
+            label="Owner outreach briefs for top-score lots",
             backlog_count=brief_missing,
-            total_count=address_total,
+            total_count=brief_total,
             unit="parcels",
             value="selective",
             work_type="deep_enrichment",
             recommendation=(
-                "Queue qualified candidates only; ignore citywide brief gaps on failed-prescreen parcels."
+                brief_recommendation
                 if brief_missing > 0
                 else "No action needed."
             ),
-            why="Outreach briefs are valuable for deals, but expensive/noisy for parcels that fail prescreen.",
+            why="Outreach briefs are valuable for top-scoring deals, but expensive/noisy for broad parcel inventory.",
             eta_confidence="unknown",
             active_now=active_work,
         ),

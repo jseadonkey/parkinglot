@@ -288,10 +288,22 @@ class EnqueueIncompleteResponse(BaseModel):
     parcel_ids: list[str]
     mode: str = Field(description="prescreen_qualified_missing_entitlement_or_strategic")
     prescreen_floor: float | None = None
+    entitlement_floor: float | None = None
+    strategic_floor: float | None = None
+    priority_county_fips: list[str] | None = None
 
 
 class PrescreenGapStat(GapStat):
     floor: float = Field(description="Identification prescreen qualified_min_score from pilot_identification.yaml")
+
+
+class OwnerOutreachTargetStat(GapStat):
+    entitlement_floor: float = Field(description="Minimum Atlas/entitlement score for owner outreach briefs")
+    strategic_floor: float = Field(description="Minimum Beacon/strategic score for owner outreach briefs")
+
+
+class OwnerOutreachBriefGapStat(OwnerOutreachTargetStat):
+    target_count: int = Field(description="Number of parcels eligible for owner outreach briefs")
 
 
 class ExportReadinessResponse(BaseModel):
@@ -310,7 +322,8 @@ class ExportReadinessResponse(BaseModel):
     parcels_pipeline_funnel_backlog: PrescreenGapStat
     parcels_ruled_out_by_prescreen: PrescreenGapStat
     parcels_ruled_out_at_atlas: PrescreenGapStat
-    parcels_missing_owner_outreach_brief: GapStat
+    parcels_owner_outreach_targets: OwnerOutreachTargetStat
+    parcels_missing_owner_outreach_brief: OwnerOutreachBriefGapStat
     parcels_prescreen_qualified_missing_owner_outreach_brief: PrescreenGapStat
     recommended_next_steps: list[str]
 
@@ -387,6 +400,7 @@ class OutreachPipelineRow(BaseModel):
     apn: str
     county_fips: str
     entitlement_score: float | None
+    strategic_score: float | None = None
     identification_score: float | None
     workflow_run_id: str | None
     workflow_status: str | None
@@ -413,6 +427,8 @@ class OutreachPipelineBoardResponse(BaseModel):
     """GET /internal/pipeline/outreach-board — qualified lots worth tracking for owner outreach."""
 
     qualified_min_entitlement_score: float
+    owner_outreach_min_entitlement_score: float
+    owner_outreach_min_strategic_score: float
     row_count: int
     rows: list[OutreachPipelineRow]
 

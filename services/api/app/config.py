@@ -411,6 +411,25 @@ class Settings(BaseSettings):
             "owner_vendor_lookup_api_key",
         ),
     )
+    # Owner outreach briefs are intentionally reserved for the highest-scoring lots.
+    owner_outreach_min_entitlement_score: float = Field(
+        default=85.0,
+        ge=0.0,
+        le=100.0,
+        validation_alias=AliasChoices(
+            "OWNER_OUTREACH_MIN_ENTITLEMENT_SCORE",
+            "owner_outreach_min_entitlement_score",
+        ),
+    )
+    owner_outreach_min_strategic_score: float = Field(
+        default=80.0,
+        ge=0.0,
+        le=100.0,
+        validation_alias=AliasChoices(
+            "OWNER_OUTREACH_MIN_STRATEGIC_SCORE",
+            "owner_outreach_min_strategic_score",
+        ),
+    )
 
     @field_validator("exploration_campaign_start_date", mode="before")
     @classmethod
