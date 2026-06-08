@@ -78,6 +78,21 @@ def _candidate_count(export: dict[str, Any], fallback: int = 0) -> int:
     return candidates if candidates > 0 else max(0, int(fallback or 0))
 
 
+def _candidate_owner_brief_missing(export: dict[str, Any], candidate_total: int) -> int:
+    """Return the targeted owner brief gap, tolerating older cached snapshots."""
+    target_gap = export.get("parcels_missing_owner_outreach_brief")
+    if isinstance(target_gap, dict) and "target_count" in target_gap:
+        target_total = int(target_gap.get("target_count") or 0)
+        return min(_gap_count(export, "parcels_missing_owner_outreach_brief"), target_total or candidate_total)
+    scoped = export.get("parcels_prescreen_qualified_missing_owner_outreach_brief")
+    if isinstance(scoped, dict):
+        return min(_gap_count(export, "parcels_prescreen_qualified_missing_owner_outreach_brief"), candidate_total)
+    # Older ops snapshots only have the citywide owner-brief gap. Cap it to the
+    # candidate pool so the operator page never presents failed-prescreen parcels
+    # as actionable outreach backlog.
+    return min(_gap_count(export, "parcels_missing_owner_outreach_brief"), candidate_total)
+
+
 def _optional_int(raw: Any) -> int | None:
     if raw is None:
         return None
@@ -178,13 +193,19 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         or 0
     )
     brief_gap = export.get("parcels_missing_owner_outreach_brief")
-    brief_missing = _gap_count(export, "parcels_missing_owner_outreach_brief")
     brief_target = (
         int(brief_gap.get("target_count") or 0)
         if isinstance(brief_gap, dict)
         else 0
     )
     address_total = _candidate_count(export, pipeline_backlog)
+    brief_missing = _candidate_owner_brief_missing(export, address_total)
+    brief_total = brief_target or address_total
+    brief_recommendation = (
+        "Do not run for every parcel; only run for parcels above the owner-outreach score floors."
+        if brief_target > 0
+        else "Queue qualified candidates only; ignore citywide brief gaps on failed-prescreen parcels."
+    )
     poi_candidate_export = export.get("parcels_missing_poi_commercial_count_400m")
     poi_candidate_total_export = export.get("parcels_poi_density_candidates")
     export_has_candidate_mode = (
@@ -316,12 +337,12 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
             key="owner_outreach_briefs",
             label="Owner outreach briefs for top-score lots",
             backlog_count=brief_missing,
-            total_count=brief_target or total,
+            total_count=brief_total,
             unit="parcels",
             value="selective",
             work_type="deep_enrichment",
             recommendation=(
-                "Do not run for every parcel; only run for parcels above the owner-outreach score floors."
+                brief_recommendation
                 if brief_missing > 0
                 else "No action needed."
             ),

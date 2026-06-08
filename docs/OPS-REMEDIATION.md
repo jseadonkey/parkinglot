@@ -53,6 +53,11 @@ OPS_REMEDIATION_POI_BATCH_LIMIT=50
 # OPS_REMEDIATION_SLACK_CHANNEL_ID=C...
 ```
 
+The site watchdog posts immediately for a new failure and on recovery. If the same
+failure keeps repeating, `SITE_WATCHDOG_FAILURE_REPEAT_HOURS` controls how often
+that unchanged alert is re-posted (default `6`), separate from the normal
+`SITE_WATCHDOG_HEARTBEAT_HOURS` all-clear cadence.
+
 ## Manual runs
 
 ```bash

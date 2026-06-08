@@ -1,7 +1,0 @@
-# Copy to the mobile-home-parks repo as deploy/droplet.target (adjust remote_path if different).
-
-project_id=mobile-home-parks
-ssh_host=mobile-home-parks
-ssh_user=root
-allowed_hostname=134.199.209.177
-remote_path=/opt/workspaces/mobile-home-parks

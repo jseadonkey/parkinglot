@@ -14,6 +14,8 @@ class ParcelRead(BaseModel):
     id: uuid.UUID
     apn: str
     county_fips: str
+    situs_address: str | None = None
+    mailing_address: str | None = None
     lot_sqft: float | None
     zoning_code: str | None
     zoning_allows_surface_parking: bool
@@ -322,6 +324,7 @@ class ExportReadinessResponse(BaseModel):
     parcels_ruled_out_at_atlas: PrescreenGapStat
     parcels_owner_outreach_targets: OwnerOutreachTargetStat
     parcels_missing_owner_outreach_brief: OwnerOutreachBriefGapStat
+    parcels_prescreen_qualified_missing_owner_outreach_brief: PrescreenGapStat
     recommended_next_steps: list[str]
 
 
@@ -463,6 +466,8 @@ class ParcelScoredListRow(BaseModel):
     parcel_id: str
     apn: str
     county_fips: str
+    situs_address: str | None = None
+    mailing_address: str | None = None
     zoning_code: str | None
     lot_sqft: float | None
     zoning_principal_use_symbol: str | None = None
@@ -642,9 +647,10 @@ class IngestGeojsonPathQueuedResponse(BaseModel):
 
 
 class FullSlackUpdateResponse(BaseModel):
-    """POST /internal/slack/full-update-now — three Slack-related Celery tasks."""
+    """POST /internal/slack/full-update-now — Slack-related Celery tasks."""
 
     digest_task_id: str
+    plan_progress_task_id: str
     qualified_parcels_task_id: str
     agent_discussion_task_id: str
 
@@ -653,6 +659,15 @@ class SlackDigestPreviewResponse(BaseModel):
     """GET /internal/slack/digest-preview — Block Kit payload built from DB without posting."""
 
     hours: int = Field(ge=1, le=24)
+    slack_digest_configured: bool
+    digest_channel_id_set: bool
+    fallback_preview: str
+    blocks: list[dict[str, Any]]
+
+
+class SlackPlanProgressPreviewResponse(BaseModel):
+    """GET /internal/slack/plan-progress-preview — A-E progress payload without posting."""
+
     slack_digest_configured: bool
     digest_channel_id_set: bool
     fallback_preview: str

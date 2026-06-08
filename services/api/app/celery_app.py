@@ -19,6 +19,7 @@ SLACK_QUEUE = "slack"
 
 SLACK_TASK_NAMES: tuple[str, ...] = (
     "app.tasks.slack_agent_digest",
+    "app.tasks.slack_plan_progress_report",
     "app.tasks.slack_qualified_parcels_report",
     "app.tasks.slack_dual_agent_discussion",
     "app.tasks.site_watchdog_check",
@@ -35,6 +36,14 @@ beat_schedule: dict = {
         "schedule": crontab(
             minute=_s.slack_digest_crontab_minute,
             hour=_s.slack_digest_crontab_hour,
+        ),
+        "options": _SLACK_BEAT_OPTIONS,
+    },
+    "slack-plan-progress-hourly": {
+        "task": "app.tasks.slack_plan_progress_report",
+        "schedule": crontab(
+            minute=_s.slack_plan_progress_crontab_minute,
+            hour=_s.slack_plan_progress_crontab_hour,
         ),
         "options": _SLACK_BEAT_OPTIONS,
     },
@@ -55,6 +64,11 @@ logger.info(
     _s.slack_digest_crontab_hour,
     _s.slack_digest_crontab_minute,
     _s.slack_digest_window_hours,
+)
+logger.info(
+    "Beat: A-E plan progress Slack report — hour=%s minute=%02d (slack queue)",
+    _s.slack_plan_progress_crontab_hour,
+    _s.slack_plan_progress_crontab_minute,
 )
 
 if _s.site_watchdog_enabled:

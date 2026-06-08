@@ -84,6 +84,13 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
     prescreen_ruled_out = count_where(db, ruled_out_by_prescreen(floor_i))
     atlas_ruled_out = count_where(db, ruled_out_at_atlas())
 
+    miss_brief_prescreen = count_where(
+        db,
+        and_(
+            identification_prescreen_qualified(floor_i),
+            Parcel.owner_outreach_brief.is_(None),
+        ),
+    )
     owner_ent_floor = owner_outreach_min_entitlement_score()
     owner_str_floor = owner_outreach_min_strategic_score()
     owner_target = owner_outreach_target(
@@ -94,10 +101,7 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
     miss_brief = count_where(
         db,
         and_(
-            owner_outreach_target(
-                entitlement_floor=owner_ent_floor,
-                strategic_floor=owner_str_floor,
-            ),
+            owner_target,
             Parcel.owner_outreach_brief.is_(None),
         ),
     )
@@ -188,6 +192,11 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
             "target_count": owner_target_count,
             "entitlement_floor": owner_ent_floor,
             "strategic_floor": owner_str_floor,
+        },
+        "parcels_prescreen_qualified_missing_owner_outreach_brief": {
+            "count": miss_brief_prescreen,
+            "pct": _pct(miss_brief_prescreen, prescreen_qualified),
+            "floor": floor_i,
         },
         "recommended_next_steps": recommended_next_steps,
     }

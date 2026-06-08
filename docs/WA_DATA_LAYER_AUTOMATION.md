@@ -22,6 +22,8 @@ There is no magic “browse the whole internet” layer—**each layer must be a
 - **Idempotent ingest contract**: stable `(county_fips, apn/pin)` upserts; re-ingest clears stale scores (already supported).
 - **Rate limits + backoff** for any HTTP connectors (SOS, vendor).
 
+Use [JURISDICTION-ZONING-COMPLETENESS-PLAN.md](JURISDICTION-ZONING-COMPLETENESS-PLAN.md) as the detailed execution guide for building the city/county registry, source catalog, zoning/value data contracts, and feedback loop that verifies each jurisdiction after adjustment.
+
 Exit criteria: you can answer “where does each field come from?” for Tier 1–3.
 
 ## Phase 1 — Tier A: parcel anchor + assessor roll (highest leverage)

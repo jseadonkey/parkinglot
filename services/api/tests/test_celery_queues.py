@@ -17,6 +17,7 @@ def test_beat_slack_entries_target_slack_queue() -> None:
     schedule = celery.conf.beat_schedule or {}
     for key in (
         "slack-parking-digest-hourly",
+        "slack-plan-progress-hourly",
         "slack-qualified-parcels-daily",
         "slack-dual-agent-discussion-daily",
         "site-watchdog",

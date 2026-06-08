@@ -1,6 +1,6 @@
 # Slack integration
 
-The stack can post a **recurring “agent standup”** to a Slack channel: one Block Kit message **every hour (UTC, top of the hour by default)** summarizing what the pipeline has been doing (new parcels, workflow status changes, pending human approvals, recent audit lines). **Once per day (14:00 UTC)** it also posts a **qualified-parcels report**: latest score per parcel vs `qualified_min_score` from the pilot config, with a short **why** line (zoning, lot size, corner, demand) for qualified rows and a sample of not-qualified rows.
+The stack can post a **recurring “agent standup”** to a Slack channel: one Block Kit message **every hour (UTC, top of the hour by default)** summarizing what the pipeline has been doing (new parcels, workflow status changes, pending human approvals, recent audit lines). It also posts an **A–E plan progress report every hour** (default **:05 UTC**) to the same channel, using `GET /internal/stats/export-readiness`-style metrics to show which phases are production-proved, monitoring, blocked, or still need execution. **Once per day (14:00 UTC)** it posts a **qualified-parcels report**: latest score per parcel vs `qualified_min_score` from the pilot config, with a short **why** line (zoning, lot size, corner, demand) for qualified rows and a sample of not-qualified rows.
 
 Separately, you can configure a **dedicated “agent discussion” channel** where the two deterministic scoring agents post three messages: **Atlas** (entitlement lens), **Beacon** (demand/visibility lens), then a **joint comparison** (consensus + disagreements). This is **outbound notification**, not a full chat employee — see [Limits](#limits-and-future-work) below.
 
@@ -12,10 +12,10 @@ The data agents work on here (parcel attributes, scores, workflow status, sample
 
 | Component | Role |
 |-----------|------|
-| **Celery Beat** (`beat` service in compose) | Sends Slack tasks **hourly** (standup), **daily 14:00 UTC** (qualified parcels), and **daily 15:30 UTC** (dual-agent discussion). |
+| **Celery Beat** (`beat` service in compose) | Sends Slack tasks **hourly** (standup), **hourly at :05 UTC** (A–E plan progress), **daily 14:00 UTC** (qualified parcels), and **daily 15:30 UTC** (dual-agent discussion). |
 | **Celery worker (`worker-slack`)** | Dedicated **`slack`** queue — runs digest/report/discussion tasks so pipeline backlog on `worker` cannot block standups. |
 | **Celery worker (`worker`)** | **`parking`** queue only — pipelines, ingest, scoring batches (does not consume Slack tasks). |
-| **FastAPI** | `POST /internal/slack/digest-now`, `POST /internal/slack/qualified-parcels-now`, and `POST /internal/slack/agent-discussion-now` enqueue the matching tasks (manual test; requires `X-Internal-Key` when `INTERNAL_API_KEY` is set). |
+| **FastAPI** | `POST /internal/slack/digest-now`, `POST /internal/slack/plan-progress-now`, `POST /internal/slack/qualified-parcels-now`, and `POST /internal/slack/agent-discussion-now` enqueue the matching tasks (manual test; requires `X-Internal-Key` when `INTERNAL_API_KEY` is set). |
 
 If Slack env is unset, tasks **no-op** (return `skipped` in the task result) so stacks without Slack keep working. The dual-agent discussion needs **`SLACK_BOT_TOKEN`** and **`SLACK_AGENT_DISCUSSION_CHANNEL_ID`**.
 
@@ -102,6 +102,9 @@ GitHub Actions **Droplet diagnostics** and **Slack digest now** call `scripts/re
 - **Manual fire:**  
   `curl -sS -X POST "https://$API_HOST/internal/slack/digest-now" -H "X-Internal-Key: $INTERNAL_API_KEY"`  
   Then check **`GET /internal/tasks/{task_id}`** for Celery state.
+- **A–E plan progress report (same channel, hourly by default):**
+  `curl -sS -X POST "https://$API_HOST/internal/slack/plan-progress-now" -H "X-Internal-Key: $INTERNAL_API_KEY"`
+  Preview without posting via `GET /internal/slack/plan-progress-preview`. Beat runs this hourly at `SLACK_PLAN_PROGRESS_CRONTAB_MINUTE` / `SLACK_PLAN_PROGRESS_CRONTAB_HOUR` (default `5` / `*`).
 - **Qualified-parcels report (same channel):**  
   `curl -sS -X POST "https://$API_HOST/internal/slack/qualified-parcels-now" -H "X-Internal-Key: $INTERNAL_API_KEY"`  
   Same polling as above. Beat runs this daily; adjust time in `app/celery_app.py` (`slack-qualified-parcels-daily`).
