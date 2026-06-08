@@ -105,7 +105,10 @@ def test_backfill_baltimore_property_addresses_marks_unfillable_attempts() -> No
     assert out["marked_attempted"] == 2
     assert out["matched_without_address"] == 1
     assert out["no_match"] == 1
-    assert matched_without_address.raw_properties[ADDRESS_BACKFILL_STATUS_KEY] == ADDRESS_BACKFILL_MATCHED_WITHOUT_ADDRESS
+    assert (
+        matched_without_address.raw_properties[ADDRESS_BACKFILL_STATUS_KEY]
+        == ADDRESS_BACKFILL_MATCHED_WITHOUT_ADDRESS
+    )
     assert no_match.raw_properties[ADDRESS_BACKFILL_STATUS_KEY] == ADDRESS_BACKFILL_NO_MATCH
     db.commit.assert_called_once()
     assert db.add.call_count == 2
