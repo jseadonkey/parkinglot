@@ -466,6 +466,7 @@ def county_data_gaps(db: Session, county_fips: str) -> dict[str, Any]:
         "poi_candidate_mode": POI_DENSITY_CANDIDATE_MODE,
         "missing_demand_m": no_demand,
         "missing_poi": no_poi,
+        "candidate_missing_poi": no_poi,
         "missing_poi_all": no_poi_all,
         "missing_entitlement_score": miss_ent,
         "missing_identification_score": miss_ident,
