@@ -2,12 +2,13 @@
 # On the Droplet: if DATABASE_URL still contains YOUR_DB_HOST, set POSTGRES_PASSWORD and a
 # matching DATABASE_URL for the optional PostGIS compose addon (postgres:5432, sslmode=disable).
 #
-#   DROPLET=203.0.113.10 ./scripts/droplet-provision-local-postgis-env.sh
+#   ./scripts/droplet-provision-local-postgis-env.sh
 set -euo pipefail
 
-: "${DROPLET:?Set DROPLET to the Droplet IPv4 or hostname}"
-REMOTE_PATH="${REMOTE_PATH:-/opt/parking-acquisition-agents}"
-SSH_USER="${SSH_USER:-root}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/droplet-target.sh
+source "$ROOT/scripts/lib/droplet-target.sh"
+assert_droplet_target "$ROOT/scripts/droplet-provision-local-postgis-env.sh" "${DROPLET:-}" "${REMOTE_PATH:-}" "${SSH_USER:-}" || exit 1
 
 ssh -oBatchMode=yes "${SSH_USER}@${DROPLET}" \
   "env REMOTE_PATH=$(printf '%q' "$REMOTE_PATH") bash -s" <<'EOS'

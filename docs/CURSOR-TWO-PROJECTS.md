@@ -23,7 +23,7 @@ ssh mobile-home-parks 'hostname; cat /opt/workspaces/mobile-home-parks/.droplet-
 | Window | Remote-SSH host | Open folder **on server** |
 |--------|-----------------|---------------------------|
 | **A — parkinglot** | **`parkinglot`** | `/opt/workspaces/parkinglot` |
-| **B — mobile-home-parks** | **`mobile-home-parks`** | `/opt/workspaces/mobile-home-parks` (after [bootstrap](../scripts/bootstrap-mobile-home-parks-droplet.sh)) |
+| **B — mobile-home-parks** | **`mobile-home-parks`** | `/opt/workspaces/mobile-home-parks` |
 
 Rules:
 
@@ -48,7 +48,7 @@ remote_path=/opt/workspaces/parkinglot
 1. Resolve `ssh_host` → must equal `allowed_hostname`.
 2. Read **`.droplet-project-id`** on the server — must equal `project_id`.
 
-Copy **`deploy/droplet.target.example.mobile-home-parks`** into the other repo as **`deploy/droplet.target`** with that project’s values.
+The mobile-home-parks repo should have its own **`deploy/droplet.target`** created inside that repo, using that project’s host, IP, path, and project marker. Do not keep mobile-home-parks deploy target examples or bootstrap scripts in this parkinglot repo.
 
 ## 4. Server marker (one-time per Droplet path)
 
@@ -58,7 +58,7 @@ On the **parkinglot** Droplet:
 ./scripts/install-droplet-project-marker.sh
 ```
 
-On **mobile-home-parks** (from that repo, after you add `deploy/droplet.target` there):
+On **mobile-home-parks** (from that repo, after it has its own `deploy/droplet.target`):
 
 ```bash
 ./scripts/install-droplet-project-marker.sh
