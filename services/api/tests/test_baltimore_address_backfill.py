@@ -7,6 +7,9 @@ from unittest.mock import MagicMock, patch
 from sqlalchemy.dialects import postgresql
 
 from app.baltimore_address_backfill import (
+    ADDRESS_LOOKUP_ATTEMPTED_AT_KEY,
+    ADDRESS_LOOKUP_STATUS_KEY,
+    ADDRESS_LOOKUP_STATUS_NO_MATCH,
     _target_address_backfill_stmt,
     backfill_baltimore_property_addresses,
 )
@@ -40,12 +43,40 @@ def test_backfill_baltimore_property_addresses_updates_raw_properties() -> None:
 
     assert out["selected"] == 1
     assert out["matched"] == 1
+    assert out["attempted"] == 1
     assert out["updated"] == 1
     assert "Targeted batch only" in out["note"]
     assert parcel.raw_properties["PROPERTY_ADDRESS"] == "2328 FLEET ST"
     assert parcel.raw_properties["SITUS_ADDRESS"] == "2328 FLEET ST"
     assert parcel.raw_properties["ZONECODE"] == "C-5DC"
+    assert parcel.raw_properties[ADDRESS_LOOKUP_STATUS_KEY] == "address_found"
+    assert ADDRESS_LOOKUP_ATTEMPTED_AT_KEY in parcel.raw_properties
     assert parcel.zoning_code == "C-5DC"
+    db.commit.assert_called_once()
+    audit.assert_called_once()
+
+
+def test_backfill_baltimore_property_addresses_marks_attempt_without_address() -> None:
+    parcel = SimpleNamespace(
+        id=uuid.uuid4(),
+        apn="MD-BALT-CITY-1786024",
+        raw_properties={"PIN": "1786024"},
+    )
+    db = MagicMock()
+    db.scalars.return_value = [parcel]
+
+    with (
+        patch("app.baltimore_address_backfill._fetch_realproperty_rows", return_value=[]),
+        patch("app.baltimore_address_backfill.write_audit") as audit,
+    ):
+        out = backfill_baltimore_property_addresses(db, limit=1)
+
+    assert out["selected"] == 1
+    assert out["matched"] == 0
+    assert out["attempted"] == 1
+    assert out["updated"] == 0
+    assert parcel.raw_properties[ADDRESS_LOOKUP_STATUS_KEY] == ADDRESS_LOOKUP_STATUS_NO_MATCH
+    assert ADDRESS_LOOKUP_ATTEMPTED_AT_KEY in parcel.raw_properties
     db.commit.assert_called_once()
     audit.assert_called_once()
 
@@ -79,4 +110,5 @@ def test_baltimore_address_backfill_stmt_targets_worthwhile_parcels() -> None:
     assert "score_profile = 'strategic'" in compiled
     assert "parcels.zoning_allows_surface_parking IS true" in compiled
     assert "VACANT|UNIMPROVED|PARKING|GARAGE|LOT|AUTO" in compiled
+    assert "BALTIMORE_ADDRESS_BACKFILL_ATTEMPTED_AT" in compiled
     assert "LIMIT 25" in compiled

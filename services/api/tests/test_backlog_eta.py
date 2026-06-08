@@ -17,6 +17,9 @@ def _export_payload() -> dict:
         "parcels_missing_score_identification": {"count": 0},
         "parcels_missing_score_entitlement": {"count": 0},
         "parcels_missing_owner_outreach_brief": {"count": 223139},
+        "parcels_baltimore_address_candidates": {"count": 12000},
+        "parcels_missing_baltimore_property_address": {"count": 11850},
+        "parcels_pending_baltimore_address_backfill": {"count": 11100},
     }
 
 
@@ -54,9 +57,9 @@ def test_backlog_eta_prioritizes_address_backfill_and_ignores_citywide_poi() -> 
     by_key = {row["key"]: row for row in out["items"]}
     assert by_key["baltimore_property_addresses"]["value"] == "high"
     assert by_key["baltimore_property_addresses"]["label"] == "Candidate street address backfill"
-    assert by_key["baltimore_property_addresses"]["backlog_count"] == 12000
+    assert by_key["baltimore_property_addresses"]["backlog_count"] == 11100
     assert by_key["baltimore_property_addresses"]["total_count"] == 12000
-    assert "deal candidates only" in by_key["baltimore_property_addresses"]["recommendation"]
+    assert "no lookup attempt yet" in by_key["baltimore_property_addresses"]["recommendation"]
     assert by_key["baltimore_property_addresses"]["eta_label"] == "Measure one batch first"
     assert by_key["baltimore_poi_density"]["label"] == "Candidate POI density"
     assert by_key["baltimore_poi_density"]["value"] == "medium"

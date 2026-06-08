@@ -35,6 +35,9 @@ def test_export_readiness_response_serializes_poi_candidate_stats() -> None:
         parcels_pipeline_funnel_backlog={"count": 5, "pct": 5.0, "floor": 60.0},
         parcels_ruled_out_by_prescreen={"count": 1, "pct": 1.0, "floor": 60.0},
         parcels_ruled_out_at_atlas={"count": 2, "pct": 2.0, "floor": 70.0},
+        parcels_baltimore_address_candidates=_gap(9, 9.0),
+        parcels_missing_baltimore_property_address=_gap(6, 66.67),
+        parcels_pending_baltimore_address_backfill=_gap(4, 44.44),
         parcels_owner_outreach_targets={
             "count": 4,
             "pct": 4.0,
@@ -60,3 +63,4 @@ def test_export_readiness_response_serializes_poi_candidate_stats() -> None:
     assert serialized["parcels_missing_poi_commercial_count_400m"]["count"] == 3
     assert serialized["parcels_poi_density_candidates"]["count"] == 10
     assert serialized["parcels_missing_poi_commercial_count_400m_all"]["count"] == 80
+    assert serialized["parcels_pending_baltimore_address_backfill"]["count"] == 4

@@ -338,6 +338,9 @@ class ExportReadinessResponse(BaseModel):
     parcels_pipeline_funnel_backlog: PrescreenGapStat
     parcels_ruled_out_by_prescreen: PrescreenGapStat
     parcels_ruled_out_at_atlas: PrescreenGapStat
+    parcels_baltimore_address_candidates: GapStat
+    parcels_missing_baltimore_property_address: GapStat
+    parcels_pending_baltimore_address_backfill: GapStat
     parcels_owner_outreach_targets: OwnerOutreachTargetStat
     parcels_missing_owner_outreach_brief: OwnerOutreachBriefGapStat
     parcels_prescreen_qualified_missing_owner_outreach_brief: PrescreenGapStat
