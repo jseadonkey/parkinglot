@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from time import monotonic
 from typing import Any
 
-from sqlalchemy import desc, or_, select, text
+from sqlalchemy import and_, desc, or_, select, text
 from sqlalchemy.orm import Session
 
 from app.audit import write_audit
@@ -61,11 +61,28 @@ ADDRESS_KEYS = (
     "addr_full",
     "FULLADDR",
 )
+ADDRESS_LOOKUP_ATTEMPTED_AT_KEY = "BALTIMORE_ADDRESS_BACKFILL_ATTEMPTED_AT"
+ADDRESS_LOOKUP_STATUS_KEY = "BALTIMORE_ADDRESS_BACKFILL_STATUS"
+ADDRESS_LOOKUP_STATUS_ADDRESS_FOUND = "address_found"
+ADDRESS_LOOKUP_STATUS_MATCHED_WITHOUT_ADDRESS = "matched_without_address"
+ADDRESS_LOOKUP_STATUS_NO_MATCH = "no_realproperty_match"
 
 
 def _missing_address_sql() -> str:
-    present = " OR ".join(f"(raw_properties ? '{key}')" for key in ADDRESS_KEYS)
+    present = " OR ".join(f"nullif(btrim(raw_properties->>'{key}'), '') is not null" for key in ADDRESS_KEYS)
     return f"(raw_properties is null or not ({present}))"
+
+
+def _has_address_sql() -> str:
+    present = " OR ".join(f"nullif(btrim(raw_properties->>'{key}'), '') is not null" for key in ADDRESS_KEYS)
+    return f"(raw_properties is not null and ({present}))"
+
+
+def _address_lookup_unattempted_sql() -> str:
+    return (
+        "(raw_properties is null or not "
+        f"(raw_properties ? '{ADDRESS_LOOKUP_ATTEMPTED_AT_KEY}' or raw_properties ? '{ADDRESS_LOOKUP_STATUS_KEY}'))"
+    )
 
 
 def _vacant_or_suitable_sql() -> str:
@@ -104,23 +121,46 @@ def _latest_score(profile: str):
     )
 
 
+def candidate_address_backfill_condition():
+    """Baltimore parcels where candidate-only street-address lookup is worthwhile."""
+    latest_identification_score = _latest_score(IDENTIFICATION)
+    latest_entitlement_score = _latest_score(ENTITLEMENT)
+    latest_strategic_score = _latest_score(STRATEGIC)
+    return and_(
+        Parcel.county_fips == BALTIMORE_CITY_COUNTY_FIPS,
+        or_(
+            latest_identification_score >= identification_prescreen_floor(),
+            latest_entitlement_score >= entitlement_qualified_floor(),
+            latest_strategic_score >= strategic_qualified_floor(),
+            Parcel.zoning_allows_surface_parking.is_(True),
+            text(_vacant_or_suitable_sql()),
+        ),
+    )
+
+
+def candidate_missing_address_condition():
+    """Candidate address rows without a non-blank address value."""
+    return and_(
+        candidate_address_backfill_condition(),
+        text(_missing_address_sql()),
+    )
+
+
+def candidate_pending_address_backfill_condition():
+    """Candidate address rows still needing a measured Realproperty lookup attempt."""
+    return and_(
+        candidate_missing_address_condition(),
+        text(_address_lookup_unattempted_sql()),
+    )
+
+
 def _target_address_backfill_stmt(limit: int):
     """Select only Baltimore parcels where a street address is worth backfilling."""
     latest_identification_score = _latest_score(IDENTIFICATION)
     latest_entitlement_score = _latest_score(ENTITLEMENT)
-    latest_strategic_score = _latest_score(STRATEGIC)
-    targetable = or_(
-        latest_identification_score >= identification_prescreen_floor(),
-        latest_entitlement_score >= entitlement_qualified_floor(),
-        latest_strategic_score >= strategic_qualified_floor(),
-        Parcel.zoning_allows_surface_parking.is_(True),
-        text(_vacant_or_suitable_sql()),
-    )
     return (
         select(Parcel)
-        .where(Parcel.county_fips == BALTIMORE_CITY_COUNTY_FIPS)
-        .where(text(_missing_address_sql()))
-        .where(targetable)
+        .where(candidate_pending_address_backfill_condition())
         .order_by(
             desc(latest_entitlement_score).nulls_last(),
             desc(latest_identification_score).nulls_last(),
@@ -221,24 +261,39 @@ def backfill_baltimore_property_addresses(
         real_rows = _fetch_realproperty_rows(features)
     matched = _merge_realproperty_attributes(features, real_rows)
 
+    attempted = 0
     updated = 0
     with_address = 0
     sample_ids: list[str] = []
+    attempted_at = datetime.now(UTC).isoformat()
     for parcel, feature in zip(parcels, features, strict=False):
         props = feature.get("properties") or {}
-        if _has_address(props):
+        attempted += 1
+        has_address = _has_address(props)
+        matched_realproperty = bool(props.get("BALTIMORE_REALPROPERTY_MATCHED"))
+        if has_address:
             with_address += 1
-        if props.get("BALTIMORE_REALPROPERTY_MATCHED") and _has_address(props):
+        if matched_realproperty and has_address:
             sample_ids.append(str(parcel.id))
-            if not dry_run:
-                merged = dict(parcel.raw_properties or {})
-                merged.update({k: v for k, v in props.items() if v is not None})
-                parcel.raw_properties = merged
+        if not dry_run:
+            status = (
+                ADDRESS_LOOKUP_STATUS_ADDRESS_FOUND
+                if matched_realproperty and has_address
+                else ADDRESS_LOOKUP_STATUS_MATCHED_WITHOUT_ADDRESS
+                if matched_realproperty
+                else ADDRESS_LOOKUP_STATUS_NO_MATCH
+            )
+            merged = dict(parcel.raw_properties or {})
+            merged.update({k: v for k, v in props.items() if v is not None})
+            merged[ADDRESS_LOOKUP_ATTEMPTED_AT_KEY] = attempted_at
+            merged[ADDRESS_LOOKUP_STATUS_KEY] = status
+            parcel.raw_properties = merged
+            if matched_realproperty and has_address:
                 parcel.zoning_code = effective_zoning_code(getattr(parcel, "zoning_code", None), merged)
-                db.add(parcel)
                 updated += 1
+            db.add(parcel)
 
-    if not dry_run and updated:
+    if not dry_run and attempted:
         db.commit()
         write_audit(
             db,
@@ -250,6 +305,7 @@ def backfill_baltimore_property_addresses(
                 "limit": cap,
                 "selected": len(parcels),
                 "matched": matched,
+                "attempted": attempted,
                 "updated": updated,
                 "sample_parcel_ids": sample_ids[:25],
             },
@@ -265,6 +321,7 @@ def backfill_baltimore_property_addresses(
         "selected": len(parcels),
         "realproperty_rows_fetched": len(real_rows),
         "matched": matched,
+        "attempted": attempted,
         "with_address": with_address,
         "updated": updated,
         "elapsed_sec": elapsed,

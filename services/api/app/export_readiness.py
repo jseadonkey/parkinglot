@@ -7,6 +7,11 @@ from typing import Any
 from sqlalchemy import and_, exists, func, select
 from sqlalchemy.orm import Session
 
+from app.baltimore_address_backfill import (
+    candidate_address_backfill_condition,
+    candidate_missing_address_condition,
+    candidate_pending_address_backfill_condition,
+)
 from app.db.models import Parcel, ParcelScore
 from app.db.schema_compat import column_exists
 from app.pipeline_funnel import (
@@ -83,6 +88,9 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
     funnel_backlog = count_where(db, pipeline_funnel_backlog(floor_i))
     prescreen_ruled_out = count_where(db, ruled_out_by_prescreen(floor_i))
     atlas_ruled_out = count_where(db, ruled_out_at_atlas())
+    address_candidates = count_where(db, candidate_address_backfill_condition())
+    miss_candidate_address = count_where(db, candidate_missing_address_condition())
+    pending_address_backfill = count_where(db, candidate_pending_address_backfill_condition())
 
     has_owner_brief_col = column_exists(db, "parcels", "owner_outreach_brief")
     if has_owner_brief_col:
@@ -186,6 +194,18 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
             "count": atlas_ruled_out,
             "pct": _pct(atlas_ruled_out, total),
             "floor": floor_ent,
+        },
+        "parcels_baltimore_address_candidates": {
+            "count": address_candidates,
+            "pct": _pct(address_candidates, total),
+        },
+        "parcels_missing_baltimore_property_address": {
+            "count": miss_candidate_address,
+            "pct": _pct(miss_candidate_address, address_candidates),
+        },
+        "parcels_pending_baltimore_address_backfill": {
+            "count": pending_address_backfill,
+            "pct": _pct(pending_address_backfill, address_candidates),
         },
         "parcels_owner_outreach_targets": {
             "count": owner_target_count,

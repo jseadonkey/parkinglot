@@ -198,7 +198,20 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         if isinstance(brief_gap, dict)
         else 0
     )
-    address_total = _candidate_count(export, pipeline_backlog)
+    exact_address_total = _gap_count(export, "parcels_baltimore_address_candidates")
+    address_total = exact_address_total if exact_address_total > 0 else _candidate_count(export, pipeline_backlog)
+    pending_address_gap = export.get("parcels_pending_baltimore_address_backfill")
+    missing_address_gap = export.get("parcels_missing_baltimore_property_address")
+    candidate_address_missing = (
+        min(_gap_count(export, "parcels_missing_baltimore_property_address"), address_total)
+        if isinstance(missing_address_gap, dict)
+        else address_total
+    )
+    address_missing = (
+        min(_gap_count(export, "parcels_pending_baltimore_address_backfill"), address_total)
+        if isinstance(pending_address_gap, dict)
+        else candidate_address_missing
+    )
     brief_missing = _candidate_owner_brief_missing(export, address_total)
     brief_total = brief_target or address_total
     brief_recommendation = (
@@ -236,9 +249,13 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
     )
     if auto_fix and poi_missing > 0:
         poi_recommendation = "Throttle to candidate parcels; do not citywide-fill optional POI density."
-    # Address jobs should select from this candidate pool only. Avoid scanning
-    # raw_properties here so the operator page stays cheap under DB load.
-    address_missing = address_total
+    address_recommendation = (
+        "Run measured batches for deal candidates only; remaining means no non-blank address and no lookup attempt yet."
+        if address_missing > 0
+        else "Baltimore Realproperty lookup attempts are complete; review unmatched/no-address candidates before trying another source."
+        if candidate_address_missing > 0
+        else "No action needed."
+    )
 
     items = [
         _item(
@@ -249,11 +266,7 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
             unit="parcels",
             value="high",
             work_type="data_backfill",
-            recommendation=(
-                "Run measured batches for deal candidates only; do not citywide-backfill low-score parcels."
-                if address_missing > 0
-                else "No action needed."
-            ),
+            recommendation=address_recommendation,
             why=(
                 "Street addresses make parcel review, maps, visits, and owner conversations usable, "
                 "but only for parcels that pass scoring or look vacant/suitable."
