@@ -142,7 +142,11 @@ jobs:
           remote_id="$(ssh -oBatchMode=yes -oConnectTimeout=15 "${DROPLET_USER}@${DROPLET_HOST}" \
             "cat '${DEPLOY_REMOTE_PATH}/.droplet-project-id' 2>/dev/null || true" \
             | tr -d '\r\n')"
-          if [ "$remote_id" != "$DROPLET_PROJECT_ID" ]; then
+          if [ -z "$remote_id" ]; then
+            echo "Remote project marker missing; initializing ${DEPLOY_REMOTE_PATH}/.droplet-project-id=${DROPLET_PROJECT_ID}"
+            ssh -oBatchMode=yes -oConnectTimeout=15 "${DROPLET_USER}@${DROPLET_HOST}" \
+              "mkdir -p '${DEPLOY_REMOTE_PATH}' && printf '%s\n' '${DROPLET_PROJECT_ID}' > '${DEPLOY_REMOTE_PATH}/.droplet-project-id' && chmod 644 '${DEPLOY_REMOTE_PATH}/.droplet-project-id'"
+          elif [ "$remote_id" != "$DROPLET_PROJECT_ID" ]; then
             echo "Remote project marker mismatch for ${DEPLOY_REMOTE_PATH}: expected ${DROPLET_PROJECT_ID}, got ${remote_id:-missing}" >&2
             exit 1
           fi
