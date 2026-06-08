@@ -10,6 +10,7 @@ from app.baltimore_address_backfill import (
     ADDRESS_BACKFILL_MATCHED_WITHOUT_ADDRESS,
     ADDRESS_BACKFILL_NO_MATCH,
     ADDRESS_BACKFILL_STATUS_KEY,
+    ADDRESS_POINT_FALLBACK_SOURCE,
     _target_address_backfill_stmt,
     backfill_baltimore_property_addresses,
 )
@@ -37,6 +38,7 @@ def test_backfill_baltimore_property_addresses_updates_raw_properties() -> None:
 
     with (
         patch("app.baltimore_address_backfill._fetch_realproperty_rows", return_value=rows),
+        patch("app.baltimore_address_backfill._fetch_address_point_rows", return_value=[]),
         patch("app.baltimore_address_backfill.write_audit") as audit,
     ):
         out = backfill_baltimore_property_addresses(db, limit=1)
@@ -60,7 +62,8 @@ def test_backfill_baltimore_property_addresses_dry_run_rolls_back() -> None:
     db.scalars.return_value = [parcel]
 
     with patch("app.baltimore_address_backfill._fetch_realproperty_rows", return_value=[]):
-        out = backfill_baltimore_property_addresses(db, limit=1, dry_run=True)
+        with patch("app.baltimore_address_backfill._fetch_address_point_rows", return_value=[]):
+            out = backfill_baltimore_property_addresses(db, limit=1, dry_run=True)
 
     assert out["dry_run"] is True
     assert out["updated"] == 0
@@ -95,6 +98,7 @@ def test_backfill_baltimore_property_addresses_marks_unfillable_attempts() -> No
 
     with (
         patch("app.baltimore_address_backfill._fetch_realproperty_rows", return_value=rows),
+        patch("app.baltimore_address_backfill._fetch_address_point_rows", return_value=[]),
         patch("app.baltimore_address_backfill.write_audit"),
     ):
         out = backfill_baltimore_property_addresses(db, limit=2)
@@ -114,6 +118,54 @@ def test_backfill_baltimore_property_addresses_marks_unfillable_attempts() -> No
     assert db.add.call_count == 2
 
 
+def test_backfill_baltimore_property_addresses_uses_address_point_fallback() -> None:
+    parcel = SimpleNamespace(
+        id=uuid.uuid4(),
+        apn="MD-BALT-CITY-1786024",
+        raw_properties={"PIN": "1786024", "BLOCKLOT": "1786 024"},
+    )
+    db = MagicMock()
+    db.scalars.return_value = [parcel]
+    real_rows = [
+        {
+            "OBJECTID": 1,
+            "PIN": "1786024",
+            "PINRELATE": "1786024",
+            "BLOCKLOT": "1786 024",
+            "FULLADDR": "",
+            "MAILTOADD": "PO BOX 1, BALTIMORE, MD",
+        }
+    ]
+    address_point_rows = [
+        {
+            "OBJECTID": 500,
+            "blocklot": "1786 024",
+            "full_addr": "2328 FLEET ST",
+            "address_id": 123,
+            "coord_x": 1430000,
+            "coord_y": 590000,
+        }
+    ]
+
+    with (
+        patch("app.baltimore_address_backfill._fetch_realproperty_rows", return_value=real_rows),
+        patch("app.baltimore_address_backfill._fetch_address_point_rows", return_value=address_point_rows),
+        patch("app.baltimore_address_backfill.write_audit"),
+    ):
+        out = backfill_baltimore_property_addresses(db, limit=1)
+
+    assert out["selected"] == 1
+    assert out["updated"] == 0
+    assert out["fallback_updated"] == 1
+    assert out["fallback_matched"] == 1
+    assert out["marked_attempted"] == 0
+    assert parcel.raw_properties["VISIT_ADDRESS"] == "2328 FLEET ST"
+    assert parcel.raw_properties["MAP_ADDRESS"] == "2328 FLEET ST"
+    assert parcel.raw_properties["ADDRESS_SOURCE"] == ADDRESS_POINT_FALLBACK_SOURCE
+    assert parcel.raw_properties[ADDRESS_BACKFILL_STATUS_KEY] == "fallback_address_found"
+    db.commit.assert_called_once()
+
+
 def test_baltimore_address_backfill_stmt_targets_worthwhile_parcels() -> None:
     stmt = _target_address_backfill_stmt(25)
     compiled = str(
@@ -130,6 +182,8 @@ def test_baltimore_address_backfill_stmt_targets_worthwhile_parcels() -> None:
     assert "parcels.zoning_allows_surface_parking IS true" in compiled
     assert "VACANT|UNIMPROVED|PARKING|GARAGE|LOT|AUTO" in compiled
     assert "BALTIMORE_ADDRESS_BACKFILL_STATUS" in compiled
+    assert "VISIT_ADDRESS" in compiled
+    assert "MAP_ADDRESS" in compiled
     assert "matched_without_address" in compiled
     assert "no_match" in compiled
     assert "LIMIT 25" in compiled

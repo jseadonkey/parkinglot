@@ -306,6 +306,10 @@ class OwnerOutreachBriefGapStat(OwnerOutreachTargetStat):
     target_count: int = Field(description="Number of parcels eligible for owner outreach briefs")
 
 
+class CandidateAddressGapStat(PrescreenGapStat):
+    target_count: int = Field(description="Number of candidate parcels eligible for street/map address lookup")
+
+
 class PoiDensityGapStat(GapStat):
     candidate_mode: str | None = Field(
         default=None,
@@ -339,6 +343,7 @@ class ExportReadinessResponse(BaseModel):
     parcels_ruled_out_by_prescreen: PrescreenGapStat
     parcels_ruled_out_at_atlas: PrescreenGapStat
     parcels_owner_outreach_targets: OwnerOutreachTargetStat
+    parcels_missing_baltimore_candidate_street_address: CandidateAddressGapStat
     parcels_missing_owner_outreach_brief: OwnerOutreachBriefGapStat
     parcels_prescreen_qualified_missing_owner_outreach_brief: PrescreenGapStat
     recommended_next_steps: list[str]

@@ -139,6 +139,13 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
             "Street/situs address enrichment is also candidate-only; do not treat missing addresses "
             "on low-score parcels as market incompleteness — see docs/OPERATIONS.md (owner outreach)."
         )
+    if candidate_address_backfill_count > 0:
+        recommended_next_steps.append(
+            "If Baltimore candidate street-address gaps persist: run "
+            "POST /internal/metrics/backfill-baltimore-addresses?limit=250. "
+            "The batch uses Realproperty first and escalates only leftover deal candidates to "
+            "Baltimore AddressPoint_Native fallback; do not citywide-backfill low-score parcels."
+        )
 
     return {
         "parcel_row_total": total,

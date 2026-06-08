@@ -639,6 +639,15 @@ class Settings(BaseSettings):
             "ops_remediation_pipeline_enqueue_limit",
         ),
     )
+    ops_remediation_address_backfill_limit: int = Field(
+        default=250,
+        ge=10,
+        le=5000,
+        validation_alias=AliasChoices(
+            "OPS_REMEDIATION_ADDRESS_BACKFILL_LIMIT",
+            "ops_remediation_address_backfill_limit",
+        ),
+    )
     ops_remediation_cooldown_sec: int = Field(
         default=3600,
         ge=300,

@@ -110,6 +110,69 @@ def test_diagnose_flags_missing_workers() -> None:
     assert any(i.code == "celery_workers_down" for i in issues)
 
 
+def test_diagnose_flags_baltimore_candidate_address_backlog() -> None:
+    settings = MagicMock(site_watchdog_parking_queue_warn=50_000)
+    with (
+        patch("app.ops_remediation.inspect_celery_workers", return_value={"ok": True, "worker_count": 1}),
+        patch("app.ops_remediation.inspect_redis_queues", return_value={"ok": True, "parking_depth": 0}),
+        patch("app.ops_remediation.load_watchdog_report", return_value=None),
+        patch("app.ops_remediation.priority_county_fips", return_value=[]),
+        patch(
+            "app.ops_remediation.export_readiness_summary",
+            return_value={
+                "parcels_pipeline_funnel_backlog": {"count": 0},
+                "parcels_missing_baltimore_candidate_street_address": {
+                    "count": 49,
+                    "pct": 2.2,
+                    "target_count": 2209,
+                    "floor": 60.0,
+                },
+            },
+        ),
+    ):
+        issues = diagnose(MagicMock(), settings)
+
+    issue = next(i for i in issues if i.code == "baltimore_candidate_address_backlog")
+    assert issue.fix_action == "backfill_baltimore_candidate_addresses"
+    assert "AddressPoint_Native" in issue.message
+
+
+def test_apply_remediation_enqueues_baltimore_address_backfill(monkeypatch) -> None:
+    settings = MagicMock(
+        ops_remediation_auto_fix=True,
+        ops_remediation_cooldown_sec=3600,
+        ops_remediation_priority_county_fips="24510",
+        ops_remediation_batch_limit=100,
+        ops_remediation_poi_batch_limit=50,
+        ops_remediation_pipeline_enqueue_limit=10,
+        ops_remediation_address_backfill_limit=25,
+    )
+    delay = MagicMock(return_value=MagicMock(id="address-task-1"))
+    monkeypatch.setattr("app.ops_remediation.cooldown_active", lambda _s, _a: False)
+    monkeypatch.setattr("app.ops_remediation.set_cooldown", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        "app.tasks.backfill_baltimore_property_addresses_batch",
+        MagicMock(delay=delay),
+    )
+
+    actions = apply_remediation(
+        MagicMock(),
+        settings,
+        [
+            OpsIssue(
+                code="baltimore_candidate_address_backlog",
+                severity="info",
+                message="need source fallback",
+                fix_action="backfill_baltimore_candidate_addresses",
+            ),
+        ],
+        auto_fix=True,
+    )
+
+    assert actions[0].status == "enqueued"
+    delay.assert_called_once_with(limit=25, dry_run=False)
+
+
 def _celery_message(task_id: str, kwargs: dict) -> str:
     body = base64.b64encode(json.dumps([[], kwargs, {}]).encode()).decode()
     return json.dumps(

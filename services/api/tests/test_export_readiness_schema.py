@@ -41,6 +41,12 @@ def test_export_readiness_response_serializes_poi_candidate_stats() -> None:
             "entitlement_floor": 85.0,
             "strategic_floor": 80.0,
         },
+        parcels_missing_baltimore_candidate_street_address={
+            "count": 3,
+            "pct": 15.0,
+            "target_count": 20,
+            "floor": 60.0,
+        },
         parcels_missing_owner_outreach_brief={
             "count": 1,
             "pct": 25.0,
@@ -60,3 +66,4 @@ def test_export_readiness_response_serializes_poi_candidate_stats() -> None:
     assert serialized["parcels_missing_poi_commercial_count_400m"]["count"] == 3
     assert serialized["parcels_poi_density_candidates"]["count"] == 10
     assert serialized["parcels_missing_poi_commercial_count_400m_all"]["count"] == 80
+    assert serialized["parcels_missing_baltimore_candidate_street_address"]["target_count"] == 20

@@ -586,6 +586,21 @@ def diagnose(db: Session, settings: Settings) -> list[OpsIssue]:
 
     summary = export_readiness_summary(db)
     backlog = int((summary.get("parcels_pipeline_funnel_backlog") or {}).get("count") or 0)
+    address_gap = summary.get("parcels_missing_baltimore_candidate_street_address") or {}
+    candidate_address_backlog = int(address_gap.get("count") or 0) if isinstance(address_gap, dict) else 0
+    if candidate_address_backlog > 0 and workers.get("ok") and int(queues.get("parking_depth") or 0) == 0:
+        issues.append(
+            OpsIssue(
+                code="baltimore_candidate_address_backlog",
+                severity="info",
+                message=(
+                    f"{candidate_address_backlog} Baltimore deal candidates need street/map addresses; "
+                    "use Realproperty first, then AddressPoint_Native fallback for source gaps"
+                ),
+                metric=address_gap if isinstance(address_gap, dict) else {"count": candidate_address_backlog},
+                fix_action="backfill_baltimore_candidate_addresses",
+            ),
+        )
     if backlog > 50 and workers.get("ok"):
         issues.append(
             OpsIssue(
@@ -616,6 +631,7 @@ def apply_remediation(
     auto_fix: bool,
 ) -> list[RemediationAction]:
     from app.tasks import (
+        backfill_baltimore_property_addresses_batch,
         enqueue_incomplete_pipeline_jobs,
         refresh_demand_distances_batch,
         refresh_entitlement_scores_batch,
@@ -627,6 +643,7 @@ def apply_remediation(
     cooldown_sec = settings.ops_remediation_cooldown_sec
     poi_limit = settings.ops_remediation_poi_batch_limit
     pipeline_limit = settings.ops_remediation_pipeline_enqueue_limit
+    address_limit = settings.ops_remediation_address_backfill_limit
 
     # One action per fix type per run (dedupe issues)
     seen_actions: set[str] = set()
@@ -712,6 +729,13 @@ def apply_remediation(
                 result = enqueue_incomplete_pipeline_jobs(pipeline_limit)
                 detail = json.dumps(result)[:200]
                 status = "completed"
+            elif action == "backfill_baltimore_candidate_addresses":
+                task_id, detail = _enqueue(
+                    backfill_baltimore_property_addresses_batch,
+                    limit=address_limit,
+                    dry_run=False,
+                )
+                status = "enqueued" if task_id else "failed"
             else:
                 detail = f"unknown action {action}"
         except Exception as exc:
