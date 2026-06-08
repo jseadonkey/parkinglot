@@ -112,7 +112,7 @@ class _FakeRedis:
     def lrange(self, _key: str, _start: int, _end: int) -> list[str]:
         return list(self.messages)
 
-    def pipeline(self) -> "_FakePipeline":
+    def pipeline(self) -> _FakePipeline:
         return _FakePipeline(self)
 
 
@@ -121,7 +121,7 @@ class _FakePipeline:
         self.client = client
         self.ops: list[tuple[str, tuple]] = []
 
-    def __enter__(self) -> "_FakePipeline":
+    def __enter__(self) -> _FakePipeline:
         return self
 
     def __exit__(self, *_exc: object) -> None:
