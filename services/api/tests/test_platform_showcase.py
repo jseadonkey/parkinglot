@@ -38,7 +38,7 @@ def test_build_platform_showcase_shape():
     }
     export = {
         "parcel_row_total": 100,
-        "parcels_missing_owner_outreach_brief": {"count": 90},
+        "parcels_missing_owner_outreach_brief": {"count": 2, "target_count": 5},
         "parcels_prescreen_qualified": {"count": 50},
         "parcels_pipeline_funnel_backlog": {"count": 5},
     }
@@ -55,6 +55,6 @@ def test_build_platform_showcase_shape():
         out = build_platform_showcase(db)
 
     assert out["parcels_total"] == 100
-    assert out["parcels_with_owner_brief"] == 10
+    assert out["parcels_with_owner_brief"] == 3
     assert out["parcels_qualified_entitlement"] == 10
     assert len(out["counties_loaded"]) == 1

@@ -89,6 +89,16 @@ def strategic_qualified_floor() -> float:
     return float(pilot.scoring.qualified_min_score)
 
 
+def owner_outreach_min_entitlement_score() -> float:
+    """Atlas score floor for lots that merit owner outreach briefs."""
+    return float(get_settings().owner_outreach_min_entitlement_score)
+
+
+def owner_outreach_min_strategic_score() -> float:
+    """Beacon score floor for lots that merit owner outreach briefs."""
+    return float(get_settings().owner_outreach_min_strategic_score)
+
+
 def _latest_profile_score_at_least(profile: str, floor: float) -> ColumnElement[bool]:
     agg = (
         select(
@@ -136,6 +146,28 @@ def missing_pipeline_pair() -> ColumnElement[bool]:
 def pipeline_funnel_backlog(floor: float | None = None) -> ColumnElement[bool]:
     """Prescreen-qualified parcels that still need Atlas and/or Beacon scoring."""
     return and_(identification_prescreen_qualified(floor), needs_pipeline_scoring())
+
+
+def owner_outreach_target(
+    *,
+    entitlement_floor: float | None = None,
+    strategic_floor: float | None = None,
+) -> ColumnElement[bool]:
+    """True for dual-high-score lots that should receive owner outreach briefs."""
+    ent_floor = (
+        float(entitlement_floor)
+        if entitlement_floor is not None
+        else owner_outreach_min_entitlement_score()
+    )
+    str_floor = (
+        float(strategic_floor)
+        if strategic_floor is not None
+        else owner_outreach_min_strategic_score()
+    )
+    return and_(
+        _latest_profile_score_at_least(ENTITLEMENT, ent_floor),
+        _latest_profile_score_at_least(STRATEGIC, str_floor),
+    )
 
 
 def ruled_out_at_atlas() -> ColumnElement[bool]:

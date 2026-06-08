@@ -361,13 +361,16 @@ def outreach_pipeline_board(
     state_fips: str | None = Query(default=None, min_length=2, max_length=2),
     db: Session = Depends(get_db),
 ) -> OutreachPipelineBoardResponse:
-    """Qualified parcels (latest entitlement ≥ pilot floor) with workflow + outreach brief snapshot."""
+    """Highest-scoring outreach target parcels with workflow + outreach brief snapshot."""
     settings = get_settings()
     pilot = load_pilot_config(settings.pilot_config_path)
     floor = qualified_min_entitlement_score(pilot)
+    outreach_ent_floor = float(settings.owner_outreach_min_entitlement_score)
+    outreach_str_floor = float(settings.owner_outreach_min_strategic_score)
     raw = query_outreach_pipeline_board(
         db,
-        qualified_min_entitlement=floor,
+        min_entitlement=outreach_ent_floor,
+        min_strategic=outreach_str_floor,
         limit=limit,
         county_fips=county_fips,
         state_fips=state_fips,
@@ -384,6 +387,7 @@ def outreach_pipeline_board(
             apn=r.apn,
             county_fips=r.county_fips,
             entitlement_score=r.entitlement_score,
+            strategic_score=r.strategic_score,
             identification_score=r.identification_score,
             workflow_run_id=str(r.workflow_run_id) if r.workflow_run_id else None,
             workflow_status=r.workflow_status,
@@ -407,6 +411,8 @@ def outreach_pipeline_board(
     ]
     return OutreachPipelineBoardResponse(
         qualified_min_entitlement_score=floor,
+        owner_outreach_min_entitlement_score=outreach_ent_floor,
+        owner_outreach_min_strategic_score=outreach_str_floor,
         row_count=len(rows),
         rows=rows,
     )

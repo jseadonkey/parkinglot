@@ -8,7 +8,7 @@ from typing import Any
 
 from geoalchemy2.elements import WKTElement
 from shapely.geometry import MultiPolygon, Polygon
-from sqlalchemy import and_, case, delete, desc, exists, func, select
+from sqlalchemy import and_, case, delete, desc, exists, func, or_, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
@@ -35,6 +35,8 @@ from app.pipeline_funnel import (
     filter_prescreen_qualified_ids,
     identification_prescreen_floor,
     needs_pipeline_scoring,
+    owner_outreach_min_entitlement_score,
+    owner_outreach_min_strategic_score,
     parcel_prescreen_qualified,
     strategic_qualified_floor,
 )
@@ -84,10 +86,11 @@ def enqueue_unscored_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
     return enqueue_incomplete_pipeline_jobs(limit)
 
 def enqueue_priority_qualified_pipeline_jobs(limit: int = 75) -> dict[str, Any]:
-    """Enqueue pipeline for prescreen-qualified parcels, highest entitlement first."""
+    """Enqueue pipeline for high-score owner outreach targets, highest entitlement first."""
     cap = min(max(limit, 1), 200)
     floor_i = identification_prescreen_floor()
-    floor_ent = entitlement_qualified_floor()
+    floor_ent = owner_outreach_min_entitlement_score()
+    floor_str = owner_outreach_min_strategic_score()
     db = _session()
     try:
         ident_agg = (
@@ -138,8 +141,33 @@ def enqueue_priority_qualified_pipeline_jobs(limit: int = 75) -> dict[str, Any]:
             )
             .subquery()
         )
+        str_agg = (
+            select(
+                ParcelScore.parcel_id.label("pid"),
+                func.max(ParcelScore.created_at).label("mx"),
+            )
+            .where(ParcelScore.score_profile == STRATEGIC)
+            .group_by(ParcelScore.parcel_id)
+            .subquery()
+        )
+        strategic = (
+            select(ParcelScore.parcel_id, ParcelScore.total_score.label("str_score"))
+            .join(
+                str_agg,
+                and_(
+                    ParcelScore.parcel_id == str_agg.c.pid,
+                    ParcelScore.created_at == str_agg.c.mx,
+                ),
+            )
+            .where(ParcelScore.score_profile == STRATEGIC)
+            .subquery()
+        )
         pri_counties = priority_county_fips()
-        order_cols = [ent.c.ent_score.desc(), ident.c.id_score.desc()]
+        order_cols = [
+            ent.c.ent_score.desc(),
+            strategic.c.str_score.desc().nulls_last(),
+            ident.c.id_score.desc(),
+        ]
         if pri_counties:
             geo_first = case((Parcel.county_fips.in_(pri_counties), 0), else_=1)
             order_cols = [geo_first, *order_cols]
@@ -147,7 +175,16 @@ def enqueue_priority_qualified_pipeline_jobs(limit: int = 75) -> dict[str, Any]:
             select(Parcel.id)
             .join(ident, Parcel.id == ident.c.parcel_id)
             .join(ent, Parcel.id == ent.c.parcel_id)
-            .where(needs_pipeline_scoring())
+            .outerjoin(strategic, Parcel.id == strategic.c.parcel_id)
+            .where(
+                or_(
+                    needs_pipeline_scoring(),
+                    and_(
+                        strategic.c.str_score >= floor_str,
+                        Parcel.owner_outreach_brief.is_(None),
+                    ),
+                )
+            )
             .order_by(*order_cols)
             .limit(cap)
         )
@@ -157,9 +194,10 @@ def enqueue_priority_qualified_pipeline_jobs(limit: int = 75) -> dict[str, Any]:
         return {
             "enqueued": len(ids),
             "parcel_ids": ids,
-            "mode": "priority_qualified_entitlement_ge_floor",
+            "mode": "priority_owner_outreach_high_score",
             "prescreen_floor": floor_i,
             "entitlement_floor": floor_ent,
+            "strategic_floor": floor_str,
             "priority_county_fips": pri_counties,
         }
     finally:
@@ -419,11 +457,18 @@ def _complete_pipeline_scoring_only(
             f"Parcel `{apn}` — Atlas *{entitlement_score:.1f}* (below floor *{entitlement_floor:.0f}*); "
             "Beacon and enrichment skipped."
         )
-    else:
+    elif reason == "below_strategic_floor":
         detail = (
             f"Parcel `{apn}` — Atlas *{entitlement_score:.1f}*; "
             f"Beacon *{float(strategic_score or 0):.1f}* (below floor *{strategic_floor:.0f}*); "
             "enrichment skipped."
+        )
+    else:
+        detail = (
+            f"Parcel `{apn}` — Atlas *{entitlement_score:.1f}*; "
+            f"Beacon *{float(strategic_score or 0):.1f}*; "
+            f"below owner outreach floors (*{entitlement_floor:.0f}* / *{strategic_floor:.0f}*). "
+            "Owner outreach brief skipped."
         )
     post_agent_event_to_slack(get_settings(), agent="Scoring & pipeline agent", detail=detail)
     return {
@@ -527,6 +572,33 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
                 strategic_score=float(score_strategic.total_score),
                 entitlement_floor=floor_ent,
                 strategic_floor=floor_str,
+            )
+
+        owner_ent_floor = owner_outreach_min_entitlement_score()
+        owner_str_floor = owner_outreach_min_strategic_score()
+        if (
+            float(score.total_score) < owner_ent_floor
+            or float(score_strategic.total_score) < owner_str_floor
+        ):
+            logger.info(
+                "run_pipeline parcel %s below owner outreach floors %.0f/%.0f "
+                "(Atlas %.1f, Beacon %.1f) — skipping owner outreach brief",
+                parcel_id,
+                owner_ent_floor,
+                owner_str_floor,
+                score.total_score,
+                score_strategic.total_score,
+            )
+            return _complete_pipeline_scoring_only(
+                db,
+                run,
+                parcel_id=parcel_id,
+                apn=parcel.apn,
+                reason="below_owner_outreach_floor",
+                entitlement_score=float(score.total_score),
+                strategic_score=float(score_strategic.total_score),
+                entitlement_floor=owner_ent_floor,
+                strategic_floor=owner_str_floor,
             )
 
         run.current_step = WorkflowStep.enrich.value

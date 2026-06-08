@@ -24,6 +24,7 @@ type Row = {
   apn: string;
   county_fips: string;
   entitlement_score: number | null;
+  strategic_score: number | null;
   identification_score: number | null;
   workflow_run_id: string | null;
   workflow_status: string | null;
@@ -40,6 +41,8 @@ type Row = {
 
 type Board = {
   qualified_min_entitlement_score: number;
+  owner_outreach_min_entitlement_score: number;
+  owner_outreach_min_strategic_score: number;
   row_count: number;
   rows: Row[];
 };
@@ -154,8 +157,8 @@ export default function OutreachPipelinePage() {
   return (
     <div className="page-content main-wide">
       <p className="muted" style={{ marginTop: 0 }}>
-        Qualified deals for outreach. Defaults to <strong>Maryland</strong> while Baltimore loads; switch state to see
-        Washington inventory.
+        Top-score owner outreach targets. Defaults to <strong>Maryland</strong> while Baltimore loads; switch state to
+        see Washington inventory.
       </p>
       <div className="page-actions">
         <button type="button" className="outline" onClick={() => void loadBoard()} disabled={loading}>
@@ -177,8 +180,14 @@ export default function OutreachPipelinePage() {
           <div className="muted">Ready for outreach</div>
         </div>
         <div className="stat">
-          <div className="n">{board?.qualified_min_entitlement_score ?? "—"}</div>
-          <div className="muted">Score floor</div>
+          <div className="n">
+            {board
+              ? `${board.owner_outreach_min_entitlement_score.toFixed(
+                  0,
+                )} / ${board.owner_outreach_min_strategic_score.toFixed(0)}`
+              : "—"}
+          </div>
+          <div className="muted">Atlas / Beacon floor</div>
         </div>
       </div>
 
@@ -288,7 +297,8 @@ export default function OutreachPipelinePage() {
                           {r.entitlement_score != null ? r.entitlement_score.toFixed(0) : "—"}
                         </div>
                         <div className="muted cell-sub">
-                          id {r.identification_score != null ? r.identification_score.toFixed(0) : "—"}
+                          beacon {r.strategic_score != null ? r.strategic_score.toFixed(0) : "—"} · id{" "}
+                          {r.identification_score != null ? r.identification_score.toFixed(0) : "—"}
                         </div>
                       </td>
                       <td className="muted">

@@ -177,7 +177,13 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         or _gap_count(export, "parcels_missing_score_entitlement")
         or 0
     )
+    brief_gap = export.get("parcels_missing_owner_outreach_brief")
     brief_missing = _gap_count(export, "parcels_missing_owner_outreach_brief")
+    brief_target = (
+        int(brief_gap.get("target_count") or 0)
+        if isinstance(brief_gap, dict)
+        else 0
+    )
     address_total = _candidate_count(export, pipeline_backlog)
     poi_candidate_export = export.get("parcels_missing_poi_commercial_count_400m")
     poi_candidate_total_export = export.get("parcels_poi_density_candidates")
@@ -308,18 +314,18 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         ),
         _item(
             key="owner_outreach_briefs",
-            label="Owner outreach briefs",
+            label="Owner outreach briefs for top-score lots",
             backlog_count=brief_missing,
-            total_count=total,
+            total_count=brief_target or total,
             unit="parcels",
             value="selective",
             work_type="deep_enrichment",
             recommendation=(
-                "Do not run for every parcel; only run for qualified/high-score/vacant-looking candidates."
+                "Do not run for every parcel; only run for parcels above the owner-outreach score floors."
                 if brief_missing > 0
                 else "No action needed."
             ),
-            why="Outreach briefs are valuable for deals, but expensive/noisy for parcels that fail prescreen.",
+            why="Outreach briefs are valuable for top-scoring deals, but expensive/noisy for broad parcel inventory.",
             eta_confidence="unknown",
             active_now=active_work,
         ),

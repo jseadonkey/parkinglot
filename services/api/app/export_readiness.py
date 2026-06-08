@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import exists, func, select
+from sqlalchemy import and_, exists, func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore
@@ -15,6 +15,9 @@ from app.pipeline_funnel import (
     identification_prescreen_floor,
     identification_prescreen_qualified,
     missing_pipeline_pair,
+    owner_outreach_min_entitlement_score,
+    owner_outreach_min_strategic_score,
+    owner_outreach_target,
     pipeline_funnel_backlog,
     ruled_out_at_atlas,
     ruled_out_by_prescreen,
@@ -81,7 +84,23 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
     prescreen_ruled_out = count_where(db, ruled_out_by_prescreen(floor_i))
     atlas_ruled_out = count_where(db, ruled_out_at_atlas())
 
-    miss_brief = count_where(db, Parcel.owner_outreach_brief.is_(None))
+    owner_ent_floor = owner_outreach_min_entitlement_score()
+    owner_str_floor = owner_outreach_min_strategic_score()
+    owner_target = owner_outreach_target(
+        entitlement_floor=owner_ent_floor,
+        strategic_floor=owner_str_floor,
+    )
+    owner_target_count = count_where(db, owner_target)
+    miss_brief = count_where(
+        db,
+        and_(
+            owner_outreach_target(
+                entitlement_floor=owner_ent_floor,
+                strategic_floor=owner_str_floor,
+            ),
+            Parcel.owner_outreach_brief.is_(None),
+        ),
+    )
 
     recommended_next_steps: list[str] = [
         f"Funnel backlog (prescreen ≥ {floor_i:.0f}, needs Atlas and/or Beacon): "
@@ -100,8 +119,10 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
     ]
     if miss_brief > 0:
         recommended_next_steps.append(
-            "If owner outreach brief gaps: enqueue prescreen-qualified parcels only, "
-            "per-parcel POST /parcels/{id}/outreach/recompute, or scripts/execute-phase-c.sh (smoke). "
+            "If owner outreach brief gaps: only run for dual-high-score outreach targets "
+            f"(Atlas ≥ {owner_ent_floor:.0f}, Beacon ≥ {owner_str_floor:.0f}); use "
+            "POST /internal/pipeline/enqueue-priority?limit=75 or per-parcel "
+            "POST /parcels/{id}/outreach/recompute for a target lot. "
             "Street/situs address enrichment is also candidate-only; do not treat missing addresses "
             "on low-score parcels as market incompleteness — see docs/OPERATIONS.md (owner outreach)."
         )
@@ -155,6 +176,18 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
             "pct": _pct(atlas_ruled_out, total),
             "floor": floor_ent,
         },
-        "parcels_missing_owner_outreach_brief": {"count": miss_brief, "pct": _pct(miss_brief, total)},
+        "parcels_owner_outreach_targets": {
+            "count": owner_target_count,
+            "pct": _pct(owner_target_count, total),
+            "entitlement_floor": owner_ent_floor,
+            "strategic_floor": owner_str_floor,
+        },
+        "parcels_missing_owner_outreach_brief": {
+            "count": miss_brief,
+            "pct": _pct(miss_brief, owner_target_count),
+            "target_count": owner_target_count,
+            "entitlement_floor": owner_ent_floor,
+            "strategic_floor": owner_str_floor,
+        },
         "recommended_next_steps": recommended_next_steps,
     }

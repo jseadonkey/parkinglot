@@ -23,8 +23,10 @@ def build_platform_showcase(db: Session) -> dict[str, Any]:
     dp_summary, _ = query_deal_progress_board(db, limit=2000)
 
     total = int(export["parcel_row_total"])
-    miss_brief = int(export["parcels_missing_owner_outreach_brief"]["count"])
-    brief_count = max(0, total - miss_brief)
+    brief_gap = export["parcels_missing_owner_outreach_brief"]
+    miss_brief = int(brief_gap["count"])
+    owner_target_count = int(brief_gap.get("target_count") or total)
+    brief_count = max(0, owner_target_count - miss_brief)
 
     top_rows = query_parcels_scored_list(db, limit=5, sort=ENTITLEMENT)
     top_parcels: list[dict[str, Any]] = []
