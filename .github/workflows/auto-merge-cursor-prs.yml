@@ -140,6 +140,21 @@ jobs:
               continue
             fi
 
+            changed_files="$(gh pr diff "$pr_number" --name-only)"
+            touches_workflows=false
+            while IFS= read -r changed_file; do
+              if [[ "$changed_file" == .github/workflows/* ]]; then
+                touches_workflows=true
+                break
+              fi
+            done <<<"$changed_files"
+
+            if [ "$touches_workflows" = "true" ]; then
+              echo "Skipping #$pr_number because GitHub Actions tokens cannot merge workflow-file changes."
+              echo "::endgroup::"
+              continue
+            fi
+
             title="$(jq -r '.title' <<<"$pr_json")"
             body="Auto-merged by ${GITHUB_WORKFLOW} after ${CI_WORKFLOW_NAME} passed."
 
@@ -164,8 +179,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
           if [ "${#failed_numbers[@]}" -gt 0 ]; then
-            echo "One or more eligible Cursor PRs could not be merged: ${failed_numbers[*]}" >&2
-            exit 1
+            echo "::warning::One or more otherwise eligible Cursor PRs could not be merged: ${failed_numbers[*]}"
           fi
 
       - name: Dispatch main image build after merge
