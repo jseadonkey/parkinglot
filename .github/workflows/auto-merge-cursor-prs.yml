@@ -41,6 +41,7 @@ jobs:
       CI_WORKFLOW_NAME: CI
       CONTAINER_WORKFLOW_FILE: container-images.yml
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
       MANUAL_PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || '' }}
     steps:
       - name: Select candidate pull requests
