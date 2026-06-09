@@ -54,10 +54,10 @@ def test_backlog_eta_prioritizes_address_backfill_and_ignores_citywide_poi() -> 
     by_key = {row["key"]: row for row in out["items"]}
     assert by_key["baltimore_property_addresses"]["value"] == "high"
     assert by_key["baltimore_property_addresses"]["label"] == "Candidate street address backfill"
-    assert by_key["baltimore_property_addresses"]["backlog_count"] == 12000
+    assert by_key["baltimore_property_addresses"]["backlog_count"] == 0
     assert by_key["baltimore_property_addresses"]["total_count"] == 12000
-    assert "deal candidates only" in by_key["baltimore_property_addresses"]["recommendation"]
-    assert by_key["baltimore_property_addresses"]["eta_label"] == "Measure one batch first"
+    assert "stale" in by_key["baltimore_property_addresses"]["recommendation"].lower()
+    assert by_key["baltimore_property_addresses"]["eta_label"] == "Done"
     assert by_key["baltimore_poi_density"]["label"] == "Candidate POI density"
     assert by_key["baltimore_poi_density"]["value"] == "medium"
     assert by_key["baltimore_poi_density"]["backlog_count"] == 0
@@ -131,3 +131,31 @@ def test_backlog_eta_uses_exact_prescreen_owner_brief_gap_when_available() -> No
     assert brief["backlog_count"] == 245
     assert brief["total_count"] == 12000
     assert brief["backlog_pct"] == 2.04
+
+
+def test_backlog_eta_uses_scoped_address_gap_when_snapshot_has_it() -> None:
+    settings = SimpleNamespace(ops_remediation_auto_fix=False, ops_remediation_allow_db_writes=False)
+    export = {
+        **_export_payload(),
+        "parcels_missing_baltimore_candidate_street_address": {
+            "count": 52,
+            "target_count": 5415,
+            "pct": 0.96,
+            "floor": 45.0,
+        },
+    }
+    with (
+        patch(
+            "app.backlog_eta.load_last_report",
+            return_value={"export_readiness": export, "priority_counties": {}},
+        ),
+        patch("app.backlog_eta.inspect_redis_queues", return_value={"parking_depth": 0, "slack_depth": 0}),
+        patch("app.backlog_eta.inspect_celery_workers", return_value={"ok": True, "detail": "2 workers"}),
+        patch("app.backlog_eta.entitlement_qualified_floor", return_value=70.0),
+    ):
+        out = backlog_eta_summary(MagicMock(), settings)  # type: ignore[arg-type]
+
+    addr = next(row for row in out["items"] if row["key"] == "baltimore_property_addresses")
+    assert addr["backlog_count"] == 52
+    assert addr["total_count"] == 5415
+    assert "deal candidates only" in addr["recommendation"]

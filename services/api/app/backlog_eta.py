@@ -93,16 +93,19 @@ def _candidate_owner_brief_missing(export: dict[str, Any], candidate_total: int)
     return min(_gap_count(export, "parcels_missing_owner_outreach_brief"), candidate_total)
 
 
-def _candidate_address_missing(export: dict[str, Any], candidate_total: int) -> tuple[int, int]:
-    """Return actionable candidate street-address gap, tolerating older cached snapshots."""
+def _candidate_address_missing(export: dict[str, Any], candidate_total: int) -> tuple[int, int, bool]:
+    """Return actionable candidate street-address gap, tolerating older cached snapshots.
+
+    Returns (missing, total, snapshot_stale). When the ops snapshot predates the
+    address-gap metric we must not assume every prescreen-qualified parcel lacks
+    a street address — that inflated the backlog to 100% of the candidate pool.
+    """
     scoped = export.get("parcels_missing_baltimore_candidate_street_address")
     if isinstance(scoped, dict):
         target_total = int(scoped.get("target_count") or candidate_total or 0)
         missing = min(int(scoped.get("count") or 0), target_total or candidate_total)
-        return missing, target_total or candidate_total
-    # Older snapshots did not track actual address lookup gaps. Preserve the
-    # previous candidate-pool fallback rather than accidentally showing done.
-    return candidate_total, candidate_total
+        return missing, target_total or candidate_total, False
+    return 0, candidate_total, True
 
 
 def _optional_int(raw: Any) -> int | None:
@@ -211,7 +214,10 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         else 0
     )
     address_candidate_total = _candidate_count(export, pipeline_backlog)
-    address_missing, address_total = _candidate_address_missing(export, address_candidate_total)
+    address_missing, address_total, address_snapshot_stale = _candidate_address_missing(
+        export,
+        address_candidate_total,
+    )
     brief_missing = _candidate_owner_brief_missing(export, address_candidate_total)
     brief_total = brief_target or address_total
     brief_recommendation = (
@@ -259,13 +265,18 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
             value="high",
             work_type="data_backfill",
             recommendation=(
-                "Run measured batches for deal candidates only; do not citywide-backfill low-score parcels."
-                if address_missing > 0
-                else "No action needed."
+                "Ops snapshot is stale — address gap not counted yet. Wait for the nightly ops loop "
+                "or POST /internal/ops/run-now, then reload. Do not treat all candidates as missing."
+                if address_snapshot_stale and address_total > 0
+                else (
+                    "Run measured batches for deal candidates only; do not citywide-backfill low-score parcels."
+                    if address_missing > 0
+                    else "No action needed."
+                )
             ),
             why=(
                 "Street addresses make parcel review, maps, visits, and owner conversations usable, "
-                "but only for parcels that pass scoring or look vacant/suitable."
+                "but only for Baltimore deal candidates that pass scoring or look vacant/suitable."
             ),
             eta_confidence="unknown",
             active_now=False,
