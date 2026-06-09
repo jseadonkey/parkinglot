@@ -49,7 +49,8 @@ _internal_api_get() {
   if ! docker compose -f "$compose_rel" --env-file deploy/.env ps -q api 2>/dev/null | grep -q .; then
     return 0
   fi
-  docker compose -f "$compose_rel" --env-file deploy/.env exec -T -e "API_PATH=$path" api python - <<'PY'
+  docker compose -f "$compose_rel" --env-file deploy/.env exec -T \
+    -e "API_PATH=$path" -e "INTERNAL_API_KEY=$KEY" api python - <<'PY'
 import os
 import urllib.error
 import urllib.request
@@ -1294,10 +1295,23 @@ PY
       exit 1
     fi
     READY="$(_internal_api_get "/ready" || true)"
+    if ! printf '%s' "$READY" | grep -q '"status"[[:space:]]*:[[:space:]]*"ready"'; then
+      # PUBLIC_API_URL curl often returns empty/401 from the Droplet shell; retry in-container.
+      READY="$(docker compose "${ARGS[@]}" exec -T -e "INTERNAL_API_KEY=$KEY" api python - <<'PY' 2>/dev/null || true
+import os, urllib.request
+headers = {"Accept": "application/json"}
+key = (os.environ.get("INTERNAL_API_KEY") or "").strip()
+if key:
+    headers["X-Internal-Key"] = key
+with urllib.request.urlopen(urllib.request.Request("http://127.0.0.1:8000/ready", headers=headers), timeout=45) as resp:
+    print(resp.read().decode())
+PY
+)"
+    fi
     echo "ready=${READY}"
     if ! printf '%s' "$READY" | grep -q '"status"[[:space:]]*:[[:space:]]*"ready"'; then
       echo "API not ready; skipping address backfill"
-      exit 0
+      exit 1
     fi
     PARKING_Q="$(docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN parking 2>/dev/null || echo 999999)"
     SLACK_Q="$(docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN slack 2>/dev/null || echo 999999)"
