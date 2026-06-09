@@ -1051,6 +1051,40 @@ pre.json {
   color: #b8d4f0;
 }
 
+.badge-load-high {
+  background: #3d1f1f;
+  border-color: #a85b5b;
+  color: #f0c4c4;
+}
+
+.badge-load-medium {
+  background: #3d3518;
+  border-color: #a8923d;
+  color: #f0e4b8;
+}
+
+.badge-load-low {
+  background: #1a2f22;
+  border-color: #3d8a5b;
+  color: #b8f0d0;
+}
+
+.server-load-drivers {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.server-load-drivers li {
+  margin-bottom: 0.35rem;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85rem;
+}
+
 .scope-priority-row td:first-child {
   font-weight: 600;
 }

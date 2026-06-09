@@ -20,6 +20,47 @@ from app.pipeline_funnel import entitlement_qualified_floor
 BALTIMORE_CITY_FIPS = "24510"
 POI_SAFE_BATCH_SIZE = 50
 POI_SAFE_BATCHES_PER_DAY = 24
+_SCORE_GAPS_YELLOW = 20_000  # aligned with load_governor.py
+
+# Operator-facing server load hints (see load_governor.py and celery_app beat_schedule).
+_WORK_TYPE_SERVER_LOAD: dict[str, tuple[str, str]] = {
+    "pipeline": (
+        "high",
+        "Full Atlas/Beacon pipelines — LLM calls plus Postgres; stacks when the parking queue grows.",
+    ),
+    "scoring": (
+        "high",
+        "Identification/entitlement score batches — heavy Postgres across many parcel rows.",
+    ),
+    "scoring_signal": (
+        "medium",
+        "Demand-distance refresh — moderate Postgres; cheaper than full pipeline.",
+    ),
+    "data_backfill": (
+        "medium",
+        "External GIS/API lookups (Baltimore Real Property, WA assessor); bounded batches.",
+    ),
+    "enrichment": (
+        "medium",
+        "POI / third-party enrichment APIs; throttled to candidate parcels when auto-fix runs.",
+    ),
+    "deep_enrichment": (
+        "high",
+        "Owner outreach briefs — expensive LLM + enrichment per top-score parcel.",
+    ),
+}
+
+_SIGNAL_LABELS: dict[str, str] = {
+    "celery_workers_down": "Celery workers offline — queued work cannot drain.",
+    "parking_queue_critical": "Parking queue very deep — workers saturated.",
+    "parking_queue_high": "Parking queue elevated — scoring/pipeline stacking.",
+    "parking_queue_elevated": "Parking queue above normal.",
+    "site_watchdog_failed": "Site watchdog failing — public API or bridge may be stressed.",
+    "score_gaps_high": "Large identification/entitlement score gap — scheduled scoring will hammer Postgres.",
+    "score_gaps_elevated": "Elevated score gap — watch Postgres CPU when Beat tasks fire.",
+    "pipeline_funnel_backlog_high": "Large qualified pipeline funnel — enqueue will add worker load.",
+    "pipeline_funnel_backlog_elevated": "Qualified pipeline funnel above normal.",
+}
 
 
 def _pct(count: int, total: int) -> float:
@@ -127,6 +168,222 @@ def _optional_int(raw: Any) -> int | None:
         return None
 
 
+def _server_load_for_work_type(work_type: str) -> tuple[str, str]:
+    return _WORK_TYPE_SERVER_LOAD.get(work_type, ("low", "Background maintenance."))
+
+
+def _humanize_signal(signal: dict[str, Any]) -> str:
+    code = str(signal.get("code") or "")
+    base = _SIGNAL_LABELS.get(code, code.replace("_", " "))
+    if "depth" in signal:
+        return f"{base} (depth={signal['depth']})"
+    if "count" in signal:
+        return f"{base} (count={signal['count']:,})"
+    if signal.get("detail"):
+        return f"{base} — {signal['detail']}"
+    return base
+
+
+def _cron_utc(minute: int | str, hour: int | str) -> str:
+    return f"{minute} {hour} * * *"
+
+
+def _setting(settings: Settings, name: str, default: Any) -> Any:
+    return getattr(settings, name, default)
+
+
+def _scheduled_server_jobs(settings: Settings, governor: dict[str, Any]) -> list[dict[str, Any]]:
+    """Celery Beat + GitHub agents that can consume Droplet CPU/Postgres."""
+    pipe_mult = float(governor.get("pipeline_enqueue_multiplier") or 1.0)
+    wa_allowed = bool(governor.get("wa_rollout_allowed", True))
+    autofix = bool(governor.get("ops_autofix_allowed", True))
+    jobs: list[dict[str, Any]] = []
+
+    def _job(
+        name: str,
+        schedule_utc: str,
+        load_tier: str,
+        *,
+        enabled: bool,
+        throttled: bool = False,
+        paused: bool = False,
+        note: str = "",
+    ) -> None:
+        if not enabled:
+            return
+        status = "paused" if paused else ("throttled" if throttled else "active")
+        jobs.append(
+            {
+                "name": name,
+                "schedule_utc": schedule_utc,
+                "load_tier": load_tier,
+                "status": status,
+                "note": note,
+            }
+        )
+
+    _job(
+        "Ops remediation loop",
+        _cron_utc(
+            _setting(settings, "ops_remediation_crontab_minute", 15),
+            _setting(settings, "ops_remediation_crontab_hour", "*/2"),
+        ),
+        "high",
+        enabled=bool(_setting(settings, "ops_remediation_enabled", False)),
+        throttled=not autofix,
+        note="Caches export-readiness gaps; auto-fix enqueues POI/demand batches when allowed.",
+    )
+    _job(
+        "Priority pipeline enqueue",
+        _cron_utc(
+            _setting(settings, "scheduled_priority_pipeline_crontab_minute", 20),
+            _setting(settings, "scheduled_priority_pipeline_crontab_hour", "*/2"),
+        ),
+        "high",
+        enabled=bool(_setting(settings, "scheduled_priority_pipeline_enabled", False)),
+        throttled=pipe_mult < 1.0,
+        note=(
+            f"Limit {_setting(settings, 'scheduled_priority_pipeline_limit', 75)}/tick "
+            f"· governor at {int(pipe_mult * 100)}%."
+        ),
+    )
+    _job(
+        "Enqueue unscored pipelines",
+        _cron_utc(
+            _setting(settings, "scheduled_enqueue_unscored_crontab_minute", 25),
+            _setting(settings, "scheduled_enqueue_unscored_crontab_hour", "*/4"),
+        ),
+        "high",
+        enabled=bool(_setting(settings, "scheduled_enqueue_unscored_enabled", False)),
+        throttled=pipe_mult < 1.0,
+        note=f"Up to {_setting(settings, 'scheduled_enqueue_unscored_limit', 150)} parcels/tick for missing scores.",
+    )
+    _job(
+        "Refresh identification scores",
+        _cron_utc(
+            _setting(settings, "scheduled_refresh_identification_crontab_minute", 10),
+            _setting(settings, "scheduled_refresh_identification_crontab_hour", "*/6"),
+        ),
+        "high",
+        enabled=bool(_setting(settings, "scheduled_refresh_identification_enabled", False)),
+        note=f"Batch limit {_setting(settings, 'scheduled_refresh_identification_limit', 2000)}.",
+    )
+    _job(
+        "Refresh demand distances",
+        _cron_utc(
+            _setting(settings, "scheduled_refresh_demand_crontab_minute", 40),
+            _setting(settings, "scheduled_refresh_demand_crontab_hour", "*/6"),
+        ),
+        "medium",
+        enabled=bool(_setting(settings, "scheduled_refresh_demand_enabled", False)),
+        note=f"Batch limit {_setting(settings, 'scheduled_refresh_demand_limit', 2000)}.",
+    )
+    _job(
+        "WA statewide county rollout",
+        _cron_utc(
+            _setting(settings, "wa_statewide_rollout_crontab_minute", 0),
+            _setting(settings, "wa_statewide_rollout_crontab_hour", 6),
+        ),
+        "high",
+        enabled=bool(_setting(settings, "wa_statewide_rollout_enabled", False)),
+        paused=not wa_allowed,
+        note="Ingest + post-ingest scoring per county; paused when load governor is orange/red.",
+    )
+    _job(
+        "Address health agent",
+        _cron_utc(
+            _setting(settings, "address_health_agent_crontab_minute", 10),
+            _setting(settings, "address_health_agent_crontab_hour", "*/12"),
+        ),
+        "medium",
+        enabled=bool(_setting(settings, "address_health_agent_enabled", False)),
+        note="Catalog rotation + connector checks; also GitHub Actions every 12h.",
+    )
+    _job(
+        "Baltimore address backfill agent",
+        "*/15 * * * *",
+        "low",
+        enabled=True,
+        note="GitHub Actions — bounded GIS batches when API ready.",
+    )
+    _job(
+        "Operator admin agent",
+        "0 8 * * *",
+        "low",
+        enabled=True,
+        note="GitHub Actions — Playwright scan + Droplet remediate (daily).",
+    )
+    _job(
+        "Site watchdog",
+        f"{_setting(settings, 'site_watchdog_crontab_minute', '0')} * * * *",
+        "low",
+        enabled=bool(_setting(settings, "site_watchdog_enabled", False)),
+        note="HTTP health probes; failures raise governor pressure.",
+    )
+    return jobs
+
+
+def _server_load_section(
+    settings: Settings,
+    governor: dict[str, Any],
+    *,
+    parking_depth: int,
+    ident_missing: int,
+    ent_missing: int,
+    poi_citywide_missing: int,
+) -> dict[str, Any]:
+    signals = governor.get("signals") if isinstance(governor.get("signals"), list) else []
+    human_signals = [_humanize_signal(s) for s in signals if isinstance(s, dict)]
+    score_gaps = int(governor.get("score_gaps") or ident_missing + ent_missing)
+    drivers: list[str] = []
+    if parking_depth > 0:
+        drivers.append(
+            f"Celery parking queue has {parking_depth:,} tasks running or waiting — workers are busy now."
+        )
+    if score_gaps >= _SCORE_GAPS_YELLOW:
+        drivers.append(
+            f"{score_gaps:,} missing score rows (identification + entitlement) — "
+            "the largest latent Postgres load; drains via scheduled scoring and pipeline enqueue."
+        )
+    if ident_missing > 0 or ent_missing > 0:
+        drivers.append(
+            f"Breakdown: {ident_missing:,} identification · {ent_missing:,} entitlement gaps "
+            "in last ops snapshot."
+        )
+    if poi_citywide_missing > 0:
+        drivers.append(
+            f"{poi_citywide_missing:,} citywide POI gaps (optional, not backlog) — "
+            "only burns resources if ops auto-fix runs POI batches."
+        )
+    if not drivers:
+        drivers.append("No heavy queue depth; governor pressure is from cached gap signals or watchdog.")
+
+    throttles: list[str] = []
+    level = str(governor.get("pressure_level") or "green")
+    if level != "green":
+        if governor.get("pipeline_enqueue_multiplier") is not None:
+            throttles.append(
+                f"Pipeline enqueue capped at {int(float(governor['pipeline_enqueue_multiplier']) * 100)}%."
+            )
+        if governor.get("wa_rollout_allowed") is False:
+            throttles.append("WA county rollout paused.")
+        if governor.get("ops_autofix_allowed") is False:
+            throttles.append("Ops auto-fix paused (no automatic POI/demand batches).")
+
+    return {
+        "pressure_level": level,
+        "assessed_at": governor.get("assessed_at"),
+        "parking_queue_depth": parking_depth,
+        "score_gaps": score_gaps,
+        "ident_score_gaps": ident_missing,
+        "ent_score_gaps": ent_missing,
+        "primary_drivers": drivers,
+        "signals": human_signals,
+        "scheduled_jobs": _scheduled_server_jobs(settings, governor),
+        "throttles": throttles,
+    }
+
+
 def _item(
     *,
     key: str,
@@ -143,6 +400,7 @@ def _item(
     eta_confidence: str = "medium",
     active_now: bool = False,
 ) -> dict[str, Any]:
+    load_tier, load_note = _server_load_for_work_type(work_type)
     daily_rate = (
         float(assumed_batch_size) * float(assumed_batches_per_day)
         if assumed_batch_size and assumed_batches_per_day
@@ -168,6 +426,8 @@ def _item(
         "eta_confidence": eta_confidence,
         "recommendation": recommendation,
         "why": why,
+        "server_load_tier": load_tier,
+        "server_load_note": load_note,
     }
 
 
@@ -405,7 +665,14 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         ),
     ]
     high_value_remaining = sum(int(i["backlog_count"]) for i in items if i["value"] == "high")
-    governor: dict[str, Any] = {}
+    governor: dict[str, Any] = {
+        "pressure_level": "green",
+        "ops_autofix_allowed": auto_fix,
+        "wa_rollout_allowed": True,
+        "pipeline_enqueue_multiplier": 1.0,
+        "score_gaps": ident_missing + ent_missing,
+        "signals": [],
+    }
     if getattr(settings, "load_governor_enabled", False):
         from app.load_governor import current_governor_state
 
@@ -424,6 +691,14 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
     )
     if governor.get("pressure_level") and governor["pressure_level"] != "green":
         base_decision = f"{governor.get('decision', '')} {base_decision}".strip()
+    server_load = _server_load_section(
+        settings,
+        governor,
+        parking_depth=parking_depth,
+        ident_missing=ident_missing,
+        ent_missing=ent_missing,
+        poi_citywide_missing=poi_citywide_missing,
+    )
     return {
         "generated_at": datetime.now(UTC),
         "summary": {
@@ -440,6 +715,9 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
             "load_governor_decision": governor.get("decision"),
             "pipeline_enqueue_multiplier": governor.get("pipeline_enqueue_multiplier"),
             "wa_rollout_allowed": governor.get("wa_rollout_allowed"),
+            "ops_autofix_allowed": governor.get("ops_autofix_allowed"),
+            "score_gaps_total": server_load["score_gaps"],
         },
+        "server_load": server_load,
         "items": items,
     }

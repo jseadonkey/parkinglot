@@ -20,10 +20,34 @@ type BacklogEtaItem = {
   eta_confidence: string;
   recommendation: string;
   why: string;
+  server_load_tier?: string;
+  server_load_note?: string;
+};
+
+type ServerLoadJob = {
+  name: string;
+  schedule_utc: string;
+  load_tier: string;
+  status: string;
+  note: string;
+};
+
+type ServerLoad = {
+  pressure_level: string;
+  assessed_at: string | null;
+  parking_queue_depth: number;
+  score_gaps: number;
+  ident_score_gaps: number;
+  ent_score_gaps: number;
+  primary_drivers: string[];
+  signals: string[];
+  scheduled_jobs: ServerLoadJob[];
+  throttles: string[];
 };
 
 type BacklogEta = {
   generated_at: string;
+  server_load?: ServerLoad | null;
   summary: {
     active_parking_queue_depth: number;
     active_slack_queue_depth: number;
@@ -38,6 +62,8 @@ type BacklogEta = {
     load_governor_decision?: string | null;
     pipeline_enqueue_multiplier?: number | null;
     wa_rollout_allowed?: boolean | null;
+    ops_autofix_allowed?: boolean | null;
+    score_gaps_total?: number | null;
   };
   items: BacklogEtaItem[];
   degraded?: boolean;
@@ -64,6 +90,24 @@ function formatSnapshotTime(value: string | null): string {
 function pressureLabel(level: string | null | undefined): string {
   if (!level) return "Unknown";
   return level.charAt(0).toUpperCase() + level.slice(1);
+}
+
+function loadTierClass(tier: string | undefined): string {
+  if (tier === "high") return "badge badge-load-high";
+  if (tier === "medium") return "badge badge-load-medium";
+  return "badge badge-load-low";
+}
+
+function loadTierLabel(tier: string | undefined): string {
+  if (tier === "high") return "High CPU/DB";
+  if (tier === "medium") return "Moderate";
+  return "Light";
+}
+
+function jobStatusLabel(status: string): string {
+  if (status === "throttled") return "Throttled";
+  if (status === "paused") return "Paused";
+  return "Active";
 }
 
 async function fetchJson(path: string): Promise<unknown> {
@@ -103,6 +147,7 @@ export function BacklogEtaPanel() {
   if (!backlogView) return null;
 
   const governorLevel = backlogView.summary.load_governor_pressure_level;
+  const serverLoad = backlogView.server_load;
 
   return (
     <div className="panel">
@@ -129,7 +174,78 @@ export function BacklogEtaPanel() {
             <div className="n">{pressureLabel(governorLevel)}</div>
           </div>
         ) : null}
+        {serverLoad ? (
+          <div className="stat">
+            <div className="muted">Score gaps (latent load)</div>
+            <div className="n">{serverLoad.score_gaps.toLocaleString()}</div>
+          </div>
+        ) : null}
+        {backlogView.summary.active_slack_queue_depth > 0 ? (
+          <div className="stat">
+            <div className="muted">Slack queue</div>
+            <div className="n">{backlogView.summary.active_slack_queue_depth.toLocaleString()}</div>
+          </div>
+        ) : null}
       </div>
+      {serverLoad ? (
+        <div className="server-load-panel" style={{ marginTop: "1rem" }}>
+          <h3 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>What&apos;s using the server</h3>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Live queue depth is {serverLoad.parking_queue_depth.toLocaleString()}. Orange/red governor means
+            scheduled work is throttled even when the queue looks empty — latent gaps below still drive Postgres
+            load when Beat tasks run.
+          </p>
+          {serverLoad.primary_drivers.length > 0 ? (
+            <ul className="server-load-drivers">
+              {serverLoad.primary_drivers.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          ) : null}
+          {serverLoad.throttles.length > 0 ? (
+            <p className="muted">
+              <strong>Active throttles:</strong> {serverLoad.throttles.join(" ")}
+            </p>
+          ) : null}
+          {serverLoad.signals.length > 0 ? (
+            <details style={{ marginTop: "0.5rem" }}>
+              <summary className="muted">Governor signals ({serverLoad.signals.length})</summary>
+              <ul className="server-load-drivers">
+                {serverLoad.signals.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
+          {serverLoad.scheduled_jobs.length > 0 ? (
+            <table className="data" style={{ marginTop: "0.75rem" }}>
+              <thead>
+                <tr>
+                  <th>Scheduled automation</th>
+                  <th>UTC schedule</th>
+                  <th>Server load</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {serverLoad.scheduled_jobs.map((job) => (
+                  <tr key={job.name}>
+                    <td>
+                      <strong>{job.name}</strong>
+                      {job.note ? <div className="muted">{job.note}</div> : null}
+                    </td>
+                    <td className="mono">{job.schedule_utc}</td>
+                    <td>
+                      <span className={loadTierClass(job.load_tier)}>{loadTierLabel(job.load_tier)}</span>
+                    </td>
+                    <td>{jobStatusLabel(job.status)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : null}
+        </div>
+      ) : null}
       <p className="muted" style={{ marginTop: "0.75rem" }}>
         {backlogView.summary.decision}
       </p>
@@ -159,6 +275,7 @@ export function BacklogEtaPanel() {
             <th>Work</th>
             <th>Value</th>
             <th>Remaining</th>
+            <th>Server load</th>
             <th>ETA</th>
             <th>Recommendation</th>
           </tr>
@@ -166,7 +283,7 @@ export function BacklogEtaPanel() {
         <tbody>
           {backlogView.items.length === 0 ? (
             <tr>
-              <td colSpan={5} className="muted">
+              <td colSpan={6} className="muted">
                 No backlog rows available right now.
               </td>
             </tr>
@@ -185,6 +302,10 @@ export function BacklogEtaPanel() {
               <td>
                 {item.backlog_count.toLocaleString()} / {item.total_count.toLocaleString()} {item.unit}
                 <div className="muted">{item.backlog_pct}% remaining</div>
+              </td>
+              <td>
+                <span className={loadTierClass(item.server_load_tier)}>{loadTierLabel(item.server_load_tier)}</span>
+                {item.server_load_note ? <div className="muted">{item.server_load_note}</div> : null}
               </td>
               <td>
                 {item.eta_label}

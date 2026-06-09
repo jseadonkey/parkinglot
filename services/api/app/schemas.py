@@ -370,6 +370,29 @@ class BacklogEtaItem(BaseModel):
     eta_confidence: str
     recommendation: str
     why: str
+    server_load_tier: str = "low"
+    server_load_note: str = ""
+
+
+class BacklogEtaServerLoadJob(BaseModel):
+    name: str
+    schedule_utc: str
+    load_tier: str
+    status: str
+    note: str = ""
+
+
+class BacklogEtaServerLoad(BaseModel):
+    pressure_level: str
+    assessed_at: datetime | None = None
+    parking_queue_depth: int = 0
+    score_gaps: int = 0
+    ident_score_gaps: int = 0
+    ent_score_gaps: int = 0
+    primary_drivers: list[str]
+    signals: list[str]
+    scheduled_jobs: list[BacklogEtaServerLoadJob]
+    throttles: list[str]
 
 
 class BacklogEtaSummary(BaseModel):
@@ -386,6 +409,8 @@ class BacklogEtaSummary(BaseModel):
     load_governor_decision: str | None = None
     pipeline_enqueue_multiplier: float | None = None
     wa_rollout_allowed: bool | None = None
+    ops_autofix_allowed: bool | None = None
+    score_gaps_total: int | None = None
 
 
 class LoadGovernorResponse(BaseModel):
@@ -412,6 +437,7 @@ class BacklogEtaResponse(BaseModel):
 
     generated_at: datetime
     summary: BacklogEtaSummary
+    server_load: BacklogEtaServerLoad | None = None
     items: list[BacklogEtaItem]
 
 
