@@ -8,6 +8,11 @@ from sqlalchemy import and_, exists, func, select
 from sqlalchemy.orm import Session
 
 from app.baltimore_address_backfill import count_target_baltimore_address_backfill_parcels
+from app.candidate_address import (
+    count_target_candidate_address_backfill_parcels,
+    count_wa_candidate_pool_parcels,
+    wa_candidate_address_gaps_by_county,
+)
 from app.db.models import Parcel, ParcelScore
 from app.db.schema_compat import column_exists
 from app.pipeline_funnel import (
@@ -104,6 +109,9 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
     )
     owner_target_count = count_where(db, owner_target)
     candidate_address_backfill_count = count_target_baltimore_address_backfill_parcels(db)
+    wa_candidate_pool = count_wa_candidate_pool_parcels(db)
+    wa_candidate_address_backfill_count = count_target_candidate_address_backfill_parcels(db, wa_only=True)
+    wa_address_gaps_by_county = wa_candidate_address_gaps_by_county(db)
     if has_owner_brief_col:
         miss_brief = count_where(
             db,
@@ -145,6 +153,13 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
             "POST /internal/metrics/backfill-baltimore-addresses?limit=250. "
             "The batch uses Realproperty first and escalates only leftover deal candidates to "
             "Baltimore AddressPoint_Native fallback; do not citywide-backfill low-score parcels."
+        )
+    if wa_candidate_address_backfill_count > 0:
+        recommended_next_steps.append(
+            f"If Washington candidate street-address gaps persist ({wa_candidate_address_backfill_count} "
+            "statewide): confirm WaTech situs fields at ingest (address_field_maps.yaml), then stage "
+            "county assessor roll merges per data/jurisdictions/wa/source_catalog.csv. "
+            "Centroid geocode + skip-trace only for outreach targets with assessor city+ZIP."
         )
 
     return {
@@ -207,6 +222,13 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
             "pct": _pct(candidate_address_backfill_count, prescreen_qualified),
             "target_count": prescreen_qualified,
             "floor": floor_i,
+        },
+        "parcels_missing_wa_candidate_street_address": {
+            "count": wa_candidate_address_backfill_count,
+            "pct": _pct(wa_candidate_address_backfill_count, wa_candidate_pool),
+            "target_count": wa_candidate_pool,
+            "scope": "washington_state_fips_53",
+            "by_county": wa_address_gaps_by_county,
         },
         "parcels_missing_owner_outreach_brief": {
             "count": miss_brief,

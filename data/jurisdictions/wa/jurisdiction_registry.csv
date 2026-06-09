@@ -1,0 +1,103 @@
+state_fips,county_fips,county_name,jurisdiction_type,jurisdiction_id,jurisdiction_name,parent_county_fips,zoning_authority_status,address_source_status,address_source_name,value_source_status,last_checked_at,notes
+24,24510,Baltimore City,city,baltimore_city,Baltimore City,24510,joined,qa_passed,baltimore_realproperty,ingested,2026-06-09,Priority MD; address-health wave_0
+53,53001,Adams,countywide,adams_county,Adams County,53001,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53001,Adams,county_unincorporated,adams_unincorporated,Adams County unincorporated,53001,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53003,Asotin,countywide,asotin_county,Asotin County,53003,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53003,Asotin,county_unincorporated,asotin_unincorporated,Asotin County unincorporated,53003,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53005,Benton,countywide,benton_county,Benton County,53005,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53005,Benton,county_unincorporated,benton_unincorporated,Benton County unincorporated,53005,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53007,Chelan,countywide,chelan_county,Chelan County,53007,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53007,Chelan,county_unincorporated,chelan_unincorporated,Chelan County unincorporated,53007,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53009,Clallam,countywide,clallam_county,Clallam County,53009,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53009,Clallam,county_unincorporated,clallam_unincorporated,Clallam County unincorporated,53009,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53011,Clark,countywide,clark_county,Clark County,53011,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53011,Clark,county_unincorporated,clark_unincorporated,Clark County unincorporated,53011,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53011,Clark,city,vancouver_city,Vancouver,53011,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53013,Columbia,countywide,columbia_county,Columbia County,53013,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53013,Columbia,county_unincorporated,columbia_unincorporated,Columbia County unincorporated,53013,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53015,Cowlitz,countywide,cowlitz_county,Cowlitz County,53015,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53015,Cowlitz,county_unincorporated,cowlitz_unincorporated,Cowlitz County unincorporated,53015,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53017,Douglas,countywide,douglas_county,Douglas County,53017,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53017,Douglas,county_unincorporated,douglas_unincorporated,Douglas County unincorporated,53017,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53019,Ferry,countywide,ferry_county,Ferry County,53019,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53019,Ferry,county_unincorporated,ferry_unincorporated,Ferry County unincorporated,53019,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53021,Franklin,countywide,franklin_county,Franklin County,53021,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53021,Franklin,county_unincorporated,franklin_unincorporated,Franklin County unincorporated,53021,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53023,Garfield,countywide,garfield_county,Garfield County,53023,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53023,Garfield,county_unincorporated,garfield_unincorporated,Garfield County unincorporated,53023,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53025,Grant,countywide,grant_county,Grant County,53025,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53025,Grant,county_unincorporated,grant_unincorporated,Grant County unincorporated,53025,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53027,Grays Harbor,countywide,grays_harbor_county,Grays Harbor County,53027,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53027,Grays Harbor,county_unincorporated,grays_harbor_unincorporated,Grays Harbor County unincorporated,53027,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53029,Island,countywide,island_county,Island County,53029,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53029,Island,county_unincorporated,island_unincorporated,Island County unincorporated,53029,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53031,Jefferson,countywide,jefferson_county,Jefferson County,53031,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53031,Jefferson,county_unincorporated,jefferson_unincorporated,Jefferson County unincorporated,53031,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53033,King,countywide,king_county,King County,53033,not_started,ingested,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53033,King,county_unincorporated,king_unincorporated,King County unincorporated,53033,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53033,King,city,seattle_city,Seattle,53033,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53033,King,city,bellevue_city,Bellevue,53033,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53033,King,city,kent_city,Kent,53033,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53033,King,city,renton_city,Renton,53033,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53033,King,city,federal_way_city,Federal Way,53033,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53033,King,city,kirkland_city,Kirkland,53033,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53033,King,city,redmond_city,Redmond,53033,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53033,King,city,auburn_city,Auburn,53033,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53033,King,city,burien_city,Burien,53033,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53033,King,city,shoreline_city,Shoreline,53033,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53035,Kitsap,countywide,kitsap_county,Kitsap County,53035,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53035,Kitsap,county_unincorporated,kitsap_unincorporated,Kitsap County unincorporated,53035,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53035,Kitsap,city,bremerton_city,Bremerton,53035,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53037,Kittitas,countywide,kittitas_county,Kittitas County,53037,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53037,Kittitas,county_unincorporated,kittitas_unincorporated,Kittitas County unincorporated,53037,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53039,Klickitat,countywide,klickitat_county,Klickitat County,53039,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53039,Klickitat,county_unincorporated,klickitat_unincorporated,Klickitat County unincorporated,53039,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53041,Lewis,countywide,lewis_county,Lewis County,53041,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53041,Lewis,county_unincorporated,lewis_unincorporated,Lewis County unincorporated,53041,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53043,Lincoln,countywide,lincoln_county,Lincoln County,53043,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53043,Lincoln,county_unincorporated,lincoln_unincorporated,Lincoln County unincorporated,53043,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53045,Mason,countywide,mason_county,Mason County,53045,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53045,Mason,county_unincorporated,mason_unincorporated,Mason County unincorporated,53045,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53047,Okanogan,countywide,okanogan_county,Okanogan County,53047,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53047,Okanogan,county_unincorporated,okanogan_unincorporated,Okanogan County unincorporated,53047,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53049,Pacific,countywide,pacific_county,Pacific County,53049,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53049,Pacific,county_unincorporated,pacific_unincorporated,Pacific County unincorporated,53049,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53051,Pend Oreille,countywide,pend_oreille_county,Pend Oreille County,53051,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53051,Pend Oreille,county_unincorporated,pend_oreille_unincorporated,Pend Oreille County unincorporated,53051,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53053,Pierce,countywide,pierce_county,Pierce County,53053,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53053,Pierce,county_unincorporated,pierce_unincorporated,Pierce County unincorporated,53053,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53053,Pierce,city,tacoma_city,Tacoma,53053,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53053,Pierce,city,lakewood_city,Lakewood,53053,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53053,Pierce,city,puyallup_city,Puyallup,53053,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53055,San Juan,countywide,san_juan_county,San Juan County,53055,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53055,San Juan,county_unincorporated,san_juan_unincorporated,San Juan County unincorporated,53055,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53057,Skagit,countywide,skagit_county,Skagit County,53057,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53057,Skagit,county_unincorporated,skagit_unincorporated,Skagit County unincorporated,53057,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53059,Skamania,countywide,skamania_county,Skamania County,53059,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53059,Skamania,county_unincorporated,skamania_unincorporated,Skamania County unincorporated,53059,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53061,Snohomish,countywide,snohomish_county,Snohomish County,53061,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53061,Snohomish,county_unincorporated,snohomish_unincorporated,Snohomish County unincorporated,53061,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53061,Snohomish,city,everett_city,Everett,53061,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53061,Snohomish,city,lynnwood_city,Lynnwood,53061,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53061,Snohomish,city,edmonds_city,Edmonds,53061,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53063,Spokane,countywide,spokane_county,Spokane County,53063,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53063,Spokane,county_unincorporated,spokane_unincorporated,Spokane County unincorporated,53063,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53063,Spokane,city,spokane_city,Spokane,53063,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53065,Stevens,countywide,stevens_county,Stevens County,53065,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53065,Stevens,county_unincorporated,stevens_unincorporated,Stevens County unincorporated,53065,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53067,Thurston,countywide,thurston_county,Thurston County,53067,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53067,Thurston,county_unincorporated,thurston_unincorporated,Thurston County unincorporated,53067,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53067,Thurston,city,olympia_city,Olympia,53067,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53067,Thurston,city,lacey_city,Lacey,53067,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53069,Wahkiakum,countywide,wahkiakum_county,Wahkiakum County,53069,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53069,Wahkiakum,county_unincorporated,wahkiakum_unincorporated,Wahkiakum County unincorporated,53069,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53071,Walla Walla,countywide,walla_walla_county,Walla Walla County,53071,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53071,Walla Walla,county_unincorporated,walla_walla_unincorporated,Walla Walla County unincorporated,53071,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53073,Whatcom,countywide,whatcom_county,Whatcom County,53073,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53073,Whatcom,county_unincorporated,whatcom_unincorporated,Whatcom County unincorporated,53073,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53073,Whatcom,city,bellingham_city,Bellingham,53073,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found
+53,53075,Whitman,countywide,whitman_county,Whitman County,53075,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53075,Whitman,county_unincorporated,whitman_unincorporated,Whitman County unincorporated,53075,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53077,Yakima,countywide,yakima_county,Yakima County,53077,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
+53,53077,Yakima,county_unincorporated,yakima_unincorporated,Yakima County unincorporated,53077,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53077,Yakima,city,yakima_city,Yakima,53077,not_started,not_started,,not_started,2026-06-09,City address source TBD — add to source_catalog when GIS found

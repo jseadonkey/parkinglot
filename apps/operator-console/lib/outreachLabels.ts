@@ -1,3 +1,5 @@
+import { formatWorkflowError } from "./workflowErrorDisplay";
+
 /** Human-readable labels for outreach pipeline rows. */
 
 export type PipelineRowLike = {
@@ -33,7 +35,7 @@ export function statusHeadline(row: PipelineRowLike): string {
 }
 
 export function statusDetail(row: PipelineRowLike): string | null {
-  if (row.workflow_error) return row.workflow_error.slice(0, 140);
+  if (row.workflow_error) return formatWorkflowError(row.workflow_error);
   if (row.pending_approval_count > 0) return "Review contract draft on Approvals page";
   if (row.pipeline_stage === "blocked" && row.workflow_step) {
     return stepLabel(row.workflow_step);

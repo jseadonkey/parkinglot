@@ -1,0 +1,73 @@
+# Phased address-source rollout for all Washington jurisdictions (cities + counties).
+# Counties load over time via wa_statewide_rollout; address chains activate per wave.
+# The address-health agent (every 12h) only enforces thresholds on active waves.
+
+version: 1
+
+policy:
+  # Candidate parcels (scored/suitable) should reach this situs coverage before we stop rotating sources.
+  min_candidate_address_pct: 35
+  # Do not judge address health until a county has at least this many parcel rows.
+  min_parcels_loaded: 50
+  # Hours without coverage improvement before trying the next source in the chain.
+  stagnation_hours: 12
+  # Max source rotations per jurisdiction per week (avoid thrashing).
+  max_rotations_per_week: 3
+  # Only backfill / geocode candidates — never whole-county street lookup.
+  candidate_only: true
+
+waves:
+  - id: wave_0_baltimore
+    label: "Baltimore City (priority MD)"
+    active: true
+    county_fips: ["24510"]
+    notes: "Realproperty + AddressPoint chain live."
+
+  - id: wave_1_puget_core
+    label: "Puget Sound core"
+    active: true
+    county_fips: ["53033", "53053", "53061", "53035", "53067"]
+    notes: "King loaded; Pierce/Snohomish/Kitsap/Thurston follow parcel ingest."
+
+  - id: wave_2_puget_outer
+    label: "Puget outer ring"
+    active: false
+    county_fips: ["53057", "53029", "53031", "53055", "53059"]
+    activates_when: "wave_1_puget_core counties have parcels_in_db > 1000 each"
+
+  - id: wave_3_regional_hubs
+    label: "Spokane / Clark / Yakima / Whatcom"
+    active: false
+    county_fips: ["53063", "53011", "53077", "53073"]
+    activates_when: "wave_2 complete or manual ops enable"
+
+  - id: wave_4_statewide_rest
+    label: "Remaining WA counties"
+    active: false
+    county_fips:
+      - "53001"
+      - "53003"
+      - "53005"
+      - "53007"
+      - "53009"
+      - "53013"
+      - "53015"
+      - "53017"
+      - "53019"
+      - "53021"
+      - "53023"
+      - "53025"
+      - "53027"
+      - "53037"
+      - "53039"
+      - "53041"
+      - "53043"
+      - "53045"
+      - "53047"
+      - "53049"
+      - "53051"
+      - "53065"
+      - "53069"
+      - "53071"
+      - "53075"
+    activates_when: "wa_statewide_rollout reaches county or manual enable"

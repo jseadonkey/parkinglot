@@ -1,0 +1,56 @@
+# Operator + address health automation (source of truth for schedules and wiring).
+#
+# Deploy chain (no manual steps after merge to main):
+#   1. push → main
+#   2. GitHub Actions "Container images" builds GHCR API image (includes scripts/, data/, config/)
+#   3. "Deploy to Droplet" rsyncs repo, pulls API_IMAGE, compose up --force-recreate api/worker/beat
+#   4. scripts/droplet-post-deploy-operator-agents.sh — verify routes, install Droplet crons
+#
+# Required GitHub repository secrets (Settings → Secrets → Actions):
+#   DROPLET_HOST, DROPLET_USER, DROPLET_SSH_PRIVATE_KEY
+#   UI_SMOKE_ADMIN_EMAIL, UI_SMOKE_ADMIN_PASSWORD  (operator admin agent only)
+#   SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY           (optional Slack posts from agents)
+#
+# Optional repository variables:
+#   DROPLET_REMOTE_PATH  (default /opt/workspaces/parkinglot)
+#   PUBLIC_API_URL, UI_SMOKE_BASE_URL
+
+deploy:
+  auto_on_push_branches: [main]
+  workflows:
+    - Container images
+    - Deploy to Droplet
+  post_deploy_script: scripts/droplet-post-deploy-operator-agents.sh
+
+address_health_agent:
+  description: Review WA/Baltimore candidate situs coverage; rotate address sources; run connectors.
+  schedule_utc: "10 */12 * * *"
+  github_workflow: .github/workflows/address-health-agent.yml
+  droplet:
+    celery_beat_task: app.tasks.address_health_agent_tick
+    cron_backup: "10 */12 * * *"
+    script: scripts/address-health-agent/address_health_agent.py
+    data_dir: data/operator-agent
+  env:
+    ADDRESS_HEALTH_AGENT_ENABLED: "true"
+    ADDRESS_HEALTH_AGENT_CRONTAB_HOUR: "*/12"
+    ADDRESS_HEALTH_AGENT_CRONTAB_MINUTE: "10"
+
+operator_admin_agent:
+  description: Daily Playwright scan of /operator routes; stagnation detection; Droplet auto-remediate.
+  schedule_utc: "0 8 * * *"
+  github_workflow: .github/workflows/operator-admin-agent.yml
+  droplet:
+    # Browser tests run on GitHub runners; Droplet only stores snapshots + runs remediate.py
+    remediate_script: scripts/operator-admin-agent/droplet-remediate.py
+    data_dir: data/operator-agent
+  required_github_secrets:
+    - UI_SMOKE_ADMIN_EMAIL
+    - UI_SMOKE_ADMIN_PASSWORD
+    - DROPLET_SSH_PRIVATE_KEY
+    - DROPLET_HOST
+
+api_features:
+  # Verified on every deploy by droplet-post-deploy-operator-agents.sh
+  wa_centroid_backfill_route: /internal/metrics/backfill-wa-centroid-addresses
+  backlog_metric_key: wa_property_addresses

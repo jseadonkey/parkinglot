@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { readApiServerUrl } from "../../../../lib/apiServerUrl";
 import {
+  bridgeCacheTtlMs,
+  bridgeTimeoutMs,
   cacheKey,
-  isStatsCachePath,
   readBridgeCache,
-  statsCacheTtlMs,
   writeBridgeCache,
 } from "../../../../lib/bridgeGetCache";
 
@@ -71,7 +71,8 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   const baseClean = readApiServerUrl();
   const qs = req.nextUrl.searchParams.toString();
   const url = `${baseClean}/${subpath}${qs ? `?${qs}` : ""}`;
-  const statsCacheKey = method === "GET" && isStatsCachePath(subpath) ? cacheKey(subpath, qs) : null;
+  const cacheTtlMs = method === "GET" ? bridgeCacheTtlMs(subpath) : null;
+  const statsCacheKey = cacheTtlMs !== null ? cacheKey(subpath, qs) : null;
 
   if (statsCacheKey) {
     const cached = readBridgeCache(statsCacheKey);
@@ -94,7 +95,7 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   if (contentType) headers["Content-Type"] = contentType;
 
   const controller = new AbortController();
-  const timeoutMs = statsCacheKey ? 15_000 : 45_000;
+  const timeoutMs = bridgeTimeoutMs(subpath);
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const init: RequestInit = { method, headers, cache: "no-store", signal: controller.signal };
   if (method !== "GET" && method !== "HEAD") {
@@ -121,7 +122,7 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     return backlogEtaFallback(res.status);
   }
   if (statsCacheKey && res.ok) {
-    writeBridgeCache(statsCacheKey, res.status, body, statsCacheTtlMs(subpath));
+    writeBridgeCache(statsCacheKey, res.status, body, cacheTtlMs ?? 60_000);
   }
   return new NextResponse(body, {
     status: res.status,

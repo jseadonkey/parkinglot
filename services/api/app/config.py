@@ -355,6 +355,31 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Address health agent (12h): catalog rotation + connector triggers (see config/operator_agents.yaml).
+    address_health_agent_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "ADDRESS_HEALTH_AGENT_ENABLED",
+            "address_health_agent_enabled",
+        ),
+    )
+    address_health_agent_crontab_hour: str = Field(
+        default="*/12",
+        validation_alias=AliasChoices(
+            "ADDRESS_HEALTH_AGENT_CRONTAB_HOUR",
+            "address_health_agent_crontab_hour",
+        ),
+    )
+    address_health_agent_crontab_minute: int = Field(
+        default=10,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "ADDRESS_HEALTH_AGENT_CRONTAB_MINUTE",
+            "address_health_agent_crontab_minute",
+        ),
+    )
+
     # Prefer highest entitlement scores when draining pipeline backlog (see enqueue_priority_qualified).
     scheduled_priority_pipeline_enabled: bool = Field(
         default=False,

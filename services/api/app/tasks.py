@@ -1696,6 +1696,72 @@ def backfill_baltimore_property_addresses_batch(limit: int = 500, dry_run: bool 
         db.close()
 
 
+@celery.task(name="app.tasks.backfill_wa_centroid_addresses_batch")
+def backfill_wa_centroid_addresses_batch(
+    limit: int = 100,
+    county_fips: str | None = None,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """WA candidate situs backfill via Nominatim + assessor city/ZIP anchor."""
+    from app.wa_centroid_address_backfill import backfill_wa_centroid_addresses
+
+    db = _session()
+    try:
+        return backfill_wa_centroid_addresses(db, limit=limit, county_fips=county_fips, dry_run=dry_run)
+    finally:
+        db.close()
+
+
+@celery.task(name="app.tasks.address_health_agent_tick")
+def address_health_agent_tick() -> dict[str, Any]:
+    """Every 12h: run address health review script (backup to GitHub Actions + Droplet cron)."""
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    settings = get_settings()
+    if not settings.address_health_agent_enabled:
+        return {"skipped": True, "reason": "address_health_agent_disabled"}
+
+    repo_root = Path(__file__).resolve().parents[3]
+    script = repo_root / "scripts" / "address-health-agent" / "address_health_agent.py"
+    if not script.is_file():
+        return {"skipped": True, "reason": "script_missing", "path": str(script)}
+
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(script), "--json"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            timeout=900,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        logger.exception("address_health_agent_tick timed out")
+        return {"skipped": False, "ok": False, "reason": "timeout"}
+
+    if proc.returncode != 0:
+        logger.warning(
+            "address_health_agent_tick exit=%s stderr=%s",
+            proc.returncode,
+            (proc.stderr or "")[:500],
+        )
+        return {
+            "skipped": False,
+            "ok": False,
+            "exit_code": proc.returncode,
+            "stderr": (proc.stderr or "")[:2000],
+        }
+
+    try:
+        payload = json.loads(proc.stdout or "{}")
+    except json.JSONDecodeError:
+        payload = {"raw_stdout": (proc.stdout or "")[:2000]}
+    return {"skipped": False, "ok": True, "report": payload}
+
+
 @celery.task(name="app.tasks.refresh_identification_scores_batch")
 def refresh_identification_scores_batch(
     limit: int = 2000,

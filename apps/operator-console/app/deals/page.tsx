@@ -14,6 +14,7 @@ import {
 import { MarketFilters } from "../../components/MarketFilters";
 import { countyLine, useCountyNames } from "../../lib/useCountyNames";
 import { marketFilterParams, usePilotScope } from "../../lib/usePilotScope";
+import { formatWorkflowError } from "../../lib/workflowErrorDisplay";
 
 type Row = {
   parcel_id: string;
@@ -302,7 +303,7 @@ export default function DealsPage() {
                         {statusLabel(r.pipeline_stage, r.workflow_step, r.pending_approval_count)}
                       </span>
                       {r.workflow_error ? (
-                        <div className="error cell-sub">{r.workflow_error.slice(0, 100)}</div>
+                        <div className="error cell-sub">{formatWorkflowError(r.workflow_error)}</div>
                       ) : null}
                       {r.pending_approval_count > 0 ? (
                         <div className="muted cell-sub">

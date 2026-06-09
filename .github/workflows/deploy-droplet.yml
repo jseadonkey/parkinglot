@@ -268,6 +268,30 @@ jobs:
           ssh "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             "set -euo pipefail && cd '$REMOTE_PATH' && $UP_CMD && docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env ps api worker worker-slack beat approval-ui operator-console && (docker compose -f '$COMPOSE_FILE' $PG_EXTRA --env-file deploy/.env logs api --tail 40 || true)"
 
+      - name: Post-deploy operator agents (verify API routes + install crons)
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          COMPOSE_FILE="deploy/${{ steps.opts.outputs.compose_file }}"
+          USE_PG=""
+          if [ "${{ steps.opts.outputs.use_local_postgis }}" = "true" ]; then
+            USE_PG="USE_LOCAL_POSTGIS=1"
+          fi
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            bash -s -- "$REMOTE_PATH" "$COMPOSE_FILE" "$USE_PG" <<'EOS'
+          set -euo pipefail
+          REMOTE_PATH="$1"
+          COMPOSE_FILE="$2"
+          USE_PG="${3:-}"
+          cd "$REMOTE_PATH"
+          test -f scripts/droplet-post-deploy-operator-agents.sh
+          export COMPOSE_FILE="$COMPOSE_FILE"
+          if [ -n "$USE_PG" ]; then
+            export USE_LOCAL_POSTGIS=1
+          fi
+          bash scripts/droplet-post-deploy-operator-agents.sh
+          EOS
+
       # Do not fail the whole deploy if Slack enqueue fails (containers are already updated).
       - name: Enqueue Slack tasks (post-deploy script)
         id: post_slack

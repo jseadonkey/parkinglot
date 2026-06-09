@@ -108,6 +108,16 @@ def _candidate_address_missing(export: dict[str, Any], candidate_total: int) -> 
     return 0, candidate_total, True
 
 
+def _wa_candidate_address_missing(export: dict[str, Any]) -> tuple[int, int]:
+    """Washington (53xxx) candidate street-address gaps from export-readiness."""
+    scoped = export.get("parcels_missing_wa_candidate_street_address")
+    if not isinstance(scoped, dict):
+        return 0, 0
+    missing = int(scoped.get("count") or 0)
+    total = int(scoped.get("target_count") or missing)
+    return missing, total
+
+
 def _optional_int(raw: Any) -> int | None:
     if raw is None:
         return None
@@ -218,6 +228,7 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         export,
         address_candidate_total,
     )
+    wa_address_missing, wa_address_scope = _wa_candidate_address_missing(export)
     brief_missing = _candidate_owner_brief_missing(export, address_candidate_total)
     brief_total = brief_target or address_total
     brief_recommendation = (
@@ -277,6 +288,28 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
             why=(
                 "Street addresses make parcel review, maps, visits, and owner conversations usable, "
                 "but only for Baltimore deal candidates that pass scoring or look vacant/suitable."
+            ),
+            eta_confidence="unknown",
+            active_now=False,
+        ),
+        _item(
+            key="wa_property_addresses",
+            label="WA candidate street addresses",
+            backlog_count=wa_address_missing,
+            total_count=wa_address_scope or wa_address_missing,
+            unit="parcels",
+            value="high" if wa_address_missing > 0 else "selective",
+            work_type="data_backfill",
+            recommendation=(
+                "Normalize WaTech situs at ingest; add county assessor roll merges per "
+                "data/jurisdictions/wa/source_catalog.csv. City address-point fallback "
+                "only for qualified parcels — see address_field_maps.yaml."
+                if wa_address_missing > 0
+                else "No WA candidate address gap measured, or counties not loaded yet."
+            ),
+            why=(
+                "Washington situs sources vary by county and city. Addresses are required "
+                "only for deal candidates (maps, skip-trace, outreach) — not every statewide APN."
             ),
             eta_confidence="unknown",
             active_now=False,

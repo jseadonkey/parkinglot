@@ -4,6 +4,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { OperatorGuide, QuickStartCards } from "../components/OperatorGuide";
 import { needsAction } from "../lib/outreachLabels";
+import {
+  exportReadinessFromBacklogEta,
+  isBacklogEtaForReadiness,
+  type ExportReadinessSnapshot,
+} from "../lib/overviewReadiness";
 import { bridgeUrl } from "../lib/paths";
 import { formatStatesLabel } from "../lib/marketScope";
 import { PILOT_SCOPE_DEFAULTS } from "../lib/pilotScopeDefaults";
@@ -36,27 +41,7 @@ type GapStat = {
   strategic_floor?: number;
 };
 
-type ExportReadiness = {
-  parcel_row_total: number;
-  parcels_missing_footprint: GapStat;
-  parcels_missing_zoning_code: GapStat;
-  parcels_missing_lot_sqft: GapStat;
-  parcels_missing_distance_to_nearest_demand_m: GapStat;
-  parcels_missing_poi_commercial_count_400m: GapStat;
-  parcels_poi_density_candidates: GapStat;
-  parcels_missing_poi_commercial_count_400m_all?: GapStat;
-  parcels_missing_score_identification: GapStat;
-  parcels_missing_score_entitlement: GapStat;
-  parcels_missing_score_strategic: GapStat;
-  parcels_missing_entitlement_or_strategic: GapStat;
-  parcels_prescreen_qualified: GapStat;
-  parcels_pipeline_funnel_backlog: GapStat;
-  parcels_ruled_out_by_prescreen: GapStat;
-  parcels_ruled_out_at_atlas: GapStat;
-  parcels_owner_outreach_targets: GapStat;
-  parcels_missing_owner_outreach_brief: GapStat;
-  recommended_next_steps: string[];
-};
+type ExportReadiness = ExportReadinessSnapshot;
 
 type OutreachRow = {
   pipeline_stage: string;
@@ -178,17 +163,20 @@ async function fetchJson(path: string): Promise<unknown> {
 }
 
 export default function OverviewPage() {
-  const [readiness, setReadiness] = useState<unknown>(null);
+  const [backlogEta, setBacklogEta] = useState<unknown>(null);
+  const [technicalReadiness, setTechnicalReadiness] = useState<unknown>(null);
   const [summary, setSummary] = useState<unknown>(null);
   const [scope, setScope] = useState<unknown>(null);
   const [outreachBoard, setOutreachBoard] = useState<unknown>(null);
   const [scopeLoading, setScopeLoading] = useState(true);
   const [summaryLoading, setSummaryLoading] = useState(true);
-  const [readinessLoading, setReadinessLoading] = useState(true);
+  const [backlogLoading, setBacklogLoading] = useState(true);
+  const [technicalReadinessLoading, setTechnicalReadinessLoading] = useState(false);
   const [outreachLoading, setOutreachLoading] = useState(true);
   const [scopeErr, setScopeErr] = useState<string | null>(null);
   const [summaryErr, setSummaryErr] = useState<string | null>(null);
-  const [readinessErr, setReadinessErr] = useState<string | null>(null);
+  const [backlogErr, setBacklogErr] = useState<string | null>(null);
+  const [technicalReadinessErr, setTechnicalReadinessErr] = useState<string | null>(null);
   const [outreachErr, setOutreachErr] = useState<string | null>(null);
   const [showAllCounties, setShowAllCounties] = useState(false);
 
@@ -232,28 +220,44 @@ export default function OverviewPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setReadinessLoading(true);
-    setReadinessErr(null);
-    fetchJson("internal/stats/export-readiness")
+    setBacklogLoading(true);
+    setBacklogErr(null);
+    fetchJson("internal/stats/backlog-eta")
       .then((data) => {
-        if (!cancelled) setReadiness(data);
+        if (!cancelled) setBacklogEta(data);
       })
       .catch((e) => {
-        if (!cancelled) setReadinessErr(e instanceof Error ? e.message : String(e));
+        if (!cancelled) setBacklogErr(e instanceof Error ? e.message : String(e));
       })
       .finally(() => {
-        if (!cancelled) setReadinessLoading(false);
+        if (!cancelled) setBacklogLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
+  function loadTechnicalReadiness() {
+    if (technicalReadiness || technicalReadinessLoading) return;
+    setTechnicalReadinessLoading(true);
+    setTechnicalReadinessErr(null);
+    fetchJson("internal/stats/export-readiness")
+      .then((data) => {
+        setTechnicalReadiness(data);
+      })
+      .catch((e) => {
+        setTechnicalReadinessErr(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        setTechnicalReadinessLoading(false);
+      });
+  }
+
   useEffect(() => {
     let cancelled = false;
     setOutreachLoading(true);
     setOutreachErr(null);
-    fetchJson("internal/pipeline/outreach-board?limit=250&revenue_hints=1")
+    fetchJson("internal/pipeline/outreach-board?limit=100&revenue_hints=0&state_fips=24")
       .then((data) => {
         if (!cancelled) setOutreachBoard(data);
       })
@@ -270,7 +274,19 @@ export default function OverviewPage() {
 
   const scopeView = isPilotScope(scope) ? scope : null;
   const summaryView = isScoringSummary(summary) ? summary : null;
-  const readinessView = isExportReadiness(readiness) ? readiness : null;
+  const backlogView = isBacklogEtaForReadiness(backlogEta) ? backlogEta : null;
+  const parcelTotal =
+    summaryView?.total_parcels ?? scopeView?.parcels_in_pilot_counties ?? 0;
+  const readinessView = useMemo((): ExportReadiness | null => {
+    if (isExportReadiness(technicalReadiness)) {
+      return technicalReadiness;
+    }
+    if (backlogView && parcelTotal > 0) {
+      return exportReadinessFromBacklogEta(backlogView, parcelTotal);
+    }
+    return null;
+  }, [technicalReadiness, backlogView, parcelTotal]);
+  const readinessLoading = backlogLoading || (parcelTotal <= 0 && summaryLoading && scopeLoading);
   const outreachView = isOutreachBoard(outreachBoard) ? outreachBoard : null;
   const regionName = scopeView?.region_name ?? PILOT_SCOPE_DEFAULTS.region_name;
   const statesLabel =
@@ -555,9 +571,9 @@ export default function OverviewPage() {
           </div>
         </div>
 
-        {(readinessErr || outreachErr) && (
+        {(backlogErr || outreachErr) && (
           <div className="action-errors">
-            {readinessErr ? <div className="error">Readiness: {readinessErr}</div> : null}
+            {backlogErr ? <div className="error">Backlog snapshot: {backlogErr}</div> : null}
             {outreachErr ? <div className="error">Outreach board: {outreachErr}</div> : null}
           </div>
         )}
@@ -833,15 +849,23 @@ export default function OverviewPage() {
 
       <details
         className="panel export-readiness-details"
+        onToggle={(e) => {
+          if ((e.target as HTMLDetailsElement).open) {
+            loadTechnicalReadiness();
+          }
+        }}
       >
         <summary className="export-readiness-summary">Technical export-readiness JSON</summary>
-        {readinessErr ? <div className="error">{readinessErr}</div> : null}
-        {readiness ? (
-          <pre className="json">{JSON.stringify(readiness, null, 2)}</pre>
-        ) : readinessLoading ? (
-          <p className="muted">Loading export readiness…</p>
+        <p className="muted">
+          Full live scan (slow). Overview metrics above use the cached ops snapshot from backlog ETA.
+        </p>
+        {technicalReadinessErr ? <div className="error">{technicalReadinessErr}</div> : null}
+        {technicalReadiness ? (
+          <pre className="json">{JSON.stringify(technicalReadiness, null, 2)}</pre>
+        ) : technicalReadinessLoading ? (
+          <p className="muted">Loading export readiness… (may take a few minutes)</p>
         ) : (
-          <p className="muted">No readiness payload loaded.</p>
+          <p className="muted">Expand to load the full export-readiness scan.</p>
         )}
       </details>
     </div>

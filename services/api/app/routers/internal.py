@@ -95,6 +95,7 @@ from app.slack_digest import (
 )
 from app.tasks import (
     backfill_baltimore_property_addresses_batch,
+    backfill_wa_centroid_addresses_batch,
     enqueue_incomplete_pipeline_jobs,
     enqueue_priority_qualified_pipeline_jobs,
     enqueue_unscored_pipeline_jobs,
@@ -1033,6 +1034,21 @@ def backfill_baltimore_addresses(
 ) -> CeleryTaskIdResponse:
     """Backfill Baltimore City property/situs addresses from Realproperty_OB in a bounded batch."""
     async_result = backfill_baltimore_property_addresses_batch.delay(limit=limit, dry_run=dry_run)
+    return CeleryTaskIdResponse(task_id=async_result.id)
+
+
+@router.post("/metrics/backfill-wa-centroid-addresses", response_model=CeleryTaskIdResponse)
+def backfill_wa_centroid_addresses(
+    limit: int = Query(default=100, ge=1, le=1000),
+    county_fips: str | None = Query(default=None, description="Optional 5-digit WA county FIPS (53xxx)."),
+    dry_run: bool = Query(default=False),
+) -> CeleryTaskIdResponse:
+    """Candidate-only WA situs backfill using parcel centroid + assessor city/ZIP anchor."""
+    async_result = backfill_wa_centroid_addresses_batch.delay(
+        limit=limit,
+        county_fips=county_fips,
+        dry_run=dry_run,
+    )
     return CeleryTaskIdResponse(task_id=async_result.id)
 
 

@@ -153,6 +153,21 @@ if _s.wa_statewide_rollout_enabled:
         _s.wa_statewide_rollout_crontab_minute,
     )
 
+if _s.address_health_agent_enabled:
+    _ah_hour = (_s.address_health_agent_crontab_hour or "*/12").strip()
+    beat_schedule["address-health-agent"] = {
+        "task": "app.tasks.address_health_agent_tick",
+        "schedule": crontab(
+            minute=_s.address_health_agent_crontab_minute,
+            hour=_ah_hour,
+        ),
+    }
+    logger.info(
+        "Beat: address health agent at hour=%s minute=%02d UTC",
+        _ah_hour,
+        _s.address_health_agent_crontab_minute,
+    )
+
 if _s.scheduled_priority_pipeline_enabled:
     beat_schedule["enqueue-priority-qualified"] = {
         "task": "app.tasks.enqueue_priority_qualified_scheduled",
