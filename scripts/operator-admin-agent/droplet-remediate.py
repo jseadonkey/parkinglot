@@ -8,8 +8,6 @@ import json
 import os
 import subprocess
 import sys
-import urllib.error
-import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -302,7 +300,14 @@ from app.config import get_settings
 import boto3
 from botocore.config import Config
 s = get_settings()
-client = boto3.client("s3", endpoint_url=s.storage_endpoint, aws_access_key_id=s.storage_access_key, aws_secret_access_key=s.storage_secret_key, region_name=s.storage_region, config=Config(signature_version="s3v4"))
+client = boto3.client(
+    "s3",
+    endpoint_url=s.storage_endpoint,
+    aws_access_key_id=s.storage_access_key,
+    aws_secret_access_key=s.storage_secret_key,
+    region_name=s.storage_region,
+    config=Config(signature_version="s3v4"),
+)
 try:
     client.head_bucket(Bucket=s.storage_bucket)
     print("bucket_exists")

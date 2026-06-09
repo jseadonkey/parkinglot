@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import csv
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -47,7 +47,7 @@ def apply_source_rotation(county_fips: str, new_source_id: str) -> dict[str, Any
         out["warning"] = f"source_id {new_source_id} not in catalog — add connector before ingest"
         return out
 
-    today = datetime.now(timezone.utc).date().isoformat()
+    today = datetime.now(UTC).date().isoformat()
     rows = _read_catalog()
     for r in rows:
         if (r.get("source_id") or "").strip() == new_source_id:

@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +20,7 @@ from lib.catalog_sync import apply_source_rotation  # noqa: E402
 from lib.chains import advance_source, source_chain_for_county  # noqa: E402
 from lib.connectors import run_connector  # noqa: E402
 from lib.metrics import baltimore_candidate_coverage, county_candidate_address_coverage  # noqa: E402
-from lib.paths import AGENT_DATA, ROLLOUT_PLAN, SNAPSHOT_FILE, STATE_FILE  # noqa: E402
+from lib.paths import ROLLOUT_PLAN, SNAPSHOT_FILE, STATE_FILE  # noqa: E402
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -76,8 +76,8 @@ def _hours_since(iso_ts: str | None) -> float | None:
     try:
         dt = datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
+            dt = dt.replace(tzinfo=UTC)
+        return (datetime.now(UTC) - dt).total_seconds() / 3600.0
     except ValueError:
         return None
 
@@ -151,7 +151,7 @@ def run_agent(*, write_snapshot: bool = True, remediate: bool = True) -> dict[st
             county_state["active_source_id"] = county_state.get("active_source_id") or (
                 source_chain_for_county(fips)[0] if source_chain_for_county(fips) else None
             )
-            county_state["last_checked_at"] = datetime.now(timezone.utc).isoformat()
+            county_state["last_checked_at"] = datetime.now(UTC).isoformat()
             county_state["last_coverage_pct"] = metric.get("candidate_address_pct")
             county_state["last_reason"] = reason
 
@@ -162,9 +162,9 @@ def run_agent(*, write_snapshot: bool = True, remediate: bool = True) -> dict[st
                     break
             cur_pct = float(metric.get("candidate_address_pct") or 0)
             if prev_row_pct is not None and cur_pct > prev_row_pct:
-                county_state["last_improved_at"] = datetime.now(timezone.utc).isoformat()
+                county_state["last_improved_at"] = datetime.now(UTC).isoformat()
             elif "last_improved_at" not in county_state:
-                county_state["last_improved_at"] = datetime.now(timezone.utc).isoformat()
+                county_state["last_improved_at"] = datetime.now(UTC).isoformat()
 
             if rotate and remediate:
                 current = str(county_state.get("active_source_id") or "")
@@ -172,7 +172,7 @@ def run_agent(*, write_snapshot: bool = True, remediate: bool = True) -> dict[st
                 if did_rotate and nxt:
                     sync = apply_source_rotation(fips, nxt)
                     county_state["active_source_id"] = nxt
-                    county_state["last_rotated_at"] = datetime.now(timezone.utc).isoformat()
+                    county_state["last_rotated_at"] = datetime.now(UTC).isoformat()
                     county_state["rotations_this_week"] = int(county_state.get("rotations_this_week") or 0) + 1
                     conn = run_connector(nxt, county_fips=fips, limit=250)
                     rotations.append(
@@ -202,7 +202,7 @@ def run_agent(*, write_snapshot: bool = True, remediate: bool = True) -> dict[st
             state[fips] = county_state
 
     report = {
-        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "checked_at": datetime.now(UTC).isoformat(),
         "policy": pol,
         "active_counties": counties,
         "counties": county_metrics,

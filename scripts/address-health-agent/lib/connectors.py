@@ -7,7 +7,6 @@ import os
 import subprocess
 import urllib.error
 import urllib.request
-from pathlib import Path
 from typing import Any
 
 from .paths import REPO_ROOT as ROOT
@@ -73,29 +72,25 @@ def run_connector(source_id: str, *, county_fips: str, limit: int = 250) -> dict
         return {"action": "baltimore_address_backfill", "source_id": sid, "result": result}
 
     if sid == "watech_statewide_parcels":
-        script = """
-from sqlalchemy.orm import Session
+        script = f"""
 from app.db.session import SessionLocal
 from app.db.models import Parcel
 from parking_ingestion.address_normalize import normalize_parcel_address_props
 from sqlalchemy import select
 
-cf = %r
-limit = %d
+cf = {county_fips!r}
+limit = {limit}
 updated = 0
 with SessionLocal() as db:
     rows = db.scalars(select(Parcel).where(Parcel.county_fips == cf).limit(limit)).all()
     for p in rows:
-        props = dict(p.raw_properties or {})
+        props = dict(p.raw_properties or {{}})
         if normalize_parcel_address_props(props, county_fips=cf):
             p.raw_properties = props
             updated += 1
     db.commit()
-print({"normalized": updated, "county_fips": cf})
-""" % (
-            county_fips,
-            limit,
-        )
+print({{"normalized": updated, "county_fips": cf}})
+"""
         return {"action": "normalize_watech_raw_properties", "source_id": sid, "result": _compose_exec(script)}
 
     if sid == "nominatim_centroid_fallback":

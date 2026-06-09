@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import ast
 import csv
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
@@ -61,7 +61,7 @@ def _slug_county(fips: str, name: str) -> str:
 
 
 def build_rows() -> list[dict[str, str]]:
-    today = datetime.now(timezone.utc).date().isoformat()
+    today = datetime.now(UTC).date().isoformat()
     counties = _wa_county_names()
     cities = _load_cities()
     rows: list[dict[str, str]] = []

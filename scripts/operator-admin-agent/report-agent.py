@@ -33,7 +33,8 @@ def _runner_error() -> str | None:
         return os.environ.get("AGENT_PREFLIGHT_ERROR", "Preflight failed")
     if install == "failure":
         return "Could not install Playwright dependencies"
-    if test == "failure" and not _load(os.environ.get("AGENT_REPORT", "scripts/operator-admin-agent/agent-report.json")):
+    report_path = os.environ.get("AGENT_REPORT", "scripts/operator-admin-agent/agent-report.json")
+    if test == "failure" and not _load(report_path):
         return "Browser agent crashed or timed out (see GitHub log)"
     return None
 
