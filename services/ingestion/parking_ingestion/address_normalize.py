@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from functools import lru_cache
 from pathlib import Path
@@ -9,13 +10,21 @@ from typing import Any
 
 import yaml
 
+_MAPS_MARKER = Path("data") / "jurisdictions" / "wa" / "address_field_maps.yaml"
+
 
 def _repo_root() -> Path:
+    """Find repo root whether running from source, site-packages (CI), or /app (Docker)."""
     here = Path(__file__).resolve()
-    marker = Path("data") / "jurisdictions" / "wa" / "address_field_maps.yaml"
-    for parent in (here.parent, *here.parents):
-        if (parent / marker).is_file():
-            return parent
+    for start in (here, Path.cwd().resolve()):
+        for parent in (start, *start.parents):
+            if (parent / _MAPS_MARKER).is_file():
+                return parent
+    env_root = (os.environ.get("PARKINGLOT_ROOT") or os.environ.get("REPO_ROOT") or "").strip()
+    if env_root:
+        candidate = Path(env_root).resolve()
+        if (candidate / _MAPS_MARKER).is_file():
+            return candidate
     return here.parents[3]
 
 

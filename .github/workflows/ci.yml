@@ -169,5 +169,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - name: Install API (OpenAPI export in validate script)
+        run: |
+          set -euo pipefail
+          pip install --upgrade pip
+          pip install ./packages/core ./services/scoring ./services/ingestion ./services/enrichment ./services/workflows "./services/api[dev]"
       - name: Validate operator + address health automation
         run: bash scripts/validate-operator-agents.sh
