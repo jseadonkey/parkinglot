@@ -64,7 +64,16 @@ jobs:
 
       - name: Sync repo to Droplet
         if: steps.preflight.outputs.skipped != 'true'
-        run: make droplet-sync
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          # GitHub runners have no ~/.ssh/config alias; pass DROPLET_HOST IP (same as deploy-droplet.yml).
+          DROPLET="${{ secrets.DROPLET_HOST }}" \
+          SSH_USER="${{ secrets.DROPLET_USER }}" \
+          REMOTE_PATH="$REMOTE_PATH" \
+          ./scripts/sync-to-droplet.sh
 
       - name: Run address health agent on Droplet
         if: steps.preflight.outputs.skipped != 'true'

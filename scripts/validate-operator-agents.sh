@@ -9,6 +9,14 @@ for wf in address-health-agent.yml operator-admin-agent.yml deploy-droplet.yml c
   test -f ".github/workflows/${wf}"
   echo "  OK .github/workflows/${wf}"
 done
+if grep -q 'make droplet-sync' .github/workflows/address-health-agent.yml; then
+  echo "error: address-health-agent.yml must not use make droplet-sync (GHA has no ssh alias parkinglot)" >&2
+  exit 1
+fi
+if ! grep -q 'sync-to-droplet.sh' .github/workflows/address-health-agent.yml; then
+  echo "error: address-health-agent.yml must sync via scripts/sync-to-droplet.sh + DROPLET_HOST" >&2
+  exit 1
+fi
 
 echo "==> config/operator_agents.yaml"
 python3 - <<'PY'

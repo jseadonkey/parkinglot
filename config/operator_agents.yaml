@@ -26,6 +26,7 @@ address_health_agent:
   description: Review WA/Baltimore candidate situs coverage; rotate address sources; run connectors.
   schedule_utc: "10 */12 * * *"
   github_workflow: .github/workflows/address-health-agent.yml
+  # GHA sync uses DROPLET_HOST IP + scripts/sync-to-droplet.sh (not make droplet-sync — no ssh alias on runners).
   droplet:
     celery_beat_task: app.tasks.address_health_agent_tick
     cron_backup: "10 */12 * * *"
