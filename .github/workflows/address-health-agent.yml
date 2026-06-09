@@ -99,7 +99,7 @@ jobs:
           set -euo pipefail
           REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "cd $(printf '%q' "$REMOTE_PATH") && python3 scripts/address-health-agent/address_health_agent.py --json" \
+            "cd $(printf '%q' "$REMOTE_PATH") && bash scripts/run-address-health-agent-droplet.sh --json" \
             | tee address-health-report.json
 
       - name: Download snapshots from Droplet

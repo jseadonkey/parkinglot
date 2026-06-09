@@ -30,6 +30,7 @@ address_health_agent:
   droplet:
     celery_beat_task: app.tasks.address_health_agent_tick
     cron_backup: "10 */12 * * *"
+    run_script: scripts/run-address-health-agent-droplet.sh
     script: scripts/address-health-agent/address_health_agent.py
     data_dir: data/operator-agent
   env:

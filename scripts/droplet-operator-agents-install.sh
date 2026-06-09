@@ -13,11 +13,12 @@ fi
 
 mkdir -p "${ROOT}/data/operator-agent"
 chmod +x "${ROOT}/scripts/address-health-agent/address_health_agent.py" 2>/dev/null || true
+chmod +x "${ROOT}/scripts/run-address-health-agent-droplet.sh" 2>/dev/null || true
 chmod +x "${ROOT}/scripts/operator-admin-agent/droplet-remediate.py" 2>/dev/null || true
 
 LOG="${ROOT}/data/operator-agent/address-health-cron.log"
 # Backup to Celery Beat + GitHub Actions (every 12h at :10 UTC).
-CRON_LINE="10 */12 * * * cd ${ROOT} && /usr/bin/env python3 scripts/address-health-agent/address_health_agent.py --json >> ${LOG} 2>&1"
+CRON_LINE="10 */12 * * * cd ${ROOT} && bash scripts/run-address-health-agent-droplet.sh --json >> ${LOG} 2>&1"
 
 ( crontab -l 2>/dev/null | grep -v 'address-health-agent/address_health_agent.py' || true
   echo "$CRON_LINE"

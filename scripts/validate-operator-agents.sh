@@ -36,6 +36,7 @@ for f in \
   scripts/droplet-operator-agents-install.sh \
   scripts/droplet-post-deploy-operator-agents.sh \
   scripts/droplet-operator-agent-install.sh \
+  scripts/run-address-health-agent-droplet.sh \
   scripts/validate-operator-agents.sh
 do
   bash -n "$f"
