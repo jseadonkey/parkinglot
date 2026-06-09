@@ -75,6 +75,7 @@ from app.schemas import (
     SlackDigestPreviewResponse,
     SlackLastDigestResponse,
     SlackPlanProgressPreviewResponse,
+    SlackReportCatalogItem,
     SlackTestMessagePostResponse,
     SlackTestMessageRequest,
     WaRolloutCountyRow,
@@ -82,12 +83,14 @@ from app.schemas import (
     WaTechCountyQueuedResponse,
 )
 from app.scoring_summary import scoring_summary_stats
+from app.site_watchdog import watchdog_slack_channel
 from app.slack_digest import (
     build_dual_agent_discussion_posts,
     build_plan_progress_report_blocks,
     build_slack_digest_blocks,
     post_text_to_slack,
     slack_agent_event_updates_enabled,
+    slack_reporting_catalog,
 )
 from app.tasks import (
     backfill_baltimore_property_addresses_batch,
@@ -178,6 +181,10 @@ def slack_config_status() -> SlackConfigStatusResponse:
     has_token = bool((s.slack_bot_token or "").strip())
     has_channel = bool((s.slack_digest_channel_id or "").strip())
     has_agent_ch = bool((s.slack_agent_discussion_channel_id or "").strip())
+    wd_ch = bool(watchdog_slack_channel(s))
+    catalog = [
+        SlackReportCatalogItem.model_validate(row) for row in slack_reporting_catalog(s)
+    ]
     return SlackConfigStatusResponse(
         slack_digest_configured=has_token and has_channel,
         has_bot_token=has_token,
@@ -185,6 +192,10 @@ def slack_config_status() -> SlackConfigStatusResponse:
         slack_dual_agent_configured=has_token and has_agent_ch,
         has_agent_discussion_channel_id=has_agent_ch,
         slack_agent_event_updates_enabled=slack_agent_event_updates_enabled(s),
+        site_watchdog_enabled=bool(s.site_watchdog_enabled),
+        site_watchdog_slack_configured=has_token and wd_ch,
+        slack_digest_window_hours=max(1, int(s.slack_digest_window_hours or 1)),
+        reporting_catalog=catalog,
     )
 
 
@@ -574,8 +585,8 @@ def parcels_scored_list(
 def slack_digest_preview(hours: int = 4, db: Session = Depends(get_db)) -> SlackDigestPreviewResponse:
     """Build the next digest body from the DB without posting to Slack (debug Beat / channel config)."""
     h = min(max(hours, 1), 24)
-    blocks, fallback = build_slack_digest_blocks(db, hours=h)
     s = get_settings()
+    blocks, fallback = build_slack_digest_blocks(db, hours=h, settings=s)
     ch = (s.slack_digest_channel_id or "").strip()
     return SlackDigestPreviewResponse(
         hours=h,

@@ -1169,6 +1169,7 @@ def ingest_geojson_path(
             meta={
                 "parcel_ids": ids,
                 "source_path": path,
+                "default_county_fips": (default_county_fips or "").strip() or None,
                 "inserted": inserted,
                 "updated": updated,
                 "skipped": skipped,
@@ -1193,11 +1194,21 @@ def ingest_geojson_path(
                     len(ids) - len(qualified),
                 )
         label = Path(path).name
+        county = (default_county_fips or "").strip()
+        from app.pilot_scope import COUNTY_DISPLAY_NAMES
+
+        county_line = ""
+        if county:
+            cname = COUNTY_DISPLAY_NAMES.get(county, county)
+            county_line = f"*Market:* {cname} (`{county}`)\n"
         ingest_detail = (
-            f"File `{label}` — inserted *{inserted}*, updated *{updated}*, skipped *{skipped}*."
+            f"{county_line}"
+            f"*File:* `{label}`\n"
+            f"• Inserted (new APNs): *{inserted}* · Refreshed existing: *{updated}* · Skipped: *{skipped}*\n"
+            "_Refreshed rows do not change `parcels.created_at` (hourly digest “new parcel rows”)._"
         )
         if pipelines_enqueued:
-            ingest_detail += f" Pipelines enqueued: *{pipelines_enqueued}* (prescreen-qualified)."
+            ingest_detail += f"\n• Scoring pipelines enqueued: *{pipelines_enqueued}* (prescreen-qualified)."
         post_agent_event_to_slack(get_settings(), agent="Ingest agent", detail=ingest_detail)
         return {
             "parcel_ids": ids,
@@ -1790,8 +1801,8 @@ def slack_agent_digest() -> dict[str, Any]:
         return {"skipped": True, "reason": "slack not configured (set SLACK_BOT_TOKEN and SLACK_DIGEST_CHANNEL_ID)"}
     db = _session()
     try:
-        window_h = max(1, int(get_settings().slack_digest_window_hours or 1))
-        blocks, fallback = build_slack_digest_blocks(db, hours=window_h)
+        window_h = max(1, int(settings.slack_digest_window_hours or 1))
+        blocks, fallback = build_slack_digest_blocks(db, hours=window_h, settings=settings)
         posted = post_digest_to_slack(settings, blocks, fallback)
         _write_slack_digest_audit(channel=channel, posted=posted, fallback=fallback)
         return {"skipped": False, **posted}

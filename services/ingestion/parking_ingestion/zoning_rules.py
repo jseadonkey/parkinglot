@@ -6,6 +6,9 @@ from typing import Any
 
 import yaml
 
+# Repo root (…/services/ingestion/parking_ingestion/zoning_rules.py → parents[3]).
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
 # County FIPS → zoning_rules.yaml jurisdiction key (ingest when overlay omits ZONING_JURISDICTION).
 COUNTY_FIPS_TO_ZONING_JURISDICTION: dict[str, str] = {
     "24510": "baltimore_city",

@@ -1,4 +1,4 @@
-.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay zoning-governance build-baltimore-zoning-overlay baltimore-zoning-tiers baltimore-phase-b-local deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local lob-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
+.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay zoning-governance build-baltimore-zoning-overlay baltimore-zoning-tiers baltimore-phase-b-local deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local lob-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help cursor-droplet run-crew-tests crew-audit crew-audit-droplet
 
 help:
 	@echo "Targets:"
@@ -19,6 +19,7 @@ help:
 	@echo "  make local              - docker compose (dev: Postgres, Redis, MinIO, api, worker, UI)"
 	@echo "  make slack-env-local    - merge SLACK_* into .env (needs SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID in env)"
 	@echo "  make lob-env-local      - merge LOB_* + OUTREACH_SENDER_* into .env (see docs/LOB.md)"
+	@echo "  make cursor-droplet     - open parkinglot-droplet.code-workspace (Remote SSH to Droplet)"
 	@echo "  make droplet-sync       - rsync to parkinglot Droplet (uses deploy/droplet.target; no raw IP needed)"
 	@echo "  make droplet-rebuild    - SSH rebuild production stack (uses deploy/droplet.target)"
 	@echo "  make droplet-rebuild-postgis - same + on-droplet PostGIS addon (USE_LOCAL_POSTGIS=1)"
@@ -151,6 +152,9 @@ lob-env-local:
 	@test -n "$$LOB_FROM_ADDRESS_STATE" || (echo "export LOB_FROM_ADDRESS_STATE first"; exit 1)
 	@test -n "$$LOB_FROM_ADDRESS_ZIP" || (echo "export LOB_FROM_ADDRESS_ZIP first"; exit 1)
 	./scripts/set-lob-env-local.sh
+
+cursor-droplet:
+	@./scripts/open-cursor-droplet.sh
 
 droplet-sync:
 	@./scripts/sync-to-droplet.sh

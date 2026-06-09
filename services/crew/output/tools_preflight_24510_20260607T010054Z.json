@@ -1,0 +1,30 @@
+{
+  "mode": "tools_preflight",
+  "inputs": {
+    "county_fips": "24510",
+    "region_name": "Baltimore City, Maryland",
+    "lookback_hours": 168,
+    "qualified_score_threshold": 70
+  },
+  "steps": {
+    "db_zoning_summary": {
+      "error": "(psycopg.OperationalError) connection failed: connection to server at \"127.0.0.1\", port 5432 failed: could not receive data from server: Connection refused\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"
+    },
+    "db_parcel_sample": {
+      "error": "(psycopg.OperationalError) connection failed: connection to server at \"127.0.0.1\", port 5432 failed: could not receive data from server: Connection refused\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"
+    },
+    "db_score_summary": {
+      "error": "(psycopg.OperationalError) connection failed: connection to server at \"127.0.0.1\", port 5432 failed: could not receive data from server: Connection refused\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"
+    },
+    "db_qualified_parcels": {
+      "error": "(psycopg.OperationalError) connection failed: connection to server at \"127.0.0.1\", port 5432 failed: could not receive data from server: Connection refused\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"
+    },
+    "db_audit_activity": {
+      "error": "(psycopg.OperationalError) connection failed: connection to server at \"127.0.0.1\", port 5432 failed: could not receive data from server: Connection refused\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"
+    },
+    "web_search": "Web search not configured. Set SERPER_API_KEY or TAVILY_API_KEY in .env.\nStub results for query: 'Baltimore City, Maryland municipal code surface parking principal use ordinance'\n- https://codes.baltimorecity.gov/ (example municipal code host)\n- https://library.municode.com/ (example county code host)",
+    "github_pr_draft": "GitHub PR not configured. Set GITHUB_TOKEN and GITHUB_REPO (org/repo).\nDRAFT PR:\n  title: [crew] Scoring calibration draft for 24510\n  file: config/pilot_baltimore.yaml\n  body:\nAutomated tools preflight \u2014 no merge intended.\n  content_bytes: 35",
+    "server_logs": "{\n  \"lookback_hours\": 168,\n  \"county_fips_filter\": \"24510\",\n  \"status\": \"not_configured\",\n  \"message\": \"Set FINOPS_LOG_COMMAND (local) or FINOPS_SSH_HOST + FINOPS_LOG_COMMAND (remote via SSH).\",\n  \"example_finops_log_command\": \"docker compose -f deploy/docker-compose.production.yml logs --since 168h api worker beat\"\n}",
+    "notification": "Slack not configured. Set SLACK_BOT_TOKEN and SLACK_ADMIN_CHANNEL_ID (or SLACK_DIGEST_CHANNEL_ID).\nDRY RUN [info] Crew tools preflight \u2014 Baltimore City, Maryland\nPreflight completed for FIPS 24510. Run full crew when OPENAI_API_KEY is set."
+  }
+}

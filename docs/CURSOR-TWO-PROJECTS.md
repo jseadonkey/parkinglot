@@ -2,6 +2,12 @@
 
 Use **two Cursor windows** on the **Droplets** (Remote SSH). You do **not** need a `mobile-home-parks` folder on your Mac.
 
+## Open parkinglot (automatic SSH)
+
+Do **not** use **File → Open Folder** on the Mac clone if you want the Droplet — that shows **`main · local`**.
+
+**Do** open **`parkinglot-droplet.code-workspace`** (or double-click **`Open Parkinglot on Droplet.command`**). Full steps: [OPEN-PARKINGLOT-IN-CURSOR.md](OPEN-PARKINGLOT-IN-CURSOR.md).
+
 See [DROPLET-FIRST-WORKFLOW.md](DROPLET-FIRST-WORKFLOW.md) for what exists today on GitHub and each server.
 
 ## 1. SSH aliases (your Mac — `~/.ssh/config`)

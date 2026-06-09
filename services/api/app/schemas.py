@@ -725,6 +725,15 @@ class SlackLastDigestResponse(BaseModel):
     meta: dict[str, Any] | None = None
 
 
+class SlackReportCatalogItem(BaseModel):
+    """One automated Slack report (schedule + channel id placeholder, no secrets)."""
+
+    id: str
+    schedule_utc: str
+    channel: str
+    description: str
+
+
 class SlackConfigStatusResponse(BaseModel):
     """GET /internal/slack/status — booleans only (no secrets)."""
 
@@ -734,6 +743,10 @@ class SlackConfigStatusResponse(BaseModel):
     slack_dual_agent_configured: bool
     has_agent_discussion_channel_id: bool
     slack_agent_event_updates_enabled: bool
+    site_watchdog_enabled: bool = False
+    site_watchdog_slack_configured: bool = False
+    slack_digest_window_hours: int = Field(default=1, ge=1, le=24)
+    reporting_catalog: list[SlackReportCatalogItem] = Field(default_factory=list)
 
 
 class LobConfigStatusResponse(BaseModel):

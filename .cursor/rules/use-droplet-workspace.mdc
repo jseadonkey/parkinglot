@@ -1,0 +1,12 @@
+---
+description: Open parkinglot via droplet workspace (Remote SSH), not the Mac folder
+alwaysApply: true
+---
+
+# parkinglot — use the Droplet workspace
+
+This repo is meant to be opened with **`parkinglot-droplet.code-workspace`** (Remote SSH → host **`parkinglot`**, path **`/opt/workspaces/parkinglot`**).
+
+If the user sees **`main · local`** in the status bar, they are on the **Mac clone**, not the Droplet. Tell them to run **`./scripts/open-cursor-droplet.sh`** or double-click **`Open Parkinglot on Droplet.command`**. See **`docs/OPEN-PARKINGLOT-IN-CURSOR.md`**.
+
+Deploy/sync: **`make droplet-sync`** only from the droplet workspace or with **`deploy/droplet.target`** respected.
