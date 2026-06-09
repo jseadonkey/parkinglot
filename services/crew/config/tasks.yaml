@@ -1,0 +1,83 @@
+# CrewAI task definitions — sequential process recommended (zoning -> revenue -> FinOps).
+#
+# Required kickoff inputs: county_fips, region_name
+# Optional: lookback_hours (default 168), qualified_score_threshold (default 70)
+
+zoning_verification_task:
+  description: >
+    For {region_name} (county FIPS {county_fips}), audit zoning and vacancy data quality:
+
+    1. Use ReadDatabaseTool to pull parcel counts, zoning_code distribution,
+       zoning_allows_surface_parking flags, and any raw_properties vacancy or
+       land-use fields for this county.
+    2. Compare against the matching data/zoning/* surface parking rules YAML
+       (if one exists for this jurisdiction). Note unmapped zone codes and
+       parcels where GIS zoning disagrees with the rule file.
+    3. When the database lacks ordinance text, zone definitions, or recent
+       code amendments, use WebSearchTool to find the official municipal code
+       section for principal surface parking (Table / Article references).
+    4. Flag data gaps: missing zoning_code, default false negatives on
+       conditional-use districts, absent vacancy indicators, stale ingest.
+
+    Current year for ordinance lookups: 2026.
+  expected_output: >
+    A markdown report with sections: Executive summary, Parcel/zoning statistics,
+    Rule-file coverage, Vacancy signal assessment, Ordinance cross-check (with
+    URLs), Data gaps & recommended scraper fixes, and Risk level (low/medium/high).
+  agent: zoning_analyst
+
+financial_stress_test_task:
+  description: >
+    For {region_name} (FIPS {county_fips}), stress-test revenue and scoring outputs:
+
+    1. Use ReadDatabaseTool to fetch parcel_scores (entitlement + strategic profiles),
+       score breakdown JSON, pilot_snapshot weights, and nearby parking rate comps
+       for top-scoring and median parcels in this county.
+    2. Compare implied revenue ranking against local market reality: hourly garage
+       mids, event/commuter demand proxies, lot size distribution, and corner-lot
+       premiums documented in config/pilot.yaml or config/pilot_baltimore.yaml.
+    3. Identify systematic bias (over-weighting lot size, under-weighting rate comps,
+       demand buffer too tight/loose) with numeric examples from at least 5 parcels.
+    4. When adjustments are warranted, use GitHubPRTool to draft a PR that edits the
+       appropriate config/*.yaml scoring block — include a concise rationale in the
+       PR body and a suggested diff summary (do not merge; human review required).
+
+    Context: incorporate findings from the zoning verification task when scores
+    depend on zoning_allows_surface_parking flags that may be wrong.
+  expected_output: >
+    A markdown report with sections: Market baseline, Score distribution analysis,
+    Stress-test cases (table of parcel APNs), Bias diagnosis, Recommended config
+    changes (exact YAML keys/values), and GitHub PR link or draft status.
+  agent: revenue_actuary
+  context:
+    - zoning_verification_task
+
+finops_roi_audit_task:
+  description: >
+    For {region_name} (FIPS {county_fips}), audit infrastructure spend vs. business value:
+
+    1. Use ReadServerLogsTool for the last {lookback_hours} hours (default 168):
+       Postgres query/connection metrics, Celery task counts (ingest, pipeline,
+       scoring), API request volume, and audit_log actions (parcels_ingested,
+       workflow runs) scoped to this county where possible.
+    2. Use ReadDatabaseTool to count qualified parcels (total_score >=
+       {qualified_score_threshold}, default 70), pipeline completion rate, and
+       outreach-ready targets for this FIPS.
+    3. Compute a simple ROI narrative: cost signals (high query volume, repeated
+       failed ingests, zero qualified output) vs. qualified parcel yield.
+    4. If spend materially exceeds value (e.g., >1000 parcels ingested, <3
+       qualified, or sustained high DB load with flat scores), use NotificationTool
+       to alert the admin with a deprioritization recommendation (pause scheduled
+       ingest, lower geo_markets priority, or fix upstream zoning data first).
+
+    Context: use zoning and revenue task outputs to explain *why* a region may
+    be low-yield (bad data vs. bad market vs. mis-tuned scoring).
+  expected_output: >
+    A markdown report with sections: Usage summary (metrics table), Qualified yield,
+    ROI assessment, Deprioritization recommendation (yes/no + rationale), and
+    Admin notification status (sent/skipped + channel).
+  agent: finops_comptroller
+  output_file: output/crew_audit_report.md
+  context:
+    - zoning_verification_task
+    - financial_stress_test_task

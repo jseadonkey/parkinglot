@@ -206,6 +206,13 @@ if _s.scheduled_refresh_identification_enabled:
         _id_cf or "*",
     )
 
+if _s.load_governor_enabled:
+    beat_schedule["load-governor-refresh"] = {
+        "task": "app.tasks.load_governor_refresh",
+        "schedule": crontab(minute="*/30"),
+    }
+    logger.info("Beat: load governor refresh every 30 minutes")
+
 if _s.scheduled_refresh_demand_enabled:
     _dem_cf = (_s.scheduled_refresh_demand_county_fips or "").strip()
     beat_schedule["refresh-demand-distances-scheduled"] = {

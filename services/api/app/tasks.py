@@ -839,11 +839,32 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
     if not settings.wa_statewide_rollout_enabled:
         return {"skipped": True, "reason": "wa_statewide_rollout_disabled"}
 
+    from app.load_governor import (
+        current_governor_state,
+        effective_wa_rollout_limits,
+        governor_allows_wa_rollout,
+        refresh_load_governor,
+    )
+
     rollout = load_rollout_config(settings.wa_statewide_rollout_config_path)
     pacing = wa_rollout_pacing()
     merged = merge_rollout_config(rollout, pacing)
     max_queue = int(merged.get("max_parking_queue_depth") or 400)
     queue_depth = parking_queue_depth(settings.redis_url)
+    governor = (
+        refresh_load_governor(settings)
+        if settings.load_governor_enabled
+        else current_governor_state(settings)
+    )
+    if settings.load_governor_enabled:
+        allowed, reason = governor_allows_wa_rollout(settings, governor)
+        if not allowed:
+            logger.info("wa_statewide_rollout_tick: load_governor — %s", reason)
+            return {
+                "skipped": True,
+                "reason": "load_governor_blocked",
+                "load_governor": governor,
+            }
     if queue_depth > max_queue:
         logger.info(
             "wa_statewide_rollout_tick: parking queue=%s > max=%s — deferring new county ingest",
@@ -886,6 +907,13 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
             max_features = int(max_feat)
 
         max_pipe = int(merged.get("max_auto_pipeline") or 15)
+        if settings.load_governor_enabled:
+            _, max_pipe = effective_wa_rollout_limits(
+                settings,
+                base_min_days=float(merged.get("min_days_between_counties") or 4),
+                base_max_auto_pipeline=max_pipe,
+                state=governor,
+            )
         write_audit(
             db,
             actor="celery:wa_statewide_rollout",
@@ -1041,14 +1069,39 @@ def fetch_watech_county_and_ingest(
     }
 
 
+def _governed_pipeline_limit(requested: int) -> tuple[int, dict[str, Any] | None]:
+    settings = get_settings()
+    if not settings.load_governor_enabled:
+        return requested, None
+    from app.load_governor import current_governor_state, effective_pipeline_limit, refresh_load_governor
+
+    governor = current_governor_state(settings)
+    if not governor.get("assessed_at"):
+        governor = refresh_load_governor(settings)
+    cap = effective_pipeline_limit(requested, settings, governor)
+    return cap, governor
+
+
 @celery.task(name="app.tasks.enqueue_priority_qualified_scheduled")
 def enqueue_priority_qualified_scheduled(limit: int = 75) -> dict[str, Any]:
     """Beat: drain prescreen-qualified backlog starting with highest entitlement scores."""
-    out = enqueue_priority_qualified_pipeline_jobs(limit)
+    cap, governor = _governed_pipeline_limit(limit)
+    if cap <= 0:
+        return {
+            "enqueued": 0,
+            "parcel_ids": [],
+            "skipped": True,
+            "reason": "load_governor_paused_pipeline_enqueue",
+            "load_governor": governor,
+        }
+    out = enqueue_priority_qualified_pipeline_jobs(cap)
+    if governor:
+        out["load_governor"] = governor
     if out["enqueued"]:
         logger.info(
-            "enqueue_priority_qualified_scheduled: enqueued %s pipeline(s)",
+            "enqueue_priority_qualified_scheduled: enqueued %s pipeline(s) (cap=%s)",
             out["enqueued"],
+            cap,
         )
     return out
 
@@ -1056,13 +1109,36 @@ def enqueue_priority_qualified_scheduled(limit: int = 75) -> dict[str, Any]:
 @celery.task(name="app.tasks.enqueue_unscored_pipelines_scheduled")
 def enqueue_unscored_pipelines_scheduled(limit: int = 100) -> dict[str, Any]:
     """Beat: enqueue ``run_pipeline`` for parcels missing entitlement **or** strategic scores."""
-    out = enqueue_incomplete_pipeline_jobs(limit)
+    cap, governor = _governed_pipeline_limit(limit)
+    if cap <= 0:
+        return {
+            "enqueued": 0,
+            "parcel_ids": [],
+            "skipped": True,
+            "reason": "load_governor_paused_pipeline_enqueue",
+            "load_governor": governor,
+        }
+    out = enqueue_incomplete_pipeline_jobs(cap)
+    if governor:
+        out["load_governor"] = governor
     if out["enqueued"]:
         logger.info(
-            "enqueue_unscored_pipelines_scheduled: enqueued %s incomplete pipeline(s)",
+            "enqueue_unscored_pipelines_scheduled: enqueued %s incomplete pipeline(s) (cap=%s)",
             out["enqueued"],
+            cap,
         )
     return out
+
+
+@celery.task(name="app.tasks.load_governor_refresh")
+def load_governor_refresh() -> dict[str, Any]:
+    """Periodic: refresh load governor from queue/workers + cached ops snapshot."""
+    settings = get_settings()
+    if not settings.load_governor_enabled:
+        return {"skipped": True, "reason": "load_governor_disabled"}
+    from app.load_governor import refresh_load_governor
+
+    return refresh_load_governor(settings)
 
 
 @celery.task(name="app.tasks.ingest_geojson_path")

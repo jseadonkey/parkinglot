@@ -687,6 +687,10 @@ class Settings(BaseSettings):
             "ops_remediation_slack_channel_id",
         ),
     )
+    load_governor_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("LOAD_GOVERNOR_ENABLED", "load_governor_enabled"),
+    )
 
 
 @lru_cache

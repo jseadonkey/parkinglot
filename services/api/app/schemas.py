@@ -382,6 +382,29 @@ class BacklogEtaSummary(BaseModel):
     data_source: str
     high_value_remaining: int
     decision: str
+    load_governor_pressure_level: str | None = None
+    load_governor_decision: str | None = None
+    pipeline_enqueue_multiplier: float | None = None
+    wa_rollout_allowed: bool | None = None
+
+
+class LoadGovernorResponse(BaseModel):
+    """GET /internal/stats/load-governor — downstream pressure and effective throttle caps."""
+
+    assessed_at: datetime | None = None
+    pressure_level: str
+    parking_queue_depth: int
+    workers_online: bool
+    worker_detail: str | None = None
+    score_gaps: int
+    pipeline_funnel_backlog: int
+    signals: list[dict[str, Any]]
+    decision: str
+    wa_rollout_allowed: bool
+    ops_autofix_allowed: bool
+    pipeline_enqueue_multiplier: float
+    max_auto_pipeline_effective: int
+    min_days_between_counties_effective: float
 
 
 class BacklogEtaResponse(BaseModel):

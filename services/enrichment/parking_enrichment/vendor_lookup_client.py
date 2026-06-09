@@ -1,4 +1,4 @@
-"""Optional outbound webhook to a licensed contact-data vendor (configure via API settings)."""
+"""Licensed contact vendor: BatchData skip-trace (preferred) or generic webhook."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import urllib.request
 from typing import Any
 
 from parking_core.models import VendorContactHint, VendorLookupSummary
+from parking_enrichment.batchdata_skip_trace_client import fetch_batchdata_skip_trace
 
 
 def fetch_vendor_owner_enrichment(
@@ -15,25 +16,45 @@ def fetch_vendor_owner_enrichment(
     enabled: bool,
     url: str | None,
     api_key: str | None,
+    batchdata_api_key: str | None = None,
     parcel_id: str,
     county_fips: str,
     apn: str,
     owners: list[dict[str, Any]],
+    raw_properties: dict[str, Any] | None = None,
+    centroid_lat_lon: tuple[float, float] | None = None,
+    resolved_property_address: dict[str, str] | None = None,
     timeout_s: float = 25.0,
 ) -> VendorLookupSummary:
-    """POST JSON payload to ``OWNER_VENDOR_LOOKUP_URL`` when enabled.
-
-    Expected response shape (flexible):
-
-    .. code-block:: json
-
-       {"contacts": [{"channel": "email", "value": "a@b.co", "label": "work"}]}
-    """
+    """BatchData skip-trace when ``BATCHDATA_API_KEY`` is set; else generic webhook POST."""
     if not enabled:
         return VendorLookupSummary(provider="webhook", outcome="skipped_disabled")
+
+    bd_key = (batchdata_api_key or "").strip()
+    if bd_key:
+        owner_name = None
+        if owners:
+            owner_name = str(owners[0].get("display_name") or "").strip() or None
+        return fetch_batchdata_skip_trace(
+            enabled=True,
+            api_key=bd_key,
+            parcel_id=parcel_id,
+            county_fips=county_fips,
+            apn=apn,
+            raw_properties=raw_properties,
+            owner_display_name=owner_name,
+            centroid_lat_lon=centroid_lat_lon,
+            resolved_property_address=resolved_property_address,
+            timeout_s=max(timeout_s, 30.0),
+        )
+
     u = (url or "").strip()
     if not u:
-        return VendorLookupSummary(provider="webhook", outcome="skipped_no_url")
+        return VendorLookupSummary(
+            provider="webhook",
+            outcome="skipped_no_url",
+            notes="Set BATCHDATA_API_KEY or OWNER_VENDOR_LOOKUP_URL.",
+        )
 
     payload = {
         "parcel_id": parcel_id,

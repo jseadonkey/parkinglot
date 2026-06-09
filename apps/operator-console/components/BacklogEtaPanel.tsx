@@ -34,6 +34,10 @@ type BacklogEta = {
     data_source: string;
     high_value_remaining: number;
     decision: string;
+    load_governor_pressure_level?: string | null;
+    load_governor_decision?: string | null;
+    pipeline_enqueue_multiplier?: number | null;
+    wa_rollout_allowed?: boolean | null;
   };
   items: BacklogEtaItem[];
   degraded?: boolean;
@@ -55,6 +59,11 @@ function formatSnapshotTime(value: string | null): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString();
+}
+
+function pressureLabel(level: string | null | undefined): string {
+  if (!level) return "Unknown";
+  return level.charAt(0).toUpperCase() + level.slice(1);
 }
 
 async function fetchJson(path: string): Promise<unknown> {
@@ -93,6 +102,8 @@ export function BacklogEtaPanel() {
   if (!backlogView && loading) return <p className="muted">Loading backlog ETA...</p>;
   if (!backlogView) return null;
 
+  const governorLevel = backlogView.summary.load_governor_pressure_level;
+
   return (
     <div className="panel">
       <div className="cols pipeline-stats">
@@ -112,10 +123,25 @@ export function BacklogEtaPanel() {
           <div className="muted">Auto-fix</div>
           <div className="n">{backlogView.summary.ops_auto_fix_enabled ? "On" : "Off"}</div>
         </div>
+        {governorLevel ? (
+          <div className="stat">
+            <div className="muted">Load governor</div>
+            <div className="n">{pressureLabel(governorLevel)}</div>
+          </div>
+        ) : null}
       </div>
       <p className="muted" style={{ marginTop: "0.75rem" }}>
         {backlogView.summary.decision}
       </p>
+      {backlogView.summary.load_governor_decision ? (
+        <p className="muted" style={{ marginTop: "0.35rem" }}>
+          Governor: {backlogView.summary.load_governor_decision}
+          {backlogView.summary.pipeline_enqueue_multiplier != null
+            ? ` · Pipeline enqueue at ${Math.round(backlogView.summary.pipeline_enqueue_multiplier * 100)}%`
+            : ""}
+          {backlogView.summary.wa_rollout_allowed === false ? " · WA county rollout paused" : ""}
+        </p>
+      ) : null}
       <p className="muted" style={{ marginTop: "0.35rem" }}>
         Data snapshot: {formatSnapshotTime(backlogView.summary.data_checked_at)} · Source:{" "}
         {backlogView.summary.data_source.replaceAll("_", " ")} · Page generated:{" "}

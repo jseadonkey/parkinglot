@@ -1,0 +1,44 @@
+# Run CrewAI tools preflight + Langfuse check on the parkinglot Droplet (SSH).
+name: Crew audit smoke (via Droplet)
+
+on:
+  workflow_dispatch:
+    inputs:
+      county_fips:
+        description: "County FIPS (default 24510 Baltimore City)"
+        required: false
+        default: "24510"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Run droplet-crew-smoke.sh
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+          COUNTY_FIPS: ${{ inputs.county_fips }}
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            bash -s -- "$REMOTE_PATH" "$COUNTY_FIPS" <<'EOS'
+          set -euo pipefail
+          cd "$1"
+          chmod +x scripts/droplet-crew-smoke.sh scripts/droplet-crew-install.sh
+          ./scripts/droplet-crew-install.sh
+          COUNTY_FIPS="$2" ./scripts/droplet-crew-smoke.sh
+          EOS

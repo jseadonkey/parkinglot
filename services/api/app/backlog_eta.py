@@ -361,6 +361,25 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         ),
     ]
     high_value_remaining = sum(int(i["backlog_count"]) for i in items if i["value"] == "high")
+    governor: dict[str, Any] = {}
+    if getattr(settings, "load_governor_enabled", False):
+        from app.load_governor import current_governor_state
+
+        governor = current_governor_state(settings)
+    base_decision = (
+        "No active heavy queue. High-value scoring backlog is clear; "
+        "next measured work should be candidate-only street address backfill."
+        if (
+            parking_depth == 0
+            and pipeline_backlog == 0
+            and demand_missing == 0
+            and ident_missing == 0
+            and ent_missing == 0
+        )
+        else "High-value backlog remains; prefer pipeline/scoring before medium-value enrichment."
+    )
+    if governor.get("pressure_level") and governor["pressure_level"] != "green":
+        base_decision = f"{governor.get('decision', '')} {base_decision}".strip()
     return {
         "generated_at": datetime.now(UTC),
         "summary": {
@@ -372,18 +391,11 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
             "data_checked_at": report_checked_at,
             "data_source": "ops_remediation_snapshot" if report else "live_fallback",
             "high_value_remaining": high_value_remaining,
-            "decision": (
-                "No active heavy queue. High-value scoring backlog is clear; "
-                "next measured work should be candidate-only street address backfill."
-                if (
-                    parking_depth == 0
-                    and pipeline_backlog == 0
-                    and demand_missing == 0
-                    and ident_missing == 0
-                    and ent_missing == 0
-                )
-                else "High-value backlog remains; prefer pipeline/scoring before medium-value enrichment."
-            ),
+            "decision": base_decision,
+            "load_governor_pressure_level": governor.get("pressure_level"),
+            "load_governor_decision": governor.get("decision"),
+            "pipeline_enqueue_multiplier": governor.get("pipeline_enqueue_multiplier"),
+            "wa_rollout_allowed": governor.get("wa_rollout_allowed"),
         },
         "items": items,
     }

@@ -1,0 +1,19 @@
+# Mainline before deploy (parkinglot)
+
+Production deploys (`make droplet-sync`, `make droplet-rebuild`, GitHub Deploy to Droplet) must use code that is **merged to `main`**, not orphan feature branches or Droplet-only edits.
+
+## Before any Droplet rebuild
+
+1. Run `bash scripts/check-mainline-parity.sh` from repo root.
+2. Run `make run-api-tests` (or `bash scripts/run-api-tests.sh`).
+3. Confirm `git branch --show-current` is `main` (or user explicitly asked to deploy a PR branch).
+
+## Never
+
+- Rebuild production from `main` while feature work only exists on `cursor/*` branches.
+- Copy single files from GHCR onto the Droplet without merging the same files to `main`.
+- Treat Mac `main · local` as deployed unless `make droplet-sync` just ran from that commit.
+
+## If parity check fails
+
+Merge or cherry-pick missing modules (see `docs/MAINLINE-PARITY.md`) before rebuilding — otherwise operator routes and API migrations can disappear again.

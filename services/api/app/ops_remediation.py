@@ -853,20 +853,28 @@ def should_post_slack(
 
 
 def run_ops_remediation_loop(db: Session) -> dict[str, Any]:
+    from app.load_governor import current_governor_state, refresh_load_governor
+
     settings = get_settings()
     if not settings.ops_remediation_enabled:
         return {"skipped": True, "reason": "ops_remediation_disabled"}
 
     previous = load_last_report(settings)
     issues = diagnose(db, settings)
+    governor = current_governor_state(settings)
+    auto_fix = effective_auto_fix_enabled(settings) and bool(
+        governor.get("ops_autofix_allowed", True),
+    )
     actions = apply_remediation(
         db,
         settings,
         issues,
-        auto_fix=effective_auto_fix_enabled(settings),
+        auto_fix=auto_fix,
     )
     report = build_report(db, settings, issues=issues, actions=actions)
     save_report(settings, report)
+    governor = refresh_load_governor(settings, cached_ops_report=report)
+    report["load_governor"] = governor
 
     channel = (settings.ops_remediation_slack_channel_id or "").strip() or watchdog_slack_channel(
         settings,

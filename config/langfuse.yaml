@@ -1,0 +1,4 @@
+# Langfuse cloud region for parkinglot (hardwired — do not use EU cloud.langfuse.com).
+# Project: ParkingLotCrew on Langfuse US.
+base_url: https://us.cloud.langfuse.com
+region: us

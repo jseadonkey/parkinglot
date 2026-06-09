@@ -1,0 +1,42 @@
+---
+description: CrewAI and Langfuse run on the parkinglot Droplet only — not the Mac clone.
+alwaysApply: true
+---
+
+# Droplet-first CrewAI / Langfuse
+
+Production crew runs, secrets, and Langfuse tracing belong on the **parkinglot Droplet** (`/opt/workspaces/parkinglot`), not the Mac clone (`main · local`).
+
+## Source of truth
+
+| What | Where |
+|------|--------|
+| All production secrets | `deploy/.env` on Droplet |
+| Crew overrides (Langfuse, OpenAI) | `services/crew/.env` on Droplet — synced from `deploy/.env` |
+| Langfuse API host (US, hardwired) | `config/langfuse.yaml` → `https://us.cloud.langfuse.com` |
+| Crew runs | SSH / Cursor Remote → Droplet |
+
+## On Droplet (do this)
+
+```bash
+cd /opt/workspaces/parkinglot
+./scripts/droplet-crew-install.sh          # once
+./scripts/droplet-crew-env-sync.sh         # after deploy/.env changes
+./scripts/droplet-crew-langfuse-setup.sh   # paste LANGFUSE keys only (US host is automatic)
+./scripts/droplet-crew-audit.sh            # tools preflight
+./scripts/droplet-crew-smoke.sh            # Langfuse check + preflight
+./scripts/droplet-crew-cron-install.sh     # weekly Mon 06:00 UTC cron (once)
+.venv/bin/parking-crew audit               # full LLM audit when OPENAI_API_KEY set
+```
+
+## Avoid on Mac clone
+
+- Do **not** store production `DATABASE_URL`, Slack tokens, or Langfuse secrets in Mac `services/crew/.env` unless explicitly mirroring for offline dev (`sync-crew-secrets.sh --pull-from-droplet`).
+- Do **not** default crew DB to `127.0.0.1` on Droplet — use managed Postgres from `deploy/.env`.
+- Do **not** set `LANGFUSE_HOST` to EU `cloud.langfuse.com` — US URL is hardwired in `config/langfuse.yaml`.
+
+## Mac-only actions
+
+- `make droplet-sync` — push code to Droplet
+- `./scripts/run-crew-tests.sh` — CI-style unit tests (no production secrets)
+- Open workspace via `parkinglot-droplet.code-workspace` for agent work on the server

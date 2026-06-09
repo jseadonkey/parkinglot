@@ -48,6 +48,7 @@ from app.schemas import (
     IngestGeojsonUploadQueuedResponse,
     IngestSampleQueuedResponse,
     IngestWatechCountyRequest,
+    LoadGovernorResponse,
     LobConfigStatusResponse,
     LobVerifyResponse,
     MergeGeojsonAttributesRequest,
@@ -305,6 +306,36 @@ def backlog_eta(db: Session = Depends(get_db)) -> BacklogEtaResponse:
     """Backlog size, value, and rough completion estimates for operational decisions."""
     raw = backlog_eta_summary(db, get_settings())
     return BacklogEtaResponse(**raw)
+
+
+@router.get("/stats/load-governor", response_model=LoadGovernorResponse)
+def load_governor_stats() -> LoadGovernorResponse:
+    """Downstream load pressure and effective caps for pipeline enqueue / WA rollout."""
+    from app.load_governor import refresh_load_governor
+
+    settings = get_settings()
+    if not settings.load_governor_enabled:
+        raise HTTPException(status_code=503, detail="load_governor_disabled")
+    raw = refresh_load_governor(settings)
+    assessed = raw.get("assessed_at")
+    return LoadGovernorResponse(
+        assessed_at=assessed,
+        pressure_level=str(raw.get("pressure_level") or "green"),
+        parking_queue_depth=int(raw.get("parking_queue_depth") or 0),
+        workers_online=bool(raw.get("workers_online")),
+        worker_detail=raw.get("worker_detail"),
+        score_gaps=int(raw.get("score_gaps") or 0),
+        pipeline_funnel_backlog=int(raw.get("pipeline_funnel_backlog") or 0),
+        signals=list(raw.get("signals") or []),
+        decision=str(raw.get("decision") or ""),
+        wa_rollout_allowed=bool(raw.get("wa_rollout_allowed", True)),
+        ops_autofix_allowed=bool(raw.get("ops_autofix_allowed", True)),
+        pipeline_enqueue_multiplier=float(raw.get("pipeline_enqueue_multiplier") or 1.0),
+        max_auto_pipeline_effective=int(raw.get("max_auto_pipeline_effective") or 0),
+        min_days_between_counties_effective=float(
+            raw.get("min_days_between_counties_effective") or 0,
+        ),
+    )
 
 
 @router.get("/stats/pilot-scope", response_model=PilotScopeResponse)
