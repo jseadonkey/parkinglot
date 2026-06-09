@@ -47,13 +47,21 @@ jobs:
           install -d -m 700 ~/.ssh
           ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Fetch previous address-health snapshot
+      - name: Sanitize remote path
         if: steps.preflight.outputs.skipped != 'true'
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
         run: |
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          CLEAN="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$CLEAN" ] || CLEAN="/opt/workspaces/parkinglot"
+          echo "DEPLOY_REMOTE_PATH=$CLEAN" >> "$GITHUB_ENV"
+
+      - name: Fetch previous address-health snapshot
+        if: steps.preflight.outputs.skipped != 'true'
+        run: |
           set -euo pipefail
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           mkdir -p data/operator-agent
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             "cat $(printf '%q' "$REMOTE_PATH")/data/operator-agent/address-health-snapshot.json 2>/dev/null || true" \
@@ -64,36 +72,40 @@ jobs:
 
       - name: Sync repo to Droplet
         if: steps.preflight.outputs.skipped != 'true'
-        env:
-          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
-          # GitHub runners have no ~/.ssh/config alias; pass DROPLET_HOST IP (same as deploy-droplet.yml).
-          DROPLET="${{ secrets.DROPLET_HOST }}" \
-          SSH_USER="${{ secrets.DROPLET_USER }}" \
-          REMOTE_PATH="$REMOTE_PATH" \
-          ./scripts/sync-to-droplet.sh
+          source scripts/lib/droplet-target.sh
+          assert_droplet_target "$PWD/scripts/sync-to-droplet.sh" \
+            "${{ secrets.DROPLET_HOST }}" \
+            "${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}" \
+            "${{ secrets.DROPLET_USER }}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          rsync -az --delete \
+            --exclude .git \
+            --exclude node_modules \
+            --exclude .venv \
+            --exclude __pycache__ \
+            --exclude .next \
+            --exclude '*.pyc' \
+            --exclude .env \
+            --exclude deploy/.env \
+            ./ "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}:$REMOTE_PATH/"
 
       - name: Run address health agent on Droplet
         if: steps.preflight.outputs.skipped != 'true'
         id: run
         continue-on-error: true
-        env:
-          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
         run: |
           set -euo pipefail
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             "cd $(printf '%q' "$REMOTE_PATH") && python3 scripts/address-health-agent/address_health_agent.py --json" \
             | tee address-health-report.json
 
       - name: Download snapshots from Droplet
         if: steps.preflight.outputs.skipped != 'true' && always()
-        env:
-          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
         run: |
-          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           scp -oBatchMode=yes \
             "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}:${REMOTE_PATH}/data/operator-agent/address-health-snapshot.json" \
             data/operator-agent/address-health-snapshot.json 2>/dev/null || true

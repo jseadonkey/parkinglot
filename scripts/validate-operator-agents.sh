@@ -13,8 +13,12 @@ if grep -q 'make droplet-sync' .github/workflows/address-health-agent.yml; then
   echo "error: address-health-agent.yml must not use make droplet-sync (GHA has no ssh alias parkinglot)" >&2
   exit 1
 fi
-if ! grep -q 'sync-to-droplet.sh' .github/workflows/address-health-agent.yml; then
-  echo "error: address-health-agent.yml must sync via scripts/sync-to-droplet.sh + DROPLET_HOST" >&2
+if ! grep -q 'assert_droplet_target' .github/workflows/address-health-agent.yml; then
+  echo "error: address-health-agent.yml must verify Droplet target before rsync" >&2
+  exit 1
+fi
+if ! grep -q 'Sanitize remote path' .github/workflows/address-health-agent.yml; then
+  echo "error: address-health-agent.yml must sanitize DROPLET_REMOTE_PATH (trailing newline breaks rsync)" >&2
   exit 1
 fi
 
