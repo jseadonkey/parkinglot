@@ -59,7 +59,7 @@ jobs:
           echo ""
 
           echo "=== redis queues ==="
-          docker compose "${ARGS[@]}" exec -T redis sh -lc 'redis-cli LLEN parking; redis-cli LLEN slack' || true
+          docker compose "${ARGS[@]}" exec -T redis sh -lc 'redis-cli LLEN parking; redis-cli LLEN slack' </dev/null || true
           echo ""
 
           echo "=== recent api logs ==="
