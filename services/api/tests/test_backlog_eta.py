@@ -144,6 +144,7 @@ def test_backlog_eta_uses_scoped_address_gap_when_snapshot_has_it() -> None:
             "floor": 45.0,
         },
     }
+    db = MagicMock()
     with (
         patch(
             "app.backlog_eta.load_last_report",
@@ -153,9 +154,10 @@ def test_backlog_eta_uses_scoped_address_gap_when_snapshot_has_it() -> None:
         patch("app.backlog_eta.inspect_celery_workers", return_value={"ok": True, "detail": "2 workers"}),
         patch("app.backlog_eta.entitlement_qualified_floor", return_value=70.0),
     ):
-        out = backlog_eta_summary(MagicMock(), settings)  # type: ignore[arg-type]
+        out = backlog_eta_summary(db, settings)  # type: ignore[arg-type]
 
     addr = next(row for row in out["items"] if row["key"] == "baltimore_property_addresses")
     assert addr["backlog_count"] == 52
     assert addr["total_count"] == 5415
     assert "deal candidates only" in addr["recommendation"]
+    db.scalar.assert_not_called()
