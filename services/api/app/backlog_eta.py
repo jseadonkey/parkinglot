@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -95,17 +94,6 @@ def _status(count: int) -> str:
     if count <= 0:
         return "done"
     return "backlog"
-
-
-def _cheap_count_baltimore(db: Session) -> int:
-    """Cheap fallback when no cached ops snapshot exists."""
-    return int(
-        db.scalar(
-            text("select count(*) from parcels where county_fips = :county_fips"),
-            {"county_fips": BALTIMORE_CITY_FIPS},
-        )
-        or 0
-    )
 
 
 def _gap_count(export: dict[str, Any], key: str) -> int:
@@ -442,8 +430,6 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
     priorities = report.get("priority_counties") if isinstance(report.get("priority_counties"), dict) else {}
     priority = priorities.get(BALTIMORE_CITY_FIPS) if isinstance(priorities.get(BALTIMORE_CITY_FIPS), dict) else {}
     priority_total = int(priority.get("total") or 0)
-    if priority_total <= 0:
-        priority_total = _cheap_count_baltimore(db)
     total = int(export.get("parcel_row_total") or priority_total or 0)
     queues = inspect_redis_queues(settings)
     workers = inspect_celery_workers()
@@ -674,9 +660,12 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         "signals": [],
     }
     if getattr(settings, "load_governor_enabled", False):
-        from app.load_governor import current_governor_state
+        from app.load_governor import load_governor_state
 
-        governor = current_governor_state(settings)
+        # This page is an operator fallback during load incidents. Do not
+        # recompute governor state here, because that performs extra broker/
+        # Redis probes and can make the bridge hit its timeout.
+        governor = load_governor_state(settings) or governor
     base_decision = (
         "No active heavy queue. High-value scoring backlog is clear; "
         "next measured work should be candidate-only street address backfill."

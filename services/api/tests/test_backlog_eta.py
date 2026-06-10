@@ -159,3 +159,47 @@ def test_backlog_eta_uses_scoped_address_gap_when_snapshot_has_it() -> None:
     assert addr["backlog_count"] == 52
     assert addr["total_count"] == 5415
     assert "deal candidates only" in addr["recommendation"]
+
+
+def test_backlog_eta_does_not_count_parcels_when_cached_snapshot_missing() -> None:
+    settings = SimpleNamespace(ops_remediation_auto_fix=False, ops_remediation_allow_db_writes=False)
+    db = MagicMock()
+    db.scalar.side_effect = AssertionError("backlog ETA must not run live parcel counts")
+    with (
+        patch("app.backlog_eta.load_last_report", return_value=None),
+        patch("app.backlog_eta.inspect_redis_queues", return_value={"parking_depth": 0, "slack_depth": 0}),
+        patch("app.backlog_eta.inspect_celery_workers", return_value={"ok": True, "detail": "2 workers"}),
+        patch("app.backlog_eta.entitlement_qualified_floor", return_value=70.0),
+    ):
+        out = backlog_eta_summary(db, settings)  # type: ignore[arg-type]
+
+    assert out["summary"]["data_source"] == "live_fallback"
+    assert len(out["items"]) > 0
+    db.scalar.assert_not_called()
+
+
+def test_backlog_eta_uses_cached_load_governor_without_recompute() -> None:
+    settings = SimpleNamespace(
+        ops_remediation_auto_fix=False,
+        ops_remediation_allow_db_writes=False,
+        load_governor_enabled=True,
+    )
+    with (
+        patch(
+            "app.backlog_eta.load_last_report",
+            return_value={
+                "export_readiness": _export_payload(),
+                "priority_counties": {"24510": {"total": 1000}},
+            },
+        ),
+        patch("app.backlog_eta.inspect_redis_queues", return_value={"parking_depth": 0, "slack_depth": 0}),
+        patch("app.backlog_eta.inspect_celery_workers", return_value={"ok": True, "detail": "2 workers"}),
+        patch("app.backlog_eta.entitlement_qualified_floor", return_value=70.0),
+        patch("app.load_governor.load_governor_state", return_value=None) as load_governor_state,
+        patch("app.load_governor.refresh_load_governor") as refresh_load_governor,
+    ):
+        out = backlog_eta_summary(MagicMock(), settings)  # type: ignore[arg-type]
+
+    load_governor_state.assert_called_once()
+    refresh_load_governor.assert_not_called()
+    assert out["summary"]["load_governor_pressure_level"] == "green"
