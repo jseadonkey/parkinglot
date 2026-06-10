@@ -192,14 +192,16 @@ def test_backlog_eta_uses_cached_load_governor_without_recompute() -> None:
                 "priority_counties": {"24510": {"total": 1000}},
             },
         ),
-        patch("app.backlog_eta.inspect_redis_queues", return_value={"parking_depth": 0, "slack_depth": 0}),
-        patch("app.backlog_eta.inspect_celery_workers", return_value={"ok": True, "detail": "2 workers"}),
+        patch("app.backlog_eta.inspect_redis_queues", return_value={"parking_depth": 0, "slack_depth": 0}) as queues,
+        patch("app.backlog_eta.inspect_celery_workers", return_value={"ok": True, "detail": "2 workers"}) as workers,
         patch("app.backlog_eta.entitlement_qualified_floor", return_value=70.0),
         patch("app.load_governor.load_governor_state", return_value=None) as load_governor_state,
         patch("app.load_governor.refresh_load_governor") as refresh_load_governor,
     ):
         out = backlog_eta_summary(MagicMock(), settings)  # type: ignore[arg-type]
 
-    load_governor_state.assert_called_once()
+    queues.assert_called_once_with(settings, socket_timeout=1.0)
+    workers.assert_called_once_with(timeout=1.0)
+    load_governor_state.assert_called_once_with(settings, socket_timeout=1.0)
     refresh_load_governor.assert_not_called()
     assert out["summary"]["load_governor_pressure_level"] == "green"

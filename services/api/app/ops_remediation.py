@@ -73,8 +73,12 @@ class QueuedPoiRefreshTask:
     process_all: bool
 
 
-def _redis_client(settings: Settings) -> redis.Redis:
-    return redis.from_url(settings.redis_url, decode_responses=True)
+def _redis_client(settings: Settings, *, socket_timeout: float | None = None) -> redis.Redis:
+    kwargs: dict[str, Any] = {"decode_responses": True}
+    if socket_timeout is not None:
+        kwargs["socket_connect_timeout"] = socket_timeout
+        kwargs["socket_timeout"] = socket_timeout
+    return redis.from_url(settings.redis_url, **kwargs)
 
 
 def save_report(settings: Settings, report: dict[str, Any]) -> None:
@@ -84,9 +88,9 @@ def save_report(settings: Settings, report: dict[str, Any]) -> None:
         logger.exception("ops_remediation: could not persist state")
 
 
-def load_last_report(settings: Settings) -> dict[str, Any] | None:
+def load_last_report(settings: Settings, *, socket_timeout: float | None = None) -> dict[str, Any] | None:
     try:
-        raw = _redis_client(settings).get(REDIS_STATE_KEY)
+        raw = _redis_client(settings, socket_timeout=socket_timeout).get(REDIS_STATE_KEY)
         return json.loads(raw) if raw else None
     except Exception:
         logger.exception("ops_remediation: could not load state")
@@ -140,9 +144,9 @@ def inspect_celery_workers(*, timeout: float = 3.0) -> dict[str, Any]:
         return {"ok": False, "worker_count": 0, "detail": str(exc)[:240]}
 
 
-def inspect_redis_queues(settings: Settings) -> dict[str, Any]:
+def inspect_redis_queues(settings: Settings, *, socket_timeout: float | None = None) -> dict[str, Any]:
     try:
-        client = _redis_client(settings)
+        client = _redis_client(settings, socket_timeout=socket_timeout)
         parking_len = int(client.llen("parking") or 0)
         slack_len = int(client.llen("slack") or 0)
         warn = settings.site_watchdog_parking_queue_warn

@@ -19,6 +19,7 @@ from app.pipeline_funnel import entitlement_qualified_floor
 BALTIMORE_CITY_FIPS = "24510"
 POI_SAFE_BATCH_SIZE = 50
 POI_SAFE_BATCHES_PER_DAY = 24
+BACKLOG_DEPENDENCY_TIMEOUT_SEC = 1.0
 _SCORE_GAPS_YELLOW = 20_000  # aligned with load_governor.py
 
 # Operator-facing server load hints (see load_governor.py and celery_app beat_schedule).
@@ -424,15 +425,15 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
     # This endpoint backs an operator page. Avoid live full-table readiness scans here;
     # Postgres CPU alerts are exactly when operators need the page to load. The ops
     # remediation loop already caches the heavy gap snapshot in Redis.
-    report = load_last_report(settings) or {}
+    report = load_last_report(settings, socket_timeout=BACKLOG_DEPENDENCY_TIMEOUT_SEC) or {}
     report_checked_at = report.get("checked_at") if isinstance(report.get("checked_at"), str) else None
     export = report.get("export_readiness") if isinstance(report.get("export_readiness"), dict) else {}
     priorities = report.get("priority_counties") if isinstance(report.get("priority_counties"), dict) else {}
     priority = priorities.get(BALTIMORE_CITY_FIPS) if isinstance(priorities.get(BALTIMORE_CITY_FIPS), dict) else {}
     priority_total = int(priority.get("total") or 0)
     total = int(export.get("parcel_row_total") or priority_total or 0)
-    queues = inspect_redis_queues(settings)
-    workers = inspect_celery_workers()
+    queues = inspect_redis_queues(settings, socket_timeout=BACKLOG_DEPENDENCY_TIMEOUT_SEC)
+    workers = inspect_celery_workers(timeout=BACKLOG_DEPENDENCY_TIMEOUT_SEC)
     parking_depth = int(queues.get("parking_depth") or 0)
     slack_depth = int(queues.get("slack_depth") or 0)
     active_work = parking_depth > 0
@@ -665,7 +666,7 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         # This page is an operator fallback during load incidents. Do not
         # recompute governor state here, because that performs extra broker/
         # Redis probes and can make the bridge hit its timeout.
-        governor = load_governor_state(settings) or governor
+        governor = load_governor_state(settings, socket_timeout=BACKLOG_DEPENDENCY_TIMEOUT_SEC) or governor
     base_decision = (
         "No active heavy queue. High-value scoring backlog is clear; "
         "next measured work should be candidate-only street address backfill."

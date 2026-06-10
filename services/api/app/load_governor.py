@@ -43,8 +43,12 @@ _FUNNEL_YELLOW = 1_000
 _FUNNEL_ORANGE = 5_000
 
 
-def _redis_client(settings: Settings) -> redis.Redis:
-    return redis.from_url(settings.redis_url, decode_responses=True)
+def _redis_client(settings: Settings, *, socket_timeout: float | None = None) -> redis.Redis:
+    kwargs: dict[str, Any] = {"decode_responses": True}
+    if socket_timeout is not None:
+        kwargs["socket_connect_timeout"] = socket_timeout
+        kwargs["socket_timeout"] = socket_timeout
+    return redis.from_url(settings.redis_url, **kwargs)
 
 
 def _severity_rank(level: PressureLevel) -> int:
@@ -201,9 +205,9 @@ def save_governor_state(settings: Settings, state: dict[str, Any]) -> None:
         logger.exception("load_governor: could not persist state")
 
 
-def load_governor_state(settings: Settings) -> dict[str, Any] | None:
+def load_governor_state(settings: Settings, *, socket_timeout: float | None = None) -> dict[str, Any] | None:
     try:
-        raw = _redis_client(settings).get(REDIS_STATE_KEY)
+        raw = _redis_client(settings, socket_timeout=socket_timeout).get(REDIS_STATE_KEY)
         return json.loads(raw) if raw else None
     except Exception:
         logger.exception("load_governor: could not load state")
