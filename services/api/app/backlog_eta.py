@@ -441,10 +441,11 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
     export = report.get("export_readiness") if isinstance(report.get("export_readiness"), dict) else {}
     priorities = report.get("priority_counties") if isinstance(report.get("priority_counties"), dict) else {}
     priority = priorities.get(BALTIMORE_CITY_FIPS) if isinstance(priorities.get(BALTIMORE_CITY_FIPS), dict) else {}
-    priority_total = int(priority.get("total") or 0)
-    if priority_total <= 0:
+    export_total = max(0, _optional_int(export.get("parcel_row_total")) or 0)
+    priority_total = max(0, _optional_int(priority.get("total")) or 0)
+    if priority_total <= 0 and export_total <= 0:
         priority_total = _cheap_count_baltimore(db)
-    total = int(export.get("parcel_row_total") or priority_total or 0)
+    total = export_total or priority_total
     queues = inspect_redis_queues(settings)
     workers = inspect_celery_workers()
     parking_depth = int(queues.get("parking_depth") or 0)
