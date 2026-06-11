@@ -267,3 +267,27 @@ def test_backlog_eta_inventory_uses_cached_pilot_scope() -> None:
     assert inv["counties_to_be_gathered"] == 36
     assert inv["pilot_county_count"] == 41
     assert "12 Celery tasks" in inv["gathering_note"]
+
+
+def test_backlog_eta_inventory_falls_back_to_pilot_yaml_without_scope() -> None:
+    settings = SimpleNamespace(
+        ops_remediation_auto_fix=False,
+        ops_remediation_allow_db_writes=False,
+        pilot_config_path="config/pilot.yaml",
+    )
+    with (
+        patch(
+            "app.backlog_eta.load_last_report",
+            return_value={"export_readiness": _export_payload(), "priority_counties": {}},
+        ),
+        patch("app.backlog_eta.inspect_redis_queues", return_value={"parking_depth": 0, "slack_depth": 0}),
+        patch("app.backlog_eta.inspect_celery_workers", return_value={"ok": True, "detail": "2 workers"}),
+        patch("app.backlog_eta.entitlement_qualified_floor", return_value=70.0),
+    ):
+        out = backlog_eta_summary(MagicMock(), settings)  # type: ignore[arg-type]
+
+    inv = out["inventory"]
+    assert inv["records_gathered"] == 223139
+    assert inv["county_breakdown_pending"] is True
+    assert inv["pilot_county_count"] >= 2
+    assert inv["counties_to_be_gathered"] == inv["pilot_county_count"]
