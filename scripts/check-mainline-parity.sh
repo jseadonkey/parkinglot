@@ -29,6 +29,7 @@ require services/api/app/load_governor.py
 require services/api/alembic/versions/20260603_0010_poi_commercial_count.py
 require services/api/alembic/versions/20260606_0011_production_stamp_compat.py
 require services/api/alembic/versions/20260607_0010_parcel_scores_latest_index.py
+require services/api/alembic/versions/20260610_0012_production_stamp_compat.py
 
 # Internal routes wired in OpenAPI smoke
 grep -q 'stats/backlog-eta' services/api/app/routers/internal.py || {
