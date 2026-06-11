@@ -104,6 +104,18 @@ function backlogEtaFallback(status = 503): NextResponse {
         high_value_remaining: 0,
         decision: "Backlog ETA is temporarily unavailable. Health checks may still be OK; refresh in a minute.",
       },
+      inventory: {
+        region_name: null,
+        records_gathered: 0,
+        records_gathering: 0,
+        counties_gathered: 0,
+        counties_to_be_gathered: 0,
+        pilot_county_count: 0,
+        parking_queue_depth: 0,
+        pipeline_backlog: 0,
+        wa_rollout_paused: null,
+        gathering_note: "Live gathering counts unavailable while the bridge is degraded.",
+      },
       items: [
         backlogEtaFallbackItem({
           key: "bridge_status",

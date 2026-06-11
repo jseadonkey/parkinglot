@@ -46,9 +46,23 @@ type ServerLoad = {
   throttles: string[];
 };
 
+type BacklogEtaInventory = {
+  region_name: string | null;
+  records_gathered: number;
+  records_gathering: number;
+  counties_gathered: number;
+  counties_to_be_gathered: number;
+  pilot_county_count: number;
+  parking_queue_depth: number;
+  pipeline_backlog: number;
+  wa_rollout_paused: boolean | null;
+  gathering_note: string;
+};
+
 type BacklogEta = {
   generated_at: string;
   server_load?: ServerLoad | null;
+  inventory?: BacklogEtaInventory | null;
   summary: {
     active_parking_queue_depth: number;
     active_slack_queue_depth: number;
@@ -69,6 +83,16 @@ type BacklogEta = {
   items: BacklogEtaItem[];
   degraded?: boolean;
 };
+
+function isBacklogEtaInventory(s: unknown): s is BacklogEtaInventory {
+  return (
+    typeof s === "object" &&
+    s !== null &&
+    "records_gathered" in s &&
+    "records_gathering" in s &&
+    "counties_to_be_gathered" in s
+  );
+}
 
 function isBacklogEta(s: unknown): s is BacklogEta {
   return typeof s === "object" && s !== null && "summary" in s && Array.isArray((s as BacklogEta).items);
@@ -178,14 +202,58 @@ export function BacklogEtaPanel() {
     ? []
     : backlogView.items.filter((item) => item.backlog_count <= 0 && !item.active_now);
   const grossEntitlementGaps = serverLoad?.gross_entitlement_gaps ?? 0;
-  const inventoryItem = itemByKey(backlogView.items, "pipeline_funnel") ?? itemByKey(backlogView.items, "score_gaps");
+  const inventory = isBacklogEtaInventory(backlogView.inventory) ? backlogView.inventory : null;
   const ownerTargetsItem = itemByKey(backlogView.items, "owner_outreach_briefs");
-  const gatheredParcels = inventoryItem?.total_count ?? 0;
-  const atlasCovered = Math.max(0, gatheredParcels - grossEntitlementGaps);
-  const queuedWork = (backlogView.summary.active_parking_queue_depth || 0) + (backlogView.summary.active_slack_queue_depth || 0);
 
   return (
     <div className="panel">
+      <div className="gathering-hero">
+        <div className="gathering-hero-head">
+          <h3 className="gathering-hero-title">Data gathering progress</h3>
+          {inventory?.region_name ? <p className="muted gathering-hero-region">{inventory.region_name}</p> : null}
+        </div>
+        <div className="gathering-hero-stats">
+          <div className="gathering-stat gathering-stat-done">
+            <div className="gathering-stat-label">Gathered</div>
+            <div className="gathering-stat-n">{countLabel(inventory?.records_gathered ?? 0, backlogView.degraded)}</div>
+            <div className="gathering-stat-sub muted">
+              {backlogView.degraded || !inventory
+                ? "Parcel records loaded into inventory"
+                : `${inventory.counties_gathered.toLocaleString()} of ${inventory.pilot_county_count.toLocaleString()} pilot counties loaded`}
+            </div>
+          </div>
+          <div className="gathering-stat gathering-stat-active">
+            <div className="gathering-stat-label">Gathering</div>
+            <div className="gathering-stat-n">{countLabel(inventory?.records_gathering ?? 0, backlogView.degraded)}</div>
+            <div className="gathering-stat-sub muted">
+              {backlogView.degraded || !inventory
+                ? "Ingest or pipeline tasks queued/running"
+                : inventory.gathering_note}
+            </div>
+          </div>
+          <div className="gathering-stat gathering-stat-pending">
+            <div className="gathering-stat-label">To be gathered</div>
+            <div className="gathering-stat-n">
+              {backlogView.degraded || !inventory
+                ? "Unknown"
+                : `${inventory.counties_to_be_gathered.toLocaleString()} ${
+                    inventory.counties_to_be_gathered === 1 ? "county" : "counties"
+                  }`}
+            </div>
+            <div className="gathering-stat-sub muted">
+              {backlogView.degraded || !inventory
+                ? "Configured pilot counties without GIS ingest yet"
+                : inventory.counties_to_be_gathered > 0
+                  ? inventory.wa_rollout_paused
+                    ? "Rollout paused by load governor until pressure eases."
+                    : "Washington statewide ingest runs one county at a time on the daily schedule."
+                  : "All configured pilot counties have parcel rows in the database."}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3 style={{ margin: "1.25rem 0 0.5rem", fontSize: "1rem" }}>Operational snapshot</h3>
       <div className="cols pipeline-stats">
         <div className="stat">
           <div className="muted">Parking queue now</div>
@@ -306,33 +374,25 @@ export function BacklogEtaPanel() {
           stats endpoint again.
         </div>
       ) : null}
-      <h3 style={{ margin: "1rem 0 0.5rem", fontSize: "1rem" }}>Gathered inventory & current work</h3>
-      <div className="cols pipeline-stats">
-        <div className="stat">
-          <div className="muted">Parcels gathered</div>
-          <div className="n">{countLabel(gatheredParcels, backlogView.degraded)}</div>
-          <div className="cell-sub muted">Rows loaded into the parcel inventory snapshot.</div>
-        </div>
-        <div className="stat">
-          <div className="muted">Outreach target pool</div>
-          <div className="n">{countLabel(ownerTargetsItem?.total_count ?? 0, backlogView.degraded)}</div>
-          <div className="cell-sub muted">Top-score parcels being monitored for owner work.</div>
-        </div>
-        <div className="stat">
-          <div className="muted">Atlas coverage</div>
-          <div className="n">{countLabel(atlasCovered, backlogView.degraded)}</div>
-          <div className="cell-sub muted">
-            {grossEntitlementGaps > 0
-              ? `${grossEntitlementGaps.toLocaleString()} broad rows remain informational.`
-              : "No broad entitlement coverage gap in this snapshot."}
+      {!backlogView.degraded && ownerTargetsItem ? (
+        <>
+          <h3 style={{ margin: "1rem 0 0.5rem", fontSize: "1rem" }}>Outreach & coverage</h3>
+          <div className="cols pipeline-stats">
+            <div className="stat">
+              <div className="muted">Outreach target pool</div>
+              <div className="n">{countLabel(ownerTargetsItem.total_count, backlogView.degraded)}</div>
+              <div className="cell-sub muted">Top-score parcels monitored for owner work.</div>
+            </div>
+            {grossEntitlementGaps > 0 ? (
+              <div className="stat">
+                <div className="muted">Broad entitlement gaps</div>
+                <div className="n">{grossEntitlementGaps.toLocaleString()}</div>
+                <div className="cell-sub muted">Informational only — not auto-scored unless prescreen passes.</div>
+              </div>
+            ) : null}
           </div>
-        </div>
-        <div className="stat">
-          <div className="muted">Queued work now</div>
-          <div className="n">{countLabel(queuedWork, backlogView.degraded)}</div>
-          <div className="cell-sub muted">Parking + Slack queues currently waiting/running.</div>
-        </div>
-      </div>
+        </>
+      ) : null}
       <h3 style={{ margin: "1rem 0 0.5rem", fontSize: "1rem" }}>Actionable backlog</h3>
       {actionableItems.length === 0 ? (
         <div className="panel-inset muted">

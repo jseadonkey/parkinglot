@@ -301,6 +301,78 @@ main.main-wide {
   margin-top: 1rem;
 }
 
+.gathering-hero {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(30, 58, 95, 0.35) 0%, rgba(17, 24, 32, 0.9) 100%);
+  padding: 1.1rem 1.15rem 1.15rem;
+}
+
+.gathering-hero-head {
+  margin-bottom: 0.85rem;
+}
+
+.gathering-hero-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.gathering-hero-region {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+}
+
+.gathering-hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (max-width: 860px) {
+  .gathering-hero-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gathering-stat {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  padding: 0.85rem 0.9rem;
+}
+
+.gathering-stat-label {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.gathering-stat-n {
+  margin-top: 0.35rem;
+  font-size: 1.65rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.gathering-stat-sub {
+  margin-top: 0.45rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.gathering-stat-done {
+  border-color: rgba(72, 187, 120, 0.35);
+}
+
+.gathering-stat-active {
+  border-color: rgba(255, 180, 80, 0.35);
+}
+
+.gathering-stat-pending {
+  border-color: rgba(125, 168, 255, 0.35);
+}
+
 .result-meta {
   margin: 0.75rem 0 0;
 }
