@@ -129,6 +129,10 @@ function workStateClass(item: BacklogEtaItem, degraded?: boolean): string {
   return "badge badge-load-low";
 }
 
+function itemByKey(items: BacklogEtaItem[], key: string): BacklogEtaItem | null {
+  return items.find((item) => item.key === key) ?? null;
+}
+
 async function fetchJson(path: string): Promise<unknown> {
   const res = await fetch(bridgeUrl(path), { cache: "no-store" });
   if (!res.ok) throw new Error(`${path} ${res.status}`);
@@ -174,6 +178,11 @@ export function BacklogEtaPanel() {
     ? []
     : backlogView.items.filter((item) => item.backlog_count <= 0 && !item.active_now);
   const grossEntitlementGaps = serverLoad?.gross_entitlement_gaps ?? 0;
+  const inventoryItem = itemByKey(backlogView.items, "pipeline_funnel") ?? itemByKey(backlogView.items, "score_gaps");
+  const ownerTargetsItem = itemByKey(backlogView.items, "owner_outreach_briefs");
+  const gatheredParcels = inventoryItem?.total_count ?? 0;
+  const atlasCovered = Math.max(0, gatheredParcels - grossEntitlementGaps);
+  const queuedWork = (backlogView.summary.active_parking_queue_depth || 0) + (backlogView.summary.active_slack_queue_depth || 0);
 
   return (
     <div className="panel">
@@ -297,6 +306,33 @@ export function BacklogEtaPanel() {
           stats endpoint again.
         </div>
       ) : null}
+      <h3 style={{ margin: "1rem 0 0.5rem", fontSize: "1rem" }}>Gathered inventory & current work</h3>
+      <div className="cols pipeline-stats">
+        <div className="stat">
+          <div className="muted">Parcels gathered</div>
+          <div className="n">{countLabel(gatheredParcels, backlogView.degraded)}</div>
+          <div className="cell-sub muted">Rows loaded into the parcel inventory snapshot.</div>
+        </div>
+        <div className="stat">
+          <div className="muted">Outreach target pool</div>
+          <div className="n">{countLabel(ownerTargetsItem?.total_count ?? 0, backlogView.degraded)}</div>
+          <div className="cell-sub muted">Top-score parcels being monitored for owner work.</div>
+        </div>
+        <div className="stat">
+          <div className="muted">Atlas coverage</div>
+          <div className="n">{countLabel(atlasCovered, backlogView.degraded)}</div>
+          <div className="cell-sub muted">
+            {grossEntitlementGaps > 0
+              ? `${grossEntitlementGaps.toLocaleString()} broad rows remain informational.`
+              : "No broad entitlement coverage gap in this snapshot."}
+          </div>
+        </div>
+        <div className="stat">
+          <div className="muted">Queued work now</div>
+          <div className="n">{countLabel(queuedWork, backlogView.degraded)}</div>
+          <div className="cell-sub muted">Parking + Slack queues currently waiting/running.</div>
+        </div>
+      </div>
       <h3 style={{ margin: "1rem 0 0.5rem", fontSize: "1rem" }}>Actionable backlog</h3>
       {actionableItems.length === 0 ? (
         <div className="panel-inset muted">
