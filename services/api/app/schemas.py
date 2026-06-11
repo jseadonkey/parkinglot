@@ -400,6 +400,7 @@ class BacklogEtaServerLoad(BaseModel):
     score_gaps: int = 0
     ident_score_gaps: int = 0
     ent_score_gaps: int = 0
+    gross_entitlement_gaps: int = 0
     primary_drivers: list[str]
     signals: list[str]
     scheduled_jobs: list[BacklogEtaServerLoadJob]
