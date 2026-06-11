@@ -110,6 +110,10 @@ function jobStatusLabel(status: string): string {
   return "Active";
 }
 
+function countLabel(value: number, degraded?: boolean): string {
+  return degraded ? "Unknown" : value.toLocaleString();
+}
+
 async function fetchJson(path: string): Promise<unknown> {
   const res = await fetch(bridgeUrl(path), { cache: "no-store" });
   if (!res.ok) throw new Error(`${path} ${res.status}`);
@@ -154,15 +158,17 @@ export function BacklogEtaPanel() {
       <div className="cols pipeline-stats">
         <div className="stat">
           <div className="muted">Parking queue now</div>
-          <div className="n">{backlogView.summary.active_parking_queue_depth.toLocaleString()}</div>
+          <div className="n">{countLabel(backlogView.summary.active_parking_queue_depth, backlogView.degraded)}</div>
         </div>
         <div className="stat">
           <div className="muted">High-value remaining</div>
-          <div className="n">{backlogView.summary.high_value_remaining.toLocaleString()}</div>
+          <div className="n">{countLabel(backlogView.summary.high_value_remaining, backlogView.degraded)}</div>
         </div>
         <div className="stat">
           <div className="muted">Workers</div>
-          <div className="n">{backlogView.summary.workers_online ? "Online" : "Offline"}</div>
+          <div className="n">
+            {backlogView.degraded ? "Unknown" : backlogView.summary.workers_online ? "Online" : "Offline"}
+          </div>
         </div>
         <div className="stat">
           <div className="muted">Auto-fix</div>
@@ -177,7 +183,7 @@ export function BacklogEtaPanel() {
         {serverLoad ? (
           <div className="stat">
             <div className="muted">Score gaps (latent load)</div>
-            <div className="n">{serverLoad.score_gaps.toLocaleString()}</div>
+            <div className="n">{countLabel(serverLoad.score_gaps, backlogView.degraded)}</div>
           </div>
         ) : null}
         {backlogView.summary.active_slack_queue_depth > 0 ? (
@@ -191,9 +197,9 @@ export function BacklogEtaPanel() {
         <div className="server-load-panel" style={{ marginTop: "1rem" }}>
           <h3 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>What&apos;s using the server</h3>
           <p className="muted" style={{ marginTop: 0 }}>
-            Live queue depth is {serverLoad.parking_queue_depth.toLocaleString()}. Orange/red governor means
-            scheduled work is throttled even when the queue looks empty — latent gaps below still drive Postgres
-            load when Beat tasks run.
+            {backlogView.degraded
+              ? "Live queue depth is unknown while the API bridge is degraded. The schedule below shows what should run when the API recovers."
+              : `Live queue depth is ${serverLoad.parking_queue_depth.toLocaleString()}. Orange/red governor means scheduled work is throttled even when the queue looks empty — latent gaps below still drive Postgres load when Beat tasks run.`}
           </p>
           {serverLoad.primary_drivers.length > 0 ? (
             <ul className="server-load-drivers">
@@ -300,8 +306,17 @@ export function BacklogEtaPanel() {
                 </span>
               </td>
               <td>
-                {item.backlog_count.toLocaleString()} / {item.total_count.toLocaleString()} {item.unit}
-                <div className="muted">{item.backlog_pct}% remaining</div>
+                {backlogView.degraded ? (
+                  <>
+                    Unavailable
+                    <div className="muted">Live count unavailable</div>
+                  </>
+                ) : (
+                  <>
+                    {item.backlog_count.toLocaleString()} / {item.total_count.toLocaleString()} {item.unit}
+                    <div className="muted">{item.backlog_pct}% remaining</div>
+                  </>
+                )}
               </td>
               <td>
                 <span className={loadTierClass(item.server_load_tier)}>{loadTierLabel(item.server_load_tier)}</span>

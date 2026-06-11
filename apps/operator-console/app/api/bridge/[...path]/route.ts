@@ -29,10 +29,70 @@ function isInternalPath(path: string): boolean {
   return path.startsWith("internal/");
 }
 
+function backlogEtaFallbackItem({
+  key,
+  label,
+  recommendation,
+  why,
+}: {
+  key: string;
+  label: string;
+  recommendation: string;
+  why: string;
+}) {
+  return {
+    key,
+    label,
+    status: "unknown",
+    active_now: false,
+    backlog_count: 0,
+    total_count: 0,
+    backlog_pct: 0,
+    unit: "items",
+    value: "selective",
+    work_type: "ops_status",
+    assumed_units_per_day: null,
+    eta_days: null,
+    eta_label: "Unavailable while bridge is degraded",
+    eta_confidence: "unknown",
+    recommendation,
+    why,
+    server_load_tier: "low",
+    server_load_note: "Live server-load details are unavailable until the API responds.",
+  };
+}
+
 function backlogEtaFallback(status = 503): NextResponse {
   return NextResponse.json(
     {
       generated_at: new Date().toISOString(),
+      server_load: {
+        pressure_level: "unknown",
+        assessed_at: null,
+        parking_queue_depth: 0,
+        score_gaps: 0,
+        ident_score_gaps: 0,
+        ent_score_gaps: 0,
+        primary_drivers: ["Backlog ETA API did not respond before the operator bridge fallback."],
+        signals: [],
+        scheduled_jobs: [
+          {
+            name: "Idle-work tick",
+            schedule_utc: "*/15 * * * *",
+            load_tier: "low",
+            status: "active",
+            note: "When queues are empty, statewide ingest/scoring should continue on the next idle tick.",
+          },
+          {
+            name: "Priority pipeline enqueue",
+            schedule_utc: "*/2 hours",
+            load_tier: "high",
+            status: "active",
+            note: "Exact backlog counts are unavailable while the bridge is degraded.",
+          },
+        ],
+        throttles: [],
+      },
       summary: {
         active_parking_queue_depth: 0,
         active_slack_queue_depth: 0,
@@ -44,7 +104,32 @@ function backlogEtaFallback(status = 503): NextResponse {
         high_value_remaining: 0,
         decision: "Backlog ETA is temporarily unavailable. Health checks may still be OK; refresh in a minute.",
       },
-      items: [],
+      items: [
+        backlogEtaFallbackItem({
+          key: "bridge_status",
+          label: "Backlog API bridge",
+          recommendation:
+            "Treat counts as unknown until the API responds. If this persists, check API logs and deploy the backlog timeout fix.",
+          why:
+            "The operator console is up, but its server-side bridge could not get a live backlog ETA response.",
+        }),
+        backlogEtaFallbackItem({
+          key: "statewide_idle_work",
+          label: "Statewide idle-work tick",
+          recommendation:
+            "If queues are empty, automated statewide ingest/scoring should resume on the next idle-work tick.",
+          why:
+            "Baltimore rows can be complete while Washington county ingest and post-ingest scoring still move forward.",
+        }),
+        backlogEtaFallbackItem({
+          key: "draft_storage_reruns",
+          label: "Draft-storage failure reruns",
+          recommendation:
+            "After the retry controls are deployed, use Deals or Outreach to rerun any remaining draft-storage failures.",
+          why:
+            "NoSuchBucket failures from before bucket provisioning are recoverable by rerunning the pipeline.",
+        }),
+      ],
       degraded: true,
     },
     {

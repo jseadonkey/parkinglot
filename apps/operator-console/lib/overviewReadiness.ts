@@ -37,6 +37,7 @@ type BacklogEtaItem = {
 export type BacklogEtaForReadiness = {
   items: BacklogEtaItem[];
   summary: { decision: string };
+  degraded?: boolean;
 };
 
 const EMPTY: GapStat = { count: 0, pct: 0 };
@@ -91,6 +92,7 @@ export function isBacklogEtaForReadiness(s: unknown): s is BacklogEtaForReadines
     s !== null &&
     "summary" in s &&
     "items" in s &&
-    Array.isArray((s as BacklogEtaForReadiness).items)
+    Array.isArray((s as BacklogEtaForReadiness).items) &&
+    (s as BacklogEtaForReadiness).degraded !== true
   );
 }

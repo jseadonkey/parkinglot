@@ -66,6 +66,9 @@ export function bridgeCacheTtlMs(subpath: string): number | null {
 
 /** Upstream fetch timeout — heavy stats scans exceed the old 15s cap. */
 export function bridgeTimeoutMs(subpath: string): number {
+  if (subpath === "internal/stats/backlog-eta") {
+    return 8_000;
+  }
   if (subpath === "internal/stats/export-readiness") {
     return 180_000;
   }
