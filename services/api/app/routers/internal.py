@@ -26,6 +26,7 @@ from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolio
 from app.parcel_deal_context import attach_revenue_summaries, qualified_min_entitlement_score
 from app.parcel_scored_list import COMBINED, ParcelSortProfile, query_parcels_scored_list
 from app.pilot_scope import pilot_scope_summary
+from app.pipeline_retries import enqueue_draft_storage_failure_reruns
 from app.platform_showcase import build_platform_showcase
 from app.rate_comp_seed import seed_baltimore_parking_rate_comps, seed_king_county_parking_rate_comps
 from app.schemas import (
@@ -64,6 +65,7 @@ from app.schemas import (
     PeerParcelSummary,
     PilotCountyScopeRow,
     PilotScopeResponse,
+    PipelineRetryDraftStorageResponse,
     PlatformShowcaseResponse,
     QualifiedMinScores,
     RateCompSeedResponse,
@@ -922,6 +924,16 @@ def enqueue_priority_pipelines(
     """Enqueue pipeline for prescreen-qualified parcels, highest entitlement score first."""
     raw = enqueue_priority_qualified_pipeline_jobs(limit)
     return EnqueueIncompleteResponse(**raw)
+
+
+@router.post("/pipeline/retry-draft-storage-failures", response_model=PipelineRetryDraftStorageResponse)
+def retry_draft_storage_failures(
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+) -> PipelineRetryDraftStorageResponse:
+    """Rerun failed pipelines caused by the formerly missing draft-storage bucket."""
+    raw = enqueue_draft_storage_failure_reruns(db, limit=limit)
+    return PipelineRetryDraftStorageResponse(**raw)
 
 
 @router.post("/ingest/merge-geojson-attributes", response_model=CeleryTaskIdResponse)

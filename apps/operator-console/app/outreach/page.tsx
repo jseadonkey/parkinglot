@@ -18,6 +18,7 @@ import {
   type ParcelRevenueSummary,
 } from "../../lib/revenueDisplay";
 import { marketFilterParams, usePilotScope } from "../../lib/usePilotScope";
+import { isDraftStorageBucketError } from "../../lib/workflowErrorDisplay";
 
 type Row = {
   parcel_id: string;
@@ -45,6 +46,12 @@ type Board = {
   owner_outreach_min_strategic_score: number;
   row_count: number;
   rows: Row[];
+};
+
+type RetryDraftStorageResponse = {
+  matched_failed_runs: number;
+  enqueued: number;
+  skipped_newer_run: number;
 };
 
 type QuickFilter = "all" | "action" | "blocked" | "completed" | "failed" | "running";
@@ -95,6 +102,8 @@ export default function OutreachPipelinePage() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("score");
   const [err, setErr] = useState<string | null>(null);
+  const [retryMsg, setRetryMsg] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   async function loadBoard() {
     setErr(null);
@@ -113,6 +122,49 @@ export default function OutreachPipelinePage() {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function retryOne(parcelId: string) {
+    setRetrying(true);
+    setRetryMsg(null);
+    try {
+      const res = await fetch(bridgeUrl(`parcels/${parcelId}/pipeline/run`), { method: "POST" });
+      if (!res.ok) {
+        const detail = await res.text();
+        throw new Error(`Retry failed (${res.status}): ${detail}`);
+      }
+      setRetryMsg("Pipeline rerun enqueued for this parcel.");
+      await loadBoard();
+    } catch (e) {
+      setRetryMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRetrying(false);
+    }
+  }
+
+  async function retryDraftStorageFailures() {
+    setRetrying(true);
+    setRetryMsg(null);
+    try {
+      const res = await fetch(bridgeUrl("internal/pipeline/retry-draft-storage-failures?limit=200"), {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const detail = await res.text();
+        throw new Error(`Bulk retry failed (${res.status}): ${detail}`);
+      }
+      const data = (await res.json()) as RetryDraftStorageResponse;
+      setRetryMsg(
+        `Enqueued ${data.enqueued} draft-storage pipeline rerun${
+          data.enqueued === 1 ? "" : "s"
+        } (${data.skipped_newer_run} already had newer runs).`,
+      );
+      await loadBoard();
+    } catch (e) {
+      setRetryMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRetrying(false);
     }
   }
 
@@ -153,6 +205,7 @@ export default function OutreachPipelinePage() {
     { key: "failed", label: "Failed", count: stats.failed },
     { key: "running", label: "Running", count: stats.running },
   ];
+  const draftStorageFailureCount = (board?.rows ?? []).filter((r) => isDraftStorageBucketError(r.workflow_error)).length;
 
   return (
     <div className="page-content main-wide">
@@ -164,7 +217,18 @@ export default function OutreachPipelinePage() {
         <button type="button" className="outline" onClick={() => void loadBoard()} disabled={loading}>
           {loading ? "Loading…" : "Refresh"}
         </button>
+        {draftStorageFailureCount > 0 ? (
+          <button
+            type="button"
+            className="outline"
+            onClick={() => void retryDraftStorageFailures()}
+            disabled={retrying}
+          >
+            {retrying ? "Retrying…" : `Retry ${draftStorageFailureCount} draft-storage failure${draftStorageFailureCount === 1 ? "" : "s"}`}
+          </button>
+        ) : null}
       </div>
+      {retryMsg ? <div className={retryMsg.includes("failed") ? "error" : "success"}>{retryMsg}</div> : null}
 
       <div className="cols pipeline-stats">
         <div className="stat">
@@ -333,6 +397,16 @@ export default function OutreachPipelinePage() {
                           <Link href={`/parcels/${r.parcel_id}`} className="btn-link">
                             Open parcel
                           </Link>
+                          {isDraftStorageBucketError(r.workflow_error) ? (
+                            <button
+                              type="button"
+                              className="btn-link"
+                              onClick={() => void retryOne(r.parcel_id)}
+                              disabled={retrying}
+                            >
+                              Retry pipeline
+                            </button>
+                          ) : null}
                           {r.pending_approval_count > 0 ? (
                             <Link href="/approvals" className="btn-link btn-link-primary">
                               Review approval{r.pending_approval_count > 1 ? "s" : ""}

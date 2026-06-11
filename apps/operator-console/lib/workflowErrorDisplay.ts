@@ -1,9 +1,13 @@
 /** Operator-friendly pipeline error text (hide raw AWS SDK noise). */
 
+export function isDraftStorageBucketError(raw: string | null | undefined): boolean {
+  return Boolean(raw?.includes("NoSuchBucket"));
+}
+
 export function formatWorkflowError(raw: string | null | undefined): string | null {
   if (!raw?.trim()) return null;
   const msg = raw.trim();
-  if (msg.includes("NoSuchBucket")) {
+  if (isDraftStorageBucketError(msg)) {
     return "Draft storage bucket was missing when this run failed. The bucket is provisioned now — rerun the pipeline for this parcel.";
   }
   if (msg.includes("PutObject") && msg.includes("bucket")) {

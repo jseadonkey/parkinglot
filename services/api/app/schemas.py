@@ -293,6 +293,17 @@ class EnqueueIncompleteResponse(BaseModel):
     priority_county_fips: list[str] | None = None
 
 
+class PipelineRetryDraftStorageResponse(BaseModel):
+    """Known bucket-failure pipeline reruns enqueued directly."""
+
+    matched_failed_runs: int
+    enqueued: int
+    skipped_newer_run: int
+    parcel_ids: list[str]
+    task_ids: list[str]
+    limit: int
+
+
 class PrescreenGapStat(GapStat):
     floor: float = Field(description="Identification prescreen qualified_min_score from pilot_identification.yaml")
 
