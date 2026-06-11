@@ -39,6 +39,7 @@ type ServerLoad = {
   score_gaps: number;
   ident_score_gaps: number;
   ent_score_gaps: number;
+  gross_entitlement_gaps?: number;
   primary_drivers: string[];
   signals: string[];
   scheduled_jobs: ServerLoadJob[];
@@ -114,6 +115,20 @@ function countLabel(value: number, degraded?: boolean): string {
   return degraded ? "Unknown" : value.toLocaleString();
 }
 
+function workStateLabel(item: BacklogEtaItem, degraded?: boolean): string {
+  if (degraded) return "Unavailable";
+  if (item.backlog_count > 0) return "Needs work";
+  if (item.active_now) return "Running";
+  return "Complete";
+}
+
+function workStateClass(item: BacklogEtaItem, degraded?: boolean): string {
+  if (degraded) return "badge";
+  if (item.backlog_count > 0) return item.value === "high" ? "badge badge-priority" : "badge badge-load-medium";
+  if (item.active_now) return "badge badge-load-medium";
+  return "badge badge-load-low";
+}
+
 async function fetchJson(path: string): Promise<unknown> {
   const res = await fetch(bridgeUrl(path), { cache: "no-store" });
   if (!res.ok) throw new Error(`${path} ${res.status}`);
@@ -152,6 +167,13 @@ export function BacklogEtaPanel() {
 
   const governorLevel = backlogView.summary.load_governor_pressure_level;
   const serverLoad = backlogView.server_load;
+  const actionableItems = backlogView.degraded
+    ? backlogView.items
+    : backlogView.items.filter((item) => item.backlog_count > 0 || item.active_now);
+  const completedItems = backlogView.degraded
+    ? []
+    : backlogView.items.filter((item) => item.backlog_count <= 0 && !item.active_now);
+  const grossEntitlementGaps = serverLoad?.gross_entitlement_gaps ?? 0;
 
   return (
     <div className="panel">
@@ -275,65 +297,164 @@ export function BacklogEtaPanel() {
           stats endpoint again.
         </div>
       ) : null}
-      <table className="data" style={{ marginTop: "1rem" }}>
+      <h3 style={{ margin: "1rem 0 0.5rem", fontSize: "1rem" }}>Actionable backlog</h3>
+      {actionableItems.length === 0 ? (
+        <div className="panel-inset muted">
+          No candidate backlog needs operator action in this snapshot. The rows that used to show 0% remaining are now
+          listed under completed/monitored scopes below.
+        </div>
+      ) : (
+        <table className="data" style={{ marginTop: "0.5rem" }}>
+          <thead>
+            <tr>
+              <th>Work</th>
+              <th>Priority</th>
+              <th>Remaining</th>
+              <th>Server load</th>
+              <th>ETA</th>
+              <th>Recommendation</th>
+            </tr>
+          </thead>
+          <tbody>
+            {actionableItems.map((item) => (
+              <tr key={item.key} className={item.backlog_count > 0 ? "row-attention" : undefined}>
+                <td>
+                  <strong>{item.label}</strong>
+                  <div className="muted">{item.why}</div>
+                </td>
+                <td>
+                  <span className={workStateClass(item, backlogView.degraded)}>{workStateLabel(item, backlogView.degraded)}</span>
+                  <div className="muted cell-sub">{valueLabel(item.value)}</div>
+                </td>
+                <td>
+                  {backlogView.degraded ? (
+                    <>
+                      Unavailable
+                      <div className="muted">Live count unavailable</div>
+                    </>
+                  ) : (
+                    <>
+                      {item.backlog_count.toLocaleString()} / {item.total_count.toLocaleString()} {item.unit}
+                      <div className="muted">{item.backlog_pct}% remaining</div>
+                    </>
+                  )}
+                </td>
+                <td>
+                  <span className={loadTierClass(item.server_load_tier)}>{loadTierLabel(item.server_load_tier)}</span>
+                  {item.server_load_note ? <div className="muted">{item.server_load_note}</div> : null}
+                </td>
+                <td>
+                  {item.eta_label}
+                  <div className="muted">Confidence: {item.eta_confidence}</div>
+                  {item.assumed_units_per_day ? (
+                    <div className="muted">Assumes ~{Math.round(item.assumed_units_per_day).toLocaleString()} / day</div>
+                  ) : null}
+                </td>
+                <td>{item.recommendation}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <h3 style={{ margin: "1rem 0 0.5rem", fontSize: "1rem" }}>Current / next automated work</h3>
+      <table className="data" style={{ marginTop: "0.5rem" }}>
         <thead>
           <tr>
             <th>Work</th>
-            <th>Value</th>
-            <th>Remaining</th>
+            <th>Status</th>
+            <th>Schedule</th>
             <th>Server load</th>
-            <th>ETA</th>
-            <th>Recommendation</th>
+            <th>What it means</th>
           </tr>
         </thead>
         <tbody>
-          {backlogView.items.length === 0 ? (
+          {grossEntitlementGaps > 0 ? (
             <tr>
-              <td colSpan={6} className="muted">
-                No backlog rows available right now.
+              <td>
+                <strong>Broad entitlement coverage</strong>
+                <div className="muted">
+                  {grossEntitlementGaps.toLocaleString()} parcels do not have Atlas entitlement coverage.
+                </div>
+              </td>
+              <td>
+                <span className="badge badge-load-low">Informational</span>
+              </td>
+              <td className="muted">Not queued citywide</td>
+              <td>
+                <span className="badge badge-load-low">Light</span>
+              </td>
+              <td>
+                Not a candidate backlog. These rows are scored only after identification prescreen or another candidate
+                trigger says they can affect surface-parking lead quality.
               </td>
             </tr>
           ) : null}
-          {backlogView.items.map((item) => (
-            <tr key={item.key}>
-              <td>
-                <strong>{item.label}</strong>
-                <div className="muted">{item.why}</div>
+          {serverLoad?.scheduled_jobs.length ? (
+            serverLoad.scheduled_jobs.map((job) => (
+              <tr key={job.name}>
+                <td>
+                  <strong>{job.name}</strong>
+                  {job.note ? <div className="muted">{job.note}</div> : null}
+                </td>
+                <td>{jobStatusLabel(job.status)}</td>
+                <td className="mono">{job.schedule_utc}</td>
+                <td>
+                  <span className={loadTierClass(job.load_tier)}>{loadTierLabel(job.load_tier)}</span>
+                </td>
+                <td>
+                  {job.status === "paused"
+                    ? "Paused by governor or config; it should resume when pressure/config allows."
+                    : job.status === "throttled"
+                      ? "Still available, but capped so it does not dominate API/DB capacity."
+                      : "Active automation; no manual action needed unless it starts failing."}
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={5} className="muted">
+                No scheduled automation rows available in this snapshot.
               </td>
-              <td>
-                <span className={item.value === "high" ? "badge badge-priority" : "badge"}>
-                  {valueLabel(item.value)}
-                </span>
-              </td>
-              <td>
-                {backlogView.degraded ? (
-                  <>
-                    Unavailable
-                    <div className="muted">Live count unavailable</div>
-                  </>
-                ) : (
-                  <>
-                    {item.backlog_count.toLocaleString()} / {item.total_count.toLocaleString()} {item.unit}
-                    <div className="muted">{item.backlog_pct}% remaining</div>
-                  </>
-                )}
-              </td>
-              <td>
-                <span className={loadTierClass(item.server_load_tier)}>{loadTierLabel(item.server_load_tier)}</span>
-                {item.server_load_note ? <div className="muted">{item.server_load_note}</div> : null}
-              </td>
-              <td>
-                {item.eta_label}
-                <div className="muted">Confidence: {item.eta_confidence}</div>
-                {item.assumed_units_per_day ? (
-                  <div className="muted">Assumes ~{Math.round(item.assumed_units_per_day).toLocaleString()} / day</div>
-                ) : null}
-              </td>
-              <td>{item.recommendation}</td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
+
+      {completedItems.length > 0 ? (
+        <details style={{ marginTop: "1rem" }}>
+          <summary className="muted">Completed / monitored candidate scopes ({completedItems.length})</summary>
+          <table className="data" style={{ marginTop: "0.5rem" }}>
+            <thead>
+              <tr>
+                <th>Scope</th>
+                <th>State</th>
+                <th>Candidate population</th>
+                <th>Monitoring note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {completedItems.map((item) => (
+                <tr key={item.key}>
+                  <td>
+                    <strong>{item.label}</strong>
+                    <div className="muted">{item.why}</div>
+                  </td>
+                  <td>
+                    <span className={workStateClass(item)}>{workStateLabel(item)}</span>
+                    <div className="muted cell-sub">{valueLabel(item.value)}</div>
+                  </td>
+                  <td>
+                    {item.total_count.toLocaleString()} {item.unit} monitored
+                    <div className="muted">0 open in this snapshot</div>
+                  </td>
+                  <td>{item.recommendation}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      ) : null}
     </div>
   );
 }
