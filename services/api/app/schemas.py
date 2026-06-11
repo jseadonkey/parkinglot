@@ -419,6 +419,7 @@ class BacklogEtaInventory(BaseModel):
     parking_queue_depth: int
     pipeline_backlog: int
     wa_rollout_paused: bool | None = None
+    county_breakdown_pending: bool = False
     gathering_note: str
 
 

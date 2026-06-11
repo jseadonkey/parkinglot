@@ -114,6 +114,7 @@ function backlogEtaFallback(status = 503): NextResponse {
         parking_queue_depth: 0,
         pipeline_backlog: 0,
         wa_rollout_paused: null,
+        county_breakdown_pending: true,
         gathering_note: "Live gathering counts unavailable while the bridge is degraded.",
       },
       items: [

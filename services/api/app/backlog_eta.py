@@ -436,6 +436,7 @@ def _item(
 
 def _inventory_section(
     *,
+    settings: Settings,
     export: dict[str, Any],
     report: dict[str, Any],
     parking_depth: int,
@@ -443,15 +444,25 @@ def _inventory_section(
     governor: dict[str, Any],
 ) -> dict[str, Any]:
     """Gathered / gathering / to-be-gathered counts from the cached ops snapshot."""
+    from parking_core.pilot import load_pilot_config
+
     records_gathered = int(export.get("parcel_row_total") or 0)
     records_gathering = max(0, parking_depth) + max(0, pipeline_backlog)
     scope = report.get("pilot_scope") if isinstance(report.get("pilot_scope"), dict) else {}
     pilot_county_count = int(scope.get("pilot_county_count") or 0)
     counties_gathered = int(scope.get("counties_with_ingested_parcels") or 0)
-    if pilot_county_count <= 0 and records_gathered > 0:
-        pilot_county_count = counties_gathered
+    region_name = scope.get("region_name") if isinstance(scope.get("region_name"), str) else None
+    if pilot_county_count <= 0:
+        pilot_config_path = getattr(settings, "pilot_config_path", None)
+        if pilot_config_path:
+            pilot = load_pilot_config(pilot_config_path)
+            pilot_fips = [str(f).strip() for f in (pilot.region.county_fips or []) if str(f).strip()]
+            pilot_county_count = len(pilot_fips)
+            if not region_name:
+                region_name = pilot.region.name
     counties_to_be_gathered = max(0, pilot_county_count - counties_gathered)
     wa_rollout_paused = governor.get("wa_rollout_allowed") is False
+    county_breakdown_pending = counties_gathered <= 0 and records_gathered > 0 and not scope
     if records_gathering > 0:
         gathering_note = (
             f"{parking_depth:,} Celery tasks queued/running · "
@@ -461,6 +472,10 @@ def _inventory_section(
         gathering_note = (
             "No queued ingest/scoring tasks right now. WA county rollout is paused by the load governor."
         )
+    elif county_breakdown_pending:
+        gathering_note = (
+            "Parcel total is current; county-by-county breakdown refreshes on the next ops snapshot."
+        )
     elif counties_to_be_gathered > 0:
         gathering_note = (
             f"No active queue work. {counties_to_be_gathered} configured "
@@ -469,7 +484,7 @@ def _inventory_section(
     else:
         gathering_note = "No queued ingest or pipeline tasks; pilot counties are loaded."
     return {
-        "region_name": scope.get("region_name") if isinstance(scope.get("region_name"), str) else None,
+        "region_name": region_name,
         "records_gathered": records_gathered,
         "records_gathering": records_gathering,
         "counties_gathered": counties_gathered,
@@ -478,6 +493,7 @@ def _inventory_section(
         "parking_queue_depth": parking_depth,
         "pipeline_backlog": pipeline_backlog,
         "wa_rollout_paused": wa_rollout_paused if pilot_county_count > 0 else None,
+        "county_breakdown_pending": county_breakdown_pending,
         "gathering_note": gathering_note,
     }
 
@@ -757,6 +773,7 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         poi_citywide_missing=poi_citywide_missing,
     )
     inventory = _inventory_section(
+        settings=settings,
         export=export,
         report=report,
         parking_depth=parking_depth,

@@ -56,6 +56,7 @@ type BacklogEtaInventory = {
   parking_queue_depth: number;
   pipeline_backlog: number;
   wa_rollout_paused: boolean | null;
+  county_breakdown_pending?: boolean;
   gathering_note: string;
 };
 
@@ -219,7 +220,9 @@ export function BacklogEtaPanel() {
             <div className="gathering-stat-sub muted">
               {backlogView.degraded || !inventory
                 ? "Parcel records loaded into inventory"
-                : `${inventory.counties_gathered.toLocaleString()} of ${inventory.pilot_county_count.toLocaleString()} pilot counties loaded`}
+                : inventory.county_breakdown_pending
+                  ? `${inventory.pilot_county_count.toLocaleString()} pilot counties configured — county breakdown refreshes on next ops snapshot`
+                  : `${inventory.counties_gathered.toLocaleString()} of ${inventory.pilot_county_count.toLocaleString()} pilot counties loaded`}
             </div>
           </div>
           <div className="gathering-stat gathering-stat-active">
@@ -236,18 +239,22 @@ export function BacklogEtaPanel() {
             <div className="gathering-stat-n">
               {backlogView.degraded || !inventory
                 ? "Unknown"
-                : `${inventory.counties_to_be_gathered.toLocaleString()} ${
-                    inventory.counties_to_be_gathered === 1 ? "county" : "counties"
-                  }`}
+                : inventory.county_breakdown_pending
+                  ? "Pending"
+                  : `${inventory.counties_to_be_gathered.toLocaleString()} ${
+                      inventory.counties_to_be_gathered === 1 ? "county" : "counties"
+                    }`}
             </div>
             <div className="gathering-stat-sub muted">
               {backlogView.degraded || !inventory
                 ? "Configured pilot counties without GIS ingest yet"
-                : inventory.counties_to_be_gathered > 0
-                  ? inventory.wa_rollout_paused
-                    ? "Rollout paused by load governor until pressure eases."
-                    : "Washington statewide ingest runs one county at a time on the daily schedule."
-                  : "All configured pilot counties have parcel rows in the database."}
+                : inventory.county_breakdown_pending
+                  ? "Ops snapshot is refreshing county-level ingest progress."
+                  : inventory.counties_to_be_gathered > 0
+                    ? inventory.wa_rollout_paused
+                      ? "Rollout paused by load governor until pressure eases."
+                      : "Washington statewide ingest runs one county at a time on the daily schedule."
+                    : "All configured pilot counties have parcel rows in the database."}
             </div>
           </div>
         </div>
