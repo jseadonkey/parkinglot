@@ -205,3 +205,29 @@ def test_backlog_eta_uses_cached_load_governor_without_recompute() -> None:
     load_governor_state.assert_called_once_with(settings, socket_timeout=1.0)
     refresh_load_governor.assert_not_called()
     assert out["summary"]["load_governor_pressure_level"] == "green"
+
+
+def test_backlog_eta_does_not_treat_broad_entitlement_gap_as_actionable_score_backlog() -> None:
+    settings = SimpleNamespace(ops_remediation_auto_fix=False, ops_remediation_allow_db_writes=False)
+    export = {
+        **_export_payload(),
+        "parcels_missing_score_identification": {"count": 0},
+        "parcels_missing_score_entitlement": {"count": 1000},
+        "parcels_pipeline_funnel_backlog": {"count": 0},
+    }
+    with (
+        patch(
+            "app.backlog_eta.load_last_report",
+            return_value={"export_readiness": export, "priority_counties": {}},
+        ),
+        patch("app.backlog_eta.inspect_redis_queues", return_value={"parking_depth": 0, "slack_depth": 0}),
+        patch("app.backlog_eta.inspect_celery_workers", return_value={"ok": True, "detail": "2 workers"}),
+        patch("app.backlog_eta.entitlement_qualified_floor", return_value=70.0),
+    ):
+        out = backlog_eta_summary(MagicMock(), settings)  # type: ignore[arg-type]
+
+    score = next(row for row in out["items"] if row["key"] == "score_gaps")
+    assert score["label"] == "Actionable score gaps"
+    assert score["backlog_count"] == 0
+    assert score["recommendation"] == "No action needed."
+    assert out["summary"]["score_gaps_total"] == 0

@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 REDIS_STATE_KEY = "load_governor:state"
 STATE_TTL_SEC = 60 * 45
+SCORE_GAP_BASIS = "identification_plus_pipeline_funnel"
 
 PressureLevel = Literal["green", "yellow", "orange", "red"]
 
@@ -132,12 +133,15 @@ def assess_load_pressure(
     report = cached_ops_report if cached_ops_report is not None else load_last_report(settings)
     export = (report or {}).get("export_readiness") if isinstance(report, dict) else None
     score_gaps = 0
+    gross_entitlement_gaps = 0
     funnel_backlog = 0
     if isinstance(export, dict):
-        score_gaps = _gap_count(export, "parcels_missing_score_identification") + _gap_count(
-            export, "parcels_missing_score_entitlement"
-        )
+        # Identification gaps block prescreening. Entitlement gaps only create
+        # actionable scoring work after a parcel passes identification prescreen;
+        # otherwise they are broad coverage gaps and should not throttle ingest.
+        gross_entitlement_gaps = _gap_count(export, "parcels_missing_score_entitlement")
         funnel_backlog = _gap_count(export, "parcels_pipeline_funnel_backlog")
+        score_gaps = _gap_count(export, "parcels_missing_score_identification") + funnel_backlog
         if score_gaps >= _SCORE_GAPS_ORANGE:
             level = _max_level(level, "orange")
             signals.append({"code": "score_gaps_high", "count": score_gaps})
@@ -180,6 +184,8 @@ def assess_load_pressure(
         "workers_online": bool(workers.get("ok")),
         "worker_detail": workers.get("detail"),
         "score_gaps": score_gaps,
+        "score_gap_basis": SCORE_GAP_BASIS,
+        "gross_entitlement_gaps": gross_entitlement_gaps,
         "pipeline_funnel_backlog": funnel_backlog,
         "signals": signals,
         "decision": " ".join(decision_parts),
@@ -229,7 +235,7 @@ def refresh_load_governor(
 def current_governor_state(settings: Settings) -> dict[str, Any]:
     """Cached state if fresh; otherwise quick reassess (no DB)."""
     cached = load_governor_state(settings)
-    if cached:
+    if cached and cached.get("score_gap_basis") == SCORE_GAP_BASIS:
         return cached
     return refresh_load_governor(settings)
 

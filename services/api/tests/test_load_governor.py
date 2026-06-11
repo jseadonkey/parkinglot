@@ -56,3 +56,41 @@ def test_assess_yellow_on_score_gaps_snapshot() -> None:
         out = assess_load_pressure(_settings(), cached_ops_report=report)
     assert out["pressure_level"] == "yellow"
     assert governor_allows_wa_rollout(_settings(), out)[0] is True
+
+
+def test_assess_ignores_broad_entitlement_gaps_without_pipeline_funnel() -> None:
+    report = {
+        "export_readiness": {
+            "parcels_missing_score_identification": {"count": 0},
+            "parcels_missing_score_entitlement": {"count": 1_462_340},
+            "parcels_pipeline_funnel_backlog": {"count": 0},
+        }
+    }
+    with (
+        patch("app.load_governor.inspect_redis_queues", return_value={"parking_depth": 0}),
+        patch("app.load_governor.inspect_celery_workers", return_value={"ok": True}),
+        patch("app.load_governor.load_watchdog_report", return_value=None),
+    ):
+        out = assess_load_pressure(_settings(), cached_ops_report=report)
+    assert out["pressure_level"] == "green"
+    assert out["score_gaps"] == 0
+    assert out["gross_entitlement_gaps"] == 1_462_340
+    assert out["wa_rollout_allowed"] is True
+
+
+def test_assess_counts_pipeline_funnel_as_actionable_score_gap() -> None:
+    report = {
+        "export_readiness": {
+            "parcels_missing_score_identification": {"count": 0},
+            "parcels_missing_score_entitlement": {"count": 1_462_340},
+            "parcels_pipeline_funnel_backlog": {"count": 1_500},
+        }
+    }
+    with (
+        patch("app.load_governor.inspect_redis_queues", return_value={"parking_depth": 0}),
+        patch("app.load_governor.inspect_celery_workers", return_value={"ok": True}),
+        patch("app.load_governor.load_watchdog_report", return_value=None),
+    ):
+        out = assess_load_pressure(_settings(), cached_ops_report=report)
+    assert out["pressure_level"] == "yellow"
+    assert out["score_gaps"] == 1_500

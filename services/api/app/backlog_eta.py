@@ -20,6 +20,7 @@ BALTIMORE_CITY_FIPS = "24510"
 POI_SAFE_BATCH_SIZE = 50
 POI_SAFE_BATCHES_PER_DAY = 24
 BACKLOG_DEPENDENCY_TIMEOUT_SEC = 1.0
+SCORE_GAP_BASIS = "identification_plus_pipeline_funnel"
 _SCORE_GAPS_YELLOW = 20_000  # aligned with load_governor.py
 
 # Operator-facing server load hints (see load_governor.py and celery_app beat_schedule).
@@ -30,7 +31,7 @@ _WORK_TYPE_SERVER_LOAD: dict[str, tuple[str, str]] = {
     ),
     "scoring": (
         "high",
-        "Identification/entitlement score batches — heavy Postgres across many parcel rows.",
+        "Candidate scoring batches — heavy Postgres only when prescreen-qualified rows still need Atlas/Beacon.",
     ),
     "scoring_signal": (
         "medium",
@@ -56,8 +57,8 @@ _SIGNAL_LABELS: dict[str, str] = {
     "parking_queue_high": "Parking queue elevated — scoring/pipeline stacking.",
     "parking_queue_elevated": "Parking queue above normal.",
     "site_watchdog_failed": "Site watchdog failing — public API or bridge may be stressed.",
-    "score_gaps_high": "Large identification/entitlement score gap — scheduled scoring will hammer Postgres.",
-    "score_gaps_elevated": "Elevated score gap — watch Postgres CPU when Beat tasks fire.",
+    "score_gaps_high": "Large actionable scoring gap — scheduled scoring will hammer Postgres.",
+    "score_gaps_elevated": "Elevated actionable scoring gap — watch Postgres CPU when Beat tasks fire.",
     "pipeline_funnel_backlog_high": "Large qualified pipeline funnel — enqueue will add worker load.",
     "pipeline_funnel_backlog_elevated": "Qualified pipeline funnel above normal.",
 }
@@ -319,11 +320,17 @@ def _server_load_section(
     parking_depth: int,
     ident_missing: int,
     ent_missing: int,
+    pipeline_funnel_backlog: int,
     poi_citywide_missing: int,
 ) -> dict[str, Any]:
     signals = governor.get("signals") if isinstance(governor.get("signals"), list) else []
     human_signals = [_humanize_signal(s) for s in signals if isinstance(s, dict)]
-    score_gaps = int(governor.get("score_gaps") or ident_missing + ent_missing)
+    score_gaps = (
+        int(governor.get("score_gaps") or 0)
+        if governor.get("score_gap_basis") == SCORE_GAP_BASIS
+        else ident_missing + pipeline_funnel_backlog
+    )
+    gross_entitlement_gaps = int(governor.get("gross_entitlement_gaps") or ent_missing)
     drivers: list[str] = []
     if parking_depth > 0:
         drivers.append(
@@ -331,12 +338,18 @@ def _server_load_section(
         )
     if score_gaps >= _SCORE_GAPS_YELLOW:
         drivers.append(
-            f"{score_gaps:,} missing score rows (identification + entitlement) — "
-            "the largest latent Postgres load; drains via scheduled scoring and pipeline enqueue."
+            f"{score_gaps:,} actionable missing score rows (identification gaps + pipeline funnel) — "
+            "latent Postgres load that drains via scheduled scoring and pipeline enqueue."
+        )
+    if gross_entitlement_gaps > score_gaps:
+        drivers.append(
+            f"{gross_entitlement_gaps:,} broad entitlement coverage gaps are not automatically scored "
+            "unless those parcels pass identification prescreen."
         )
     if ident_missing > 0 or ent_missing > 0:
         drivers.append(
-            f"Breakdown: {ident_missing:,} identification · {ent_missing:,} entitlement gaps "
+            f"Breakdown: {ident_missing:,} identification gaps · {pipeline_funnel_backlog:,} candidate pipeline gaps · "
+            f"{ent_missing:,} broad entitlement coverage gaps "
             "in last ops snapshot."
         )
     if poi_citywide_missing > 0:
@@ -365,7 +378,8 @@ def _server_load_section(
         "parking_queue_depth": parking_depth,
         "score_gaps": score_gaps,
         "ident_score_gaps": ident_missing,
-        "ent_score_gaps": ent_missing,
+        "ent_score_gaps": pipeline_funnel_backlog,
+        "gross_entitlement_gaps": gross_entitlement_gaps,
         "primary_drivers": drivers,
         "signals": human_signals,
         "scheduled_jobs": _scheduled_server_jobs(settings, governor),
@@ -618,19 +632,22 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         ),
         _item(
             key="score_gaps",
-            label="Score gaps",
-            backlog_count=ident_missing + ent_missing,
-            total_count=total * 2 if total else 0,
-            unit="score rows",
+            label="Actionable score gaps",
+            backlog_count=ident_missing + pipeline_backlog,
+            total_count=total if total else 0,
+            unit="candidate rows",
             value="high",
             work_type="scoring",
             assumed_batch_size=2000,
             assumed_batches_per_day=4,
             eta_confidence="medium",
-            recommendation="Run promptly if nonzero; missing scores block decisions."
-            if ident_missing + ent_missing > 0
+            recommendation="Run promptly if nonzero; these are the score gaps that can change outreach decisions."
+            if ident_missing + pipeline_backlog > 0
             else "No action needed.",
-            why="Identification and entitlement scores decide what enters outreach.",
+            why=(
+                "Identification gaps block prescreening; prescreen-qualified parcels without Atlas/Beacon "
+                "scores block outreach decisions. Broad entitlement gaps on ruled-out parcels are informational."
+            ),
             active_now=active_work,
         ),
         _item(
@@ -666,7 +683,9 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         # This page is an operator fallback during load incidents. Do not
         # recompute governor state here, because that performs extra broker/
         # Redis probes and can make the bridge hit its timeout.
-        governor = load_governor_state(settings, socket_timeout=BACKLOG_DEPENDENCY_TIMEOUT_SEC) or governor
+        cached_governor = load_governor_state(settings, socket_timeout=BACKLOG_DEPENDENCY_TIMEOUT_SEC)
+        if cached_governor and cached_governor.get("score_gap_basis") == SCORE_GAP_BASIS:
+            governor = cached_governor
     base_decision = (
         "No active heavy queue. High-value scoring backlog is clear; "
         "next measured work should be candidate-only street address backfill."
@@ -675,7 +694,6 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
             and pipeline_backlog == 0
             and demand_missing == 0
             and ident_missing == 0
-            and ent_missing == 0
         )
         else "High-value backlog remains; prefer pipeline/scoring before medium-value enrichment."
     )
@@ -687,6 +705,7 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         parking_depth=parking_depth,
         ident_missing=ident_missing,
         ent_missing=ent_missing,
+        pipeline_funnel_backlog=pipeline_backlog,
         poi_citywide_missing=poi_citywide_missing,
     )
     return {
