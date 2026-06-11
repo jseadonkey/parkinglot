@@ -434,6 +434,54 @@ def _item(
     }
 
 
+def _inventory_section(
+    *,
+    export: dict[str, Any],
+    report: dict[str, Any],
+    parking_depth: int,
+    pipeline_backlog: int,
+    governor: dict[str, Any],
+) -> dict[str, Any]:
+    """Gathered / gathering / to-be-gathered counts from the cached ops snapshot."""
+    records_gathered = int(export.get("parcel_row_total") or 0)
+    records_gathering = max(0, parking_depth) + max(0, pipeline_backlog)
+    scope = report.get("pilot_scope") if isinstance(report.get("pilot_scope"), dict) else {}
+    pilot_county_count = int(scope.get("pilot_county_count") or 0)
+    counties_gathered = int(scope.get("counties_with_ingested_parcels") or 0)
+    if pilot_county_count <= 0 and records_gathered > 0:
+        pilot_county_count = counties_gathered
+    counties_to_be_gathered = max(0, pilot_county_count - counties_gathered)
+    wa_rollout_paused = governor.get("wa_rollout_allowed") is False
+    if records_gathering > 0:
+        gathering_note = (
+            f"{parking_depth:,} Celery tasks queued/running · "
+            f"{pipeline_backlog:,} prescreen-qualified parcels awaiting full pipeline."
+        )
+    elif wa_rollout_paused:
+        gathering_note = (
+            "No queued ingest/scoring tasks right now. WA county rollout is paused by the load governor."
+        )
+    elif counties_to_be_gathered > 0:
+        gathering_note = (
+            f"No active queue work. {counties_to_be_gathered} configured "
+            f"{'county' if counties_to_be_gathered == 1 else 'counties'} still need GIS ingest."
+        )
+    else:
+        gathering_note = "No queued ingest or pipeline tasks; pilot counties are loaded."
+    return {
+        "region_name": scope.get("region_name") if isinstance(scope.get("region_name"), str) else None,
+        "records_gathered": records_gathered,
+        "records_gathering": records_gathering,
+        "counties_gathered": counties_gathered,
+        "counties_to_be_gathered": counties_to_be_gathered,
+        "pilot_county_count": pilot_county_count,
+        "parking_queue_depth": parking_depth,
+        "pipeline_backlog": pipeline_backlog,
+        "wa_rollout_paused": wa_rollout_paused if pilot_county_count > 0 else None,
+        "gathering_note": gathering_note,
+    }
+
+
 def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
     """Decision-oriented backlog summary: value, pace, and rough ETA by workstream."""
     # This endpoint backs an operator page. Avoid live full-table readiness scans here;
@@ -708,6 +756,13 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         pipeline_funnel_backlog=pipeline_backlog,
         poi_citywide_missing=poi_citywide_missing,
     )
+    inventory = _inventory_section(
+        export=export,
+        report=report,
+        parking_depth=parking_depth,
+        pipeline_backlog=pipeline_backlog,
+        governor=governor,
+    )
     return {
         "generated_at": datetime.now(UTC),
         "summary": {
@@ -727,6 +782,7 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
             "ops_autofix_allowed": governor.get("ops_autofix_allowed"),
             "score_gaps_total": server_load["score_gaps"],
         },
+        "inventory": inventory,
         "server_load": server_load,
         "items": items,
     }

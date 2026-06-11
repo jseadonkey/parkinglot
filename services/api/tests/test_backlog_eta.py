@@ -51,6 +51,10 @@ def test_backlog_eta_prioritizes_address_backfill_and_ignores_citywide_poi() -> 
     assert out["summary"]["data_source"] == "ops_remediation_snapshot"
     assert out["summary"]["data_checked_at"] == "2026-06-07T16:00:00+00:00"
     assert "address backfill" in out["summary"]["decision"]
+    inv = out["inventory"]
+    assert inv["records_gathered"] == 223139
+    assert inv["records_gathering"] == 0
+    assert inv["pipeline_backlog"] == 0
     by_key = {row["key"]: row for row in out["items"]}
     assert by_key["baltimore_property_addresses"]["value"] == "high"
     assert by_key["baltimore_property_addresses"]["label"] == "Candidate street address backfill"
@@ -232,3 +236,34 @@ def test_backlog_eta_does_not_treat_broad_entitlement_gap_as_actionable_score_ba
     assert score["recommendation"] == "No action needed."
     assert out["summary"]["score_gaps_total"] == 0
     assert out["server_load"]["gross_entitlement_gaps"] == 1000
+
+
+def test_backlog_eta_inventory_uses_cached_pilot_scope() -> None:
+    settings = SimpleNamespace(ops_remediation_auto_fix=False, ops_remediation_allow_db_writes=False)
+    with (
+        patch(
+            "app.backlog_eta.load_last_report",
+            return_value={
+                "export_readiness": _export_payload(),
+                "priority_counties": {},
+                "pilot_scope": {
+                    "region_name": "Baltimore MD + Washington statewide",
+                    "pilot_county_count": 41,
+                    "counties_with_ingested_parcels": 5,
+                    "parcels_in_pilot_counties": 223139,
+                },
+            },
+        ),
+        patch("app.backlog_eta.inspect_redis_queues", return_value={"parking_depth": 12, "slack_depth": 0}),
+        patch("app.backlog_eta.inspect_celery_workers", return_value={"ok": True, "detail": "2 workers"}),
+        patch("app.backlog_eta.entitlement_qualified_floor", return_value=70.0),
+    ):
+        out = backlog_eta_summary(MagicMock(), settings)  # type: ignore[arg-type]
+
+    inv = out["inventory"]
+    assert inv["records_gathered"] == 223139
+    assert inv["records_gathering"] == 12
+    assert inv["counties_gathered"] == 5
+    assert inv["counties_to_be_gathered"] == 36
+    assert inv["pilot_county_count"] == 41
+    assert "12 Celery tasks" in inv["gathering_note"]

@@ -768,6 +768,8 @@ def build_report(
     issues: list[OpsIssue],
     actions: list[RemediationAction],
 ) -> dict[str, Any]:
+    from app.pilot_scope import pilot_scope_summary
+
     workers = inspect_celery_workers()
     queues = inspect_redis_queues(settings)
     counties = {cf: county_data_gaps(db, cf) for cf in priority_county_fips()}
@@ -783,6 +785,7 @@ def build_report(
         "celery_workers": workers,
         "redis_queues": queues,
         "priority_counties": counties,
+        "pilot_scope": pilot_scope_summary(db),
         "issues": [asdict(i) for i in issues],
         "actions": [asdict(a) for a in actions],
         "export_readiness": export_readiness_summary(db),

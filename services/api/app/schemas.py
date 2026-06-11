@@ -407,6 +407,21 @@ class BacklogEtaServerLoad(BaseModel):
     throttles: list[str]
 
 
+class BacklogEtaInventory(BaseModel):
+    """Geographic ingest progress — gathered, in-flight, and remaining pilot counties."""
+
+    region_name: str | None = None
+    records_gathered: int
+    records_gathering: int
+    counties_gathered: int
+    counties_to_be_gathered: int
+    pilot_county_count: int
+    parking_queue_depth: int
+    pipeline_backlog: int
+    wa_rollout_paused: bool | None = None
+    gathering_note: str
+
+
 class BacklogEtaSummary(BaseModel):
     active_parking_queue_depth: int
     active_slack_queue_depth: int
@@ -449,6 +464,7 @@ class BacklogEtaResponse(BaseModel):
 
     generated_at: datetime
     summary: BacklogEtaSummary
+    inventory: BacklogEtaInventory | None = None
     server_load: BacklogEtaServerLoad | None = None
     items: list[BacklogEtaItem]
 
