@@ -231,3 +231,4 @@ def test_backlog_eta_does_not_treat_broad_entitlement_gap_as_actionable_score_ba
     assert score["backlog_count"] == 0
     assert score["recommendation"] == "No action needed."
     assert out["summary"]["score_gaps_total"] == 0
+    assert out["server_load"]["gross_entitlement_gaps"] == 1000
