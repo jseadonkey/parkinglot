@@ -313,15 +313,72 @@ def _scheduled_server_jobs(settings: Settings, governor: dict[str, Any]) -> list
     return jobs
 
 
+def _signal_trigger_row(signal: dict[str, Any], *, watchdog_report: dict[str, Any] | None) -> dict[str, Any]:
+    code = str(signal.get("code") or "")
+    label = _SIGNAL_LABELS.get(code, code.replace("_", " "))
+    count = signal.get("count") if signal.get("count") is not None else signal.get("depth")
+    detail = label
+    if code == "site_watchdog_failed" and watchdog_report:
+        failures = [c for c in (watchdog_report.get("checks") or []) if not c.get("ok")]
+        if failures:
+            bits = [f"{c.get('name')}: {str(c.get('detail') or '')[:120]}" for c in failures[:4]]
+            detail = "; ".join(bits)
+            if len(failures) > 4:
+                detail += f" (+{len(failures) - 4} more)"
+    elif "depth" in signal:
+        detail = f"{label} (queue depth={signal['depth']:,})"
+    elif "count" in signal:
+        detail = f"{label} ({int(signal['count']):,} records)"
+    elif signal.get("detail"):
+        detail = f"{label} — {signal['detail']}"
+    return {
+        "key": code or "unknown_signal",
+        "label": label,
+        "record_count": int(count) if count is not None else None,
+        "unit": "tasks" if "depth" in signal else "records",
+        "role": "pressure_trigger",
+        "affects_governor": True,
+        "detail": detail,
+    }
+
+
+def _latent_gap_row(*, key: str, label: str, record_count: int, unit: str, detail: str) -> dict[str, Any]:
+    return {
+        "key": key,
+        "label": label,
+        "record_count": record_count,
+        "unit": unit,
+        "role": "latent",
+        "affects_governor": False,
+        "detail": detail,
+    }
+
+
+def _active_work_row(*, key: str, label: str, record_count: int, unit: str, status: str, detail: str) -> dict[str, Any]:
+    return {
+        "key": key,
+        "label": label,
+        "record_count": record_count,
+        "unit": unit,
+        "status": status,
+        "detail": detail,
+    }
+
+
 def _server_load_section(
     settings: Settings,
     governor: dict[str, Any],
     *,
     parking_depth: int,
+    slack_depth: int,
     ident_missing: int,
     ent_missing: int,
     pipeline_funnel_backlog: int,
     poi_citywide_missing: int,
+    poi_candidate_missing: int,
+    demand_missing: int,
+    items: list[dict[str, Any]],
+    watchdog_report: dict[str, Any] | None,
 ) -> dict[str, Any]:
     signals = governor.get("signals") if isinstance(governor.get("signals"), list) else []
     human_signals = [_humanize_signal(s) for s in signals if isinstance(s, dict)]
@@ -331,37 +388,141 @@ def _server_load_section(
         else ident_missing + pipeline_funnel_backlog
     )
     gross_entitlement_gaps = int(governor.get("gross_entitlement_gaps") or ent_missing)
-    drivers: list[str] = []
+    trigger_codes = {str(s.get("code") or "") for s in signals if isinstance(s, dict)}
+    pressure_triggers = [
+        _signal_trigger_row(s, watchdog_report=watchdog_report) for s in signals if isinstance(s, dict)
+    ]
+
+    active_work: list[dict[str, Any]] = []
     if parking_depth > 0:
+        active_work.append(
+            _active_work_row(
+                key="celery_parking_queue",
+                label="Celery parking queue",
+                record_count=parking_depth,
+                unit="tasks",
+                status="queued",
+                detail="Pipeline, scoring, and ingest tasks waiting for or using workers.",
+            )
+        )
+    if slack_depth > 0:
+        active_work.append(
+            _active_work_row(
+                key="celery_slack_queue",
+                label="Celery Slack queue",
+                record_count=slack_depth,
+                unit="tasks",
+                status="queued",
+                detail="Slack digest and notification tasks waiting to send.",
+            )
+        )
+    if pipeline_funnel_backlog > 0:
+        active_work.append(
+            _active_work_row(
+                key="pipeline_funnel",
+                label="Qualified pipeline funnel",
+                record_count=pipeline_funnel_backlog,
+                unit="parcels",
+                status="backlog",
+                detail="Prescreen-qualified parcels awaiting Atlas/Beacon full pipeline runs.",
+            )
+        )
+    for item in items:
+        backlog_count = int(item.get("backlog_count") or 0)
+        if backlog_count <= 0:
+            continue
+        active_work.append(
+            _active_work_row(
+                key=str(item.get("key") or "work"),
+                label=str(item.get("label") or "Backlog work"),
+                record_count=backlog_count,
+                unit=str(item.get("unit") or "records"),
+                status="backlog",
+                detail=str(item.get("why") or item.get("recommendation") or ""),
+            )
+        )
+
+    latent_gaps: list[dict[str, Any]] = []
+    score_gap_triggers = {"score_gaps_high", "score_gaps_elevated"}
+    if gross_entitlement_gaps > 0 and not trigger_codes.intersection(score_gap_triggers):
+        latent_gaps.append(
+            _latent_gap_row(
+                key="broad_entitlement_coverage",
+                label="Broad entitlement coverage gaps",
+                record_count=gross_entitlement_gaps,
+                unit="parcels",
+                detail=(
+                    "Informational only — these rows are not auto-scored unless identification prescreen "
+                    "passes. Not throttling the governor in this snapshot."
+                ),
+            )
+        )
+    if poi_citywide_missing > 0:
+        latent_gaps.append(
+            _latent_gap_row(
+                key="citywide_poi_optional",
+                label="Citywide POI density (optional)",
+                record_count=poi_citywide_missing,
+                unit="parcels",
+                detail=(
+                    "Optional enrichment — only runs when ops auto-fix enqueues POI batches. "
+                    f"Candidate-scoped POI gap: {poi_candidate_missing:,} parcels."
+                ),
+            )
+        )
+    if demand_missing > 0 and demand_missing not in {int(i.get("backlog_count") or 0) for i in items}:
+        latent_gaps.append(
+            _latent_gap_row(
+                key="demand_distance",
+                label="Demand distance refresh",
+                record_count=demand_missing,
+                unit="parcels",
+                detail="Scheduled scoring signal refresh — cheap Postgres work when Beat tasks run.",
+            )
+        )
+    if ident_missing > 0 and "score_gaps_high" not in trigger_codes and "score_gaps_elevated" not in trigger_codes:
+        latent_gaps.append(
+            _latent_gap_row(
+                key="identification_scores",
+                label="Missing identification scores",
+                record_count=ident_missing,
+                unit="parcels",
+                detail="Below governor yellow threshold in this snapshot — not the current throttle trigger.",
+            )
+        )
+
+    drivers: list[str] = []
+    level = str(governor.get("pressure_level") or "green")
+    if pressure_triggers:
+        drivers.append(
+            f"Governor is {level} because: "
+            + "; ".join(row["detail"] for row in pressure_triggers[:3])
+            + "."
+        )
+    elif parking_depth > 0:
         drivers.append(
             f"Celery parking queue has {parking_depth:,} tasks running or waiting — workers are busy now."
         )
-    if score_gaps >= _SCORE_GAPS_YELLOW:
+    elif level != "green":
+        drivers.append(f"Governor is {level} but no structured trigger signals were recorded.")
+    else:
+        drivers.append("No queue backlog and governor pressure is green.")
+
+    if active_work:
+        total_active = sum(int(row["record_count"]) for row in active_work)
         drivers.append(
-            f"{score_gaps:,} actionable missing score rows (identification gaps + pipeline funnel) — "
-            "latent Postgres load that drains via scheduled scoring and pipeline enqueue."
+            f"Active or queued work now: {len(active_work)} stream(s), {total_active:,} total units counted above."
         )
-    if gross_entitlement_gaps > score_gaps:
+    else:
+        drivers.append("Nothing is queued or running on Celery right now — workers are idle.")
+
+    if latent_gaps:
         drivers.append(
-            f"{gross_entitlement_gaps:,} broad entitlement coverage gaps are not automatically scored "
-            "unless those parcels pass identification prescreen."
+            "Latent snapshot gaps below are not driving governor pressure in this assessment "
+            f"({len(latent_gaps)} informational row(s))."
         )
-    if ident_missing > 0 or ent_missing > 0:
-        drivers.append(
-            f"Breakdown: {ident_missing:,} identification gaps · {pipeline_funnel_backlog:,} candidate pipeline gaps · "
-            f"{ent_missing:,} broad entitlement coverage gaps "
-            "in last ops snapshot."
-        )
-    if poi_citywide_missing > 0:
-        drivers.append(
-            f"{poi_citywide_missing:,} citywide POI gaps (optional, not backlog) — "
-            "only burns resources if ops auto-fix runs POI batches."
-        )
-    if not drivers:
-        drivers.append("No heavy queue depth; governor pressure is from cached gap signals or watchdog.")
 
     throttles: list[str] = []
-    level = str(governor.get("pressure_level") or "green")
     if level != "green":
         if governor.get("pipeline_enqueue_multiplier") is not None:
             throttles.append(
@@ -376,12 +537,16 @@ def _server_load_section(
         "pressure_level": level,
         "assessed_at": governor.get("assessed_at"),
         "parking_queue_depth": parking_depth,
+        "slack_queue_depth": slack_depth,
         "score_gaps": score_gaps,
         "ident_score_gaps": ident_missing,
         "ent_score_gaps": pipeline_funnel_backlog,
         "gross_entitlement_gaps": gross_entitlement_gaps,
         "primary_drivers": drivers,
         "signals": human_signals,
+        "active_work": active_work,
+        "pressure_triggers": pressure_triggers,
+        "latent_gaps": latent_gaps,
         "scheduled_jobs": _scheduled_server_jobs(settings, governor),
         "throttles": throttles,
     }
@@ -762,15 +927,38 @@ def backlog_eta_summary(db: Session, settings: Settings) -> dict[str, Any]:
         else "High-value backlog remains; prefer pipeline/scoring before medium-value enrichment."
     )
     if governor.get("pressure_level") and governor["pressure_level"] != "green":
-        base_decision = f"{governor.get('decision', '')} {base_decision}".strip()
+        gov_signals = governor.get("signals") if isinstance(governor.get("signals"), list) else []
+        trigger_codes = {str(s.get("code") or "") for s in gov_signals if isinstance(s, dict)}
+        gap_triggers = trigger_codes & {
+            "score_gaps_high",
+            "score_gaps_elevated",
+            "pipeline_funnel_backlog_high",
+            "pipeline_funnel_backlog_elevated",
+        }
+        if "site_watchdog_failed" in trigger_codes and not gap_triggers and parking_depth == 0:
+            base_decision = (
+                f"{governor.get('decision', '')} "
+                "Actionable scoring backlog is clear and the Celery queue is empty — throttles here are "
+                "from site health checks, not from parcel gap counts."
+            ).strip()
+        else:
+            base_decision = f"{governor.get('decision', '')} {base_decision}".strip()
+    from app.site_watchdog import load_last_report as load_watchdog_report
+
+    watchdog_report = load_watchdog_report(settings)
     server_load = _server_load_section(
         settings,
         governor,
         parking_depth=parking_depth,
+        slack_depth=slack_depth,
         ident_missing=ident_missing,
         ent_missing=ent_missing,
         pipeline_funnel_backlog=pipeline_backlog,
         poi_citywide_missing=poi_citywide_missing,
+        poi_candidate_missing=poi_missing,
+        demand_missing=demand_missing,
+        items=items,
+        watchdog_report=watchdog_report if isinstance(watchdog_report, dict) else None,
     )
     inventory = _inventory_section(
         settings=settings,

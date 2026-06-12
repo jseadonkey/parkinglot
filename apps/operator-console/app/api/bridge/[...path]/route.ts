@@ -75,6 +75,9 @@ function backlogEtaFallback(status = 503): NextResponse {
         ent_score_gaps: 0,
         primary_drivers: ["Backlog ETA API did not respond before the operator bridge fallback."],
         signals: [],
+        active_work: [],
+        pressure_triggers: [],
+        latent_gaps: [],
         scheduled_jobs: [
           {
             name: "Idle-work tick",
