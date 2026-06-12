@@ -393,16 +393,43 @@ class BacklogEtaServerLoadJob(BaseModel):
     note: str = ""
 
 
+class BacklogEtaActiveWorkRow(BaseModel):
+    """Work queued or running right now — specific record counts."""
+
+    key: str
+    label: str
+    record_count: int
+    unit: str
+    status: str = Field(description="queued | running | backlog")
+    detail: str
+
+
+class BacklogEtaLoadDriverRow(BaseModel):
+    """One contributor to server pressure or latent downstream work."""
+
+    key: str
+    label: str
+    record_count: int | None = None
+    unit: str = "records"
+    role: str = Field(description="pressure_trigger | active_now | latent | informational")
+    affects_governor: bool = False
+    detail: str
+
+
 class BacklogEtaServerLoad(BaseModel):
     pressure_level: str
     assessed_at: datetime | None = None
     parking_queue_depth: int = 0
+    slack_queue_depth: int = 0
     score_gaps: int = 0
     ident_score_gaps: int = 0
     ent_score_gaps: int = 0
     gross_entitlement_gaps: int = 0
     primary_drivers: list[str]
     signals: list[str]
+    active_work: list[BacklogEtaActiveWorkRow] = Field(default_factory=list)
+    pressure_triggers: list[BacklogEtaLoadDriverRow] = Field(default_factory=list)
+    latent_gaps: list[BacklogEtaLoadDriverRow] = Field(default_factory=list)
     scheduled_jobs: list[BacklogEtaServerLoadJob]
     throttles: list[str]
 

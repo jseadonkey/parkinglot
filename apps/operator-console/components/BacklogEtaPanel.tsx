@@ -32,16 +32,39 @@ type ServerLoadJob = {
   note: string;
 };
 
+type ActiveWorkRow = {
+  key: string;
+  label: string;
+  record_count: number;
+  unit: string;
+  status: string;
+  detail: string;
+};
+
+type LoadDriverRow = {
+  key: string;
+  label: string;
+  record_count: number | null;
+  unit: string;
+  role: string;
+  affects_governor: boolean;
+  detail: string;
+};
+
 type ServerLoad = {
   pressure_level: string;
   assessed_at: string | null;
   parking_queue_depth: number;
+  slack_queue_depth?: number;
   score_gaps: number;
   ident_score_gaps: number;
   ent_score_gaps: number;
   gross_entitlement_gaps?: number;
   primary_drivers: string[];
   signals: string[];
+  active_work?: ActiveWorkRow[];
+  pressure_triggers?: LoadDriverRow[];
+  latent_gaps?: LoadDriverRow[];
   scheduled_jobs: ServerLoadJob[];
   throttles: string[];
 };
@@ -205,6 +228,9 @@ export function BacklogEtaPanel() {
   const grossEntitlementGaps = serverLoad?.gross_entitlement_gaps ?? 0;
   const inventory = isBacklogEtaInventory(backlogView.inventory) ? backlogView.inventory : null;
   const ownerTargetsItem = itemByKey(backlogView.items, "owner_outreach_briefs");
+  const activeWork = serverLoad?.active_work ?? [];
+  const pressureTriggers = serverLoad?.pressure_triggers ?? [];
+  const latentGaps = serverLoad?.latent_gaps ?? [];
 
   return (
     <div className="panel">
@@ -260,6 +286,45 @@ export function BacklogEtaPanel() {
         </div>
       </div>
 
+      <h3 style={{ margin: "1.25rem 0 0.5rem", fontSize: "1rem" }}>Working on now</h3>
+      <p className="muted" style={{ marginTop: 0 }}>
+        Specific record counts for tasks queued, running, or in an open backlog row. When every count here is zero,
+        workers are idle even if governor throttles remain active.
+      </p>
+      {activeWork.length > 0 ? (
+        <table className="data" style={{ marginTop: "0.5rem" }}>
+          <thead>
+            <tr>
+              <th>Work stream</th>
+              <th>Records</th>
+              <th>Status</th>
+              <th>Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            {activeWork.map((row) => (
+              <tr key={row.key} className="row-attention">
+                <td>
+                  <strong>{row.label}</strong>
+                </td>
+                <td>
+                  {row.record_count.toLocaleString()} {row.unit}
+                </td>
+                <td>
+                  <span className="badge badge-load-medium">{row.status}</span>
+                </td>
+                <td className="muted">{row.detail}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div className="panel-inset muted">
+          0 tasks in Celery parking queue · 0 in Slack queue · 0 open backlog rows in this snapshot. Nothing is
+          actively consuming worker capacity right now.
+        </div>
+      )}
+
       <h3 style={{ margin: "1.25rem 0 0.5rem", fontSize: "1rem" }}>Operational snapshot</h3>
       <div className="cols pipeline-stats">
         <div className="stat">
@@ -301,29 +366,85 @@ export function BacklogEtaPanel() {
       </div>
       {serverLoad ? (
         <div className="server-load-panel" style={{ marginTop: "1rem" }}>
-          <h3 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>What&apos;s using the server</h3>
+          <h3 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>
+            What&apos;s driving load governor pressure ({pressureLabel(serverLoad.pressure_level)})
+          </h3>
           <p className="muted" style={{ marginTop: 0 }}>
             {backlogView.degraded
-              ? "Live queue depth is unknown while the API bridge is degraded. The schedule below shows what should run when the API recovers."
-              : `Live queue depth is ${serverLoad.parking_queue_depth.toLocaleString()}. Orange/red governor means scheduled work is throttled even when the queue looks empty — latent gaps below still drive Postgres load when Beat tasks run.`}
+              ? "Live governor details are unavailable while the API bridge is degraded."
+              : pressureTriggers.length > 0
+                ? "These triggers set the current governor level. They may throttle scheduled work even when the Celery queue is empty."
+                : serverLoad.pressure_level === "green"
+                  ? "Governor is green — no throttle triggers are active."
+                  : "Governor is elevated but no structured trigger rows were recorded."}
           </p>
-          {serverLoad.primary_drivers.length > 0 ? (
-            <ul className="server-load-drivers">
-              {serverLoad.primary_drivers.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          ) : null}
+          {pressureTriggers.length > 0 ? (
+            <table className="data" style={{ marginTop: "0.5rem" }}>
+              <thead>
+                <tr>
+                  <th>Trigger</th>
+                  <th>Records</th>
+                  <th>Effect</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pressureTriggers.map((row) => (
+                  <tr key={row.key} className="row-attention">
+                    <td>
+                      <strong>{row.label}</strong>
+                      <div className="muted">{row.detail}</div>
+                    </td>
+                    <td>{row.record_count != null ? `${row.record_count.toLocaleString()} ${row.unit}` : "—"}</td>
+                    <td>
+                      <span className="badge badge-load-high">Throttling</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="panel-inset muted">No governor pressure triggers in this assessment.</div>
+          )}
           {serverLoad.throttles.length > 0 ? (
-            <p className="muted">
+            <p className="muted" style={{ marginTop: "0.75rem" }}>
               <strong>Active throttles:</strong> {serverLoad.throttles.join(" ")}
             </p>
           ) : null}
-          {serverLoad.signals.length > 0 ? (
-            <details style={{ marginTop: "0.5rem" }}>
-              <summary className="muted">Governor signals ({serverLoad.signals.length})</summary>
+          {latentGaps.length > 0 ? (
+            <>
+              <h4 style={{ margin: "1rem 0 0.35rem", fontSize: "0.95rem" }}>
+                Latent snapshot gaps (not driving governor now)
+              </h4>
+              <p className="muted" style={{ marginTop: 0 }}>
+                Large numbers here can look alarming but are informational unless listed as a pressure trigger above.
+              </p>
+              <table className="data" style={{ marginTop: "0.5rem" }}>
+                <thead>
+                  <tr>
+                    <th>Gap</th>
+                    <th>Records</th>
+                    <th>Why it is not active load</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {latentGaps.map((row) => (
+                    <tr key={row.key}>
+                      <td>
+                        <strong>{row.label}</strong>
+                      </td>
+                      <td>{row.record_count != null ? `${row.record_count.toLocaleString()} ${row.unit}` : "—"}</td>
+                      <td className="muted">{row.detail}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          ) : null}
+          {serverLoad.primary_drivers.length > 0 ? (
+            <details style={{ marginTop: "0.75rem" }}>
+              <summary className="muted">Plain-language summary</summary>
               <ul className="server-load-drivers">
-                {serverLoad.signals.map((line) => (
+                {serverLoad.primary_drivers.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
               </ul>
@@ -472,27 +593,6 @@ export function BacklogEtaPanel() {
           </tr>
         </thead>
         <tbody>
-          {grossEntitlementGaps > 0 ? (
-            <tr>
-              <td>
-                <strong>Broad entitlement coverage</strong>
-                <div className="muted">
-                  {grossEntitlementGaps.toLocaleString()} parcels do not have Atlas entitlement coverage.
-                </div>
-              </td>
-              <td>
-                <span className="badge badge-load-low">Informational</span>
-              </td>
-              <td className="muted">Not queued citywide</td>
-              <td>
-                <span className="badge badge-load-low">Light</span>
-              </td>
-              <td>
-                Not a candidate backlog. These rows are scored only after identification prescreen or another candidate
-                trigger says they can affect surface-parking lead quality.
-              </td>
-            </tr>
-          ) : null}
           {serverLoad?.scheduled_jobs.length ? (
             serverLoad.scheduled_jobs.map((job) => (
               <tr key={job.name}>

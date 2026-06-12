@@ -227,6 +227,7 @@ def test_backlog_eta_does_not_treat_broad_entitlement_gap_as_actionable_score_ba
         patch("app.backlog_eta.inspect_redis_queues", return_value={"parking_depth": 0, "slack_depth": 0}),
         patch("app.backlog_eta.inspect_celery_workers", return_value={"ok": True, "detail": "2 workers"}),
         patch("app.backlog_eta.entitlement_qualified_floor", return_value=70.0),
+        patch("app.site_watchdog.load_last_report", return_value=None),
     ):
         out = backlog_eta_summary(MagicMock(), settings)  # type: ignore[arg-type]
 
@@ -236,6 +237,9 @@ def test_backlog_eta_does_not_treat_broad_entitlement_gap_as_actionable_score_ba
     assert score["recommendation"] == "No action needed."
     assert out["summary"]["score_gaps_total"] == 0
     assert out["server_load"]["gross_entitlement_gaps"] == 1000
+    latent = out["server_load"]["latent_gaps"]
+    assert any(row["key"] == "broad_entitlement_coverage" for row in latent)
+    assert out["server_load"]["pressure_triggers"] == []
 
 
 def test_backlog_eta_inventory_uses_cached_pilot_scope() -> None:
@@ -291,3 +295,57 @@ def test_backlog_eta_inventory_falls_back_to_pilot_yaml_without_scope() -> None:
     assert inv["county_breakdown_pending"] is True
     assert inv["pilot_county_count"] >= 2
     assert inv["counties_to_be_gathered"] == inv["pilot_county_count"]
+
+
+def test_backlog_eta_watchdog_trigger_surfaces_as_pressure_not_latent_gap() -> None:
+    settings = SimpleNamespace(
+        ops_remediation_auto_fix=False,
+        ops_remediation_allow_db_writes=False,
+        load_governor_enabled=True,
+    )
+    export = {
+        **_export_payload(),
+        "parcels_missing_score_entitlement": {"count": 1_462_340},
+    }
+    governor = {
+        "pressure_level": "orange",
+        "assessed_at": "2026-06-12T01:00:00+00:00",
+        "score_gaps": 0,
+        "score_gap_basis": "identification_plus_pipeline_funnel",
+        "gross_entitlement_gaps": 1_462_340,
+        "pipeline_enqueue_multiplier": 0.25,
+        "wa_rollout_allowed": False,
+        "ops_autofix_allowed": False,
+        "signals": [{"code": "site_watchdog_failed"}],
+        "decision": "High downstream pressure",
+    }
+    with (
+        patch(
+            "app.backlog_eta.load_last_report",
+            return_value={
+                "export_readiness": export,
+                "priority_counties": {"24510": {"total": 1000, "missing_poi": 201200}},
+            },
+        ),
+        patch("app.backlog_eta.inspect_redis_queues", return_value={"parking_depth": 0, "slack_depth": 0}),
+        patch("app.backlog_eta.inspect_celery_workers", return_value={"ok": True, "detail": "2 workers"}),
+        patch("app.backlog_eta.entitlement_qualified_floor", return_value=70.0),
+        patch("app.load_governor.load_governor_state", return_value=governor),
+        patch(
+            "app.site_watchdog.load_last_report",
+            return_value={
+                "ok": False,
+                "checks": [{"name": "api_ready", "ok": False, "detail": "HTTP 503", "source": "droplet"}],
+            },
+        ),
+    ):
+        out = backlog_eta_summary(MagicMock(), settings)  # type: ignore[arg-type]
+
+    triggers = out["server_load"]["pressure_triggers"]
+    assert len(triggers) == 1
+    assert triggers[0]["key"] == "site_watchdog_failed"
+    assert "api_ready" in triggers[0]["detail"]
+    assert any(row["key"] == "owner_outreach_briefs" for row in out["server_load"]["active_work"])
+    assert "site health checks" in out["summary"]["decision"]
+    assert not any("1,462,340 broad entitlement" in line for line in out["server_load"]["primary_drivers"])
+    assert any(row["key"] == "broad_entitlement_coverage" for row in out["server_load"]["latent_gaps"])
