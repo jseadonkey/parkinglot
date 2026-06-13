@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.schemas import IngestBaltimoreCityRequest
 
 
 def _schema_ref200(paths: dict, path: str, method: str) -> dict:
@@ -22,6 +23,8 @@ def test_openapi_lists_required_paths_and_response_models() -> None:
             "/workflow-runs/{run_id}",
             "/internal/tasks/{task_id}",
             "/internal/slack/digest-now",
+            "/internal/slack/plan-progress-preview",
+            "/internal/slack/plan-progress-now",
             "/internal/slack/qualified-parcels-now",
             "/internal/slack/agent-discussion-preview",
             "/internal/slack/agent-discussion-now",
@@ -35,12 +38,14 @@ def test_openapi_lists_required_paths_and_response_models() -> None:
             "/internal/stats/scoring-summary",
             "/internal/stats/platform-showcase",
             "/internal/stats/pilot-scope",
+            "/internal/stats/backlog-eta",
             "/internal/stats/baltimore-zoning-tiers",
             "/internal/stats/export-readiness",
             "/internal/metrics/refresh-demand-distances",
             "/internal/metrics/refresh-poi-density",
             "/internal/metrics/refresh-identification-scores",
             "/internal/metrics/refresh-entitlement-scores",
+            "/internal/metrics/backfill-baltimore-addresses",
             "/internal/ingest/merge-geojson-attributes",
             "/internal/owners/peers-by-key",
             "/internal/owners/portfolios-ranked",
@@ -53,6 +58,7 @@ def test_openapi_lists_required_paths_and_response_models() -> None:
             "/internal/pipeline/enqueue-unscored",
             "/internal/pipeline/enqueue-incomplete",
             "/internal/pipeline/enqueue-priority",
+            "/internal/pipeline/retry-draft-storage-failures",
             "/internal/pipeline/outreach-board",
             "/internal/rate-comps/seed-king-pilot",
             "/internal/rate-comps/seed-baltimore-pilot",
@@ -89,11 +95,13 @@ def test_openapi_lists_required_paths_and_response_models() -> None:
         ("/internal/lob/status", "get", "LobConfigStatusResponse"),
         ("/internal/lob/verify", "post", "LobVerifyResponse"),
         ("/internal/stats/export-readiness", "get", "ExportReadinessResponse"),
+        ("/internal/stats/backlog-eta", "get", "BacklogEtaResponse"),
         ("/internal/stats/pilot-scope", "get", "PilotScopeResponse"),
         ("/internal/stats/baltimore-zoning-tiers", "get", "BaltimoreZoningTiersResponse"),
         ("/internal/stats/scoring-summary", "get", "ScoringSummaryResponse"),
         ("/internal/stats/platform-showcase", "get", "PlatformShowcaseResponse"),
         ("/internal/slack/digest-preview", "get", "SlackDigestPreviewResponse"),
+        ("/internal/slack/plan-progress-preview", "get", "SlackPlanProgressPreviewResponse"),
         ("/internal/slack/last-digest", "get", "SlackLastDigestResponse"),
         ("/internal/slack/agent-discussion-preview", "get", "SlackAgentDiscussionPreviewResponse"),
         ("/internal/owners/peers-by-key", "get", "OwnersPeersByKeyResponse"),
@@ -102,6 +110,7 @@ def test_openapi_lists_required_paths_and_response_models() -> None:
         ("/internal/pipeline/deal-progress", "get", "DealProgressBoardResponse"),
         ("/internal/parcels/scored-list", "get", "ParcelScoredListResponse"),
         ("/internal/slack/digest-now", "post", "CeleryTaskIdResponse"),
+        ("/internal/slack/plan-progress-now", "post", "CeleryTaskIdResponse"),
         ("/internal/slack/qualified-parcels-now", "post", "CeleryTaskIdResponse"),
         ("/internal/slack/agent-discussion-now", "post", "CeleryTaskIdResponse"),
         ("/internal/slack/full-update-now", "post", "FullSlackUpdateResponse"),
@@ -116,11 +125,17 @@ def test_openapi_lists_required_paths_and_response_models() -> None:
         ("/internal/ingest/wa-rollout-now", "post", "CeleryTaskIdResponse"),
         ("/internal/pipeline/enqueue-unscored", "post", "EnqueueUnscoredResponse"),
         ("/internal/pipeline/enqueue-incomplete", "post", "EnqueueIncompleteResponse"),
+        (
+            "/internal/pipeline/retry-draft-storage-failures",
+            "post",
+            "PipelineRetryDraftStorageResponse",
+        ),
         ("/internal/ingest/merge-geojson-attributes", "post", "CeleryTaskIdResponse"),
         ("/internal/metrics/refresh-demand-distances", "post", "CeleryTaskIdResponse"),
         ("/internal/metrics/refresh-poi-density", "post", "CeleryTaskIdResponse"),
         ("/internal/metrics/refresh-identification-scores", "post", "CeleryTaskIdResponse"),
         ("/internal/metrics/refresh-entitlement-scores", "post", "CeleryTaskIdResponse"),
+        ("/internal/metrics/backfill-baltimore-addresses", "post", "CeleryTaskIdResponse"),
         ("/internal/metrics/refresh-rate-comp-scores", "post", "CeleryTaskIdResponse"),
         ("/health", "get", "ServiceStatusResponse"),
         ("/ready", "get", "ServiceStatusResponse"),
@@ -156,3 +171,10 @@ def test_openapi_lists_required_paths_and_response_models() -> None:
     # Nested models used by owner portfolio responses (documented via parents)
     for nested in ("PeerParcelSummary", "OwnerPortfolioRankRow"):
         assert nested in schemas
+
+
+def test_baltimore_city_ingest_defaults_to_full_city() -> None:
+    req = IngestBaltimoreCityRequest()
+
+    assert req.max_features is None
+    assert req.auto_run_pipeline is True

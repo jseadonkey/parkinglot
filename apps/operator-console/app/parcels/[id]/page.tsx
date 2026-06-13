@@ -15,11 +15,14 @@ import { countyLine, useCountyNames } from "../../../lib/useCountyNames";
 import { marketConfidenceLabel } from "../../../lib/revenueDisplay";
 import { tierBadgeClass, tierLabel, symbolHint } from "../../../lib/zoningEntitlement";
 import { canMutate, useAuth } from "../../../lib/useAuth";
+import { formatWorkflowError, isDraftStorageBucketError } from "../../../lib/workflowErrorDisplay";
 
 type Parcel = {
   id: string;
   apn: string;
   county_fips: string;
+  situs_address: string | null;
+  mailing_address: string | null;
   lot_sqft: number | null;
   zoning_code: string | null;
   zoning_allows_surface_parking: boolean;
@@ -141,6 +144,8 @@ export default function ParcelDetailPage() {
   const [requestActor, setRequestActor] = useState("operator@example.com");
   const [approvalMsg, setApprovalMsg] = useState<string | null>(null);
   const [requesting, setRequesting] = useState(false);
+  const [retryMsg, setRetryMsg] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
   const [dealContext, setDealContext] = useState<DealContext | null>(null);
   const [dealErr, setDealErr] = useState<string | null>(null);
 
@@ -238,6 +243,24 @@ export default function ParcelDetailPage() {
     }
   }
 
+  async function retryPipeline() {
+    if (!allowActions || !id) return;
+    setRetrying(true);
+    setRetryMsg(null);
+    try {
+      const res = await fetch(bridgeUrl(`parcels/${id}/pipeline/run`), { method: "POST" });
+      if (!res.ok) {
+        const detail = await res.text();
+        throw new Error(`Retry failed (${res.status}): ${detail}`);
+      }
+      setRetryMsg("Pipeline rerun enqueued for this parcel.");
+    } catch (e) {
+      setRetryMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   return (
     <div className="page-content">
       <header className="app-page-meta" style={{ marginBottom: "1rem" }}>
@@ -314,6 +337,21 @@ export default function ParcelDetailPage() {
                 </span>
               </div>
               <span className="badge">{parcel.id}</span>
+            </div>
+            <div className="row">
+              <span className="muted">Property address</span>
+              <span>
+                {parcel.situs_address ? (
+                  <>
+                    {parcel.situs_address}
+                    {parcel.mailing_address ? (
+                      <span className="muted"> · Mailing: {parcel.mailing_address}</span>
+                    ) : null}
+                  </>
+                ) : (
+                  <span className="muted">No property address on file</span>
+                )}
+              </span>
             </div>
             <div className="row">
               <span className="muted">Zoning</span>
@@ -560,14 +598,26 @@ export default function ParcelDetailPage() {
                     </span>
                     {r.error ? (
                       <div className="error" style={{ marginTop: "0.35rem" }}>
-                        {r.error}
+                        {formatWorkflowError(r.error)}
                       </div>
+                    ) : null}
+                    {allowActions && isDraftStorageBucketError(r.error) ? (
+                      <button
+                        type="button"
+                        className="outline"
+                        style={{ marginTop: "0.5rem" }}
+                        onClick={() => void retryPipeline()}
+                        disabled={retrying}
+                      >
+                        {retrying ? "Retrying…" : "Retry pipeline"}
+                      </button>
                     ) : null}
                   </div>
                   <span className="muted">{r.updated_at?.slice(0, 19)}</span>
                 </div>
               ))
             )}
+            {retryMsg ? <div className={retryMsg.includes("failed") ? "error" : "success"}>{retryMsg}</div> : null}
           </div>
 
           <h2>Skip trace &amp; owner lookup</h2>

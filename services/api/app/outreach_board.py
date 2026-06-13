@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import ApprovalRequest, Parcel, ParcelScore, WorkflowRun
 from app.geo_markets import priority_county_fips
-from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION
+from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
 from parking_workflows.state import WorkflowStatus
 
 
@@ -21,6 +21,7 @@ class OutreachPipelineRowData:
     apn: str
     county_fips: str
     entitlement_score: float | None
+    strategic_score: float | None
     identification_score: float | None
     workflow_run_id: uuid.UUID | None
     workflow_status: str | None
@@ -89,17 +90,19 @@ def _derive_pipeline_stage(wr: WorkflowRun | None) -> str:
 def query_outreach_pipeline_board(
     db: Session,
     *,
-    qualified_min_entitlement: float,
+    min_entitlement: float,
+    min_strategic: float,
     limit: int,
     county_fips: str | None = None,
     state_fips: str | None = None,
 ) -> list[OutreachPipelineRowData]:
-    """Parcels whose latest **entitlement** score meets the pilot floor, with latest workflow + counts."""
+    """Dual-high-score owner outreach targets, with latest workflow + counts."""
     cap = min(max(limit, 1), 2000)
     cf = (county_fips or "").strip()
     st = (state_fips or "").strip()
     pri = priority_county_fips()
     ent_sub = _latest_score_subq(Parcel.id, ENTITLEMENT)
+    str_sub = _latest_score_subq(Parcel.id, STRATEGIC)
     id_sub = _latest_score_subq(Parcel.id, IDENTIFICATION)
     has_brief_col = _parcels_have_outreach_brief_column(db)
     brief_col = Parcel.owner_outreach_brief if has_brief_col else literal(None).label("owner_outreach_brief")
@@ -110,13 +113,14 @@ def query_outreach_pipeline_board(
         Parcel.county_fips,
         brief_col,
         ent_sub.label("ent_score"),
+        str_sub.label("str_score"),
         id_sub.label("id_score"),
-    ).where(ent_sub >= qualified_min_entitlement)
+    ).where(ent_sub >= min_entitlement, str_sub >= min_strategic)
     if cf:
         stmt = stmt.where(Parcel.county_fips == cf)
     elif st:
         stmt = stmt.where(Parcel.county_fips.startswith(st))
-    order_cols = [desc(ent_sub), desc(Parcel.created_at)]
+    order_cols = [desc(ent_sub), desc(str_sub), desc(Parcel.created_at)]
     if pri:
         geo_first = case((Parcel.county_fips.in_(pri), 0), else_=1)
         order_cols = [geo_first, *order_cols]
@@ -143,7 +147,7 @@ def query_outreach_pipeline_board(
 
     out: list[OutreachPipelineRowData] = []
     for r in qrows:
-        pid, apn, cfips, brief_json, ent_f, id_f = r[0], r[1], r[2], r[3], r[4], r[5]
+        pid, apn, cfips, brief_json, ent_f, str_f, id_f = r[0], r[1], r[2], r[3], r[4], r[5], r[6]
         wr = latest_wr.get(pid)
         has_brief = bool(brief_json) if has_brief_col else False
         stage = _derive_pipeline_stage(wr)
@@ -154,6 +158,7 @@ def query_outreach_pipeline_board(
                 apn=apn,
                 county_fips=cfips,
                 entitlement_score=float(ent_f) if ent_f is not None else None,
+                strategic_score=float(str_f) if str_f is not None else None,
                 identification_score=float(id_f) if id_f is not None else None,
                 workflow_run_id=wr.id if wr else None,
                 workflow_status=wr.status if wr else None,

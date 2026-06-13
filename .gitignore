@@ -27,3 +27,13 @@ terraform.tfstate.*
 *.tfvars
 !terraform.tfvars.example
 .terraform/
+
+# CrewAI audit outputs (keep output/.gitkeep)
+services/crew/output/*.json
+services/crew/output/*.md
+!services/crew/output/.gitkeep
+services/crew/.env
+
+# Operator admin agent snapshots (Droplet + CI artifacts)
+data/operator-agent/*.json
+!data/operator-agent/.gitkeep

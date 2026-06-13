@@ -1,0 +1,134 @@
+# Address health agent: every 12h review candidate situs coverage per active rollout wave.
+# Rotates address_source_chains + field maps (data-driven) and runs catalog connectors.
+# When assessor connectors are missing, opens Slack notice to add source + connectors.py entry.
+
+name: Address health agent (12h)
+
+on:
+  schedule:
+    - cron: "0 */12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preflight secrets
+        id: preflight
+        env:
+          DROPLET_SSH_PRIVATE_KEY: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+          DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+        run: |
+          set -euo pipefail
+          MISSING=()
+          [ -z "${DROPLET_SSH_PRIVATE_KEY:-}" ] && MISSING+=("DROPLET_SSH_PRIVATE_KEY")
+          [ -z "${DROPLET_HOST:-}" ] && MISSING+=("DROPLET_HOST")
+          if [ "${#MISSING[@]}" -gt 0 ]; then
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::Address health agent skipped — missing secrets: ${MISSING[*]}"
+            exit 0
+          fi
+          echo "skipped=false" >> "$GITHUB_OUTPUT"
+
+      - name: Install SSH key
+        if: steps.preflight.outputs.skipped != 'true'
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH
+        if: steps.preflight.outputs.skipped != 'true'
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Sanitize remote path
+        if: steps.preflight.outputs.skipped != 'true'
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          CLEAN="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$CLEAN" ] || CLEAN="/opt/workspaces/parkinglot"
+          echo "DEPLOY_REMOTE_PATH=$CLEAN" >> "$GITHUB_ENV"
+
+      - name: Fetch previous address-health snapshot
+        if: steps.preflight.outputs.skipped != 'true'
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          mkdir -p data/operator-agent
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cat $(printf '%q' "$REMOTE_PATH")/data/operator-agent/address-health-snapshot.json 2>/dev/null || true" \
+            > data/operator-agent/address-health-snapshot.json || true
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cat $(printf '%q' "$REMOTE_PATH")/data/operator-agent/address-health-state.json 2>/dev/null || true" \
+            > data/operator-agent/address-health-state.json || true
+
+      - name: Sync repo to Droplet
+        if: steps.preflight.outputs.skipped != 'true'
+        run: |
+          set -euo pipefail
+          source scripts/lib/droplet-target.sh
+          assert_droplet_target "$PWD/scripts/sync-to-droplet.sh" \
+            "${{ secrets.DROPLET_HOST }}" \
+            "${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}" \
+            "${{ secrets.DROPLET_USER }}"
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          rsync -az --delete \
+            --exclude .git \
+            --exclude node_modules \
+            --exclude .venv \
+            --exclude __pycache__ \
+            --exclude .next \
+            --exclude '*.pyc' \
+            --exclude .env \
+            --exclude deploy/.env \
+            ./ "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}:$REMOTE_PATH/"
+
+      - name: Run address health agent on Droplet
+        if: steps.preflight.outputs.skipped != 'true'
+        id: run
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && bash scripts/run-address-health-agent-droplet.sh --json" \
+            | tee address-health-report.json
+
+      - name: Download snapshots from Droplet
+        if: steps.preflight.outputs.skipped != 'true' && always()
+        run: |
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          scp -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}:${REMOTE_PATH}/data/operator-agent/address-health-snapshot.json" \
+            data/operator-agent/address-health-snapshot.json 2>/dev/null || true
+          scp -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}:${REMOTE_PATH}/data/operator-agent/address-health-state.json" \
+            data/operator-agent/address-health-state.json 2>/dev/null || true
+
+      - name: Upload artifact
+        if: steps.preflight.outputs.skipped != 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: address-health-agent-${{ github.run_id }}
+          path: |
+            address-health-report.json
+            data/operator-agent/address-health-snapshot.json
+            data/operator-agent/address-health-state.json
+          if-no-files-found: ignore
+
+      - name: Notify Slack
+        if: steps.preflight.outputs.skipped != 'true' && always()
+        continue-on-error: true
+        env:
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL || 'https://api.vspecialist.com' }}
+          SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
+        run: python3 scripts/address-health-agent/report_slack.py

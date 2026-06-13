@@ -16,7 +16,7 @@ From repo root (venv with API deps, or droplet checkout):
 ```bash
 export DATABASE_URL='postgresql+psycopg://...'
 python3 scripts/parcel_visual_review_sheet.py --limit 100 \
-  --min-score-identification 0.45 --min-score-entitlement 0.35 \
+  --min-score-identification 60 --min-score-entitlement 70 \
   -o parcel_visual_review.csv
 ```
 

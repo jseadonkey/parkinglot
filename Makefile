@@ -1,4 +1,4 @@
-.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay build-baltimore-zoning-overlay baltimore-zoning-tiers baltimore-phase-b-local deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local lob-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help
+.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay validate-jurisdictions address-coverage-report address-health-agent generate-wa-jurisdiction-registry zoning-governance build-baltimore-zoning-overlay baltimore-zoning-tiers baltimore-phase-b-local deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-pull-full prod-up-ghcr prod-up-ghcr-full tf-init tf-plan slack-env-local lob-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis droplet-auto-commit-deploy-install gh-slack-notify-secret-help cursor-droplet run-crew-tests crew-audit crew-audit-droplet
 
 help:
 	@echo "Targets:"
@@ -11,6 +11,11 @@ help:
 	@echo "  make phase-a-run        - Phase A: readiness + enqueue + identification backfill + demand refresh (needs DATABASE_URL; see scripts/execute-phase-a.sh)"
 	@echo "  make phase-b-run        - Phase B: zoning overlay merge + readiness (needs DATABASE_URL + PHASE_B_OVERLAY_PATH; see scripts/execute-phase-b.sh)"
 	@echo "  make validate-phase-b-overlay - dry-run overlay stats (needs PHASE_B_OVERLAY_PATH)"
+	@echo "  make validate-jurisdictions   - validate WA jurisdiction registry + address source catalog"
+	@echo "  make address-coverage-report  - address source status (+ live WA gaps if DATABASE_URL set)"
+	@echo "  make address-health-agent     - 12h-style review + source rotation (needs DATABASE_URL on Droplet)"
+	@echo "  make generate-wa-jurisdiction-registry - refresh 102-row city/county registry CSV"
+	@echo "  make zoning-governance  - validate jurisdiction zoning curation coverage for pilot/priority counties"
 	@echo "  make build-baltimore-zoning-overlay - fetch parcels+zoning and build MD overlay GeoJSON (no DATABASE_URL)"
 	@echo "  make baltimore-zoning-tiers   - print tier counts from local overlay GeoJSON"
 	@echo "  make baltimore-phase-b-local  - fetch, build overlay, validate, summarize (no DATABASE_URL)"
@@ -18,9 +23,11 @@ help:
 	@echo "  make local              - docker compose (dev: Postgres, Redis, MinIO, api, worker, UI)"
 	@echo "  make slack-env-local    - merge SLACK_* into .env (needs SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID in env)"
 	@echo "  make lob-env-local      - merge LOB_* + OUTREACH_SENDER_* into .env (see docs/LOB.md)"
+	@echo "  make cursor-droplet     - open parkinglot-droplet.code-workspace (Remote SSH to Droplet)"
 	@echo "  make droplet-sync       - rsync to parkinglot Droplet (uses deploy/droplet.target; no raw IP needed)"
 	@echo "  make droplet-rebuild    - SSH rebuild production stack (uses deploy/droplet.target)"
 	@echo "  make droplet-rebuild-postgis - same + on-droplet PostGIS addon (USE_LOCAL_POSTGIS=1)"
+	@echo "  make droplet-auto-commit-deploy-install - hourly commit+deploy cron on Droplet (run on server)"
 	@echo "  make gh-slack-notify-secret-help - print how to pipe INTERNAL_API_KEY into gh secret set"
 	@echo "  make prod-up            - production compose build on Droplet (needs deploy/.env)"
 	@echo "  make prod-up-ghcr       - production using GHCR API image (needs API_IMAGE in deploy/.env)"
@@ -47,6 +54,14 @@ a-e-setup:
 
 operator-console-help:
 	@echo "Operator web UI (parcels, deals, approvals): docs/OPERATOR-CONSOLE.md"
+	@echo "Daily health agent: .github/workflows/operator-admin-agent.yml (08:00 UTC)"
+
+operator-admin-agent-help:
+	@echo "Operator admin agent — daily browser scan + metric stagnation + auto-fix on Droplet"
+	@echo "  GitHub: Actions → Operator admin agent (daily)"
+	@echo "  Scripts: scripts/operator-admin-agent/"
+	@echo "  Snapshots: data/operator-agent/last-snapshot.json on Droplet"
+	@bash scripts/droplet-operator-agent-install.sh
 
 ae-setup-check:
 	@python3 scripts/check_ae_setup.py
@@ -90,9 +105,24 @@ validate-phase-b-overlay:
 	@chmod +x scripts/validate_phase_b_overlay.py
 	@./scripts/validate_phase_b_overlay.py "$$PHASE_B_OVERLAY_PATH"
 
+validate-jurisdictions:
+	@python3 scripts/validate_jurisdictions.py
+
+address-coverage-report:
+	@python3 scripts/address_coverage_report.py
+
+address-health-agent:
+	@python3 scripts/address-health-agent/address_health_agent.py --json
+
+generate-wa-jurisdiction-registry:
+	@.venv/bin/python scripts/generate_wa_jurisdiction_registry.py
+
+zoning-governance:
+	@python3 scripts/check_zoning_governance.py
+
 build-baltimore-zoning-overlay:
 	@chmod +x scripts/fetch_baltimore_city_parcels.py scripts/fetch_baltimore_zoning_districts.py scripts/build_baltimore_zoning_overlay.py
-	@python3 scripts/fetch_baltimore_city_parcels.py -o data/baltimore/baltimore_city_parcels.geojson --max-features 20000
+	@python3 scripts/fetch_baltimore_city_parcels.py -o data/baltimore/baltimore_city_parcels.geojson
 	@python3 scripts/fetch_baltimore_zoning_districts.py -o data/baltimore/baltimore_city_zoning_districts.geojson
 	@python3 scripts/build_baltimore_zoning_overlay.py
 
@@ -148,6 +178,9 @@ lob-env-local:
 	@test -n "$$LOB_FROM_ADDRESS_ZIP" || (echo "export LOB_FROM_ADDRESS_ZIP first"; exit 1)
 	./scripts/set-lob-env-local.sh
 
+cursor-droplet:
+	@./scripts/open-cursor-droplet.sh
+
 droplet-sync:
 	@./scripts/sync-to-droplet.sh
 
@@ -156,6 +189,9 @@ droplet-rebuild:
 
 droplet-rebuild-postgis:
 	@USE_LOCAL_POSTGIS=1 ./scripts/remote-rebuild.sh
+
+droplet-auto-commit-deploy-install:
+	@./scripts/droplet-auto-commit-deploy-install.sh
 
 gh-slack-notify-secret-help:
 	@echo "Pipe INTERNAL_API_KEY value (key only) on stdin, e.g.:"

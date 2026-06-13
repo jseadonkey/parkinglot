@@ -19,10 +19,14 @@ while true; do
 from sqlalchemy import select, func
 from app.db.session import SessionLocal
 from app.db.models import Parcel
+from app.poi_density import poi_density_candidate_condition
 db = SessionLocal()
 try:
     n = db.scalar(select(func.count()).select_from(Parcel).where(
-        Parcel.county_fips == "24510", Parcel.poi_commercial_count_400m.is_(None), Parcel.footprint.isnot(None)
+        Parcel.county_fips == "24510",
+        Parcel.poi_commercial_count_400m.is_(None),
+        Parcel.footprint.isnot(None),
+        poi_density_candidate_condition(),
     ))
     print(n or 0)
 finally:

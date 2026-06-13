@@ -1,0 +1,52 @@
+# Ordered fallback chains per jurisdiction. The address-health agent advances to the
+# next source when coverage stays below address_rollout_plan.policy thresholds.
+# Connectors are implemented in scripts/address-health-agent/connectors.py — add new
+# connector types there when a catalog source needs code; rotation itself is data-driven.
+
+version: 1
+
+chains:
+  baltimore_city:
+    jurisdiction_id: baltimore_city
+    county_fips: "24510"
+    sources:
+      - baltimore_realproperty
+      - baltimore_address_points
+
+  default_wa_county:
+    jurisdiction_id: null
+    county_fips: null
+    sources:
+      - watech_statewide_parcels
+      - wa_county_assessor_roll
+      - nominatim_centroid_fallback
+
+  king_county:
+    jurisdiction_id: king_county
+    county_fips: "53033"
+    sources:
+      - watech_statewide_parcels
+      - king_assessor_roll
+      - nominatim_centroid_fallback
+
+  pierce_county:
+    jurisdiction_id: pierce_county
+    county_fips: "53053"
+    sources:
+      - watech_statewide_parcels
+      - pierce_assessor_roll
+      - nominatim_centroid_fallback
+
+  snohomish_county:
+    jurisdiction_id: snohomish_county
+    county_fips: "53061"
+    sources:
+      - watech_statewide_parcels
+      - snohomish_assessor_roll
+      - nominatim_centroid_fallback
+
+county_overrides:
+  "24510": baltimore_city
+  "53033": king_county
+  "53053": pierce_county
+  "53061": snohomish_county

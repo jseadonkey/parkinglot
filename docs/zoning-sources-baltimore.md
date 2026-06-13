@@ -27,7 +27,7 @@ Source: Article 32 use tables — row **Parking Lot (Principal Use)** (not acces
 |------|-------|-------|
 | **C-3, C-4** | [10-301](https://codes.baltimorecity.gov/us/md/cities/baltimore/code/32/zoning-tables/10-301) | Neighborhood/commercial corridors — best general commercial targets |
 | **I-1, I-2, MI, OIC, BSC** | [11-301](https://codes.baltimorecity.gov/us/md/cities/baltimore/code/32/zoning-tables/11-301) | Industrial — often large lots; **I-1** is common on the city GIS layer |
-| **C-5-TO, C-5-HS** | C-5 subdistrict table | Downtown subdistricts where principal lot is **P** (not base C-5) |
+| **C-5-TO, C-5-HS** | C-5 subdistrict table | Downtown subdistricts where principal lot is **P** (not base C-5). Assessor/GIS shorthands `C-5TO`, `C5TO*`, `C-5HS` map here. |
 | **EC-1, EC-2, H** | [12-501](https://codes.baltimorecity.gov/us/md/cities/baltimore/code/32/zoning-tables/12-501), [12-601](https://codes.baltimorecity.gov/us/md/cities/baltimore/code/32/zoning-tables/12-601) | Campus districts — **P** but tied to educational/hospital context |
 | **PC-1 … PC-4** | [12-1302](https://codes.baltimorecity.gov/us/md/cities/baltimore/code/32/zoning-tables/12-1302) | Port Covington — **P** (small geography) |
 
@@ -38,7 +38,7 @@ Source: Article 32 use tables — row **Parking Lot (Principal Use)** (not acces
 | Zone | Table |
 |------|-------|
 | C-1, C-1-VC, C-1-E, C-2 | 10-301 |
-| C-5-DC, C-5-IH, C-5-DE, C-5-HT | C-5 subdistricts |
+| C-5-DC, C-5-IH, C-5-DE, C-5-HT | C-5 subdistricts. Assessor/GIS shorthands `C-5DC`, `C5DC*`, `C-5IH`, `C-5DE`, `C-5HT`, and ambiguous `DCE` map here as **CB** until counsel/GIS confirms exact subdistrict. |
 | OR-1, OR-2 | 12-301 |
 | TOD-1 … TOD-4 | 12-402 (principal lots **max 1 acre**, § 12-504) |
 | IMU-2 | 11-301 |
@@ -100,6 +100,15 @@ python3 scripts/validate_phase_b_overlay.py data/baltimore/baltimore_city_zoning
 1. Open [Table 10-301](https://codes.baltimorecity.gov/us/md/cities/baltimore/code/32/zoning-tables/10-301) — row **Parking Lot (Principal Use)**.
 2. For each district code appearing in your GIS join, set `allows_surface_parking: true` only where the table shows **P** for that use (not **CB** unless policy changes).
 3. Add missing zone labels as they appear on the CityView layer (field names vary — check layer schema).
+
+## Operator interpretation
+
+- **Most valuable / easiest entitlement:** Tier 1 **P** zones (`C-3`, `C-4`, industrial `I-*`/`MI`/`OIC`/`BSC`, selected C-5 subdistricts `C-5-TO` and `C-5-HS`).
+- **Potentially valuable but slower:** Tier 2 **CB** zones. These can still be commercially interesting, especially downtown, but require a BMZA conditional-use path and should not get full zoning score credit by default.
+- **Usually defer:** Tier 3 **CO** zones. These require a political/council ordinance path unless an existing ordinance/legacy approval is confirmed.
+- **Exclude for principal-use surface parking:** Tier 4 `NOT_LISTED` / `ACCESSORY_ONLY`.
+
+If the UI shows a compact zone like `DCE`, treat it as an **ambiguous downtown C-5 shorthand**: not a by-right green light, but no longer "unknown" for scoring. It should sit in the **conditional / counsel-review** bucket.
 
 ## Re-score after overlay
 

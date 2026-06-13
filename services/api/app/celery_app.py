@@ -19,6 +19,7 @@ SLACK_QUEUE = "slack"
 
 SLACK_TASK_NAMES: tuple[str, ...] = (
     "app.tasks.slack_agent_digest",
+    "app.tasks.slack_plan_progress_report",
     "app.tasks.slack_qualified_parcels_report",
     "app.tasks.slack_dual_agent_discussion",
     "app.tasks.site_watchdog_check",
@@ -29,26 +30,56 @@ _SLACK_BEAT_OPTIONS = {"queue": SLACK_QUEUE}
 
 _s = get_settings()
 
+
+def _slack_crontab(*, minute: int, hour: int | str, day_of_week: str = "*") -> crontab:
+    kwargs: dict = {"minute": minute, "hour": hour}
+    if day_of_week != "*":
+        kwargs["day_of_week"] = day_of_week
+    return crontab(**kwargs)
+
+
 beat_schedule: dict = {
-    "slack-parking-digest-hourly": {
+    "slack-parking-digest": {
         "task": "app.tasks.slack_agent_digest",
-        "schedule": crontab(
+        "schedule": _slack_crontab(
             minute=_s.slack_digest_crontab_minute,
             hour=_s.slack_digest_crontab_hour,
         ),
         "options": _SLACK_BEAT_OPTIONS,
     },
-    "slack-qualified-parcels-daily": {
-        "task": "app.tasks.slack_qualified_parcels_report",
-        "schedule": crontab(minute=0, hour=14),
-        "options": _SLACK_BEAT_OPTIONS,
-    },
-    "slack-dual-agent-discussion-daily": {
-        "task": "app.tasks.slack_dual_agent_discussion",
-        "schedule": crontab(minute=30, hour=15),
-        "options": _SLACK_BEAT_OPTIONS,
-    },
 }
+
+if _s.slack_plan_progress_enabled:
+    beat_schedule["slack-plan-progress"] = {
+        "task": "app.tasks.slack_plan_progress_report",
+        "schedule": _slack_crontab(
+            minute=_s.slack_plan_progress_crontab_minute,
+            hour=_s.slack_plan_progress_crontab_hour,
+        ),
+        "options": _SLACK_BEAT_OPTIONS,
+    }
+
+if _s.slack_qualified_parcels_enabled:
+    beat_schedule["slack-qualified-parcels"] = {
+        "task": "app.tasks.slack_qualified_parcels_report",
+        "schedule": _slack_crontab(
+            minute=_s.slack_qualified_parcels_crontab_minute,
+            hour=_s.slack_qualified_parcels_crontab_hour,
+            day_of_week=_s.slack_qualified_parcels_crontab_day_of_week,
+        ),
+        "options": _SLACK_BEAT_OPTIONS,
+    }
+
+if _s.slack_dual_agent_discussion_enabled:
+    beat_schedule["slack-dual-agent-discussion"] = {
+        "task": "app.tasks.slack_dual_agent_discussion",
+        "schedule": _slack_crontab(
+            minute=_s.slack_dual_agent_discussion_crontab_minute,
+            hour=_s.slack_dual_agent_discussion_crontab_hour,
+            day_of_week=_s.slack_dual_agent_discussion_crontab_day_of_week,
+        ),
+        "options": _SLACK_BEAT_OPTIONS,
+    }
 
 logger.info(
     "Beat: pipeline Slack digest — hour=%s minute=%02d window=%sh (slack queue)",
@@ -56,6 +87,14 @@ logger.info(
     _s.slack_digest_crontab_minute,
     _s.slack_digest_window_hours,
 )
+if _s.slack_plan_progress_enabled:
+    logger.info(
+        "Beat: A-E plan progress Slack report — hour=%s minute=%02d (slack queue)",
+        _s.slack_plan_progress_crontab_hour,
+        _s.slack_plan_progress_crontab_minute,
+    )
+else:
+    logger.info("Beat: A-E plan progress Slack report disabled (SLACK_PLAN_PROGRESS_ENABLED=false)")
 
 if _s.site_watchdog_enabled:
     _wd_minute = (_s.site_watchdog_crontab_minute or "0").strip()
@@ -80,10 +119,11 @@ if _s.ops_remediation_enabled:
         "options": _SLACK_BEAT_OPTIONS,
     }
     logger.info(
-        "Beat: ops remediation loop — hour=%s minute=%s auto_fix=%s (slack queue)",
+        "Beat: ops remediation loop — hour=%s minute=%s auto_fix=%s db_writes_allowed=%s (slack queue)",
         _s.ops_remediation_crontab_hour,
         _s.ops_remediation_crontab_minute,
-        _s.ops_remediation_auto_fix,
+        bool(_s.ops_remediation_auto_fix and _s.ops_remediation_allow_db_writes),
+        _s.ops_remediation_allow_db_writes,
     )
 
 _ingest_path = (_s.scheduled_geojson_ingest_path or "").strip()
@@ -138,6 +178,21 @@ if _s.wa_statewide_rollout_enabled:
         _s.wa_statewide_rollout_crontab_minute,
     )
 
+if _s.address_health_agent_enabled:
+    _ah_hour = (_s.address_health_agent_crontab_hour or "*/12").strip()
+    beat_schedule["address-health-agent"] = {
+        "task": "app.tasks.address_health_agent_tick",
+        "schedule": crontab(
+            minute=_s.address_health_agent_crontab_minute,
+            hour=_ah_hour,
+        ),
+    }
+    logger.info(
+        "Beat: address health agent at hour=%s minute=%02d UTC",
+        _ah_hour,
+        _s.address_health_agent_crontab_minute,
+    )
+
 if _s.scheduled_priority_pipeline_enabled:
     beat_schedule["enqueue-priority-qualified"] = {
         "task": "app.tasks.enqueue_priority_qualified_scheduled",
@@ -190,6 +245,13 @@ if _s.scheduled_refresh_identification_enabled:
         _s.scheduled_refresh_identification_limit,
         _id_cf or "*",
     )
+
+if _s.load_governor_enabled:
+    beat_schedule["load-governor-refresh"] = {
+        "task": "app.tasks.load_governor_refresh",
+        "schedule": crontab(minute="*/30"),
+    }
+    logger.info("Beat: load governor refresh every 30 minutes")
 
 if _s.scheduled_refresh_demand_enabled:
     _dem_cf = (_s.scheduled_refresh_demand_county_fips or "").strip()

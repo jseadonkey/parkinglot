@@ -75,8 +75,12 @@ Beat task **`enqueue_priority_qualified_scheduled`** (when enabled):
 
 - Every **2 hours** at :20 UTC
 - Up to **75** parcels per run
-- Only prescreen-qualified with entitlement ≥ floor
-- **Highest entitlement score first**
+- Only prescreen-qualified lots with top owner-outreach scores by default (**Atlas ≥ 85**, then **Beacon ≥ 80**)
+- **Highest entitlement score first**, then Beacon score
+
+The score floors are configurable with `OWNER_OUTREACH_MIN_ENTITLEMENT_SCORE` and
+`OWNER_OUTREACH_MIN_STRATEGIC_SCORE`. Broader Atlas/Beacon scoring can continue, but owner
+outreach briefs are reserved for this high-score target cohort.
 
 Enable on Droplet:
 
@@ -123,6 +127,6 @@ On the Droplet: `bash scripts/refresh_baltimore_revenue_signals.sh` (repeat unti
 
 ## Outreach board revenue column
 
-`GET /internal/pipeline/outreach-board` includes full illustrative revenue (stall range, weighted hourly rate, monthly gross) for **all qualified rows** in the filtered region (`revenue_hints=0` default). Operator **Outreach** page shows **Est. gross** with stall and rate detail.
+`GET /internal/pipeline/outreach-board` includes full illustrative revenue (stall range, weighted hourly rate, monthly gross) for **top-score owner-outreach target rows** in the filtered region (`revenue_hints=0` default). Operator **Outreach** page shows **Est. gross** with stall and rate detail.
 
 `GET /internal/parcels/scored-list` supports `include_revenue=true` (default), `qualified_only=true`, and state/county filters so **high-scoring parcels in any pilot region** get the same revenue analysis on the **Parcels** table.

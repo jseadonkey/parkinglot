@@ -1,6 +1,24 @@
 # Slack integration
 
-The stack can post a **recurring “agent standup”** to a Slack channel: one Block Kit message **every hour (UTC, top of the hour by default)** summarizing what the pipeline has been doing (new parcels, workflow status changes, pending human approvals, recent audit lines). **Once per day (14:00 UTC)** it also posts a **qualified-parcels report**: latest score per parcel vs `qualified_min_score` from the pilot config, with a short **why** line (zoning, lot size, corner, demand) for qualified rows and a sample of not-qualified rows.
+## Everything that posts to Slack
+
+| Source | Schedule / trigger | Channel env | What you see |
+|--------|-------------------|-------------|--------------|
+| **Hourly standup** | Celery Beat → `slack_agent_digest` (default every hour UTC, `SLACK_DIGEST_CRONTAB_*`) | `SLACK_DIGEST_CHANNEL_ID` | Block Kit: **data gathering & progress**, **Ingest agent** (sources, Baltimore/WA load progress, ingest vs merge metrics), pipeline activity, approvals, audit snippet |
+| **A–E plan progress** | Hourly **:05 UTC** → `slack_plan_progress_report` | `SLACK_DIGEST_CHANNEL_ID` | Phase readiness from export-readiness metrics: proved, monitoring, blocked, or needs execution |
+| **Qualified parcels** | Daily **14:00 UTC** → `slack_qualified_parcels_report` | `SLACK_DIGEST_CHANNEL_ID` | Qualified vs below-floor parcels with score rationale |
+| **Dual-agent discussion** | Daily **15:30 UTC** → `slack_dual_agent_discussion` (3 messages) | `SLACK_AGENT_DISCUSSION_CHANNEL_ID` | Atlas, Beacon, joint comparison |
+| **Site watchdog** | Hourly when `SITE_WATCHDOG_ENABLED` → `site_watchdog_check` | `SITE_WATCHDOG_SLACK_CHANNEL_ID` (else agent or digest channel) | Plain text: all-clear heartbeat, failure alerts, recovery |
+| **Per-task agent lines** | On ingest/pipeline when `SLACK_AGENT_EVENT_UPDATES=1` | `SLACK_DIGEST_CHANNEL_ID` | Short `*Ingest agent*` / `*Scoring & pipeline agent*` lines |
+| **Deploy ping** | GitHub **Deploy to Droplet** (`slack_notify`) | digest (or override) | `POST /internal/slack/test-message` one-liner |
+| **Post-deploy tasks** | Same workflow (`post_slack_tasks`) | digest + agent | Enqueues digest / qualified / discussion via `scripts/post-deploy-slack.sh` |
+| **Manual / Actions** | `POST /internal/slack/*-now`, workflows *Slack test* / *Slack digest now* | as above | Same tasks as Beat |
+
+**Inspect config without posting:** `GET /internal/slack/status` returns booleans plus `reporting_catalog` (schedules and channel id placeholders). **Preview digest:** `GET /internal/slack/digest-preview`.
+
+---
+
+The stack can post a **recurring “agent standup”** to a Slack channel: one Block Kit message **every hour (UTC, top of the hour by default)** summarizing what the pipeline has been doing (new parcels, workflow status changes, pending human approvals, recent audit lines). It also posts an **A–E plan progress report every hour** (default **:05 UTC**) to the same channel. **Once per day (14:00 UTC)** it posts a **qualified-parcels report**: latest score per parcel vs `qualified_min_score` from the pilot config, with a short **why** line (zoning, lot size, corner, demand) for qualified rows and a sample of not-qualified rows.
 
 Separately, you can configure a **dedicated “agent discussion” channel** where the two deterministic scoring agents post three messages: **Atlas** (entitlement lens), **Beacon** (demand/visibility lens), then a **joint comparison** (consensus + disagreements). This is **outbound notification**, not a full chat employee — see [Limits](#limits-and-future-work) below.
 
@@ -12,10 +30,10 @@ The data agents work on here (parcel attributes, scores, workflow status, sample
 
 | Component | Role |
 |-----------|------|
-| **Celery Beat** (`beat` service in compose) | Sends Slack tasks **hourly** (standup), **daily 14:00 UTC** (qualified parcels), and **daily 15:30 UTC** (dual-agent discussion). |
+| **Celery Beat** (`beat` service in compose) | Sends Slack tasks **hourly** (standup), **hourly at :05 UTC** (A–E plan progress), **daily 14:00 UTC** (qualified parcels), and **daily 15:30 UTC** (dual-agent discussion). |
 | **Celery worker (`worker-slack`)** | Dedicated **`slack`** queue — runs digest/report/discussion tasks so pipeline backlog on `worker` cannot block standups. |
 | **Celery worker (`worker`)** | **`parking`** queue only — pipelines, ingest, scoring batches (does not consume Slack tasks). |
-| **FastAPI** | `POST /internal/slack/digest-now`, `POST /internal/slack/qualified-parcels-now`, and `POST /internal/slack/agent-discussion-now` enqueue the matching tasks (manual test; requires `X-Internal-Key` when `INTERNAL_API_KEY` is set). |
+| **FastAPI** | `POST /internal/slack/digest-now`, `POST /internal/slack/plan-progress-now`, `POST /internal/slack/qualified-parcels-now`, and `POST /internal/slack/agent-discussion-now` enqueue the matching tasks (manual test; requires `X-Internal-Key` when `INTERNAL_API_KEY` is set). |
 
 If Slack env is unset, tasks **no-op** (return `skipped` in the task result) so stacks without Slack keep working. The dual-agent discussion needs **`SLACK_BOT_TOKEN`** and **`SLACK_AGENT_DISCUSSION_CHANNEL_ID`**.
 
@@ -23,7 +41,7 @@ If Slack env is unset, tasks **no-op** (return `skipped` in the task result) so 
 
 Set **`SLACK_AGENT_EVENT_UPDATES=1`** (or `true` / `yes` / `on`) in the same env as the **Celery worker** (and API if you want `GET /internal/slack/status` to report the flag). When Slack is fully configured, the worker posts short messages for:
 
-- **Ingest agent** — after each `ingest_geojson_path` run (counts + optional pipeline enqueue summary).
+- **Ingest agent** — after each `ingest_geojson_path` run (county, file, inserted vs refreshed, pipeline enqueue). Hourly digest includes a full **Ingest agent** section: market load progress (e.g. Baltimore `24510` / 20k cap, zoning fill %), and window metrics (`parcels.created_at` new rows vs audit `parcels_ingested` / overlay merges).
 - **Scoring & pipeline agent** — on each `run_pipeline` success or failure (includes a **Human-gate coordinator** line on success: pending approvals).
 
 Leave unset in production if you only want the **scheduled digest** (hourly UTC by default) and manual/API test messages — bulk ingest can generate many Slack lines.
@@ -102,6 +120,9 @@ GitHub Actions **Droplet diagnostics** and **Slack digest now** call `scripts/re
 - **Manual fire:**  
   `curl -sS -X POST "https://$API_HOST/internal/slack/digest-now" -H "X-Internal-Key: $INTERNAL_API_KEY"`  
   Then check **`GET /internal/tasks/{task_id}`** for Celery state.
+- **A–E plan progress report (same channel, hourly by default):**
+  `curl -sS -X POST "https://$API_HOST/internal/slack/plan-progress-now" -H "X-Internal-Key: $INTERNAL_API_KEY"`
+  Preview without posting via `GET /internal/slack/plan-progress-preview`. Beat runs this hourly at `SLACK_PLAN_PROGRESS_CRONTAB_MINUTE` / `SLACK_PLAN_PROGRESS_CRONTAB_HOUR` (default `5` / `*`).
 - **Qualified-parcels report (same channel):**  
   `curl -sS -X POST "https://$API_HOST/internal/slack/qualified-parcels-now" -H "X-Internal-Key: $INTERNAL_API_KEY"`  
   Same polling as above. Beat runs this daily; adjust time in `app/celery_app.py` (`slack-qualified-parcels-daily`).

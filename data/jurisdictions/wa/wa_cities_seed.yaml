@@ -1,0 +1,36 @@
+# Incorporated cities to track in jurisdiction_registry (expand over time).
+# County-unincorporated rows are generated for every WA county automatically.
+
+cities_by_county_fips:
+  "53033":
+    - { id: seattle_city, name: Seattle }
+    - { id: bellevue_city, name: Bellevue }
+    - { id: kent_city, name: Kent }
+    - { id: renton_city, name: Renton }
+    - { id: federal_way_city, name: Federal Way }
+    - { id: kirkland_city, name: Kirkland }
+    - { id: redmond_city, name: Redmond }
+    - { id: auburn_city, name: Auburn }
+    - { id: burien_city, name: Burien }
+    - { id: shoreline_city, name: Shoreline }
+  "53053":
+    - { id: tacoma_city, name: Tacoma }
+    - { id: lakewood_city, name: Lakewood }
+    - { id: puyallup_city, name: Puyallup }
+  "53061":
+    - { id: everett_city, name: Everett }
+    - { id: lynnwood_city, name: Lynnwood }
+    - { id: edmonds_city, name: Edmonds }
+  "53035":
+    - { id: bremerton_city, name: Bremerton }
+  "53067":
+    - { id: olympia_city, name: Olympia }
+    - { id: lacey_city, name: Lacey }
+  "53063":
+    - { id: spokane_city, name: Spokane }
+  "53011":
+    - { id: vancouver_city, name: Vancouver }
+  "53077":
+    - { id: yakima_city, name: Yakima }
+  "53073":
+    - { id: bellingham_city, name: Bellingham }

@@ -9,7 +9,7 @@ from app.routers.internal import parcels_scored_list
 def test_query_parcels_scored_list_min_entitlement_filter() -> None:
     db = MagicMock()
     db.execute.return_value.all.return_value = []
-    out = query_parcels_scored_list(db, limit=10, min_entitlement_score=55.0)
+    out = query_parcels_scored_list(db, limit=10, min_entitlement_score=70.0)
     assert out == []
     assert db.execute.called
 
@@ -24,7 +24,7 @@ def test_scored_list_attaches_revenue_for_qualified_rows(
 ) -> None:
     from datetime import UTC, datetime
 
-    mock_pilot_cfg.return_value.scoring.qualified_min_score = 55.0
+    mock_pilot_cfg.return_value.scoring.qualified_min_score = 70.0
     pid = __import__("uuid").uuid4()
     mock_query.return_value = [
         ParcelScoredRowData(
@@ -35,10 +35,10 @@ def test_scored_list_attaches_revenue_for_qualified_rows(
             lot_sqft=20_000.0,
             zoning_principal_use_symbol="P",
             zoning_entitlement_tier="permitted",
-            entitlement_score=60.0,
+            entitlement_score=75.0,
             strategic_score=None,
-            identification_score=50.0,
-            combined_score=55.0,
+            identification_score=65.0,
+            combined_score=70.0,
             created_at=datetime.now(UTC),
         ),
     ]

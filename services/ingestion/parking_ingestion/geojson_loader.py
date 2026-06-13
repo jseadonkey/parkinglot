@@ -8,6 +8,7 @@ from typing import Any
 from shapely.geometry import shape
 from shapely.geometry.base import BaseGeometry
 
+from parking_ingestion.address_normalize import normalize_parcel_address_props
 from parking_ingestion.zoning_rules import (
     infer_zoning_jurisdiction,
     load_effective_zoning_rules,
@@ -109,6 +110,7 @@ def iter_parcels_from_geojson_dict(
             )
         ).strip()
         county = str(_prop(props, "COUNTY_FIPS", "county_fips", "COUNTYFP", "COUNTY_FIP", default="")).strip()
+        normalize_parcel_address_props(props, county_fips=county or None)
         zoning_code = _prop(
             props,
             "ZONING",
@@ -116,6 +118,8 @@ def iter_parcels_from_geojson_dict(
             "zoning_code",
             "ZONE",
             "zone",
+            "ZONECODE",
+            "zonecode",
             "ZONING_CLASS",
             "ZONING_CODE",
             "DISTRICT",

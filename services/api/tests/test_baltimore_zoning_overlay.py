@@ -74,6 +74,28 @@ def test_overlay_loader_scores_c3_allowed(tmp_path: Path) -> None:
     assert attrs["zoning_allows_surface_parking"] is True
 
 
+def test_loader_reads_baltimore_realproperty_zonecode() -> None:
+    fc = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": _square(0, 0),
+                "properties": {
+                    "APN": "MD-BALT-CITY-0592043",
+                    "COUNTY_FIPS": "24510",
+                    "ZONECODE": "C-5DC",
+                },
+            }
+        ],
+    }
+    rules = REPO_ROOT / "data/zoning/md/baltimore_city_surface_parking_rules.yaml"
+    attrs, _ = list(iter_parcels_from_geojson_dict(fc, rules_path=rules if rules.is_file() else None))[0]
+    assert attrs["zoning_code"] == "C-5DC"
+    assert attrs["zoning_principal_use_symbol"] == "CB"
+    assert attrs["zoning_entitlement_tier"] == "conditional"
+
+
 def test_build_overlay_skips_parcels_without_apn() -> None:
     parcels = {
         "type": "FeatureCollection",

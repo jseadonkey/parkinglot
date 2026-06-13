@@ -8,7 +8,7 @@ from typing import Any
 
 from geoalchemy2.elements import WKTElement
 from shapely.geometry import MultiPolygon, Polygon
-from sqlalchemy import and_, case, delete, desc, exists, func, select
+from sqlalchemy import and_, case, delete, desc, exists, func, or_, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
@@ -34,9 +34,16 @@ from app.pipeline_funnel import (
     entitlement_qualified_floor,
     filter_prescreen_qualified_ids,
     identification_prescreen_floor,
+    identification_prescreen_qualified,
     needs_pipeline_scoring,
+    owner_outreach_min_entitlement_score,
+    owner_outreach_min_strategic_score,
     parcel_prescreen_qualified,
     strategic_qualified_floor,
+)
+from app.poi_density import (
+    POI_DENSITY_CANDIDATE_MODE,
+    select_poi_density_candidates,
 )
 from app.scoring_profiles import (
     ENTITLEMENT,
@@ -46,6 +53,7 @@ from app.scoring_profiles import (
 )
 from app.slack_digest import (
     build_dual_agent_discussion_posts,
+    build_plan_progress_report_blocks,
     build_qualified_parcels_report_blocks,
     build_slack_digest_blocks,
     post_agent_event_to_slack,
@@ -61,7 +69,7 @@ from app.wa_statewide_rollout import (
     parking_queue_depth,
     wa_rollout_cooldown_state,
 )
-from app.zoning_entitlement import parcel_zoning_symbol, parcel_zoning_tier
+from app.zoning_entitlement import effective_zoning_code, parcel_zoning_symbol, parcel_zoning_tier
 from parking_core.models import OwnerCandidate, ParcelFeature, ScoreResult
 from parking_core.pilot import PilotConfig, load_pilot_config
 from parking_enrichment.owner_normalize import scoped_owner_key
@@ -80,10 +88,11 @@ def enqueue_unscored_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
     return enqueue_incomplete_pipeline_jobs(limit)
 
 def enqueue_priority_qualified_pipeline_jobs(limit: int = 75) -> dict[str, Any]:
-    """Enqueue pipeline for prescreen-qualified parcels, highest entitlement first."""
+    """Enqueue pipeline for high-score owner outreach targets, highest entitlement first."""
     cap = min(max(limit, 1), 200)
     floor_i = identification_prescreen_floor()
-    floor_ent = entitlement_qualified_floor()
+    floor_ent = owner_outreach_min_entitlement_score()
+    floor_str = owner_outreach_min_strategic_score()
     db = _session()
     try:
         ident_agg = (
@@ -134,8 +143,33 @@ def enqueue_priority_qualified_pipeline_jobs(limit: int = 75) -> dict[str, Any]:
             )
             .subquery()
         )
+        str_agg = (
+            select(
+                ParcelScore.parcel_id.label("pid"),
+                func.max(ParcelScore.created_at).label("mx"),
+            )
+            .where(ParcelScore.score_profile == STRATEGIC)
+            .group_by(ParcelScore.parcel_id)
+            .subquery()
+        )
+        strategic = (
+            select(ParcelScore.parcel_id, ParcelScore.total_score.label("str_score"))
+            .join(
+                str_agg,
+                and_(
+                    ParcelScore.parcel_id == str_agg.c.pid,
+                    ParcelScore.created_at == str_agg.c.mx,
+                ),
+            )
+            .where(ParcelScore.score_profile == STRATEGIC)
+            .subquery()
+        )
         pri_counties = priority_county_fips()
-        order_cols = [ent.c.ent_score.desc(), ident.c.id_score.desc()]
+        order_cols = [
+            ent.c.ent_score.desc(),
+            strategic.c.str_score.desc().nulls_last(),
+            ident.c.id_score.desc(),
+        ]
         if pri_counties:
             geo_first = case((Parcel.county_fips.in_(pri_counties), 0), else_=1)
             order_cols = [geo_first, *order_cols]
@@ -143,7 +177,16 @@ def enqueue_priority_qualified_pipeline_jobs(limit: int = 75) -> dict[str, Any]:
             select(Parcel.id)
             .join(ident, Parcel.id == ident.c.parcel_id)
             .join(ent, Parcel.id == ent.c.parcel_id)
-            .where(needs_pipeline_scoring())
+            .outerjoin(strategic, Parcel.id == strategic.c.parcel_id)
+            .where(
+                or_(
+                    needs_pipeline_scoring(),
+                    and_(
+                        strategic.c.str_score >= floor_str,
+                        Parcel.owner_outreach_brief.is_(None),
+                    ),
+                )
+            )
             .order_by(*order_cols)
             .limit(cap)
         )
@@ -153,9 +196,10 @@ def enqueue_priority_qualified_pipeline_jobs(limit: int = 75) -> dict[str, Any]:
         return {
             "enqueued": len(ids),
             "parcel_ids": ids,
-            "mode": "priority_qualified_entitlement_ge_floor",
+            "mode": "priority_owner_outreach_high_score",
             "prescreen_floor": floor_i,
             "entitlement_floor": floor_ent,
+            "strategic_floor": floor_str,
             "priority_county_fips": pri_counties,
         }
     finally:
@@ -270,26 +314,29 @@ def _write_slack_digest_audit(
 
 def _parcel_feature(parcel: Parcel) -> ParcelFeature:
     raw = parcel.raw_properties if hasattr(parcel, "raw_properties") else None
+    raw_dict = raw if isinstance(raw, dict) else None
+    zoning_code = effective_zoning_code(parcel.zoning_code, raw_dict)
     symbol = parcel_zoning_symbol(
         county_fips=parcel.county_fips,
-        zoning_code=parcel.zoning_code,
-        raw_properties=raw if isinstance(raw, dict) else None,
+        zoning_code=zoning_code,
+        raw_properties=raw_dict,
     )
     tier = parcel_zoning_tier(
         county_fips=parcel.county_fips,
-        zoning_code=parcel.zoning_code,
-        raw_properties=raw if isinstance(raw, dict) else None,
+        zoning_code=zoning_code,
+        raw_properties=raw_dict,
     )
     return ParcelFeature(
         apn=parcel.apn,
         county_fips=parcel.county_fips,
         lot_sqft=parcel.lot_sqft,
-        zoning_code=parcel.zoning_code,
+        zoning_code=zoning_code,
         zoning_allows_surface_parking=parcel.zoning_allows_surface_parking,
         zoning_principal_use_symbol=symbol,
         zoning_entitlement_tier=tier,
         is_corner_lot=parcel.is_corner_lot,
         distance_to_nearest_demand_m=parcel.distance_to_nearest_demand_m,
+        raw_properties=raw_dict,
     )
 
 
@@ -412,11 +459,18 @@ def _complete_pipeline_scoring_only(
             f"Parcel `{apn}` — Atlas *{entitlement_score:.1f}* (below floor *{entitlement_floor:.0f}*); "
             "Beacon and enrichment skipped."
         )
-    else:
+    elif reason == "below_strategic_floor":
         detail = (
             f"Parcel `{apn}` — Atlas *{entitlement_score:.1f}*; "
             f"Beacon *{float(strategic_score or 0):.1f}* (below floor *{strategic_floor:.0f}*); "
             "enrichment skipped."
+        )
+    else:
+        detail = (
+            f"Parcel `{apn}` — Atlas *{entitlement_score:.1f}*; "
+            f"Beacon *{float(strategic_score or 0):.1f}*; "
+            f"below owner outreach floors (*{entitlement_floor:.0f}* / *{strategic_floor:.0f}*). "
+            "Owner outreach brief skipped."
         )
     post_agent_event_to_slack(get_settings(), agent="Scoring & pipeline agent", detail=detail)
     return {
@@ -520,6 +574,33 @@ def run_pipeline(parcel_id: str) -> dict[str, Any]:
                 strategic_score=float(score_strategic.total_score),
                 entitlement_floor=floor_ent,
                 strategic_floor=floor_str,
+            )
+
+        owner_ent_floor = owner_outreach_min_entitlement_score()
+        owner_str_floor = owner_outreach_min_strategic_score()
+        if (
+            float(score.total_score) < owner_ent_floor
+            or float(score_strategic.total_score) < owner_str_floor
+        ):
+            logger.info(
+                "run_pipeline parcel %s below owner outreach floors %.0f/%.0f "
+                "(Atlas %.1f, Beacon %.1f) — skipping owner outreach brief",
+                parcel_id,
+                owner_ent_floor,
+                owner_str_floor,
+                score.total_score,
+                score_strategic.total_score,
+            )
+            return _complete_pipeline_scoring_only(
+                db,
+                run,
+                parcel_id=parcel_id,
+                apn=parcel.apn,
+                reason="below_owner_outreach_floor",
+                entitlement_score=float(score.total_score),
+                strategic_score=float(score_strategic.total_score),
+                entitlement_floor=owner_ent_floor,
+                strategic_floor=owner_str_floor,
             )
 
         run.current_step = WorkflowStep.enrich.value
@@ -758,11 +839,32 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
     if not settings.wa_statewide_rollout_enabled:
         return {"skipped": True, "reason": "wa_statewide_rollout_disabled"}
 
+    from app.load_governor import (
+        current_governor_state,
+        effective_wa_rollout_limits,
+        governor_allows_wa_rollout,
+        refresh_load_governor,
+    )
+
     rollout = load_rollout_config(settings.wa_statewide_rollout_config_path)
     pacing = wa_rollout_pacing()
     merged = merge_rollout_config(rollout, pacing)
     max_queue = int(merged.get("max_parking_queue_depth") or 400)
     queue_depth = parking_queue_depth(settings.redis_url)
+    governor = (
+        refresh_load_governor(settings)
+        if settings.load_governor_enabled
+        else current_governor_state(settings)
+    )
+    if settings.load_governor_enabled:
+        allowed, reason = governor_allows_wa_rollout(settings, governor)
+        if not allowed:
+            logger.info("wa_statewide_rollout_tick: load_governor — %s", reason)
+            return {
+                "skipped": True,
+                "reason": "load_governor_blocked",
+                "load_governor": governor,
+            }
     if queue_depth > max_queue:
         logger.info(
             "wa_statewide_rollout_tick: parking queue=%s > max=%s — deferring new county ingest",
@@ -805,6 +907,13 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
             max_features = int(max_feat)
 
         max_pipe = int(merged.get("max_auto_pipeline") or 15)
+        if settings.load_governor_enabled:
+            _, max_pipe = effective_wa_rollout_limits(
+                settings,
+                base_min_days=float(merged.get("min_days_between_counties") or 4),
+                base_max_auto_pipeline=max_pipe,
+                state=governor,
+            )
         write_audit(
             db,
             actor="celery:wa_statewide_rollout",
@@ -843,7 +952,7 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
 
 @celery.task(name="app.tasks.fetch_baltimore_city_and_ingest")
 def fetch_baltimore_city_and_ingest(
-    max_features: int | None = 5000,
+    max_features: int | None = None,
     auto_run_pipeline: bool = True,
     max_auto_pipeline: int = 100,
 ) -> dict[str, Any]:
@@ -960,14 +1069,39 @@ def fetch_watech_county_and_ingest(
     }
 
 
+def _governed_pipeline_limit(requested: int) -> tuple[int, dict[str, Any] | None]:
+    settings = get_settings()
+    if not settings.load_governor_enabled:
+        return requested, None
+    from app.load_governor import current_governor_state, effective_pipeline_limit, refresh_load_governor
+
+    governor = current_governor_state(settings)
+    if not governor.get("assessed_at"):
+        governor = refresh_load_governor(settings)
+    cap = effective_pipeline_limit(requested, settings, governor)
+    return cap, governor
+
+
 @celery.task(name="app.tasks.enqueue_priority_qualified_scheduled")
 def enqueue_priority_qualified_scheduled(limit: int = 75) -> dict[str, Any]:
     """Beat: drain prescreen-qualified backlog starting with highest entitlement scores."""
-    out = enqueue_priority_qualified_pipeline_jobs(limit)
+    cap, governor = _governed_pipeline_limit(limit)
+    if cap <= 0:
+        return {
+            "enqueued": 0,
+            "parcel_ids": [],
+            "skipped": True,
+            "reason": "load_governor_paused_pipeline_enqueue",
+            "load_governor": governor,
+        }
+    out = enqueue_priority_qualified_pipeline_jobs(cap)
+    if governor:
+        out["load_governor"] = governor
     if out["enqueued"]:
         logger.info(
-            "enqueue_priority_qualified_scheduled: enqueued %s pipeline(s)",
+            "enqueue_priority_qualified_scheduled: enqueued %s pipeline(s) (cap=%s)",
             out["enqueued"],
+            cap,
         )
     return out
 
@@ -975,13 +1109,36 @@ def enqueue_priority_qualified_scheduled(limit: int = 75) -> dict[str, Any]:
 @celery.task(name="app.tasks.enqueue_unscored_pipelines_scheduled")
 def enqueue_unscored_pipelines_scheduled(limit: int = 100) -> dict[str, Any]:
     """Beat: enqueue ``run_pipeline`` for parcels missing entitlement **or** strategic scores."""
-    out = enqueue_incomplete_pipeline_jobs(limit)
+    cap, governor = _governed_pipeline_limit(limit)
+    if cap <= 0:
+        return {
+            "enqueued": 0,
+            "parcel_ids": [],
+            "skipped": True,
+            "reason": "load_governor_paused_pipeline_enqueue",
+            "load_governor": governor,
+        }
+    out = enqueue_incomplete_pipeline_jobs(cap)
+    if governor:
+        out["load_governor"] = governor
     if out["enqueued"]:
         logger.info(
-            "enqueue_unscored_pipelines_scheduled: enqueued %s incomplete pipeline(s)",
+            "enqueue_unscored_pipelines_scheduled: enqueued %s incomplete pipeline(s) (cap=%s)",
             out["enqueued"],
+            cap,
         )
     return out
+
+
+@celery.task(name="app.tasks.load_governor_refresh")
+def load_governor_refresh() -> dict[str, Any]:
+    """Periodic: refresh load governor from queue/workers + cached ops snapshot."""
+    settings = get_settings()
+    if not settings.load_governor_enabled:
+        return {"skipped": True, "reason": "load_governor_disabled"}
+    from app.load_governor import refresh_load_governor
+
+    return refresh_load_governor(settings)
 
 
 @celery.task(name="app.tasks.ingest_geojson_path")
@@ -1088,6 +1245,7 @@ def ingest_geojson_path(
             meta={
                 "parcel_ids": ids,
                 "source_path": path,
+                "default_county_fips": (default_county_fips or "").strip() or None,
                 "inserted": inserted,
                 "updated": updated,
                 "skipped": skipped,
@@ -1112,11 +1270,21 @@ def ingest_geojson_path(
                     len(ids) - len(qualified),
                 )
         label = Path(path).name
+        county = (default_county_fips or "").strip()
+        from app.pilot_scope import COUNTY_DISPLAY_NAMES
+
+        county_line = ""
+        if county:
+            cname = COUNTY_DISPLAY_NAMES.get(county, county)
+            county_line = f"*Market:* {cname} (`{county}`)\n"
         ingest_detail = (
-            f"File `{label}` — inserted *{inserted}*, updated *{updated}*, skipped *{skipped}*."
+            f"{county_line}"
+            f"*File:* `{label}`\n"
+            f"• Inserted (new APNs): *{inserted}* · Refreshed existing: *{updated}* · Skipped: *{skipped}*\n"
+            "_Refreshed rows do not change `parcels.created_at` (hourly digest “new parcel rows”)._"
         )
         if pipelines_enqueued:
-            ingest_detail += f" Pipelines enqueued: *{pipelines_enqueued}* (prescreen-qualified)."
+            ingest_detail += f"\n• Scoring pipelines enqueued: *{pipelines_enqueued}* (prescreen-qualified)."
         post_agent_event_to_slack(get_settings(), agent="Ingest agent", detail=ingest_detail)
         return {
             "parcel_ids": ids,
@@ -1357,23 +1525,21 @@ def refresh_poi_density_batch(
     skipped = 0
     errors = 0
     last_at: float | None = None
-    last_id: uuid.UUID | None = None
+    attempted_ids: set[uuid.UUID] = set()
     try:
         while True:
-            stmt = select(Parcel).where(Parcel.footprint.isnot(None))
-            if cf:
-                stmt = stmt.where(Parcel.county_fips == cf)
-            if only_missing:
-                stmt = stmt.where(Parcel.poi_commercial_count_400m.is_(None))
-            if last_id is not None:
-                stmt = stmt.where(Parcel.id > last_id)
-            stmt = stmt.order_by(Parcel.id.asc()).limit(chunk)
+            stmt = select_poi_density_candidates(
+                limit=chunk,
+                county_fips=cf,
+                only_missing=only_missing,
+                exclude_ids=attempted_ids,
+            )
             batch = list(db.scalars(stmt))
             if not batch:
                 break
 
             for parcel in batch:
-                last_id = parcel.id
+                attempted_ids.add(parcel.id)
                 geom = to_shape(parcel.footprint)
                 if geom.is_empty:
                     continue
@@ -1429,6 +1595,9 @@ def refresh_poi_density_batch(
             "radius_m": radius_m,
             "only_missing": only_missing,
             "process_all": process_all,
+            "candidate_mode": POI_DENSITY_CANDIDATE_MODE,
+            "entitlement_floor": entitlement_qualified_floor(),
+            "strategic_floor": strategic_qualified_floor(),
         }
     finally:
         db.close()
@@ -1515,6 +1684,84 @@ def refresh_pipeline_scores_with_rate_comps_batch(
         db.close()
 
 
+@celery.task(name="app.tasks.backfill_baltimore_property_addresses_batch")
+def backfill_baltimore_property_addresses_batch(limit: int = 500, dry_run: bool = False) -> dict[str, Any]:
+    """Measured Baltimore City address backfill batch from Realproperty_OB."""
+    from app.baltimore_address_backfill import backfill_baltimore_property_addresses
+
+    db = _session()
+    try:
+        return backfill_baltimore_property_addresses(db, limit=limit, dry_run=dry_run)
+    finally:
+        db.close()
+
+
+@celery.task(name="app.tasks.backfill_wa_centroid_addresses_batch")
+def backfill_wa_centroid_addresses_batch(
+    limit: int = 100,
+    county_fips: str | None = None,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """WA candidate situs backfill via Nominatim + assessor city/ZIP anchor."""
+    from app.wa_centroid_address_backfill import backfill_wa_centroid_addresses
+
+    db = _session()
+    try:
+        return backfill_wa_centroid_addresses(db, limit=limit, county_fips=county_fips, dry_run=dry_run)
+    finally:
+        db.close()
+
+
+@celery.task(name="app.tasks.address_health_agent_tick")
+def address_health_agent_tick() -> dict[str, Any]:
+    """Every 12h: run address health review script (backup to GitHub Actions + Droplet cron)."""
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    settings = get_settings()
+    if not settings.address_health_agent_enabled:
+        return {"skipped": True, "reason": "address_health_agent_disabled"}
+
+    repo_root = Path(__file__).resolve().parents[3]
+    script = repo_root / "scripts" / "address-health-agent" / "address_health_agent.py"
+    if not script.is_file():
+        return {"skipped": True, "reason": "script_missing", "path": str(script)}
+
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(script), "--json"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            timeout=900,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        logger.exception("address_health_agent_tick timed out")
+        return {"skipped": False, "ok": False, "reason": "timeout"}
+
+    if proc.returncode != 0:
+        logger.warning(
+            "address_health_agent_tick exit=%s stderr=%s",
+            proc.returncode,
+            (proc.stderr or "")[:500],
+        )
+        return {
+            "skipped": False,
+            "ok": False,
+            "exit_code": proc.returncode,
+            "stderr": (proc.stderr or "")[:2000],
+        }
+
+    try:
+        payload = json.loads(proc.stdout or "{}")
+    except json.JSONDecodeError:
+        payload = {"raw_stdout": (proc.stdout or "")[:2000]}
+    return {"skipped": False, "ok": True, "report": payload}
+
+
 @celery.task(name="app.tasks.refresh_identification_scores_batch")
 def refresh_identification_scores_batch(
     limit: int = 2000,
@@ -1557,6 +1804,7 @@ def refresh_entitlement_scores_batch(
     limit: int = 2000,
     county_fips: str | None = None,
     process_all: bool = False,
+    prescreen_qualified_only: bool = False,
 ) -> dict[str, Any]:
     """Recompute Atlas entitlement scores from current parcel features (zoning, lot, demand, comps)."""
     chunk = min(max(limit, 1), 5000)
@@ -1569,6 +1817,8 @@ def refresh_entitlement_scores_batch(
             stmt = select(Parcel)
             if cf:
                 stmt = stmt.where(Parcel.county_fips == cf)
+            if prescreen_qualified_only:
+                stmt = stmt.where(identification_prescreen_qualified())
             if last_id is not None:
                 stmt = stmt.where(Parcel.id > last_id)
             stmt = stmt.order_by(Parcel.id.asc()).limit(chunk)
@@ -1587,7 +1837,13 @@ def refresh_entitlement_scores_batch(
             agent="Atlas (entitlement refresh)",
             detail=f"Refreshed entitlement score for *{n}* parcel(s)" + (f" in `{cf}`." if cf else "."),
         )
-        return {"updated": n, "county_fips": cf or None, "limit": chunk, "process_all": process_all}
+        return {
+            "updated": n,
+            "county_fips": cf or None,
+            "limit": chunk,
+            "process_all": process_all,
+            "prescreen_qualified_only": prescreen_qualified_only,
+        }
     finally:
         db.close()
 
@@ -1610,6 +1866,29 @@ def slack_qualified_parcels_report() -> dict[str, Any]:
         return {"skipped": False, **posted}
     except Exception:
         logger.exception("slack_qualified_parcels_report failed")
+        raise
+    finally:
+        db.close()
+
+
+@celery.task(name="app.tasks.slack_plan_progress_report")
+def slack_plan_progress_report() -> dict[str, Any]:
+    """Post hourly A-E plan progress to the same channel as the regular Slack updates."""
+    settings = get_settings()
+    token = (settings.slack_bot_token or "").strip()
+    channel = (settings.slack_digest_channel_id or "").strip()
+    if not token or not channel:
+        logger.warning(
+            "slack_plan_progress_report SKIPPED: missing SLACK_BOT_TOKEN or SLACK_DIGEST_CHANNEL_ID",
+        )
+        return {"skipped": True, "reason": "slack not configured"}
+    db = _session()
+    try:
+        blocks, fallback = build_plan_progress_report_blocks(db)
+        posted = post_digest_to_slack(settings, blocks, fallback)
+        return {"skipped": False, **posted}
+    except Exception:
+        logger.exception("slack_plan_progress_report failed")
         raise
     finally:
         db.close()
@@ -1664,8 +1943,8 @@ def slack_agent_digest() -> dict[str, Any]:
         return {"skipped": True, "reason": "slack not configured (set SLACK_BOT_TOKEN and SLACK_DIGEST_CHANNEL_ID)"}
     db = _session()
     try:
-        window_h = max(1, int(get_settings().slack_digest_window_hours or 1))
-        blocks, fallback = build_slack_digest_blocks(db, hours=window_h)
+        window_h = max(1, int(settings.slack_digest_window_hours or 1))
+        blocks, fallback = build_slack_digest_blocks(db, hours=window_h, settings=settings)
         posted = post_digest_to_slack(settings, blocks, fallback)
         _write_slack_digest_audit(channel=channel, posted=posted, fallback=fallback)
         return {"skipped": False, **posted}
@@ -1710,28 +1989,33 @@ def site_watchdog_check() -> dict[str, Any]:
     settings = get_settings()
     token = (settings.slack_bot_token or "").strip()
     channel = watchdog_slack_channel(settings)
-    if not token or not channel:
+    slack_configured = bool(token and channel)
+    if not slack_configured:
         logger.warning(
-            "site_watchdog_check SKIPPED: missing SLACK_BOT_TOKEN or watchdog channel "
+            "site_watchdog_check: Slack alerting disabled because SLACK_BOT_TOKEN or watchdog channel is missing "
             "(SITE_WATCHDOG_SLACK_CHANNEL_ID / SLACK_AGENT_DISCUSSION_CHANNEL_ID / SLACK_DIGEST_CHANNEL_ID)",
         )
-        return {"skipped": True, "reason": "slack not configured for watchdog"}
 
     db = _session()
     try:
         previous = load_last_report(settings)
         report = run_droplet_watchdog(db)
         post, recovered = should_post_slack(settings, report, previous)
-        result: dict[str, Any] = {"skipped": False, "ok": report.get("ok"), "posted": False}
-        if post:
+        result: dict[str, Any] = {
+            "skipped": False,
+            "ok": report.get("ok"),
+            "posted": False,
+            "slack_configured": slack_configured,
+        }
+        if slack_configured and post:
             text = build_slack_text(report, recovered=recovered)
-            post_text_to_slack(settings, text=text, channel_id=channel)
+            post_text_to_slack(settings, text=text, channel_id=str(channel))
             write_audit(
                 db,
                 actor="celery:site_watchdog",
                 action="site_watchdog_alert" if not report.get("ok") else "site_watchdog_ok",
                 entity_type="slack_channel",
-                entity_id=channel,
+                entity_id=str(channel),
                 meta={"ok": report.get("ok"), "failure_count": report.get("failure_count"), "recovered": recovered},
             )
             result["posted"] = True

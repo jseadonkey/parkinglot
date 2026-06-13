@@ -10,5 +10,5 @@ export const PILOT_SCOPE_DEFAULTS = {
   primary_metro_label: "Baltimore-Columbia-Towson, MD",
   pilot_county_count: 41,
   min_lot_sqft: 5000,
-  qualified_min_entitlement: 55,
+  qualified_min_entitlement: 70,
 } as const;

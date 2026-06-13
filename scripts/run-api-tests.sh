@@ -26,6 +26,9 @@ fi
   "./services/api[dev]" \
   ruff==0.9.7 >/dev/null
 
+echo "==> mainline parity" >&2
+bash "${ROOT}/scripts/check-mainline-parity.sh"
+
 echo "==> ruff" >&2
 "${ROOT}/.venv/bin/ruff" check \
   packages/core \

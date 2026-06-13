@@ -31,7 +31,12 @@ Requires **`worker-slack`** and **`beat`** containers running.
 | `enqueue_incomplete_limited` | 1h | Inline: up to 75 pipeline jobs |
 | `run_site_watchdog` | 1h | Celery: site watchdog |
 
-Set `OPS_REMEDIATION_AUTO_FIX=false` to **report only** (Slack still alerts on critical issues).
+By default, remediation reports only. DB-writing fixes require both:
+
+- `OPS_REMEDIATION_AUTO_FIX=true`
+- `OPS_REMEDIATION_ALLOW_DB_WRITES=true`
+
+Leave `OPS_REMEDIATION_ALLOW_DB_WRITES=false` during DigitalOcean Postgres CPU alerts.
 
 POI refresh uses **per-parcel commits + deadlock retry** — safe while other workers are active.
 
@@ -40,12 +45,18 @@ POI refresh uses **per-parcel commits + deadlock retry** — safe while other wo
 ```bash
 OPS_REMEDIATION_ENABLED=true
 OPS_REMEDIATION_AUTO_FIX=true
+OPS_REMEDIATION_ALLOW_DB_WRITES=false
 OPS_REMEDIATION_PRIORITY_COUNTY_FIPS=24510
 OPS_REMEDIATION_COOLDOWN_SEC=3600
 OPS_REMEDIATION_POI_BATCH_LIMIT=50
 # Optional dedicated Slack channel; else agents/digest channel
 # OPS_REMEDIATION_SLACK_CHANNEL_ID=C...
 ```
+
+The site watchdog posts immediately for a new failure and on recovery. If the same
+failure keeps repeating, `SITE_WATCHDOG_FAILURE_REPEAT_HOURS` controls how often
+that unchanged alert is re-posted (default `6`), separate from the normal
+`SITE_WATCHDOG_HEARTBEAT_HOURS` all-clear cadence.
 
 ## Manual runs
 
@@ -56,6 +67,18 @@ curl -sS -X POST https://api.vspecialist.com/internal/ops/run-now \
 curl -sS https://api.vspecialist.com/internal/ops/status \
   -H "X-Internal-Key: $INTERNAL_API_KEY"
 ```
+
+## DigitalOcean Postgres CPU alerts
+
+When DigitalOcean reports high CPU on Managed Postgres, first pause automatic DB writers:
+
+1. Run GitHub Actions **Droplet resources (via Droplet)** with `relieve_load=true`.
+2. Confirm queue depth is near zero with **Droplet resources** → `probe_pipeline_velocity=true`.
+3. Leave watchdog/reporting enabled, but keep `OPS_REMEDIATION_ALLOW_DB_WRITES=false` until CPU returns to normal.
+
+The relief action purges the parking Celery queue and disables scheduled enqueue, priority
+pipeline, refresh, WA rollout, exploration campaign, and ops auto-fix loops. Resize Postgres only
+if CPU remains high after these writers are paused and queues are quiet.
 
 ## When more DigitalOcean resources help
 

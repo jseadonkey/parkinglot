@@ -90,3 +90,4 @@ fi
 
 echo "Phase C script complete."
 echo "Reduce parcels_missing_owner_outreach_brief via pipeline completion or parcel outreach recompute."
+echo "Street/situs addresses are needed only for deal candidates, not every parcel in a city/county."

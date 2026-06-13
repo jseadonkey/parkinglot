@@ -1,0 +1,194 @@
+name: Auto-merge Cursor PRs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/auto-merge-cursor-prs.yml"
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  schedule:
+    # Sweep periodically so already-open Cursor PRs merge once this workflow lands.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Optional PR number to merge; blank scans open Cursor PRs"
+        required: false
+        type: string
+
+permissions:
+  actions: write
+  checks: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-merge-cursor-prs
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    name: Merge CI-green Cursor PRs
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.conclusion == 'success')
+    env:
+      BASE_BRANCH: main
+      CI_WORKFLOW_NAME: CI
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      MANUAL_PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || '' }}
+    steps:
+      - name: Select candidate pull requests
+        id: candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -n "$MANUAL_PR_NUMBER" ]; then
+            numbers="$MANUAL_PR_NUMBER"
+          elif [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
+            numbers="$(jq -r '.workflow_run.pull_requests[]?.number // empty' "$GITHUB_EVENT_PATH")"
+          else
+            numbers="$(gh pr list \
+              --base "$BASE_BRANCH" \
+              --state open \
+              --limit 100 \
+              --json number,headRefName \
+              --jq '.[] | select(.headRefName | startswith("cursor/")) | .number')"
+          fi
+
+          {
+            echo "numbers<<EOF"
+            echo "$numbers"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Mark ready and merge passing Cursor PRs
+        id: merge
+        if: steps.candidates.outputs.numbers != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          merged_numbers=()
+          failed_numbers=()
+
+          while IFS= read -r pr_number; do
+            [ -n "$pr_number" ] || continue
+            echo "::group::PR #$pr_number"
+
+            pr_json="$(gh pr view "$pr_number" \
+              --json number,title,state,isDraft,mergeable,mergeStateStatus,headRefName,baseRefName,statusCheckRollup,url)"
+
+            pr_state="$(jq -r '.state' <<<"$pr_json")"
+            head_ref="$(jq -r '.headRefName' <<<"$pr_json")"
+            base_ref="$(jq -r '.baseRefName' <<<"$pr_json")"
+            pr_url="$(jq -r '.url' <<<"$pr_json")"
+
+            if [ "$pr_state" != "OPEN" ]; then
+              echo "Skipping #$pr_number because state is $pr_state."
+              echo "::endgroup::"
+              continue
+            fi
+
+            if [ "$base_ref" != "$BASE_BRANCH" ] || [[ "$head_ref" != cursor/* ]]; then
+              echo "Skipping #$pr_number because it is $head_ref -> $base_ref, not cursor/* -> $BASE_BRANCH."
+              echo "::endgroup::"
+              continue
+            fi
+
+            if ! jq -e --arg workflow "$CI_WORKFLOW_NAME" '
+              [ .statusCheckRollup[]? | select(.workflowName? == $workflow) ] as $checks
+              | ($checks | length) >= 3
+              and all($checks[]; (.status == "COMPLETED") and (.conclusion == "SUCCESS"))
+            ' <<<"$pr_json" >/dev/null; then
+              echo "Skipping #$pr_number because CI is not fully green yet."
+              echo "::endgroup::"
+              continue
+            fi
+
+            if [ "$(jq -r '.isDraft' <<<"$pr_json")" = "true" ]; then
+              echo "Skipping #$pr_number because it is still a draft."
+              echo "::endgroup::"
+              continue
+            fi
+
+            merge_state="UNKNOWN"
+            mergeable="UNKNOWN"
+            for _ in 1 2 3 4 5 6; do
+              pr_json="$(gh pr view "$pr_number" --json title,mergeable,mergeStateStatus)"
+              merge_state="$(jq -r '.mergeStateStatus // "UNKNOWN"' <<<"$pr_json")"
+              mergeable="$(jq -r '.mergeable // "UNKNOWN"' <<<"$pr_json")"
+
+              if [ "$merge_state" != "UNKNOWN" ] && [ "$mergeable" != "UNKNOWN" ]; then
+                break
+              fi
+
+              echo "Waiting for GitHub to calculate mergeability for #$pr_number..."
+              sleep 5
+            done
+
+            if [ "$merge_state" != "CLEAN" ] && [ "$mergeable" != "MERGEABLE" ]; then
+              echo "Skipping #$pr_number because merge_state=$merge_state and mergeable=$mergeable."
+              echo "::endgroup::"
+              continue
+            fi
+
+            changed_files="$(gh pr diff "$pr_number" --name-only)"
+            touches_workflows=false
+            touches_high_risk_ops=false
+            while IFS= read -r changed_file; do
+              if [[ "$changed_file" == .github/workflows/* ]]; then
+                touches_workflows=true
+                break
+              fi
+              if [[ "$changed_file" == .github/* ]] ||
+                 [[ "$changed_file" == deploy/* ]] ||
+                 [[ "$changed_file" == scripts/* ]] ||
+                 [[ "$changed_file" == docker-compose.yml ]]; then
+                touches_high_risk_ops=true
+              fi
+            done <<<"$changed_files"
+
+            if [ "$touches_workflows" = "true" ]; then
+              echo "Skipping #$pr_number because GitHub Actions tokens cannot merge workflow-file changes."
+              echo "::endgroup::"
+              continue
+            fi
+            if [ "$touches_high_risk_ops" = "true" ]; then
+              echo "Skipping #$pr_number because it changes deploy, script, or repository automation files."
+              echo "::endgroup::"
+              continue
+            fi
+
+            title="$(jq -r '.title' <<<"$pr_json")"
+            body="Auto-merged by ${GITHUB_WORKFLOW} after ${CI_WORKFLOW_NAME} passed."
+
+            if gh pr merge "$pr_number" \
+              --squash \
+              --delete-branch \
+              --subject "$title" \
+              --body "$body"; then
+              echo "Merged $pr_url"
+              merged_numbers+=("$pr_number")
+            else
+              echo "Failed to merge #$pr_number."
+              failed_numbers+=("$pr_number")
+            fi
+
+            echo "::endgroup::"
+          done <<<"${{ steps.candidates.outputs.numbers }}"
+
+          {
+            echo "merged_numbers=${merged_numbers[*]:-}"
+            echo "failed_numbers=${failed_numbers[*]:-}"
+          } >> "$GITHUB_OUTPUT"
+
+          if [ "${#failed_numbers[@]}" -gt 0 ]; then
+            echo "::warning::One or more otherwise eligible Cursor PRs could not be merged: ${failed_numbers[*]}"
+          fi

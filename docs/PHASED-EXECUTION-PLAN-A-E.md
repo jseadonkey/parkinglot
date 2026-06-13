@@ -1,8 +1,63 @@
 # Phased execution plan (A–E)
 
-This document breaks the **parcel CSV completeness**, **scoring**, **enrichment**, and **multi-county** work into five phases with **concrete tasks**, **commands/tools**, and **exit criteria**. It assumes the repo layout and internal APIs described in [OPERATIONS.md](OPERATIONS.md). For a **single batched operator checklist** (minimize repeat Droplet sessions), see [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md). For a **compact “is A–E configured?”** verification list (env + compose + per-phase prerequisites), see **[A-E-SETUP-CHECKLIST.md](A-E-SETUP-CHECKLIST.md)**.
+This document breaks the **parcel CSV completeness**, **scoring**, **enrichment**, and **multi-county** work into five phases with **concrete tasks**, **commands/tools**, and **exit criteria**. It assumes the repo layout and internal APIs described in [OPERATIONS.md](OPERATIONS.md). For a **single batched operator checklist** (minimize repeat Droplet sessions), see [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md). For a **compact “is A–E configured?”** verification list (env + compose + per-phase prerequisites), see **[A-E-SETUP-CHECKLIST.md](A-E-SETUP-CHECKLIST.md)**. For the deeper city/county source inventory, zoning nuance, value-data, and post-adjustment QA loop, use **[JURISDICTION-ZONING-COMPLETENESS-PLAN.md](JURISDICTION-ZONING-COMPLETENESS-PLAN.md)**.
 
 ---
+
+## Provenance and planning-mode check
+
+There is no durable metadata in this Markdown file that proves whether it was created in Cursor **Deep Planning Mode** (no agent link, planning transcript, or generated-by marker is stored with the doc). Treat the answer as:
+
+- **Verified:** the plan is structured like a deep planning artifact: phases, prerequisites, commands, exit criteria, backlog boundaries, and ownership are present.
+- **Not verified:** the repo itself cannot prove the mode used to create it. Future planning docs should add a short provenance line with the agent/session link when the author wants that to be auditable.
+- **Execution standard:** regardless of provenance, this file is the source of truth for A–E scope; [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md) is the runnable checklist; [A-E-SETUP-CHECKLIST.md](A-E-SETUP-CHECKLIST.md) is the wiring check.
+
+---
+
+## Execution operating system
+
+The plan should not depend on a person remembering the phases. Keep it alive through a repeated loop that turns every deploy, ingest, GIS delivery, or county expansion into measurable next actions.
+
+### Source-of-truth rules
+
+1. **Update this file when scope changes.** New phase meaning, exit criteria, or a new dependency belongs here first.
+2. **Update the operator bundle when execution steps change.** If a command, order of operations, or Droplet action changes, mirror it in [OPERATOR-TODO-BUNDLE.md](OPERATOR-TODO-BUNDLE.md).
+3. **Use readiness metrics as the scoreboard.** `make readiness` / `scripts/check_export_readiness.py` and `GET /internal/stats/export-readiness` decide whether A–C moved forward.
+4. **Do not mark external dependencies “done” until the artifact exists.** Phase B is not done until the overlay file is staged, merged, and readiness improves. Phase D is not done until agreed GIS/demand inputs are present and the resulting flags/metrics are written.
+
+### Recurring trigger loop
+
+Run this loop whenever one of these events happens: code deploy, new parcel ingest, new zoning overlay delivery, owner/vendor configuration change, new county added, or readiness gaps stop improving.
+
+1. **Baseline:** run `make ae-setup-check` and `make readiness` with the live `deploy/.env` values.
+2. **Execute the next unblocked phase:** use the first unblocked item in the tracking table below.
+3. **Capture before/after evidence:** save or paste readiness JSON/counts, task IDs, overlay path, county FIPS, and export path.
+4. **Update the tracker:** change status, blocker, next action, and evidence links/paths in this document.
+5. **Escalate only real blockers:** missing GIS overlay, missing counsel rule decision, missing vendor contract, or missing live env access.
+
+### Execution tracker
+
+| Area | Current status | Next action | Evidence to attach/update | Blocker rule |
+|------|----------------|-------------|---------------------------|--------------|
+| **A — scores/demand/readiness** | Tool-complete; needs live proof per environment | Run `make readiness`, then `scripts/execute-phase-a.sh`; repeat enqueue/refresh until gaps stop moving | Before/after `export-readiness`, Celery task IDs, optional CSV path | Blocked only if live DB/API/worker is unreachable or `pilot.yaml` has no real demand generators |
+| **B — zoning overlay** | Automation exists; production depends on county overlay artifacts | For each active county, stage overlay under `data/`, validate it, run `scripts/execute-phase-b.sh`, rerun readiness | Overlay host path + container path, validation summary, readiness delta for `parcels_missing_zoning_code` | Blocked only when authoritative GIS overlay or counsel-approved rule mapping is missing |
+| **C — owner/portfolio/outreach** | Tool-complete; depends on pipeline runs and source owner fields | Run `scripts/execute-phase-c.sh`; inspect owner brief coverage and portfolio endpoints | Readiness delta for `parcels_missing_owner_outreach_brief`, sample memo/brief paths, portfolio API result | Blocked only if county source data lacks owner fields or optional vendor credentials/contracts are not ready |
+| **D — corner/richer demand** | Backlog until GIS/demand inputs exist | Decide the input artifact (roads, parcel-road topology, demand surface), then add a batch/merge implementation | Input spec, sample validation set, resulting `IS_CORNER` / demand metric deltas | Blocked until input data and acceptance rule are agreed |
+| **E — county scale** | Process exists; rollout must repeat A→B→C per county | Add county FIPS, ingest, then run A/B/C tracker rows for that county; monitor WA rollout status if enabled | County FIPS, ingest task/result, readiness/scoring summary per county | Blocked only by queue health, missing county source data, or missing per-county overlay |
+
+### Status vocabulary
+
+- **Tool-complete:** repo contains the endpoint/script/config needed to run the phase.
+- **Production-proved:** the phase was run against the live Droplet/Postgres and readiness or output evidence was captured.
+- **Blocked-external:** the next action depends on GIS, counsel, vendor, or source data outside this repo.
+- **Monitoring:** automation is enabled; keep checking readiness/scoring summaries and only intervene when counts regress or stall.
+
+### Automation guardrails
+
+- Keep Celery Beat enabled for backlog drain and optional identification/demand refreshes before relying on manual bursts.
+- Treat Phase B overlays as versioned artifacts: stable filename, county FIPS in properties, host path and container path recorded together.
+- For every new county, create a small evidence bundle: ingest result, Phase A before/after, Phase B overlay result when available, Phase C smoke result, and exported CSV path.
+- If a phase is blocked for data, write the exact missing artifact in the tracker instead of adding more code tasks.
 
 ## Overview
 
@@ -140,7 +195,7 @@ Populate **`zoning_code`** and **`zoning_allows_surface_parking`** (and optional
 
 ### Backlog — merge a **real** zoning overlay (tracked deliverable)
 
-The codebase includes merge endpoints, **`scripts/execute-phase-b.sh`**, and **`scripts/validate_phase_b_overlay.py`**. What is **not** done until ops/GIS completes it is the **authoritative overlay GeoJSON per pilot county**: spatial join parcel polygons to jurisdiction zoning GIS (outside this repo), properties aligned with **`geojson_loader`** aliases and **`kent_king_surface_parking_rules.yaml`**, staged on the Droplet under **`data/`** (worker path **`/app/data/...`**), then merge + verify **`parcels_missing_zoning_code`** drops and counsel spot-checks **`zoning_allows_surface_parking`**. Treat **“implement Phase B for production parcels”** as **shipping that file + running merge**, not only enabling the automation.
+The codebase includes merge endpoints, **`scripts/execute-phase-b.sh`**, and **`scripts/validate_phase_b_overlay.py`**. What is **not** done until ops/GIS completes it is the **authoritative overlay GeoJSON per pilot county**: spatial join parcel polygons to jurisdiction zoning GIS (outside this repo), properties aligned with **`geojson_loader`** aliases and **`kent_king_surface_parking_rules.yaml`**, staged on the Droplet under **`data/`** (worker path **`/app/data/...`**), then merge + verify **`parcels_missing_zoning_code`** drops and counsel spot-checks **`zoning_allows_surface_parking`**. Treat **“implement Phase B for production parcels”** as **shipping that file + running merge**, not only enabling the automation. Use the jurisdiction completeness plan for the repeatable registry/source-catalog, city-vs-county resolver, value-source, and feedback-loop requirements.
 
 ---
 
@@ -164,6 +219,7 @@ Operators can see **recorded owner**, **contact hints from roll**, **multi-parce
 2. **Run pipeline for enriched parcels**  
    - Owner candidates + **`owner_outreach_brief`** are written in **`run_pipeline`** (`services/api/app/tasks.py`).  
    - Ensure pipelines have run for parcels you care about (Phase A enqueue).
+   - Street / situs addresses are **deal-candidate enrichment only**. Backfill them for parcels that score well or look vacant/suitable; do not treat missing addresses on low-score parcels as city/county incompleteness.
 
 3. **Portfolio rollup**  
    - `GET /internal/owners/peers-by-key?normalized_owner_key=53:ACME`  
@@ -179,6 +235,7 @@ Operators can see **recorded owner**, **contact hints from roll**, **multi-parce
 
 6. **Smoke readiness + portfolio APIs**  
    - **`scripts/execute-phase-c.sh`** — prints **`parcels_missing_owner_outreach_brief`** (via **`check_export_readiness.py`**), **`GET /internal/owners/portfolios-ranked`**, optional **`GET /internal/owners/peers-by-key`** when **`PHASE_C_OWNER_KEY`** is set (`make phase-c-run`). Use after pipelines have run for parcels you care about.
+   - Interpret remaining owner/address gaps as candidate-only work; broad market coverage does not require street addresses for every APN.
 
 ### Exit criteria (Phase C)
 

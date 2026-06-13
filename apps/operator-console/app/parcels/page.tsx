@@ -15,6 +15,8 @@ type ParcelRow = {
   parcel_id: string;
   apn: string;
   county_fips: string;
+  situs_address: string | null;
+  mailing_address: string | null;
   zoning_code: string | null;
   zoning_principal_use_symbol: string | null;
   zoning_entitlement_tier: string | null;
@@ -117,8 +119,11 @@ export default function ParcelsPage() {
       }
       return "No Baltimore parcels in the database yet. Run Droplet resources → baltimore_ingest_now or baltimore_zoning_overlay, then refresh.";
     }
+    if (zoningTier && (stateFips === "53" || countyFips.startsWith("53"))) {
+      return "The zoning tier filter is currently Baltimore-only. Clear the zoning tier to browse Washington parcels.";
+    }
     if (stateFips || countyFips || zoningTier) {
-      return "No parcels match the state, county, or zoning tier filters. Try “All states” and “All tiers”.";
+      return "No parcels match the state, county, or Baltimore zoning tier filters. Try “All states” and “All tiers”.";
     }
     return "No scored parcels in the database yet. Run county ingest on the Droplet (Baltimore or Washington), then refresh.";
   })();
@@ -169,7 +174,7 @@ export default function ParcelsPage() {
           </select>
         </label>
         <label className="muted">
-          Zoning tier{" "}
+          Baltimore zoning tier{" "}
           <select value={zoningTier} onChange={(e) => setZoningTier(e.target.value)}>
             <option value="">All tiers</option>
             <option value="permitted">Permitted (P)</option>
@@ -212,9 +217,9 @@ export default function ParcelsPage() {
 
       {rowCount != null ? (
         <p className="muted result-meta">
-          Showing <strong>{rows.length}</strong>
-          {rowCount !== rows.length ? ` of ${rowCount}` : ""} parcel{rows.length === 1 ? "" : "s"}
+          Loaded <strong>{rows.length}</strong> parcel{rows.length === 1 ? "" : "s"}
           {qualifiedOnly && qualifiedFloor != null ? ` (entitlement ≥ ${qualifiedFloor})` : ""}
+          {zoningTier ? " · zoning tier filters apply to Baltimore zoning codes only" : ""}
         </p>
       ) : null}
 
@@ -230,6 +235,7 @@ export default function ParcelsPage() {
               <th>Strategic</th>
               <th>Identification</th>
               <th>APN</th>
+              <th>Property address</th>
               <th>County</th>
               <th>Zoning</th>
               <th>Zoning tier</th>
@@ -250,6 +256,20 @@ export default function ParcelsPage() {
                 <td>{fmtScore(p.strategic_score)}</td>
                 <td>{fmtScore(p.identification_score)}</td>
                 <td>{p.apn}</td>
+              <td>
+                {p.situs_address ? (
+                  <>
+                    <span>{p.situs_address}</span>
+                    {p.mailing_address ? (
+                      <div className="muted" style={{ marginTop: "0.2rem", fontSize: "0.8rem" }}>
+                        Mailing: {p.mailing_address}
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <span className="muted">No property address on file</span>
+                )}
+              </td>
                 <td>{countyLine(countyLabel, p.county_fips)}</td>
                 <td>{p.zoning_code ?? "—"}</td>
                 <td>

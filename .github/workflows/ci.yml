@@ -50,6 +50,9 @@ jobs:
           pip install ./services/enrichment
           pip install ./services/workflows
           pip install "./services/api[dev]"
+      - name: Mainline parity
+        run: bash scripts/check-mainline-parity.sh
+
       - name: Pytest (API)
         working-directory: services/api
         env:
@@ -71,6 +74,21 @@ jobs:
           name: openapi
           path: openapi.json
           retention-days: 14
+
+  test-crew:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install parking-crew
+        run: |
+          set -euo pipefail
+          pip install --upgrade pip
+          pip install "./services/crew[dev]"
+      - name: Pytest (CrewAI tools — no LLM)
+        run: pytest services/crew/tests -q
 
   validate:
     runs-on: ubuntu-latest
@@ -143,3 +161,20 @@ jobs:
             echo "bash -n $f"
             bash -n "$f"
           done
+
+  test-operator-agents:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/api/pyproject.toml
+      - name: Install API (OpenAPI export in validate script)
+        run: |
+          set -euo pipefail
+          pip install --upgrade pip
+          pip install ./packages/core ./services/scoring ./services/ingestion ./services/enrichment ./services/workflows "./services/api[dev]"
+      - name: Validate operator + address health automation
+        run: bash scripts/validate-operator-agents.sh

@@ -6,6 +6,9 @@ from typing import Any
 
 import yaml
 
+# Repo root (…/services/ingestion/parking_ingestion/zoning_rules.py → parents[3]).
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
 # County FIPS → zoning_rules.yaml jurisdiction key (ingest when overlay omits ZONING_JURISDICTION).
 COUNTY_FIPS_TO_ZONING_JURISDICTION: dict[str, str] = {
     "24510": "baltimore_city",
@@ -131,6 +134,7 @@ def _zone_entry(
         return None
 
     z_norm = normalize_zone_code(str(zoning_code))
+    z_without_star = z_norm.rstrip("*").strip()
     jurisdictions = rules.get("jurisdictions") or {}
     block = jurisdictions.get(jk)
     if not isinstance(block, dict):
@@ -141,6 +145,8 @@ def _zone_entry(
         return None
 
     entry = zones.get(z_norm)
+    if entry is None and z_without_star != z_norm:
+        entry = zones.get(z_without_star)
     if entry is None:
         entry = zones.get(str(zoning_code).strip())
     return entry

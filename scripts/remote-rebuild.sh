@@ -10,6 +10,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/scripts/lib/droplet-target.sh"
 assert_droplet_target "$ROOT/scripts/remote-rebuild.sh" "${DROPLET:-}" "${REMOTE_PATH:-}" "${SSH_USER:-}" || exit 1
 
+bash "$ROOT/scripts/check-mainline-parity.sh"
+
 USE_LOCAL_POSTGIS="${USE_LOCAL_POSTGIS:-0}"
 
 ssh "${SSH_USER}@${DROPLET}" \

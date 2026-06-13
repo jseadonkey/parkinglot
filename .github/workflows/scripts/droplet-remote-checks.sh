@@ -49,7 +49,8 @@ _internal_api_get() {
   if ! docker compose -f "$compose_rel" --env-file deploy/.env ps -q api 2>/dev/null | grep -q .; then
     return 0
   fi
-  docker compose -f "$compose_rel" --env-file deploy/.env exec -T -e "API_PATH=$path" api python - <<'PY'
+  docker compose -f "$compose_rel" --env-file deploy/.env exec -T \
+    -e "API_PATH=$path" -e "INTERNAL_API_KEY=$KEY" api python - <<'PY'
 import os
 import urllib.error
 import urllib.request
@@ -228,7 +229,7 @@ for k, v in updates.items():
     print(f"{k}={v}")
 PY
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
-    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps api worker worker-slack beat
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --force-recreate --no-deps api worker worker-slack beat
     ;;
   slack-inspect)
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
@@ -506,20 +507,31 @@ print('standup_posted', posted)
     docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN slack 2>/dev/null || echo "slack: (n/a)"
     docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN celery 2>/dev/null || echo "celery: (n/a)"
     echo ""
-    echo "=== disable SCHEDULED_ENQUEUE_UNSCORED in deploy/.env ==="
+    echo "=== pause heavy scheduled DB writers in deploy/.env ==="
     python3 <<'PY'
 import pathlib
 import re
 
 path = pathlib.Path("deploy/.env")
 text = path.read_text(encoding="utf-8")
-key = "SCHEDULED_ENQUEUE_UNSCORED_ENABLED"
-if re.search(rf"^{re.escape(key)}=", text, re.M):
-    text = re.sub(rf"^{re.escape(key)}=.*$", f"{key}=false", text, count=1, flags=re.M)
-else:
-    text = text.rstrip() + f"\n{key}=false\n"
+updates = {
+    # Keep watchdog/reporting alive, but stop automatic write-heavy repairs while DB CPU recovers.
+    "OPS_REMEDIATION_AUTO_FIX": "false",
+    "SCHEDULED_ENQUEUE_UNSCORED_ENABLED": "false",
+    "SCHEDULED_PRIORITY_PIPELINE_ENABLED": "false",
+    "SCHEDULED_REFRESH_IDENTIFICATION_ENABLED": "false",
+    "SCHEDULED_REFRESH_DEMAND_ENABLED": "false",
+    "WA_STATEWIDE_ROLLOUT_ENABLED": "false",
+    "EXPLORATION_CAMPAIGN_ENABLED": "false",
+}
+for key, value in updates.items():
+    if re.search(rf"^{re.escape(key)}=", text, re.M):
+        text = re.sub(rf"^{re.escape(key)}=.*$", f"{key}={value}", text, count=1, flags=re.M)
+    else:
+        text = text.rstrip() + f"\n{key}={value}\n"
 path.write_text(text, encoding="utf-8")
-print(f"Set {key}=false")
+for key, value in updates.items():
+    print(f"Set {key}={value}")
 PY
     echo ""
     echo "=== purge parking Celery queue (keeps slack queue) ==="
@@ -535,7 +547,7 @@ PY
     echo ""
     docker stats --no-stream "${ARGS[@]}" 2>/dev/null | head -12 || docker stats --no-stream | head -12
     echo ""
-    echo "Done. Re-enable enqueue with SCHEDULED_ENQUEUE_UNSCORED_ENABLED=true and recreate beat when ready."
+    echo "Done. Re-enable selected schedulers in deploy/.env and recreate beat when DB CPU is normal."
     ;;
   enable-enqueue)
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
@@ -908,7 +920,7 @@ PY
     if [ -n "$KEY" ]; then
       echo "=== POST /internal/ingest/baltimore-city (kickstart city parcels) ==="
       _internal_api_post "/internal/ingest/baltimore-city" \
-        '{"max_features":20000,"auto_run_pipeline":true,"max_auto_pipeline":100}' \
+        '{"auto_run_pipeline":true,"max_auto_pipeline":100}' \
         || echo "baltimore-city ingest skipped or failed"
       echo "=== (Baltimore County ingest paused — city only) ==="
       echo "=== POST /internal/pipeline/enqueue-priority?limit=75 ==="
@@ -919,17 +931,17 @@ PY
     echo "=== POST /internal/ingest/baltimore-city ==="
     if [ -n "$KEY" ]; then
       _internal_api_post "/internal/ingest/baltimore-city" \
-        '{"max_features":20000,"auto_run_pipeline":true,"max_auto_pipeline":100}' \
+        '{"auto_run_pipeline":true,"max_auto_pipeline":100}' \
         || echo "baltimore-city ingest failed"
     else
       echo "INTERNAL_API_KEY not set"
     fi
     ;;
   baltimore-markets-ingest)
-    echo "=== POST Baltimore City ingest only (20k cap; county paused) ==="
+    echo "=== POST Baltimore City full ingest only (county paused) ==="
     if [ -n "$KEY" ]; then
       _internal_api_post "/internal/ingest/baltimore-city" \
-        '{"max_features":20000,"auto_run_pipeline":true,"max_auto_pipeline":100}'
+        '{"auto_run_pipeline":true,"max_auto_pipeline":100}'
       _internal_api_post "/internal/pipeline/enqueue-priority?limit=75" || true
     else
       echo "INTERNAL_API_KEY not set"
@@ -950,8 +962,8 @@ PY
 
     export PYTHONPATH="${ROOT}/services/ingestion${PYTHONPATH:+:$PYTHONPATH}"
 
-    echo "=== fetch Baltimore City parcels (20k cap) ==="
-    python3 scripts/fetch_baltimore_city_parcels.py -o "$PARCELS" --max-features 20000
+    echo "=== fetch Baltimore City parcels (full city) ==="
+    python3 scripts/fetch_baltimore_city_parcels.py -o "$PARCELS"
     echo "=== fetch Baltimore City zoning districts ==="
     python3 scripts/fetch_baltimore_zoning_districts.py -o "$ZONING"
 
@@ -1179,6 +1191,7 @@ if not path.is_file():
 updates = {
     "OPS_REMEDIATION_ENABLED": "true",
     "OPS_REMEDIATION_AUTO_FIX": "true",
+    "OPS_REMEDIATION_ALLOW_DB_WRITES": "true",
     "OPS_REMEDIATION_PRIORITY_COUNTY_FIPS": "24510",
     "OPS_REMEDIATION_COOLDOWN_SEC": "3600",
     "OPS_REMEDIATION_POI_BATCH_LIMIT": "50",
@@ -1211,7 +1224,16 @@ for key, val in sorted(updates.items()):
     print(f"Set {key}={val}")
 PY
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
-    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps api worker worker-slack beat
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --force-recreate --no-deps api worker worker-slack beat
+    echo "=== wait for API ready after env/container refresh ==="
+    for i in $(seq 1 30); do
+      READY="$(_internal_api_get "/ready" || true)"
+      echo "ready_poll=${i} ready=${READY}"
+      if printf '%s' "$READY" | grep -q '"status"[[:space:]]*:[[:space:]]*"ready"'; then
+        break
+      fi
+      sleep 3
+    done
     if [ -n "$KEY" ]; then
       echo "=== kickstart ops loop ==="
       _internal_api_post "/internal/ops/run-now" || true
@@ -1257,6 +1279,89 @@ PY
     if [ -n "$KEY" ]; then
       _internal_api_get "/internal/stats/export-readiness" || true
     fi
+    ;;
+  baltimore-address-backfill-agent)
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    export COMPOSE_REL
+    ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
+    LIMIT="${ADDRESS_BACKFILL_LIMIT:-5000}"
+    MAX_BATCHES="${ADDRESS_BACKFILL_MAX_BATCHES:-1}"
+    SLEEP_BETWEEN="${ADDRESS_BACKFILL_SLEEP_BETWEEN_SEC:-30}"
+    echo "=== Baltimore address backfill agent ==="
+    echo "limit=${LIMIT} max_batches=${MAX_BATCHES} sleep_between=${SLEEP_BETWEEN}"
+    echo "=== health gate ==="
+    if [ -z "$KEY" ]; then
+      echo "INTERNAL_API_KEY not set"
+      exit 1
+    fi
+    READY="$(_internal_api_get "/ready" || true)"
+    if ! printf '%s' "$READY" | grep -q '"status"[[:space:]]*:[[:space:]]*"ready"'; then
+      # PUBLIC_API_URL curl often returns empty/401 from the Droplet shell; retry in-container.
+      READY="$(docker compose "${ARGS[@]}" exec -T -e "INTERNAL_API_KEY=$KEY" api python - <<'PY' 2>/dev/null || true
+import os, urllib.request
+headers = {"Accept": "application/json"}
+key = (os.environ.get("INTERNAL_API_KEY") or "").strip()
+if key:
+    headers["X-Internal-Key"] = key
+with urllib.request.urlopen(urllib.request.Request("http://127.0.0.1:8000/ready", headers=headers), timeout=45) as resp:
+    print(resp.read().decode())
+PY
+)"
+    fi
+    echo "ready=${READY}"
+    if ! printf '%s' "$READY" | grep -q '"status"[[:space:]]*:[[:space:]]*"ready"'; then
+      echo "API not ready; skipping address backfill"
+      exit 1
+    fi
+    PARKING_Q="$(docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN parking 2>/dev/null || echo 999999)"
+    SLACK_Q="$(docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN slack 2>/dev/null || echo 999999)"
+    echo "parking_queue=${PARKING_Q} slack_queue=${SLACK_Q}"
+    if [ "${PARKING_Q}" != "0" ]; then
+      echo "parking queue not empty; skipping address backfill"
+      exit 0
+    fi
+    for i in $(seq 1 "$MAX_BATCHES"); do
+      echo "=== batch ${i}/${MAX_BATCHES}: enqueue limit=${LIMIT} ==="
+      RESP="$(_internal_api_post "/internal/metrics/backfill-baltimore-addresses?limit=${LIMIT}&dry_run=false" || true)"
+      echo "$RESP"
+      TASK_ID="$(printf '%s' "$RESP" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("task_id",""))' 2>/dev/null || true)"
+      if [ -z "$TASK_ID" ]; then
+        echo "No task id returned; stopping"
+        exit 1
+      fi
+      for poll in $(seq 1 180); do
+        sleep 5
+        STATUS="$(_internal_api_get "/internal/tasks/${TASK_ID}" || true)"
+        STATE="$(printf '%s' "$STATUS" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("state",""))' 2>/dev/null || true)"
+        READY_STATE="$(printf '%s' "$STATUS" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("ready",""))' 2>/dev/null || true)"
+        echo "poll=${poll} state=${STATE} ready=${READY_STATE}"
+        if [ "$READY_STATE" = "True" ] || [ "$READY_STATE" = "true" ]; then
+          echo "$STATUS"
+          RESULT_SELECTED="$(printf '%s' "$STATUS" | python3 -c 'import json,sys; d=json.load(sys.stdin); r=d.get("result") or {}; print(r.get("selected", ""))' 2>/dev/null || true)"
+          RESULT_UPDATED="$(printf '%s' "$STATUS" | python3 -c 'import json,sys; d=json.load(sys.stdin); r=d.get("result") or {}; print(r.get("updated", ""))' 2>/dev/null || true)"
+          if [ "$STATE" != "SUCCESS" ]; then
+            echo "batch failed; stopping"
+            exit 1
+          fi
+          if [ "${RESULT_SELECTED:-0}" = "0" ]; then
+            echo "No selected rows; Baltimore address backfill appears complete."
+            exit 0
+          fi
+          echo "batch updated=${RESULT_UPDATED}; continuing if configured"
+          break
+        fi
+        if [ "$poll" = "180" ]; then
+          echo "Timed out waiting for task ${TASK_ID}"
+          exit 1
+        fi
+      done
+      if [ "$i" != "$MAX_BATCHES" ]; then
+        sleep "$SLEEP_BETWEEN"
+      fi
+    done
+    echo "=== post-run health ==="
+    _internal_api_get "/ready" || true
+    docker compose "${ARGS[@]}" exec -T redis redis-cli LLEN parking 2>/dev/null || true
     ;;
   enqueue-priority-now)
     echo "=== POST /internal/pipeline/enqueue-priority?limit=75 ==="

@@ -1,0 +1,162 @@
+# Daily operator admin agent: load every /operator page, compare backlog metrics,
+# auto-remediate UI errors and stagnant progress on the Droplet.
+#
+# Secrets: UI_SMOKE_ADMIN_EMAIL, UI_SMOKE_ADMIN_PASSWORD
+#          DROPLET_SSH_PRIVATE_KEY, DROPLET_HOST, DROPLET_USER
+#          SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY (or SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID)
+
+name: Operator admin agent (daily)
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preflight secrets
+        id: preflight
+        env:
+          UI_SMOKE_ADMIN_EMAIL: ${{ secrets.UI_SMOKE_ADMIN_EMAIL }}
+          UI_SMOKE_ADMIN_PASSWORD: ${{ secrets.UI_SMOKE_ADMIN_PASSWORD }}
+          DROPLET_SSH_PRIVATE_KEY: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+          DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+        run: |
+          set -euo pipefail
+          MISSING=()
+          [ -z "${UI_SMOKE_ADMIN_EMAIL:-}" ] && MISSING+=("UI_SMOKE_ADMIN_EMAIL")
+          [ -z "${UI_SMOKE_ADMIN_PASSWORD:-}" ] && MISSING+=("UI_SMOKE_ADMIN_PASSWORD")
+          [ -z "${DROPLET_SSH_PRIVATE_KEY:-}" ] && MISSING+=("DROPLET_SSH_PRIVATE_KEY")
+          [ -z "${DROPLET_HOST:-}" ] && MISSING+=("DROPLET_HOST")
+          if [ "${#MISSING[@]}" -gt 0 ]; then
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            echo "error=Missing secrets: ${MISSING[*]}" >> "$GITHUB_OUTPUT"
+            echo "AGENT_RUNNER_ERROR=Missing secrets: ${MISSING[*]}" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "skipped=false" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        if: steps.preflight.outputs.skipped != 'true'
+        with:
+          node-version: "22"
+
+      - name: Install Playwright
+        id: install
+        if: steps.preflight.outputs.skipped != 'true'
+        working-directory: scripts/operator-admin-agent
+        run: |
+          npm install
+          npx playwright install chromium --with-deps
+
+      - name: Install SSH key
+        if: steps.install.outcome == 'success'
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH
+        if: steps.install.outcome == 'success'
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Fetch previous metrics snapshot from Droplet
+        if: steps.install.outcome == 'success'
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "mkdir -p $(printf '%q' "$REMOTE_PATH")/data/operator-agent && cat $(printf '%q' "$REMOTE_PATH")/data/operator-agent/last-snapshot.json 2>/dev/null || true" \
+            > scripts/operator-admin-agent/previous-snapshot.json || true
+          if [ ! -s scripts/operator-admin-agent/previous-snapshot.json ]; then
+            echo '{}' > scripts/operator-admin-agent/previous-snapshot.json
+          fi
+
+      - name: Run operator admin browser agent
+        id: run_agent
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        working-directory: scripts/operator-admin-agent
+        env:
+          UI_SMOKE_BASE_URL: ${{ vars.UI_SMOKE_BASE_URL || 'https://vspecialist.com' }}
+          UI_SMOKE_ADMIN_EMAIL: ${{ secrets.UI_SMOKE_ADMIN_EMAIL }}
+          UI_SMOKE_ADMIN_PASSWORD: ${{ secrets.UI_SMOKE_ADMIN_PASSWORD }}
+        run: npm test
+
+      - name: Upload browser report to Droplet
+        if: steps.install.outcome == 'success' && always()
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          REPORT="scripts/operator-admin-agent/agent-report.json"
+          if [ ! -f "$REPORT" ]; then
+            echo '{"checked_at":"","issues":[],"metrics":{}}' > "$REPORT"
+          fi
+          scp -oBatchMode=yes "$REPORT" \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}:${REMOTE_PATH}/data/operator-agent/agent-report.json"
+
+      - name: Compare metrics and auto-remediate on Droplet
+        id: remediate
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && python3 scripts/operator-admin-agent/droplet-remediate.py \
+              --report data/operator-agent/agent-report.json \
+              --previous data/operator-agent/last-snapshot.json \
+              --write-snapshot"
+
+      - name: Download remediation report
+        if: steps.install.outcome == 'success' && always()
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          REMOTE_PATH="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          scp -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}:${REMOTE_PATH}/data/operator-agent/agent-remediation.json" \
+            scripts/operator-admin-agent/agent-remediation.json 2>/dev/null || true
+
+      - name: Upload artifacts
+        if: always() && steps.install.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: operator-admin-agent-${{ github.run_id }}
+          path: |
+            scripts/operator-admin-agent/agent-report.json
+            scripts/operator-admin-agent/agent-remediation.json
+            scripts/operator-admin-agent/previous-snapshot.json
+          if-no-files-found: ignore
+
+      - name: Notify Slack
+        if: always() && steps.preflight.outputs.skipped != 'true'
+        continue-on-error: true
+        env:
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          UI_SMOKE_BASE_URL: ${{ vars.UI_SMOKE_BASE_URL || 'https://vspecialist.com' }}
+          PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL || 'https://api.vspecialist.com' }}
+          SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_DIGEST_CHANNEL_ID: ${{ secrets.SLACK_DIGEST_CHANNEL_ID }}
+          AGENT_REPORT: scripts/operator-admin-agent/agent-report.json
+          AGENT_REMEDIATION: scripts/operator-admin-agent/agent-remediation.json
+          AGENT_PREFLIGHT_OUTCOME: ${{ steps.preflight.outcome }}
+          AGENT_INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          AGENT_TEST_OUTCOME: ${{ steps.run_agent.outcome }}
+          AGENT_RUNNER_ERROR: ${{ env.AGENT_RUNNER_ERROR }}
+        run: python3 scripts/operator-admin-agent/report-agent.py

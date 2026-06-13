@@ -57,6 +57,13 @@ def _values_from_props(
     prefix_keys: tuple[str, ...] = (),
 ) -> list[str]:
     found: list[str] = []
+
+    def should_split_commas(key: str, value: str) -> bool:
+        upper_key = key.upper()
+        if any(token in upper_key for token in ("ADDR", "ADDRESS", "MAIL", "SITUS", "STREET")):
+            return False
+        return "," in value and "@" not in value and not any(ch.isdigit() for ch in value[:6])
+
     for k in single_keys:
         raw = props.get(k)
         if raw is None:
@@ -72,7 +79,7 @@ def _values_from_props(
             continue
         if any(sep in s for sep in (";", "|", "\n")):
             found.extend(part.strip() for part in _LIST_SEP_RE.split(s) if part.strip())
-        elif "," in s and "@" not in s and not any(ch.isdigit() for ch in s[:6]):
+        elif should_split_commas(k, s):
             found.extend(part.strip() for part in s.split(",") if part.strip())
         else:
             found.append(s)
@@ -137,6 +144,10 @@ def _situs_from_props(props: dict[str, Any]) -> list[str]:
             "site_addr",
             "ADDR_FULL",
             "addr_full",
+            "VISIT_ADDRESS",
+            "visit_address",
+            "MAP_ADDRESS",
+            "map_address",
         ),
         list_keys=("SITUS_ADDRESSES", "situs_addresses", "PROPERTY_ADDRESSES", "property_addresses"),
         prefix_keys=("SITUS_ADDR_", "situs_addr_", "SITUS_", "situs_"),
@@ -305,7 +316,10 @@ def build_owner_outreach_brief(
     if not mail_addrs:
         gaps.append("No mailing address on ingest payload — pull from assessor full roll or vendor.")
     if not situs_addrs:
-        gaps.append("No situs / property address on ingest payload — optional for site visit planning.")
+        gaps.append(
+            "No situs / property address on ingest payload — needed only for deal candidates "
+            "that merit map, site-visit, or door-notice review."
+        )
     if primary and primary.kind == OwnerKind.entity and not mail_addrs:
         gaps.append("Entity owner without mail on file — SOS registered agent address is the usual path.")
     if len(mail_addrs) > 1:

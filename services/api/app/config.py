@@ -74,7 +74,7 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("SLACK_AGENT_EVENT_UPDATES", "slack_agent_event_updates"),
     )
-    # Celery Beat: pipeline standup digest (default hourly at :00 UTC).
+    # Celery Beat: pipeline standup digest (default once daily at 08:00 UTC).
     slack_digest_crontab_minute: int = Field(
         default=0,
         ge=0,
@@ -82,14 +82,102 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("SLACK_DIGEST_CRONTAB_MINUTE", "slack_digest_crontab_minute"),
     )
     slack_digest_crontab_hour: str = Field(
-        default="*",
+        default="8",
         validation_alias=AliasChoices("SLACK_DIGEST_CRONTAB_HOUR", "slack_digest_crontab_hour"),
     )
     slack_digest_window_hours: int = Field(
-        default=1,
+        default=24,
         ge=1,
         le=24,
         validation_alias=AliasChoices("SLACK_DIGEST_WINDOW_HOURS", "slack_digest_window_hours"),
+    )
+    # Celery Beat: A-E execution plan progress report (off by default — enable if you want it).
+    slack_plan_progress_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "SLACK_PLAN_PROGRESS_ENABLED",
+            "slack_plan_progress_enabled",
+        ),
+    )
+    slack_plan_progress_crontab_minute: int = Field(
+        default=5,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "SLACK_PLAN_PROGRESS_CRONTAB_MINUTE",
+            "slack_plan_progress_crontab_minute",
+        ),
+    )
+    slack_plan_progress_crontab_hour: str = Field(
+        default="8",
+        validation_alias=AliasChoices(
+            "SLACK_PLAN_PROGRESS_CRONTAB_HOUR",
+            "slack_plan_progress_crontab_hour",
+        ),
+    )
+    slack_qualified_parcels_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "SLACK_QUALIFIED_PARCELS_ENABLED",
+            "slack_qualified_parcels_enabled",
+        ),
+    )
+    slack_qualified_parcels_crontab_minute: int = Field(
+        default=0,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "SLACK_QUALIFIED_PARCELS_CRONTAB_MINUTE",
+            "slack_qualified_parcels_crontab_minute",
+        ),
+    )
+    slack_qualified_parcels_crontab_hour: int = Field(
+        default=14,
+        ge=0,
+        le=23,
+        validation_alias=AliasChoices(
+            "SLACK_QUALIFIED_PARCELS_CRONTAB_HOUR",
+            "slack_qualified_parcels_crontab_hour",
+        ),
+    )
+    slack_qualified_parcels_crontab_day_of_week: str = Field(
+        default="1",
+        validation_alias=AliasChoices(
+            "SLACK_QUALIFIED_PARCELS_CRONTAB_DAY_OF_WEEK",
+            "slack_qualified_parcels_crontab_day_of_week",
+        ),
+    )
+    slack_dual_agent_discussion_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "SLACK_DUAL_AGENT_DISCUSSION_ENABLED",
+            "slack_dual_agent_discussion_enabled",
+        ),
+    )
+    slack_dual_agent_discussion_crontab_minute: int = Field(
+        default=30,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "SLACK_DUAL_AGENT_DISCUSSION_CRONTAB_MINUTE",
+            "slack_dual_agent_discussion_crontab_minute",
+        ),
+    )
+    slack_dual_agent_discussion_crontab_hour: int = Field(
+        default=15,
+        ge=0,
+        le=23,
+        validation_alias=AliasChoices(
+            "SLACK_DUAL_AGENT_DISCUSSION_CRONTAB_HOUR",
+            "slack_dual_agent_discussion_crontab_hour",
+        ),
+    )
+    slack_dual_agent_discussion_crontab_day_of_week: str = Field(
+        default="1",
+        validation_alias=AliasChoices(
+            "SLACK_DUAL_AGENT_DISCUSSION_CRONTAB_DAY_OF_WEEK",
+            "slack_dual_agent_discussion_crontab_day_of_week",
+        ),
     )
 
     # Optional Celery Beat: ingest GeoJSON from a path on the API container (e.g. rsync county export).
@@ -338,6 +426,31 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Address health agent (12h): catalog rotation + connector triggers (see config/operator_agents.yaml).
+    address_health_agent_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "ADDRESS_HEALTH_AGENT_ENABLED",
+            "address_health_agent_enabled",
+        ),
+    )
+    address_health_agent_crontab_hour: str = Field(
+        default="*/12",
+        validation_alias=AliasChoices(
+            "ADDRESS_HEALTH_AGENT_CRONTAB_HOUR",
+            "address_health_agent_crontab_hour",
+        ),
+    )
+    address_health_agent_crontab_minute: int = Field(
+        default=10,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "ADDRESS_HEALTH_AGENT_CRONTAB_MINUTE",
+            "address_health_agent_crontab_minute",
+        ),
+    )
+
     # Prefer highest entitlement scores when draining pipeline backlog (see enqueue_priority_qualified).
     scheduled_priority_pipeline_enabled: bool = Field(
         default=False,
@@ -392,6 +505,25 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices(
             "OWNER_VENDOR_LOOKUP_API_KEY",
             "owner_vendor_lookup_api_key",
+        ),
+    )
+    # Owner outreach briefs are intentionally reserved for the highest-scoring lots.
+    owner_outreach_min_entitlement_score: float = Field(
+        default=85.0,
+        ge=0.0,
+        le=100.0,
+        validation_alias=AliasChoices(
+            "OWNER_OUTREACH_MIN_ENTITLEMENT_SCORE",
+            "owner_outreach_min_entitlement_score",
+        ),
+    )
+    owner_outreach_min_strategic_score: float = Field(
+        default=80.0,
+        ge=0.0,
+        le=100.0,
+        validation_alias=AliasChoices(
+            "OWNER_OUTREACH_MIN_STRATEGIC_SCORE",
+            "owner_outreach_min_strategic_score",
         ),
     )
 
@@ -517,6 +649,15 @@ class Settings(BaseSettings):
             "site_watchdog_heartbeat_hours",
         ),
     )
+    site_watchdog_failure_repeat_hours: int = Field(
+        default=6,
+        ge=0,
+        le=168,
+        validation_alias=AliasChoices(
+            "SITE_WATCHDOG_FAILURE_REPEAT_HOURS",
+            "site_watchdog_failure_repeat_hours",
+        ),
+    )
     site_watchdog_crontab_minute: str = Field(
         default="0",
         validation_alias=AliasChoices(
@@ -548,6 +689,13 @@ class Settings(BaseSettings):
     ops_remediation_auto_fix: bool = Field(
         default=True,
         validation_alias=AliasChoices("OPS_REMEDIATION_AUTO_FIX", "ops_remediation_auto_fix"),
+    )
+    ops_remediation_allow_db_writes: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "OPS_REMEDIATION_ALLOW_DB_WRITES",
+            "ops_remediation_allow_db_writes",
+        ),
     )
     ops_remediation_notify_on_warnings: bool = Field(
         default=True,
@@ -585,6 +733,15 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices(
             "OPS_REMEDIATION_PIPELINE_ENQUEUE_LIMIT",
             "ops_remediation_pipeline_enqueue_limit",
+        ),
+    )
+    ops_remediation_address_backfill_limit: int = Field(
+        default=250,
+        ge=10,
+        le=5000,
+        validation_alias=AliasChoices(
+            "OPS_REMEDIATION_ADDRESS_BACKFILL_LIMIT",
+            "ops_remediation_address_backfill_limit",
         ),
     )
     ops_remediation_cooldown_sec: int = Field(
@@ -625,6 +782,10 @@ class Settings(BaseSettings):
             "OPS_REMEDIATION_SLACK_CHANNEL_ID",
             "ops_remediation_slack_channel_id",
         ),
+    )
+    load_governor_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("LOAD_GOVERNOR_ENABLED", "load_governor_enabled"),
     )
 
 

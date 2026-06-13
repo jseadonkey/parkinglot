@@ -1,0 +1,15 @@
+{
+  "folders": [
+    {
+      "uri": "vscode-remote://ssh-remote+parkinglot/opt/workspaces/parkinglot",
+      "name": "parkinglot (droplet)"
+    }
+  ],
+  "remoteAuthority": "ssh-remote+parkinglot",
+  "settings": {
+    "remote.SSH.remotePlatform": {
+      "parkinglot": "linux"
+    },
+    "remote.SSH.connectTimeout": 120
+  }
+}
