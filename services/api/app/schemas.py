@@ -14,6 +14,8 @@ class ParcelRead(BaseModel):
     id: uuid.UUID
     apn: str
     county_fips: str
+    situs_address: str | None = None
+    mailing_address: str | None = None
     lot_sqft: float | None
     zoning_code: str | None
     zoning_allows_surface_parking: bool
@@ -155,10 +157,10 @@ class IngestBaltimoreCityRequest(BaseModel):
     """Fetch Baltimore City EGIS parcels (Maryland), then enqueue ingest (Celery worker)."""
 
     max_features: int | None = Field(
-        default=5000,
+        default=None,
         ge=1,
         le=750000,
-        description="Cap returned parcels per job.",
+        description="Optional cap for test pulls. Omit/null to fetch all Baltimore City parcels.",
     )
     auto_run_pipeline: bool = True
     max_auto_pipeline: int = Field(default=100, ge=1, le=5000)
@@ -286,10 +288,50 @@ class EnqueueIncompleteResponse(BaseModel):
     parcel_ids: list[str]
     mode: str = Field(description="prescreen_qualified_missing_entitlement_or_strategic")
     prescreen_floor: float | None = None
+    entitlement_floor: float | None = None
+    strategic_floor: float | None = None
+    priority_county_fips: list[str] | None = None
+
+
+class PipelineRetryDraftStorageResponse(BaseModel):
+    """Known bucket-failure pipeline reruns enqueued directly."""
+
+    matched_failed_runs: int
+    enqueued: int
+    skipped_newer_run: int
+    parcel_ids: list[str]
+    task_ids: list[str]
+    limit: int
 
 
 class PrescreenGapStat(GapStat):
     floor: float = Field(description="Identification prescreen qualified_min_score from pilot_identification.yaml")
+
+
+class OwnerOutreachTargetStat(GapStat):
+    entitlement_floor: float = Field(description="Minimum Atlas/entitlement score for owner outreach briefs")
+    strategic_floor: float = Field(description="Minimum Beacon/strategic score for owner outreach briefs")
+
+
+class OwnerOutreachBriefGapStat(OwnerOutreachTargetStat):
+    target_count: int = Field(description="Number of parcels eligible for owner outreach briefs")
+
+
+class CandidateAddressGapStat(PrescreenGapStat):
+    target_count: int = Field(description="Number of candidate parcels eligible for street/map address lookup")
+
+
+class PoiDensityGapStat(GapStat):
+    candidate_mode: str | None = Field(
+        default=None,
+        description="POI enrichment candidate scope used for this gap count",
+    )
+
+
+class PoiDensityCandidateStat(GapStat):
+    candidate_mode: str
+    entitlement_floor: float
+    strategic_floor: float
 
 
 class ExportReadinessResponse(BaseModel):
@@ -300,6 +342,9 @@ class ExportReadinessResponse(BaseModel):
     parcels_missing_zoning_code: GapStat
     parcels_missing_lot_sqft: GapStat
     parcels_missing_distance_to_nearest_demand_m: GapStat
+    parcels_missing_poi_commercial_count_400m: PoiDensityGapStat
+    parcels_poi_density_candidates: PoiDensityCandidateStat
+    parcels_missing_poi_commercial_count_400m_all: GapStat
     parcels_missing_score_identification: GapStat
     parcels_missing_score_entitlement: GapStat
     parcels_missing_score_strategic: GapStat
@@ -308,8 +353,153 @@ class ExportReadinessResponse(BaseModel):
     parcels_pipeline_funnel_backlog: PrescreenGapStat
     parcels_ruled_out_by_prescreen: PrescreenGapStat
     parcels_ruled_out_at_atlas: PrescreenGapStat
-    parcels_missing_owner_outreach_brief: GapStat
+    parcels_owner_outreach_targets: OwnerOutreachTargetStat
+    parcels_missing_baltimore_candidate_street_address: CandidateAddressGapStat
+    parcels_missing_owner_outreach_brief: OwnerOutreachBriefGapStat
+    parcels_prescreen_qualified_missing_owner_outreach_brief: PrescreenGapStat
     recommended_next_steps: list[str]
+
+
+class BacklogEtaItem(BaseModel):
+    """One workstream with backlog count, value, and rough completion estimate."""
+
+    key: str
+    label: str
+    status: str
+    active_now: bool = False
+    backlog_count: int
+    total_count: int
+    backlog_pct: float
+    unit: str
+    value: str
+    work_type: str
+    assumed_batch_size: int | None = None
+    assumed_batches_per_day: float | None = None
+    assumed_units_per_day: float | None = None
+    eta_days: float | None = None
+    eta_label: str
+    eta_confidence: str
+    recommendation: str
+    why: str
+    server_load_tier: str = "low"
+    server_load_note: str = ""
+
+
+class BacklogEtaServerLoadJob(BaseModel):
+    name: str
+    schedule_utc: str
+    load_tier: str
+    status: str
+    note: str = ""
+
+
+class BacklogEtaActiveWorkRow(BaseModel):
+    """Work queued or running right now — specific record counts."""
+
+    key: str
+    label: str
+    record_count: int
+    unit: str
+    status: str = Field(description="queued | running | backlog")
+    detail: str
+
+
+class BacklogEtaLoadDriverRow(BaseModel):
+    """One contributor to server pressure or latent downstream work."""
+
+    key: str
+    label: str
+    record_count: int | None = None
+    unit: str = "records"
+    role: str = Field(description="pressure_trigger | active_now | latent | informational")
+    affects_governor: bool = False
+    detail: str
+
+
+class BacklogEtaServerLoad(BaseModel):
+    pressure_level: str
+    assessed_at: datetime | None = None
+    parking_queue_depth: int = 0
+    slack_queue_depth: int = 0
+    score_gaps: int = 0
+    ident_score_gaps: int = 0
+    ent_score_gaps: int = 0
+    gross_entitlement_gaps: int = 0
+    primary_drivers: list[str]
+    signals: list[str]
+    active_work: list[BacklogEtaActiveWorkRow] = Field(default_factory=list)
+    pressure_triggers: list[BacklogEtaLoadDriverRow] = Field(default_factory=list)
+    latent_gaps: list[BacklogEtaLoadDriverRow] = Field(default_factory=list)
+    scheduled_jobs: list[BacklogEtaServerLoadJob]
+    throttles: list[str]
+
+
+class BacklogEtaInventory(BaseModel):
+    """Geographic ingest progress — gathered, in-flight, and remaining pilot counties."""
+
+    region_name: str | None = None
+    records_gathered: int
+    records_gathering: int
+    counties_gathered: int
+    counties_to_be_gathered: int
+    pilot_county_count: int
+    parking_queue_depth: int
+    pipeline_backlog: int
+    wa_rollout_paused: bool | None = None
+    county_breakdown_pending: bool = False
+    gathering_note: str
+
+
+class BacklogEtaSummary(BaseModel):
+    active_parking_queue_depth: int
+    active_slack_queue_depth: int
+    workers_online: bool
+    worker_detail: str | None = None
+    ops_auto_fix_enabled: bool
+    data_checked_at: datetime | None = None
+    data_source: str
+    high_value_remaining: int
+    decision: str
+    parcel_row_total: int | None = None
+    parcels_prescreen_qualified: int | None = None
+    prescreen_floor: float | None = None
+    parcels_ruled_out_by_prescreen: int | None = None
+    parcels_pipeline_funnel_backlog: int | None = None
+    load_governor_pressure_level: str | None = None
+    load_governor_decision: str | None = None
+    pipeline_enqueue_multiplier: float | None = None
+    wa_rollout_allowed: bool | None = None
+    ops_autofix_allowed: bool | None = None
+    score_gaps_total: int | None = None
+
+
+class LoadGovernorResponse(BaseModel):
+    """GET /internal/stats/load-governor — downstream pressure and effective throttle caps."""
+
+    assessed_at: datetime | None = None
+    pressure_level: str
+    parking_queue_depth: int
+    workers_online: bool
+    worker_detail: str | None = None
+    score_gaps: int
+    pipeline_funnel_backlog: int
+    signals: list[dict[str, Any]]
+    decision: str
+    wa_rollout_allowed: bool
+    ops_autofix_allowed: bool
+    pipeline_enqueue_multiplier: float
+    max_auto_pipeline_effective: int
+    min_days_between_counties_effective: float
+
+
+class BacklogEtaResponse(BaseModel):
+    """GET /internal/stats/backlog-eta — decision view for backlog value and estimated time."""
+
+    generated_at: datetime
+    summary: BacklogEtaSummary
+    inventory: BacklogEtaInventory | None = None
+    server_load: BacklogEtaServerLoad | None = None
+    items: list[BacklogEtaItem]
 
 
 class ParcelRevenueSummaryRead(BaseModel):
@@ -341,6 +531,7 @@ class OutreachPipelineRow(BaseModel):
     apn: str
     county_fips: str
     entitlement_score: float | None
+    strategic_score: float | None = None
     identification_score: float | None
     workflow_run_id: str | None
     workflow_status: str | None
@@ -367,6 +558,8 @@ class OutreachPipelineBoardResponse(BaseModel):
     """GET /internal/pipeline/outreach-board — qualified lots worth tracking for owner outreach."""
 
     qualified_min_entitlement_score: float
+    owner_outreach_min_entitlement_score: float
+    owner_outreach_min_strategic_score: float
     row_count: int
     rows: list[OutreachPipelineRow]
 
@@ -404,6 +597,8 @@ class ParcelScoredListRow(BaseModel):
     parcel_id: str
     apn: str
     county_fips: str
+    situs_address: str | None = None
+    mailing_address: str | None = None
     zoning_code: str | None
     lot_sqft: float | None
     zoning_principal_use_symbol: str | None = None
@@ -438,6 +633,23 @@ class ScoringSummaryResponse(BaseModel):
     """GET /internal/stats/scoring-summary — counts vs pilot floors."""
 
     total_parcels: int
+    parcels_prescreen_qualified: int = Field(
+        description=(
+            "Parcels whose latest identification score ≥ prescreen floor — "
+            "eligible for auto-score / Atlas·Beacon."
+        ),
+    )
+    prescreen_floor: float = Field(
+        description="Identification prescreen floor (Cartographer) from pilot_identification.yaml.",
+    )
+    parcels_ruled_out_by_prescreen: int = Field(
+        default=0,
+        description="Parcels scored below prescreen floor — not auto-scored by pipeline batches.",
+    )
+    parcels_pipeline_funnel_backlog: int = Field(
+        default=0,
+        description="Prescreen-qualified parcels still missing Atlas and/or Beacon runs.",
+    )
     parcels_with_latest_entitlement_score: int
     parcels_with_latest_strategic_score: int
     parcels_with_latest_identification_score: int
@@ -583,9 +795,10 @@ class IngestGeojsonPathQueuedResponse(BaseModel):
 
 
 class FullSlackUpdateResponse(BaseModel):
-    """POST /internal/slack/full-update-now — three Slack-related Celery tasks."""
+    """POST /internal/slack/full-update-now — Slack-related Celery tasks."""
 
     digest_task_id: str
+    plan_progress_task_id: str
     qualified_parcels_task_id: str
     agent_discussion_task_id: str
 
@@ -594,6 +807,15 @@ class SlackDigestPreviewResponse(BaseModel):
     """GET /internal/slack/digest-preview — Block Kit payload built from DB without posting."""
 
     hours: int = Field(ge=1, le=24)
+    slack_digest_configured: bool
+    digest_channel_id_set: bool
+    fallback_preview: str
+    blocks: list[dict[str, Any]]
+
+
+class SlackPlanProgressPreviewResponse(BaseModel):
+    """GET /internal/slack/plan-progress-preview — A-E progress payload without posting."""
+
     slack_digest_configured: bool
     digest_channel_id_set: bool
     fallback_preview: str
@@ -630,6 +852,15 @@ class SlackLastDigestResponse(BaseModel):
     meta: dict[str, Any] | None = None
 
 
+class SlackReportCatalogItem(BaseModel):
+    """One automated Slack report (schedule + channel id placeholder, no secrets)."""
+
+    id: str
+    schedule_utc: str
+    channel: str
+    description: str
+
+
 class SlackConfigStatusResponse(BaseModel):
     """GET /internal/slack/status — booleans only (no secrets)."""
 
@@ -639,6 +870,10 @@ class SlackConfigStatusResponse(BaseModel):
     slack_dual_agent_configured: bool
     has_agent_discussion_channel_id: bool
     slack_agent_event_updates_enabled: bool
+    site_watchdog_enabled: bool = False
+    site_watchdog_slack_configured: bool = False
+    slack_digest_window_hours: int = Field(default=1, ge=1, le=24)
+    reporting_catalog: list[SlackReportCatalogItem] = Field(default_factory=list)
 
 
 class LobConfigStatusResponse(BaseModel):

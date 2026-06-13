@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.backlog_eta import backlog_eta_summary
 from app.baltimore_zoning_stats import baltimore_zoning_tiers_summary
 from app.celery_app import celery
 from app.config import get_settings
@@ -25,9 +26,11 @@ from app.owner_portfolio import list_peer_parcel_summaries, rank_owner_portfolio
 from app.parcel_deal_context import attach_revenue_summaries, qualified_min_entitlement_score
 from app.parcel_scored_list import COMBINED, ParcelSortProfile, query_parcels_scored_list
 from app.pilot_scope import pilot_scope_summary
+from app.pipeline_retries import enqueue_draft_storage_failure_reruns
 from app.platform_showcase import build_platform_showcase
 from app.rate_comp_seed import seed_baltimore_parking_rate_comps, seed_king_county_parking_rate_comps
 from app.schemas import (
+    BacklogEtaResponse,
     BaltimoreZoningTiersResponse,
     BaltimoreZoningTierZoneRow,
     CeleryTaskIdResponse,
@@ -46,6 +49,7 @@ from app.schemas import (
     IngestGeojsonUploadQueuedResponse,
     IngestSampleQueuedResponse,
     IngestWatechCountyRequest,
+    LoadGovernorResponse,
     LobConfigStatusResponse,
     LobVerifyResponse,
     MergeGeojsonAttributesRequest,
@@ -61,6 +65,7 @@ from app.schemas import (
     PeerParcelSummary,
     PilotCountyScopeRow,
     PilotScopeResponse,
+    PipelineRetryDraftStorageResponse,
     PlatformShowcaseResponse,
     QualifiedMinScores,
     RateCompSeedResponse,
@@ -72,6 +77,8 @@ from app.schemas import (
     SlackConfigStatusResponse,
     SlackDigestPreviewResponse,
     SlackLastDigestResponse,
+    SlackPlanProgressPreviewResponse,
+    SlackReportCatalogItem,
     SlackTestMessagePostResponse,
     SlackTestMessageRequest,
     WaRolloutCountyRow,
@@ -79,13 +86,18 @@ from app.schemas import (
     WaTechCountyQueuedResponse,
 )
 from app.scoring_summary import scoring_summary_stats
+from app.site_watchdog import watchdog_slack_channel
 from app.slack_digest import (
     build_dual_agent_discussion_posts,
+    build_plan_progress_report_blocks,
     build_slack_digest_blocks,
     post_text_to_slack,
     slack_agent_event_updates_enabled,
+    slack_reporting_catalog,
 )
 from app.tasks import (
+    backfill_baltimore_property_addresses_batch,
+    backfill_wa_centroid_addresses_batch,
     enqueue_incomplete_pipeline_jobs,
     enqueue_priority_qualified_pipeline_jobs,
     enqueue_unscored_pipeline_jobs,
@@ -103,6 +115,7 @@ from app.tasks import (
     site_watchdog_check,
     slack_agent_digest,
     slack_dual_agent_discussion,
+    slack_plan_progress_report,
     slack_qualified_parcels_report,
     wa_statewide_rollout_tick,
 )
@@ -172,6 +185,10 @@ def slack_config_status() -> SlackConfigStatusResponse:
     has_token = bool((s.slack_bot_token or "").strip())
     has_channel = bool((s.slack_digest_channel_id or "").strip())
     has_agent_ch = bool((s.slack_agent_discussion_channel_id or "").strip())
+    wd_ch = bool(watchdog_slack_channel(s))
+    catalog = [
+        SlackReportCatalogItem.model_validate(row) for row in slack_reporting_catalog(s)
+    ]
     return SlackConfigStatusResponse(
         slack_digest_configured=has_token and has_channel,
         has_bot_token=has_token,
@@ -179,6 +196,10 @@ def slack_config_status() -> SlackConfigStatusResponse:
         slack_dual_agent_configured=has_token and has_agent_ch,
         has_agent_discussion_channel_id=has_agent_ch,
         slack_agent_event_updates_enabled=slack_agent_event_updates_enabled(s),
+        site_watchdog_enabled=bool(s.site_watchdog_enabled),
+        site_watchdog_slack_configured=has_token and wd_ch,
+        slack_digest_window_hours=max(1, int(s.slack_digest_window_hours or 1)),
+        reporting_catalog=catalog,
     )
 
 
@@ -265,11 +286,59 @@ def ops_remediation_run_now() -> CeleryTaskIdResponse:
     return CeleryTaskIdResponse(task_id=async_result.id)
 
 
+@router.post("/ops/prune-poi-queue")
+def ops_prune_poi_queue(
+    dry_run: bool = Query(False, description="Inspect only; do not remove queued POI refresh tasks."),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Remove queued POI refresh tasks that no longer have matching missing POI work."""
+    from app.ops_remediation import prune_queued_poi_refresh_tasks
+
+    return prune_queued_poi_refresh_tasks(db, get_settings(), dry_run=dry_run)
+
+
 @router.get("/stats/export-readiness", response_model=ExportReadinessResponse)
 def export_readiness(db: Session = Depends(get_db)) -> ExportReadinessResponse:
     """Null/gap counts for CSV columns and score rows — run before stakeholder exports."""
     raw = export_readiness_summary(db)
     return ExportReadinessResponse(**raw)
+
+
+@router.get("/stats/backlog-eta", response_model=BacklogEtaResponse)
+def backlog_eta(db: Session = Depends(get_db)) -> BacklogEtaResponse:
+    """Backlog size, value, and rough completion estimates for operational decisions."""
+    raw = backlog_eta_summary(db, get_settings())
+    return BacklogEtaResponse(**raw)
+
+
+@router.get("/stats/load-governor", response_model=LoadGovernorResponse)
+def load_governor_stats() -> LoadGovernorResponse:
+    """Downstream load pressure and effective caps for pipeline enqueue / WA rollout."""
+    from app.load_governor import refresh_load_governor
+
+    settings = get_settings()
+    if not settings.load_governor_enabled:
+        raise HTTPException(status_code=503, detail="load_governor_disabled")
+    raw = refresh_load_governor(settings)
+    assessed = raw.get("assessed_at")
+    return LoadGovernorResponse(
+        assessed_at=assessed,
+        pressure_level=str(raw.get("pressure_level") or "green"),
+        parking_queue_depth=int(raw.get("parking_queue_depth") or 0),
+        workers_online=bool(raw.get("workers_online")),
+        worker_detail=raw.get("worker_detail"),
+        score_gaps=int(raw.get("score_gaps") or 0),
+        pipeline_funnel_backlog=int(raw.get("pipeline_funnel_backlog") or 0),
+        signals=list(raw.get("signals") or []),
+        decision=str(raw.get("decision") or ""),
+        wa_rollout_allowed=bool(raw.get("wa_rollout_allowed", True)),
+        ops_autofix_allowed=bool(raw.get("ops_autofix_allowed", True)),
+        pipeline_enqueue_multiplier=float(raw.get("pipeline_enqueue_multiplier") or 1.0),
+        max_auto_pipeline_effective=int(raw.get("max_auto_pipeline_effective") or 0),
+        min_days_between_counties_effective=float(
+            raw.get("min_days_between_counties_effective") or 0,
+        ),
+    )
 
 
 @router.get("/stats/pilot-scope", response_model=PilotScopeResponse)
@@ -340,13 +409,16 @@ def outreach_pipeline_board(
     state_fips: str | None = Query(default=None, min_length=2, max_length=2),
     db: Session = Depends(get_db),
 ) -> OutreachPipelineBoardResponse:
-    """Qualified parcels (latest entitlement ≥ pilot floor) with workflow + outreach brief snapshot."""
+    """Highest-scoring outreach target parcels with workflow + outreach brief snapshot."""
     settings = get_settings()
     pilot = load_pilot_config(settings.pilot_config_path)
     floor = qualified_min_entitlement_score(pilot)
+    outreach_ent_floor = float(settings.owner_outreach_min_entitlement_score)
+    outreach_str_floor = float(settings.owner_outreach_min_strategic_score)
     raw = query_outreach_pipeline_board(
         db,
-        qualified_min_entitlement=floor,
+        min_entitlement=outreach_ent_floor,
+        min_strategic=outreach_str_floor,
         limit=limit,
         county_fips=county_fips,
         state_fips=state_fips,
@@ -363,6 +435,7 @@ def outreach_pipeline_board(
             apn=r.apn,
             county_fips=r.county_fips,
             entitlement_score=r.entitlement_score,
+            strategic_score=r.strategic_score,
             identification_score=r.identification_score,
             workflow_run_id=str(r.workflow_run_id) if r.workflow_run_id else None,
             workflow_status=r.workflow_status,
@@ -386,6 +459,8 @@ def outreach_pipeline_board(
     ]
     return OutreachPipelineBoardResponse(
         qualified_min_entitlement_score=floor,
+        owner_outreach_min_entitlement_score=outreach_ent_floor,
+        owner_outreach_min_strategic_score=outreach_str_floor,
         row_count=len(rows),
         rows=rows,
     )
@@ -512,6 +587,8 @@ def parcels_scored_list(
             parcel_id=str(r.parcel_id),
             apn=r.apn,
             county_fips=r.county_fips,
+            situs_address=r.situs_address,
+            mailing_address=r.mailing_address,
             zoning_code=r.zoning_code,
             lot_sqft=r.lot_sqft,
             zoning_principal_use_symbol=r.zoning_principal_use_symbol,
@@ -542,8 +619,8 @@ def parcels_scored_list(
 def slack_digest_preview(hours: int = 4, db: Session = Depends(get_db)) -> SlackDigestPreviewResponse:
     """Build the next digest body from the DB without posting to Slack (debug Beat / channel config)."""
     h = min(max(hours, 1), 24)
-    blocks, fallback = build_slack_digest_blocks(db, hours=h)
     s = get_settings()
+    blocks, fallback = build_slack_digest_blocks(db, hours=h, settings=s)
     ch = (s.slack_digest_channel_id or "").strip()
     return SlackDigestPreviewResponse(
         hours=h,
@@ -558,6 +635,27 @@ def slack_digest_preview(hours: int = 4, db: Session = Depends(get_db)) -> Slack
 def trigger_slack_digest() -> CeleryTaskIdResponse:
     """Enqueue the same digest task Beat runs (for testing or ad-hoc standup)."""
     async_result = slack_agent_digest.delay()
+    return CeleryTaskIdResponse(task_id=async_result.id)
+
+
+@router.get("/slack/plan-progress-preview", response_model=SlackPlanProgressPreviewResponse)
+def slack_plan_progress_preview(db: Session = Depends(get_db)) -> SlackPlanProgressPreviewResponse:
+    """Build the A-E plan progress Slack payload without posting."""
+    blocks, fallback = build_plan_progress_report_blocks(db)
+    s = get_settings()
+    ch = (s.slack_digest_channel_id or "").strip()
+    return SlackPlanProgressPreviewResponse(
+        slack_digest_configured=bool((s.slack_bot_token or "").strip() and ch),
+        digest_channel_id_set=bool(ch),
+        fallback_preview=fallback,
+        blocks=blocks,
+    )
+
+
+@router.post("/slack/plan-progress-now", response_model=CeleryTaskIdResponse)
+def trigger_plan_progress_report() -> CeleryTaskIdResponse:
+    """Enqueue the hourly A-E plan progress report (same task Beat runs)."""
+    async_result = slack_plan_progress_report.delay()
     return CeleryTaskIdResponse(task_id=async_result.id)
 
 
@@ -591,12 +689,14 @@ def trigger_agent_discussion() -> CeleryTaskIdResponse:
 
 @router.post("/slack/full-update-now", response_model=FullSlackUpdateResponse)
 def trigger_full_slack_update() -> FullSlackUpdateResponse:
-    """Enqueue digest, qualified-parcels report, and dual-agent discussion (one POST)."""
+    """Enqueue digest, plan progress, qualified-parcels report, and dual-agent discussion."""
     d = slack_agent_digest.delay()
+    p = slack_plan_progress_report.delay()
     q = slack_qualified_parcels_report.delay()
     a = slack_dual_agent_discussion.delay()
     return FullSlackUpdateResponse(
         digest_task_id=d.id,
+        plan_progress_task_id=p.id,
         qualified_parcels_task_id=q.id,
         agent_discussion_task_id=a.id,
     )
@@ -826,6 +926,16 @@ def enqueue_priority_pipelines(
     return EnqueueIncompleteResponse(**raw)
 
 
+@router.post("/pipeline/retry-draft-storage-failures", response_model=PipelineRetryDraftStorageResponse)
+def retry_draft_storage_failures(
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+) -> PipelineRetryDraftStorageResponse:
+    """Rerun failed pipelines caused by the formerly missing draft-storage bucket."""
+    raw = enqueue_draft_storage_failure_reruns(db, limit=limit)
+    return PipelineRetryDraftStorageResponse(**raw)
+
+
 @router.post("/ingest/merge-geojson-attributes", response_model=CeleryTaskIdResponse)
 def merge_geojson_attributes(body: MergeGeojsonAttributesRequest) -> CeleryTaskIdResponse:
     """Update zoning/corner/demand/lot fields on existing parcels from a GeoJSON overlay (Celery)."""
@@ -867,7 +977,7 @@ def refresh_poi_density(
         description="When true with county_fips, process all matching parcels in chunked batches.",
     ),
 ) -> CeleryTaskIdResponse:
-    """Count OSM commercial POIs near parcel centroids for demand-based revenue (Celery, rate-limited)."""
+    """Count OSM commercial POIs for qualified parcels, optionally scoped to one county."""
     async_result = refresh_poi_density_batch.delay(
         limit=limit,
         county_fips=county_fips,
@@ -920,6 +1030,36 @@ def refresh_rate_comp_scores(
         limit=limit,
         county_fips=county_fips,
         min_entitlement_score=min_entitlement_score,
+    )
+    return CeleryTaskIdResponse(task_id=async_result.id)
+
+
+@router.post("/metrics/backfill-baltimore-addresses", response_model=CeleryTaskIdResponse)
+def backfill_baltimore_addresses(
+    limit: int = Query(
+        default=500,
+        ge=1,
+        le=5000,
+        description="Measured batch size; start small while Postgres CPU is elevated.",
+    ),
+    dry_run: bool = Query(default=False, description="Fetch/match but do not update rows."),
+) -> CeleryTaskIdResponse:
+    """Backfill Baltimore City property/situs addresses from Realproperty_OB in a bounded batch."""
+    async_result = backfill_baltimore_property_addresses_batch.delay(limit=limit, dry_run=dry_run)
+    return CeleryTaskIdResponse(task_id=async_result.id)
+
+
+@router.post("/metrics/backfill-wa-centroid-addresses", response_model=CeleryTaskIdResponse)
+def backfill_wa_centroid_addresses(
+    limit: int = Query(default=100, ge=1, le=1000),
+    county_fips: str | None = Query(default=None, description="Optional 5-digit WA county FIPS (53xxx)."),
+    dry_run: bool = Query(default=False),
+) -> CeleryTaskIdResponse:
+    """Candidate-only WA situs backfill using parcel centroid + assessor city/ZIP anchor."""
+    async_result = backfill_wa_centroid_addresses_batch.delay(
+        limit=limit,
+        county_fips=county_fips,
+        dry_run=dry_run,
     )
     return CeleryTaskIdResponse(task_id=async_result.id)
 

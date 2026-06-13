@@ -4,9 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import exists, func, select
+from sqlalchemy import and_, exists, func, select
 from sqlalchemy.orm import Session
 
+from app.baltimore_address_backfill import count_target_baltimore_address_backfill_parcels
+from app.candidate_address import (
+    count_target_candidate_address_backfill_parcels,
+    count_wa_candidate_pool_parcels,
+    wa_candidate_address_gaps_by_county,
+)
 from app.db.models import Parcel, ParcelScore
 from app.db.schema_compat import column_exists
 from app.pipeline_funnel import (
@@ -15,10 +21,15 @@ from app.pipeline_funnel import (
     identification_prescreen_floor,
     identification_prescreen_qualified,
     missing_pipeline_pair,
+    owner_outreach_min_entitlement_score,
+    owner_outreach_min_strategic_score,
+    owner_outreach_target,
     pipeline_funnel_backlog,
     ruled_out_at_atlas,
     ruled_out_by_prescreen,
+    strategic_qualified_floor,
 )
+from app.poi_density import POI_DENSITY_CANDIDATE_MODE, count_poi_density_candidates
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
 
 
@@ -33,14 +44,18 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
     total = int(db.scalar(select(func.count()).select_from(Parcel)) or 0)
     floor_i = identification_prescreen_floor()
     floor_ent = entitlement_qualified_floor()
+    floor_str = strategic_qualified_floor()
 
     no_footprint = count_where(db, Parcel.footprint.is_(None))
     no_zoning = count_where(db, Parcel.zoning_code.is_(None))
     no_lot_sqft = count_where(db, Parcel.lot_sqft.is_(None))
     no_demand_m = count_where(db, Parcel.distance_to_nearest_demand_m.is_(None))
     no_poi = 0
+    no_poi_all = 0
+    poi_candidates = count_poi_density_candidates(db)
     if column_exists(db, "parcels", "poi_commercial_count_400m"):
-        no_poi = count_where(db, Parcel.poi_commercial_count_400m.is_(None))
+        no_poi = count_poi_density_candidates(db, missing_only=True)
+        no_poi_all = count_where(db, Parcel.poi_commercial_count_400m.is_(None))
 
     miss_ident = count_where(
         db,
@@ -75,7 +90,38 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
     prescreen_ruled_out = count_where(db, ruled_out_by_prescreen(floor_i))
     atlas_ruled_out = count_where(db, ruled_out_at_atlas())
 
-    miss_brief = count_where(db, Parcel.owner_outreach_brief.is_(None))
+    has_owner_brief_col = column_exists(db, "parcels", "owner_outreach_brief")
+    if has_owner_brief_col:
+        miss_brief_prescreen = count_where(
+            db,
+            and_(
+                identification_prescreen_qualified(floor_i),
+                Parcel.owner_outreach_brief.is_(None),
+            ),
+        )
+    else:
+        miss_brief_prescreen = prescreen_qualified
+    owner_ent_floor = owner_outreach_min_entitlement_score()
+    owner_str_floor = owner_outreach_min_strategic_score()
+    owner_target = owner_outreach_target(
+        entitlement_floor=owner_ent_floor,
+        strategic_floor=owner_str_floor,
+    )
+    owner_target_count = count_where(db, owner_target)
+    candidate_address_backfill_count = count_target_baltimore_address_backfill_parcels(db)
+    wa_candidate_pool = count_wa_candidate_pool_parcels(db)
+    wa_candidate_address_backfill_count = count_target_candidate_address_backfill_parcels(db, wa_only=True)
+    wa_address_gaps_by_county = wa_candidate_address_gaps_by_county(db)
+    if has_owner_brief_col:
+        miss_brief = count_where(
+            db,
+            and_(
+                owner_target,
+                Parcel.owner_outreach_brief.is_(None),
+            ),
+        )
+    else:
+        miss_brief = owner_target_count
 
     recommended_next_steps: list[str] = [
         f"Funnel backlog (prescreen ≥ {floor_i:.0f}, needs Atlas and/or Beacon): "
@@ -85,7 +131,8 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
         "use `parcels_pipeline_funnel_backlog` for work that should run `run_pipeline`.",
         "If identification gaps: POST /internal/metrics/refresh-identification-scores?limit=2000 (or re-ingest).",
         "If demand distance gaps: POST /internal/metrics/refresh-demand-distances?limit=2000",
-        "If POI density gaps (revenue occupancy): "
+        "If POI density gaps (revenue occupancy): run only for qualified Atlas + Beacon candidates "
+        "in any city/county; pass county_fips only when intentionally scoping a batch: "
         "nohup bash scripts/refresh_baltimore_poi_loop.sh & (or "
         "POST /internal/metrics/refresh-poi-density?limit=50&county_fips=24510 — one batch at a time)",
         "If zoning gaps: spatial join → GeoJSON overlay → "
@@ -93,9 +140,26 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
     ]
     if miss_brief > 0:
         recommended_next_steps.append(
-            "If owner outreach brief gaps: enqueue prescreen-qualified parcels only, "
-            "per-parcel POST /parcels/{id}/outreach/recompute, or scripts/execute-phase-c.sh (smoke) "
-            "— see docs/OPERATIONS.md (owner outreach)."
+            "If owner outreach brief gaps: only run for dual-high-score outreach targets "
+            f"(Atlas ≥ {owner_ent_floor:.0f}, Beacon ≥ {owner_str_floor:.0f}); use "
+            "POST /internal/pipeline/enqueue-priority?limit=75 or per-parcel "
+            "POST /parcels/{id}/outreach/recompute for a target lot. "
+            "Street/situs address enrichment is also candidate-only; do not treat missing addresses "
+            "on low-score parcels as market incompleteness — see docs/OPERATIONS.md (owner outreach)."
+        )
+    if candidate_address_backfill_count > 0:
+        recommended_next_steps.append(
+            "If Baltimore candidate street-address gaps persist: run "
+            "POST /internal/metrics/backfill-baltimore-addresses?limit=250. "
+            "The batch uses Realproperty first and escalates only leftover deal candidates to "
+            "Baltimore AddressPoint_Native fallback; do not citywide-backfill low-score parcels."
+        )
+    if wa_candidate_address_backfill_count > 0:
+        recommended_next_steps.append(
+            f"If Washington candidate street-address gaps persist ({wa_candidate_address_backfill_count} "
+            "statewide): confirm WaTech situs fields at ingest (address_field_maps.yaml), then stage "
+            "county assessor roll merges per data/jurisdictions/wa/source_catalog.csv. "
+            "Centroid geocode + skip-trace only for outreach targets with assessor city+ZIP."
         )
 
     return {
@@ -109,7 +173,19 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
         },
         "parcels_missing_poi_commercial_count_400m": {
             "count": no_poi,
-            "pct": _pct(no_poi, total),
+            "pct": _pct(no_poi, poi_candidates),
+            "candidate_mode": POI_DENSITY_CANDIDATE_MODE,
+        },
+        "parcels_poi_density_candidates": {
+            "count": poi_candidates,
+            "pct": _pct(poi_candidates, total),
+            "candidate_mode": POI_DENSITY_CANDIDATE_MODE,
+            "entitlement_floor": floor_ent,
+            "strategic_floor": floor_str,
+        },
+        "parcels_missing_poi_commercial_count_400m_all": {
+            "count": no_poi_all,
+            "pct": _pct(no_poi_all, total),
         },
         "parcels_missing_score_identification": {"count": miss_ident, "pct": _pct(miss_ident, total)},
         "parcels_missing_score_entitlement": {"count": miss_ent, "pct": _pct(miss_ent, total)},
@@ -135,6 +211,36 @@ def export_readiness_summary(db: Session) -> dict[str, Any]:
             "pct": _pct(atlas_ruled_out, total),
             "floor": floor_ent,
         },
-        "parcels_missing_owner_outreach_brief": {"count": miss_brief, "pct": _pct(miss_brief, total)},
+        "parcels_owner_outreach_targets": {
+            "count": owner_target_count,
+            "pct": _pct(owner_target_count, total),
+            "entitlement_floor": owner_ent_floor,
+            "strategic_floor": owner_str_floor,
+        },
+        "parcels_missing_baltimore_candidate_street_address": {
+            "count": candidate_address_backfill_count,
+            "pct": _pct(candidate_address_backfill_count, prescreen_qualified),
+            "target_count": prescreen_qualified,
+            "floor": floor_i,
+        },
+        "parcels_missing_wa_candidate_street_address": {
+            "count": wa_candidate_address_backfill_count,
+            "pct": _pct(wa_candidate_address_backfill_count, wa_candidate_pool),
+            "target_count": wa_candidate_pool,
+            "scope": "washington_state_fips_53",
+            "by_county": wa_address_gaps_by_county,
+        },
+        "parcels_missing_owner_outreach_brief": {
+            "count": miss_brief,
+            "pct": _pct(miss_brief, owner_target_count),
+            "target_count": owner_target_count,
+            "entitlement_floor": owner_ent_floor,
+            "strategic_floor": owner_str_floor,
+        },
+        "parcels_prescreen_qualified_missing_owner_outreach_brief": {
+            "count": miss_brief_prescreen,
+            "pct": _pct(miss_brief_prescreen, prescreen_qualified),
+            "floor": floor_i,
+        },
         "recommended_next_steps": recommended_next_steps,
     }

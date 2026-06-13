@@ -246,6 +246,12 @@ export default function PlatformPage() {
               <span className="platform-metric-label">Parcels analyzed</span>
             </div>
             <div className="platform-metric">
+              <span className="platform-metric-n">{fmt(data.parcels_prescreen_qualified)}</span>
+              <span className="platform-metric-label">
+                Pass prescreen (≥ {data.qualified_floors.identification})
+              </span>
+            </div>
+            <div className="platform-metric">
               <span className="platform-metric-n">{fmt(data.parcels_qualified_entitlement)}</span>
               <span className="platform-metric-label">Entitlement-qualified</span>
             </div>

@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel
+from app.db.schema_compat import column_exists
 from app.deal_progress import query_deal_progress_board
 from app.export_readiness import export_readiness_summary
 from app.parcel_scored_list import ENTITLEMENT, query_parcels_scored_list
@@ -23,13 +24,16 @@ def build_platform_showcase(db: Session) -> dict[str, Any]:
     dp_summary, _ = query_deal_progress_board(db, limit=2000)
 
     total = int(export["parcel_row_total"])
-    miss_brief = int(export["parcels_missing_owner_outreach_brief"]["count"])
-    brief_count = max(0, total - miss_brief)
+    brief_gap = export["parcels_missing_owner_outreach_brief"]
+    miss_brief = int(brief_gap["count"])
+    owner_target_count = int(brief_gap.get("target_count") or total)
+    brief_count = max(0, owner_target_count - miss_brief)
 
     top_rows = query_parcels_scored_list(db, limit=5, sort=ENTITLEMENT)
+    has_owner_brief_col = column_exists(db, "parcels", "owner_outreach_brief")
     top_parcels: list[dict[str, Any]] = []
     for row in top_rows:
-        parcel = db.get(Parcel, row.parcel_id)
+        parcel = db.get(Parcel, row.parcel_id) if has_owner_brief_col else None
         top_parcels.append(
             {
                 "parcel_id": str(row.parcel_id),

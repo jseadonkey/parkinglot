@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { OperatorGuide, QuickStartCards } from "../components/OperatorGuide";
+import { needsAction } from "../lib/outreachLabels";
+import {
+  exportReadinessFromBacklogEta,
+  isBacklogEtaForReadiness,
+  type ExportReadinessSnapshot,
+} from "../lib/overviewReadiness";
 import { bridgeUrl } from "../lib/paths";
 import { formatStatesLabel } from "../lib/marketScope";
 import { PILOT_SCOPE_DEFAULTS } from "../lib/pilotScopeDefaults";
@@ -15,6 +21,10 @@ type QualifiedMinScores = {
 
 type ScoringSummary = {
   total_parcels: number;
+  parcels_prescreen_qualified: number;
+  prescreen_floor: number;
+  parcels_ruled_out_by_prescreen: number;
+  parcels_pipeline_funnel_backlog: number;
   parcels_with_latest_entitlement_score: number;
   parcels_with_latest_strategic_score: number;
   parcels_with_latest_identification_score: number;
@@ -26,9 +36,32 @@ type ScoringSummary = {
   pilot_region: string;
 };
 
-type ExportReadiness = {
-  parcel_row_total: number;
-  parcels_missing_owner_outreach_brief: { count: number; pct: number };
+type GapStat = {
+  count: number;
+  pct: number;
+  floor?: number;
+  target_count?: number;
+  entitlement_floor?: number;
+  strategic_floor?: number;
+};
+
+type ExportReadiness = ExportReadinessSnapshot;
+
+type OutreachRow = {
+  pipeline_stage: string;
+  workflow_status: string | null;
+  workflow_step: string | null;
+  workflow_error: string | null;
+  pending_approval_count: number;
+  has_outreach_brief: boolean;
+};
+
+type OutreachBoard = {
+  qualified_min_entitlement_score: number;
+  owner_outreach_min_entitlement_score: number;
+  owner_outreach_min_strategic_score: number;
+  row_count: number;
+  rows: OutreachRow[];
 };
 
 type PilotCounty = {
@@ -70,6 +103,15 @@ type FunnelStep = {
   count: number | null;
 };
 
+type ActionCard = {
+  key: string;
+  title: string;
+  detail: string;
+  href?: string;
+  linkLabel?: string;
+  tone: "ok" | "warn" | "err" | "run";
+};
+
 function isScoringSummary(s: unknown): s is ScoringSummary {
   return typeof s === "object" && s !== null && "total_parcels" in s;
 }
@@ -82,14 +124,40 @@ function isExportReadiness(s: unknown): s is ExportReadiness {
   return typeof s === "object" && s !== null && "parcel_row_total" in s;
 }
 
+function isOutreachBoard(s: unknown): s is OutreachBoard {
+  return (
+    typeof s === "object" &&
+    s !== null &&
+    "rows" in s &&
+    Array.isArray((s as OutreachBoard).rows) &&
+    "row_count" in s
+  );
+}
+
 function formatCount(n: number | null): string {
   if (n === null) return "—";
   return n.toLocaleString();
 }
 
+function formatPct(n: number | null): string {
+  if (n === null) return "—";
+  return `${n.toFixed(n >= 10 ? 0 : 1)}%`;
+}
+
 function funnelWidthPct(count: number, base: number): number {
   if (base <= 0) return 8;
   return Math.max(8, Math.round((count / base) * 100));
+}
+
+function gapTone(gap: GapStat | null): "ok" | "warn" | "err" {
+  if (!gap || gap.count === 0) return "ok";
+  if (gap.pct >= 50) return "err";
+  return "warn";
+}
+
+function coveragePct(total: number, gap: GapStat | null): number | null {
+  if (!gap || total <= 0) return null;
+  return Math.max(0, Math.min(100, 100 - gap.pct));
 }
 
 async function fetchJson(path: string): Promise<unknown> {
@@ -99,17 +167,22 @@ async function fetchJson(path: string): Promise<unknown> {
 }
 
 export default function OverviewPage() {
-  const [readiness, setReadiness] = useState<unknown>(null);
+  const [backlogEta, setBacklogEta] = useState<unknown>(null);
+  const [technicalReadiness, setTechnicalReadiness] = useState<unknown>(null);
   const [summary, setSummary] = useState<unknown>(null);
   const [scope, setScope] = useState<unknown>(null);
+  const [outreachBoard, setOutreachBoard] = useState<unknown>(null);
   const [scopeLoading, setScopeLoading] = useState(true);
   const [summaryLoading, setSummaryLoading] = useState(true);
-  const [readinessLoading, setReadinessLoading] = useState(false);
+  const [backlogLoading, setBacklogLoading] = useState(true);
+  const [technicalReadinessLoading, setTechnicalReadinessLoading] = useState(false);
+  const [outreachLoading, setOutreachLoading] = useState(true);
   const [scopeErr, setScopeErr] = useState<string | null>(null);
   const [summaryErr, setSummaryErr] = useState<string | null>(null);
-  const [readinessErr, setReadinessErr] = useState<string | null>(null);
+  const [backlogErr, setBacklogErr] = useState<string | null>(null);
+  const [technicalReadinessErr, setTechnicalReadinessErr] = useState<string | null>(null);
+  const [outreachErr, setOutreachErr] = useState<string | null>(null);
   const [showAllCounties, setShowAllCounties] = useState(false);
-  const [exportDetailsOpen, setExportDetailsOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -150,26 +223,75 @@ export default function OverviewPage() {
   }, []);
 
   useEffect(() => {
-    if (!exportDetailsOpen || readiness !== null || readinessLoading) return;
     let cancelled = false;
-    setReadinessLoading(true);
-    setReadinessErr(null);
-    fetchJson("internal/stats/export-readiness")
+    setBacklogLoading(true);
+    setBacklogErr(null);
+    fetchJson("internal/stats/backlog-eta")
       .then((data) => {
-        if (!cancelled) setReadiness(data);
+        if (!cancelled) setBacklogEta(data);
       })
       .catch((e) => {
-        if (!cancelled) setReadinessErr(e instanceof Error ? e.message : String(e));
+        if (!cancelled) setBacklogErr(e instanceof Error ? e.message : String(e));
       })
       .finally(() => {
-        if (!cancelled) setReadinessLoading(false);
+        if (!cancelled) setBacklogLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [exportDetailsOpen, readiness, readinessLoading]);
+  }, []);
+
+  function loadTechnicalReadiness() {
+    if (technicalReadiness || technicalReadinessLoading) return;
+    setTechnicalReadinessLoading(true);
+    setTechnicalReadinessErr(null);
+    fetchJson("internal/stats/export-readiness")
+      .then((data) => {
+        setTechnicalReadiness(data);
+      })
+      .catch((e) => {
+        setTechnicalReadinessErr(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        setTechnicalReadinessLoading(false);
+      });
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    setOutreachLoading(true);
+    setOutreachErr(null);
+    fetchJson("internal/pipeline/outreach-board?limit=100&revenue_hints=0&state_fips=24")
+      .then((data) => {
+        if (!cancelled) setOutreachBoard(data);
+      })
+      .catch((e) => {
+        if (!cancelled) setOutreachErr(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setOutreachLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const scopeView = isPilotScope(scope) ? scope : null;
+  const summaryView = isScoringSummary(summary) ? summary : null;
+  const backlogView = isBacklogEtaForReadiness(backlogEta) ? backlogEta : null;
+  const parcelTotal =
+    summaryView?.total_parcels ?? scopeView?.parcels_in_pilot_counties ?? 0;
+  const readinessView = useMemo((): ExportReadiness | null => {
+    if (isExportReadiness(technicalReadiness)) {
+      return technicalReadiness;
+    }
+    if (backlogView && parcelTotal > 0) {
+      return exportReadinessFromBacklogEta(backlogView, parcelTotal);
+    }
+    return null;
+  }, [technicalReadiness, backlogView, parcelTotal]);
+  const readinessLoading = backlogLoading || (parcelTotal <= 0 && summaryLoading && scopeLoading);
+  const outreachView = isOutreachBoard(outreachBoard) ? outreachBoard : null;
   const regionName = scopeView?.region_name ?? PILOT_SCOPE_DEFAULTS.region_name;
   const statesLabel =
     scopeView?.states_in_scope && scopeView.states_in_scope.length > 0
@@ -185,13 +307,45 @@ export default function OverviewPage() {
   const qualFloor =
     scopeView?.qualified_min_score.entitlement ?? PILOT_SCOPE_DEFAULTS.qualified_min_entitlement;
 
+  const prescreenQualified =
+    summaryView?.parcels_prescreen_qualified ??
+    readinessView?.parcels_prescreen_qualified.count ??
+    null;
+  const prescreenFloor =
+    summaryView?.prescreen_floor ??
+    readinessView?.parcels_prescreen_qualified.floor ??
+    scopeView?.qualified_min_score.identification ??
+    null;
+  const ruledOutPrescreen =
+    summaryView?.parcels_ruled_out_by_prescreen ??
+    readinessView?.parcels_ruled_out_by_prescreen.count ??
+    null;
+
   const funnelSteps = useMemo((): FunnelStep[] => {
-    if (!isScoringSummary(summary)) return [];
-    const ready = isExportReadiness(readiness) ? readiness : null;
-    const withBrief = ready
-      ? Math.max(0, ready.parcel_row_total - ready.parcels_missing_owner_outreach_brief.count)
+    if (!summaryView && prescreenQualified == null) return [];
+    const ownerTargetTotal = readinessView?.parcels_owner_outreach_targets?.count ?? null;
+    const withBrief = readinessView
+      ? Math.max(
+          0,
+          (readinessView.parcels_missing_owner_outreach_brief.target_count ??
+            ownerTargetTotal ??
+            readinessView.parcel_row_total) - readinessView.parcels_missing_owner_outreach_brief.count,
+        )
       : null;
-    const floors = summary.qualified_min_score;
+    const floors: QualifiedMinScores =
+      summaryView?.qualified_min_score ??
+      scopeView?.qualified_min_score ?? {
+        entitlement: PILOT_SCOPE_DEFAULTS.qualified_min_entitlement,
+        strategic: 65,
+        identification: 60,
+      };
+    const total = summaryView?.total_parcels ?? readinessView?.parcel_row_total ?? 0;
+    const prescreen =
+      summaryView?.parcels_prescreen_qualified ?? readinessView?.parcels_prescreen_qualified.count ?? null;
+    const prescreenDetail =
+      prescreenFloor != null
+        ? `Cartographer identification ≥ ${prescreenFloor} — only these parcels are eligible for scheduled Atlas/Beacon auto-score.`
+        : "Parcels that pass identification prescreen — eligible for Atlas/Beacon pipeline batches.";
 
     return [
       {
@@ -199,38 +353,199 @@ export default function OverviewPage() {
         label: "Parcels ingested",
         detail:
           "Only APNs loaded from county GIS (Baltimore EGIS, Washington assessor/WaTech) — not every parcel in configured markets.",
-        count: summary.total_parcels,
+        count: total,
       },
       {
-        key: "identification",
-        label: `Identification prescreen (≥ ${floors.identification})`,
-        detail:
-          "Cartographer score at ingest — only parcels at or above this floor should enter the full pipeline (owner lookup, memo, contract).",
-        count: summary.qualified_count_identification,
+        key: "prescreen",
+        label:
+          prescreenFloor != null
+            ? `Pass prescreen (≥ ${prescreenFloor})`
+            : "Pass prescreen (auto-score eligible)",
+        detail: prescreenDetail,
+        count: prescreen,
       },
       {
         key: "pipeline",
         label: "Full pipeline scored",
         detail:
           "Atlas (entitlement) first — if below floor, Beacon and enrichment are skipped. If Atlas passes, Beacon runs; enrichment only when both pass.",
-        count: summary.parcels_with_both_profiles_scored,
+        count: summaryView?.parcels_with_both_profiles_scored ?? null,
       },
       {
         key: "qualified",
         label: `Qualified (entitlement ≥ ${floors.entitlement})`,
         detail: "Parcels meeting the pilot floor for deal outreach and operator boards.",
-        count: summary.qualified_count_entitlement,
+        count: summaryView?.qualified_count_entitlement ?? null,
       },
       {
         key: "brief",
-        label: "Owner outreach brief",
-        detail: ready
-          ? "Deep enrichment: owners, registry stub, vendor lookup, contact points, memo + contract draft."
-          : "Deep enrichment counts load when you expand Export readiness below.",
+        label: "Target owner outreach brief",
+        detail: readinessView
+          ? "Deep enrichment only for dual-high-score owner outreach targets: owners, registry stub, vendor lookup, contact points, memo + contract draft."
+          : "Deep enrichment counts load with export readiness.",
         count: withBrief,
       },
     ];
-  }, [summary, readiness]);
+  }, [summaryView, readinessView, prescreenQualified, prescreenFloor, scopeView]);
+
+  const outreachStats = useMemo(() => {
+    const rows = outreachView?.rows ?? [];
+    return {
+      loaded: rows.length,
+      total: outreachView?.row_count ?? null,
+      needsAction: rows.filter(needsAction).length,
+      ready: rows.filter((r) => r.pipeline_stage === "completed").length,
+      blocked: rows.filter((r) => r.pipeline_stage === "blocked").length,
+      failed: rows.filter((r) => r.pipeline_stage === "failed").length,
+      running: rows.filter((r) => r.pipeline_stage === "running").length,
+      pendingApprovals: rows.filter((r) => r.pending_approval_count > 0).length,
+      missingBrief: rows.filter((r) => !r.has_outreach_brief).length,
+    };
+  }, [outreachView]);
+
+  const coverageCards = useMemo(() => {
+    if (!readinessView) return [];
+    const total = readinessView.parcel_row_total;
+    const ownerTargetTotal =
+      readinessView.parcels_missing_owner_outreach_brief.target_count ??
+      readinessView.parcels_owner_outreach_targets?.count ??
+      total;
+    return [
+      {
+        key: "zoning",
+        label: "Zoning attached",
+        detail: "Phase B overlay coverage",
+        value: coveragePct(total, readinessView.parcels_missing_zoning_code),
+        missing: readinessView.parcels_missing_zoning_code,
+      },
+      {
+        key: "demand",
+        label: "Demand distance",
+        detail: "Revenue and strategic signal",
+        value: coveragePct(total, readinessView.parcels_missing_distance_to_nearest_demand_m),
+        missing: readinessView.parcels_missing_distance_to_nearest_demand_m,
+      },
+      {
+        key: "poi",
+        label: "POI density",
+        detail: "Occupancy confidence for qualified POI candidates",
+        value: coveragePct(
+          readinessView.parcels_poi_density_candidates?.count ?? total,
+          readinessView.parcels_missing_poi_commercial_count_400m,
+        ),
+        missing: readinessView.parcels_missing_poi_commercial_count_400m,
+      },
+      {
+        key: "brief",
+        label: "Target owner briefs",
+        detail: "Phase C readiness for owner outreach target lots",
+        value: coveragePct(ownerTargetTotal, readinessView.parcels_missing_owner_outreach_brief),
+        missing: readinessView.parcels_missing_owner_outreach_brief,
+      },
+    ];
+  }, [readinessView]);
+
+  const actionCards = useMemo((): ActionCard[] => {
+    const cards: ActionCard[] = [];
+    if (outreachStats.pendingApprovals > 0) {
+      cards.push({
+        key: "approvals",
+        title: `${outreachStats.pendingApprovals.toLocaleString()} approval queue item${
+          outreachStats.pendingApprovals === 1 ? "" : "s"
+        }`,
+        detail: "Human approval is the fastest unblock for deals already prepared by the pipeline.",
+        href: "/approvals",
+        linkLabel: "Review approvals",
+        tone: "warn",
+      });
+    }
+    if (outreachStats.failed > 0) {
+      cards.push({
+        key: "failed",
+        title: `${outreachStats.failed.toLocaleString()} failed pipeline run${
+          outreachStats.failed === 1 ? "" : "s"
+        }`,
+        detail: "Open the outreach board to inspect workflow errors and decide whether to rerun or skip.",
+        href: "/outreach",
+        linkLabel: "Open outreach board",
+        tone: "err",
+      });
+    }
+    if (outreachStats.blocked > 0) {
+      cards.push({
+        key: "blocked",
+        title: `${outreachStats.blocked.toLocaleString()} blocked deal${
+          outreachStats.blocked === 1 ? "" : "s"
+        }`,
+        detail: "These parcels are past scoring but need a human decision, missing input, or workflow cleanup.",
+        href: "/deals",
+        linkLabel: "Open deal progress",
+        tone: "warn",
+      });
+    }
+    if (readinessView && readinessView.parcels_pipeline_funnel_backlog.count > 0) {
+      cards.push({
+        key: "pipeline-backlog",
+        title: `${readinessView.parcels_pipeline_funnel_backlog.count.toLocaleString()} prescreen-qualified parcel${
+          readinessView.parcels_pipeline_funnel_backlog.count === 1 ? "" : "s"
+        } need full scoring`,
+        detail: "This is the clean backlog for run_pipeline: Atlas/Beacon should run before owner enrichment decisions.",
+        href: "/deals",
+        linkLabel: "View pipeline progress",
+        tone: "run",
+      });
+    }
+    if (readinessView && readinessView.parcels_missing_zoning_code.count > 0) {
+      cards.push({
+        key: "zoning",
+        title: `${readinessView.parcels_missing_zoning_code.count.toLocaleString()} parcel${
+          readinessView.parcels_missing_zoning_code.count === 1 ? "" : "s"
+        } missing zoning`,
+        detail: "Phase B remains the highest-leverage data gap: build/merge overlays so entitlement scores are defensible.",
+        href: "/parcels",
+        linkLabel: "Review parcel inventory",
+        tone: gapTone(readinessView.parcels_missing_zoning_code) === "err" ? "err" : "warn",
+      });
+    }
+    if (readinessView && readinessView.parcels_missing_distance_to_nearest_demand_m.count > 0) {
+      cards.push({
+        key: "demand",
+        title: `${readinessView.parcels_missing_distance_to_nearest_demand_m.count.toLocaleString()} parcel${
+          readinessView.parcels_missing_distance_to_nearest_demand_m.count === 1 ? "" : "s"
+        } missing demand distance`,
+        detail: "Refresh demand distances after demand-generator config changes to improve strategic ranking and revenue confidence.",
+        href: "/parcels",
+        linkLabel: "Review parcels",
+        tone: "warn",
+      });
+    }
+    if (cards.length === 0 && outreachStats.ready > 0) {
+      cards.push({
+        key: "ready",
+        title: `${outreachStats.ready.toLocaleString()} outreach-ready deal${
+          outreachStats.ready === 1 ? "" : "s"
+        } in the loaded set`,
+        detail: "The next highest-value move is human review of the ready list and owner/operator outreach decisions.",
+        href: "/outreach",
+        linkLabel: "Open ready deals",
+        tone: "ok",
+      });
+    }
+    if (cards.length === 0) {
+      cards.push({
+        key: "loading-or-clear",
+        title: outreachLoading || readinessLoading ? "Building the action picture…" : "No urgent blocker detected",
+        detail:
+          outreachLoading || readinessLoading
+            ? "Readiness and outreach samples are still loading."
+            : "Use Outreach for ready deals, or continue with the next market zoning/revenue enrichment batch.",
+        href: "/outreach",
+        linkLabel: "Open outreach board",
+        tone: "ok",
+      });
+    }
+    return cards.slice(0, 4);
+  }, [outreachStats, readinessView, outreachLoading, readinessLoading]);
 
   const countiesToShow = useMemo(() => {
     if (!scopeView) return [];
@@ -272,6 +587,119 @@ export default function OverviewPage() {
       </details>
 
       <OperatorGuide />
+
+      <h2>Executive action dashboard</h2>
+      <div className="panel action-dashboard">
+        <div className="action-dashboard-head">
+          <div>
+            <div className="scope-region">Opportunity pipeline health</div>
+            <p className="muted scope-sub">
+              A business-readable view of what is ready, what needs a person, and which data gaps are blocking better
+              parcel decisions.
+            </p>
+          </div>
+          <div className="scope-badges">
+            <span className="badge badge-priority">Baltimore-first operating loop</span>
+            <span className="badge">Sample: top {formatCount(outreachStats.loaded)} qualified rows</span>
+          </div>
+        </div>
+
+        {(backlogErr || outreachErr) && (
+          <div className="action-errors">
+            {backlogErr ? <div className="error">Backlog snapshot: {backlogErr}</div> : null}
+            {outreachErr ? <div className="error">Outreach board: {outreachErr}</div> : null}
+          </div>
+        )}
+
+        <div className="executive-metrics">
+          <div className="stat stat-emphasis">
+            <div className="muted">Outreach-ready</div>
+            <div className="n">{outreachLoading ? "…" : formatCount(outreachStats.ready)}</div>
+            <div className="cell-sub muted">Completed pipeline in loaded qualified set</div>
+          </div>
+          <div className="stat stat-emphasis">
+            <div className="muted">Need a person</div>
+            <div className="n">{outreachLoading ? "…" : formatCount(outreachStats.needsAction)}</div>
+            <div className="cell-sub muted">Blocked, failed, or approvals waiting</div>
+          </div>
+          <div className="stat stat-emphasis">
+            <div className="muted">Pass prescreen</div>
+            <div className="n">
+              {readinessLoading && prescreenQualified == null
+                ? "…"
+                : formatCount(prescreenQualified)}
+            </div>
+            <div className="cell-sub muted">
+              Auto-score eligible
+              {prescreenFloor != null ? ` (Cartographer ≥ ${prescreenFloor})` : ""}
+              {ruledOutPrescreen != null && prescreenQualified != null
+                ? ` · ${ruledOutPrescreen.toLocaleString()} ruled out`
+                : ""}
+            </div>
+          </div>
+          <div className="stat stat-emphasis">
+            <div className="muted">Pipeline backlog</div>
+            <div className="n">
+              {readinessLoading ? "…" : formatCount(readinessView?.parcels_pipeline_funnel_backlog.count ?? null)}
+            </div>
+            <div className="cell-sub muted">Prescreen-qualified parcels needing Atlas/Beacon</div>
+          </div>
+          <div className="stat stat-emphasis">
+            <div className="muted">Owner outreach floor</div>
+            <div className="n">
+              {outreachLoading
+                ? "…"
+                : outreachView
+                  ? `${formatCount(outreachView.owner_outreach_min_entitlement_score ?? null)} / ${formatCount(
+                      outreachView.owner_outreach_min_strategic_score ?? null,
+                    )}`
+                  : "—"}
+            </div>
+            <div className="cell-sub muted">Atlas / Beacon thresholds for outreach board</div>
+          </div>
+        </div>
+
+        <div className="action-card-grid">
+          {actionCards.map((card) => (
+            <div key={card.key} className={`action-card action-card-${card.tone}`}>
+              <strong>{card.title}</strong>
+              <p className="muted">{card.detail}</p>
+              {card.href ? (
+                <Link href={card.href} className="btn-link btn-link-primary">
+                  {card.linkLabel ?? "Open"}
+                </Link>
+              ) : null}
+            </div>
+          ))}
+        </div>
+
+        {coverageCards.length > 0 ? (
+          <div className="readiness-grid">
+            {coverageCards.map((card) => {
+              const tone = gapTone(card.missing);
+              return (
+                <div key={card.key} className={`readiness-card readiness-card-${tone}`}>
+                  <div className="readiness-card-top">
+                    <strong>{card.label}</strong>
+                    <span>{formatPct(card.value)}</span>
+                  </div>
+                  <div className="progress-track readiness-track">
+                    <div
+                      className={`progress-fill ${tone === "err" ? "progress-fill-err" : ""}`}
+                      style={{ width: `${card.value ?? 0}%` }}
+                    />
+                  </div>
+                  <p className="muted">
+                    {card.detail} · missing {card.missing.count.toLocaleString()} ({formatPct(card.missing.pct)})
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        ) : readinessLoading ? (
+          <p className="muted">Loading readiness blockers…</p>
+        ) : null}
+      </div>
 
       <h2>Geographic scope</h2>
       <div className="panel scope-panel">
@@ -381,26 +809,52 @@ export default function OverviewPage() {
       </div>
 
       <h2>Scoring totals</h2>
+      <p className="muted">
+        <strong>Pass prescreen</strong> is the auto-score pool: parcels whose latest Cartographer score meets the
+        prescreen floor. Scheduled pipeline batches and ops auto-fix only target that pool — not the full{" "}
+        {formatCount(summaryView?.total_parcels ?? readinessView?.parcel_row_total ?? null)}-row inventory.
+      </p>
       {summaryErr ? <div className="error">{summaryErr}</div> : null}
       <div className="cols" style={{ marginTop: "0.5rem" }}>
-        {isScoringSummary(summary) ? (
+        {summaryView || prescreenQualified != null ? (
           <>
+            <div className="stat stat-emphasis">
+              <div className="muted">Pass prescreen (auto-score eligible)</div>
+              <div className="n">{formatCount(prescreenQualified)}</div>
+              {prescreenFloor != null ? (
+                <div className="cell-sub muted">Floor ≥ {prescreenFloor} (identification)</div>
+              ) : null}
+            </div>
+            <div className="stat">
+              <div className="muted">Ruled out at prescreen</div>
+              <div className="n">{formatCount(ruledOutPrescreen)}</div>
+            </div>
             <div className="stat">
               <div className="muted">Parcels in DB</div>
-              <div className="n">{formatCount(summary.total_parcels)}</div>
+              <div className="n">{formatCount(summaryView?.total_parcels ?? readinessView?.parcel_row_total ?? null)}</div>
             </div>
             <div className="stat">
-              <div className="muted">Identification prescreen</div>
-              <div className="n">{formatCount(summary.parcels_with_latest_identification_score)}</div>
+              <div className="muted">Pipeline backlog</div>
+              <div className="n">
+                {formatCount(
+                  summaryView?.parcels_pipeline_funnel_backlog ??
+                    readinessView?.parcels_pipeline_funnel_backlog.count ??
+                    null,
+                )}
+              </div>
             </div>
-            <div className="stat">
-              <div className="muted">Full pipeline (both scores)</div>
-              <div className="n">{formatCount(summary.parcels_with_both_profiles_scored)}</div>
-            </div>
-            <div className="stat">
-              <div className="muted">Qualified (entitlement)</div>
-              <div className="n">{formatCount(summary.qualified_count_entitlement)}</div>
-            </div>
+            {summaryView ? (
+              <>
+                <div className="stat">
+                  <div className="muted">Full pipeline (both scores)</div>
+                  <div className="n">{formatCount(summaryView.parcels_with_both_profiles_scored)}</div>
+                </div>
+                <div className="stat">
+                  <div className="muted">Qualified (entitlement)</div>
+                  <div className="n">{formatCount(summaryView.qualified_count_entitlement)}</div>
+                </div>
+              </>
+            ) : null}
           </>
         ) : summaryLoading ? (
           <p className="muted">Loading scoring totals…</p>
@@ -469,16 +923,23 @@ export default function OverviewPage() {
 
       <details
         className="panel export-readiness-details"
-        onToggle={(e) => setExportDetailsOpen((e.target as HTMLDetailsElement).open)}
+        onToggle={(e) => {
+          if ((e.target as HTMLDetailsElement).open) {
+            loadTechnicalReadiness();
+          }
+        }}
       >
-        <summary className="export-readiness-summary">Export readiness (technical JSON)</summary>
-        {readinessErr ? <div className="error">{readinessErr}</div> : null}
-        {readiness ? (
-          <pre className="json">{JSON.stringify(readiness, null, 2)}</pre>
-        ) : readinessLoading ? (
-          <p className="muted">Loading export readiness…</p>
-        ) : exportDetailsOpen ? null : (
-          <p className="muted">Open to load gap diagnostics (skipped on initial page load).</p>
+        <summary className="export-readiness-summary">Technical export-readiness JSON</summary>
+        <p className="muted">
+          Full live scan (slow). Overview metrics above use the cached ops snapshot from backlog ETA.
+        </p>
+        {technicalReadinessErr ? <div className="error">{technicalReadinessErr}</div> : null}
+        {technicalReadiness ? (
+          <pre className="json">{JSON.stringify(technicalReadiness, null, 2)}</pre>
+        ) : technicalReadinessLoading ? (
+          <p className="muted">Loading export readiness… (may take a few minutes)</p>
+        ) : (
+          <p className="muted">Expand to load the full export-readiness scan.</p>
         )}
       </details>
     </div>
