@@ -178,8 +178,32 @@ def _cron_utc(minute: int | str, hour: int | str) -> str:
     return f"{minute} {hour} * * *"
 
 
+def _schedule_label(minute: int | str, hour: int | str) -> str:
+    minute_s = str(minute)
+    hour_s = str(hour)
+    if hour_s.startswith("*/"):
+        if minute_s.isdigit():
+            return f"Every {hour_s[2:]} hours at :{int(minute_s):02d} UTC"
+        return f"Every {hour_s[2:]} hours"
+    if minute_s.startswith("*/") and hour_s == "*":
+        return f"Every {minute_s[2:]} minutes"
+    if hour_s == "*":
+        return f"Hourly at :{int(minute_s):02d} UTC" if minute_s.isdigit() else "Hourly"
+    if minute_s.isdigit() and hour_s.isdigit():
+        return f"Daily at {int(hour_s):02d}:{int(minute_s):02d} UTC"
+    return _cron_utc(minute, hour)
+
+
 def _setting(settings: Settings, name: str, default: Any) -> Any:
     return getattr(settings, name, default)
+
+
+def _effective_load_tier(load_tier: str, status: str) -> str:
+    if status == "paused":
+        return "none"
+    if status == "throttled":
+        return "medium" if load_tier == "high" else "low"
+    return load_tier
 
 
 def _scheduled_server_jobs(settings: Settings, governor: dict[str, Any]) -> list[dict[str, Any]]:
@@ -191,7 +215,8 @@ def _scheduled_server_jobs(settings: Settings, governor: dict[str, Any]) -> list
 
     def _job(
         name: str,
-        schedule_utc: str,
+        minute: int | str,
+        hour: int | str,
         load_tier: str,
         *,
         enabled: bool,
@@ -202,11 +227,14 @@ def _scheduled_server_jobs(settings: Settings, governor: dict[str, Any]) -> list
         if not enabled:
             return
         status = "paused" if paused else ("throttled" if throttled else "active")
+        effective_load_tier = _effective_load_tier(load_tier, status)
         jobs.append(
             {
                 "name": name,
-                "schedule_utc": schedule_utc,
+                "schedule_utc": _cron_utc(minute, hour),
+                "schedule_label": _schedule_label(minute, hour),
                 "load_tier": load_tier,
+                "effective_load_tier": effective_load_tier,
                 "status": status,
                 "note": note,
             }
@@ -214,10 +242,8 @@ def _scheduled_server_jobs(settings: Settings, governor: dict[str, Any]) -> list
 
     _job(
         "Ops remediation loop",
-        _cron_utc(
-            _setting(settings, "ops_remediation_crontab_minute", 15),
-            _setting(settings, "ops_remediation_crontab_hour", "*/2"),
-        ),
+        _setting(settings, "ops_remediation_crontab_minute", 15),
+        _setting(settings, "ops_remediation_crontab_hour", "*/2"),
         "high",
         enabled=bool(_setting(settings, "ops_remediation_enabled", False)),
         throttled=not autofix,
@@ -225,10 +251,8 @@ def _scheduled_server_jobs(settings: Settings, governor: dict[str, Any]) -> list
     )
     _job(
         "Priority pipeline enqueue",
-        _cron_utc(
-            _setting(settings, "scheduled_priority_pipeline_crontab_minute", 20),
-            _setting(settings, "scheduled_priority_pipeline_crontab_hour", "*/2"),
-        ),
+        _setting(settings, "scheduled_priority_pipeline_crontab_minute", 20),
+        _setting(settings, "scheduled_priority_pipeline_crontab_hour", "*/2"),
         "high",
         enabled=bool(_setting(settings, "scheduled_priority_pipeline_enabled", False)),
         throttled=pipe_mult < 1.0,
@@ -239,10 +263,8 @@ def _scheduled_server_jobs(settings: Settings, governor: dict[str, Any]) -> list
     )
     _job(
         "Enqueue unscored pipelines",
-        _cron_utc(
-            _setting(settings, "scheduled_enqueue_unscored_crontab_minute", 25),
-            _setting(settings, "scheduled_enqueue_unscored_crontab_hour", "*/4"),
-        ),
+        _setting(settings, "scheduled_enqueue_unscored_crontab_minute", 25),
+        _setting(settings, "scheduled_enqueue_unscored_crontab_hour", "*/4"),
         "high",
         enabled=bool(_setting(settings, "scheduled_enqueue_unscored_enabled", False)),
         throttled=pipe_mult < 1.0,
@@ -250,30 +272,24 @@ def _scheduled_server_jobs(settings: Settings, governor: dict[str, Any]) -> list
     )
     _job(
         "Refresh identification scores",
-        _cron_utc(
-            _setting(settings, "scheduled_refresh_identification_crontab_minute", 10),
-            _setting(settings, "scheduled_refresh_identification_crontab_hour", "*/6"),
-        ),
+        _setting(settings, "scheduled_refresh_identification_crontab_minute", 10),
+        _setting(settings, "scheduled_refresh_identification_crontab_hour", "*/6"),
         "high",
         enabled=bool(_setting(settings, "scheduled_refresh_identification_enabled", False)),
         note=f"Batch limit {_setting(settings, 'scheduled_refresh_identification_limit', 2000)}.",
     )
     _job(
         "Refresh demand distances",
-        _cron_utc(
-            _setting(settings, "scheduled_refresh_demand_crontab_minute", 40),
-            _setting(settings, "scheduled_refresh_demand_crontab_hour", "*/6"),
-        ),
+        _setting(settings, "scheduled_refresh_demand_crontab_minute", 40),
+        _setting(settings, "scheduled_refresh_demand_crontab_hour", "*/6"),
         "medium",
         enabled=bool(_setting(settings, "scheduled_refresh_demand_enabled", False)),
         note=f"Batch limit {_setting(settings, 'scheduled_refresh_demand_limit', 2000)}.",
     )
     _job(
         "WA statewide county rollout",
-        _cron_utc(
-            _setting(settings, "wa_statewide_rollout_crontab_minute", 0),
-            _setting(settings, "wa_statewide_rollout_crontab_hour", 6),
-        ),
+        _setting(settings, "wa_statewide_rollout_crontab_minute", 0),
+        _setting(settings, "wa_statewide_rollout_crontab_hour", 6),
         "high",
         enabled=bool(_setting(settings, "wa_statewide_rollout_enabled", False)),
         paused=not wa_allowed,
@@ -281,31 +297,32 @@ def _scheduled_server_jobs(settings: Settings, governor: dict[str, Any]) -> list
     )
     _job(
         "Address health agent",
-        _cron_utc(
-            _setting(settings, "address_health_agent_crontab_minute", 10),
-            _setting(settings, "address_health_agent_crontab_hour", "*/12"),
-        ),
+        _setting(settings, "address_health_agent_crontab_minute", 10),
+        _setting(settings, "address_health_agent_crontab_hour", "*/12"),
         "medium",
         enabled=bool(_setting(settings, "address_health_agent_enabled", False)),
         note="Catalog rotation + connector checks; also GitHub Actions every 12h.",
     )
     _job(
         "Baltimore address backfill agent",
-        "*/15 * * * *",
+        "*/15",
+        "*",
         "low",
         enabled=True,
         note="GitHub Actions — bounded GIS batches when API ready.",
     )
     _job(
         "Operator admin agent",
-        "0 8 * * *",
+        0,
+        8,
         "low",
         enabled=True,
         note="GitHub Actions — Playwright scan + Droplet remediate (daily).",
     )
     _job(
         "Site watchdog",
-        f"{_setting(settings, 'site_watchdog_crontab_minute', '0')} * * * *",
+        _setting(settings, "site_watchdog_crontab_minute", "0"),
+        "*",
         "low",
         enabled=bool(_setting(settings, "site_watchdog_enabled", False)),
         note="HTTP health probes; failures raise governor pressure.",
