@@ -21,9 +21,9 @@ Default caps (tunable in `config/wa_statewide_rollout.yaml`):
 - Skip a new county if **parking** queue depth **> 400**
 - **Size-based cooldown** after each county (not a flat 7 days for everyone):
   - `min_days_base` (default **0.5**)
-  - `+ min_days_per_10k_parcels` × (parcels in last county ÷ 10,000) (default **0.75**)
-  - capped at `min_days_max` (default **10**)
-  - Examples: ~5k parcels → ~1 day; ~50k → ~4 days; ~120k → ~9.5 days
+  - `+ min_days_per_10k_parcels` × (parcels in last county ÷ 10,000) (default **0.05**)
+  - capped at `min_days_max` (default **2**)
+  - Examples: ~5k parcels → ~0.5 days; ~50k → ~0.75 days; ~120k → ~1.1 days
 
 ## Enable on the Droplet
 
@@ -63,7 +63,7 @@ From GitHub Actions: **Droplet resources** → `wa_rollout_status` or `wa_rollou
 ## Progress expectation
 
 - **~38 counties** remain after King (~124k parcels already loaded).
-- **Pace varies by county size** — many small counties can load in quick succession; large Puget Sound counties space out automatically. Full statewide **ingest** is typically **weeks**, not one fixed county per calendar week.
+- **Pace varies by county size** — many small counties can load in quick succession; large Puget Sound counties space out around daily. Full statewide **ingest** advances continuously as long as queue/load guards stay healthy.
 - **Scoring, zoning overlay, and outreach** still run on their own schedules — this only spreads **GIS ingest** across the state.
 
 Do **not** enable `EXPLORATION_CAMPAIGN_ENABLED` at the same time unless you also place GeoJSON files under `data/exploration/` — rollout uses WaTech directly.

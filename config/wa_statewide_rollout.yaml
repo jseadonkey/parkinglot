@@ -48,11 +48,11 @@ county_fips_priority:
 # Cap WaTech download per run (null = full county). Use a number only for experiments.
 watech_max_features: null
 
-# Cooldown before the next county — scales with parcels loaded in the last county (see cooldown_days_after_county).
-# ~5k parcels → ~1 day; ~50k → ~4 days; ~120k+ → up to min_days_max (not one flat week for every county).
+# Cooldown before the next county — keeps WA ingest moving while queue/load guards
+# still prevent overlap. Large counties should wait about a day, not a week+.
 min_days_base: 0.5
-min_days_per_10k_parcels: 0.75
-min_days_max: 10
+min_days_per_10k_parcels: 0.05
+min_days_max: 2
 # Legacy flat wait (used only if min_days_base / min_days_per_10k_parcels are omitted):
 # min_days_between_counties: 7
 
