@@ -12,8 +12,8 @@ primary_market:
 
 # WaTech ingest pacing (also mirrored in config/wa_statewide_rollout.yaml).
 wa_statewide_rollout:
-  min_days_base: 0.25
-  min_days_per_10k_parcels: 0.025
-  min_days_max: 1
+  min_days_base: 0.1
+  min_days_per_10k_parcels: 0.005
+  min_days_max: 0.5
   max_auto_pipeline: 15
   max_parking_queue_depth: 400
