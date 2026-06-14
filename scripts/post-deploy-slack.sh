@@ -39,7 +39,9 @@ fi
 
 _env_val() {
   local key="$1"
-  grep -E "^${key}=" "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//'
+  awk -F= -v key="$key" '$1 == key {sub(/^[^=]*=/, ""); print; exit}' "$ENV_FILE" \
+    | tr -d '\r' \
+    | sed 's/^"//;s/"$//'
 }
 
 BASE="$(_env_val PUBLIC_API_URL)"
@@ -175,11 +177,18 @@ case "$MODE" in
   discussion)
     curl_post "/internal/slack/agent-discussion-now"
     ;;
+  ops-refresh)
+    curl_post "/internal/watchdog/run-now"
+    sleep "${POST_DEPLOY_WATCHDOG_WAIT:-45}"
+    curl_post "/internal/ops/run-now"
+    sleep "${POST_DEPLOY_OPS_WAIT:-20}"
+    curl_post "/internal/ingest/wa-rollout-now"
+    ;;
   all|full)
     curl_post "/internal/slack/full-update-now"
     ;;
   *)
-    echo "Usage: $0 {all|full|digest|qualified|discussion|none}" >&2
+    echo "Usage: $0 {all|full|digest|qualified|discussion|ops-refresh|none}" >&2
     exit 2
     ;;
 esac
