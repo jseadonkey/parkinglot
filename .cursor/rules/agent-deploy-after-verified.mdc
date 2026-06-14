@@ -5,8 +5,9 @@ The user is non-technical and does not want to remember a separate "push live" s
 When an agent completes a code change that should be live:
 
 - Run the appropriate tests/builds first.
-- Push the verified change to `main` when safe; this repo's GitHub Actions deploy workflow automatically deploys `main`.
-- If the change is risky, incomplete, or intentionally review-only, leave it in a PR and clearly say it is not live yet.
+- In Cloud/PR mode, create or update the Cursor PR as **non-draft** once tests are green and the change is intended to go live. The **Auto-merge Cursor PRs** workflow scans non-draft `cursor/*` PRs every 15 minutes and after CI; when CI is green it merges to `main`.
+- After merge to `main`, this repo's GitHub Actions container-image and **Deploy to Droplet** workflows automatically deploy `main`.
+- If the change is risky, incomplete, blocked on user review, or intentionally review-only, leave it as a **draft** PR and clearly say it is not live yet.
 - Do not run heavy data backfills or ingestion automatically just because code deployed; those should still be gated by current server/DB load.
 
 Continue following droplet safety rules: this workspace deploys only to the parkinglot Droplet.

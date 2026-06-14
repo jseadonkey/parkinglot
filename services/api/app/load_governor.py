@@ -29,6 +29,13 @@ logger = logging.getLogger(__name__)
 REDIS_STATE_KEY = "load_governor:state"
 STATE_TTL_SEC = 60 * 45
 SCORE_GAP_BASIS = "identification_plus_pipeline_funnel"
+_WATCHDOG_PRESSURE_CHECKS = {
+    "api_health",
+    "api_ready",
+    "postgres",
+    "redis",
+    "celery_parking_queue",
+}
 
 PressureLevel = Literal["green", "yellow", "orange", "red"]
 
@@ -63,6 +70,13 @@ def _max_level(*levels: PressureLevel) -> PressureLevel:
 def _gap_count(export: dict[str, Any], key: str) -> int:
     raw = export.get(key) or {}
     return int(raw.get("count") or 0) if isinstance(raw, dict) else 0
+
+
+def _watchdog_pressure_failures(report: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not report or report.get("ok"):
+        return []
+    failures = [c for c in (report.get("checks") or []) if isinstance(c, dict) and not c.get("ok")]
+    return [c for c in failures if str(c.get("name") or "") in _WATCHDOG_PRESSURE_CHECKS]
 
 
 def _caps_for_level(level: PressureLevel) -> dict[str, Any]:
@@ -126,9 +140,15 @@ def assess_load_pressure(
         level = _max_level(level, "yellow")
         signals.append({"code": "parking_queue_elevated", "depth": parking})
 
-    if wd and not wd.get("ok"):
+    wd_pressure = _watchdog_pressure_failures(wd)
+    if wd_pressure:
         level = _max_level(level, "orange")
-        signals.append({"code": "site_watchdog_failed"})
+        signals.append(
+            {
+                "code": "site_watchdog_failed",
+                "failures": [str(c.get("name") or "?") for c in wd_pressure[:6]],
+            },
+        )
 
     report = cached_ops_report if cached_ops_report is not None else load_last_report(settings)
     export = (report or {}).get("export_readiness") if isinstance(report, dict) else None

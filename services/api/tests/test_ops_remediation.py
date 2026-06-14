@@ -173,6 +173,40 @@ def test_apply_remediation_enqueues_baltimore_address_backfill(monkeypatch) -> N
     delay.assert_called_once_with(limit=25, dry_run=False)
 
 
+def test_apply_remediation_refreshes_watchdog_when_heavy_autofix_paused(monkeypatch) -> None:
+    settings = MagicMock(
+        ops_remediation_auto_fix=True,
+        ops_remediation_cooldown_sec=3600,
+        ops_remediation_priority_county_fips="24510",
+        ops_remediation_batch_limit=100,
+        ops_remediation_poi_batch_limit=50,
+        ops_remediation_pipeline_enqueue_limit=10,
+        ops_remediation_address_backfill_limit=25,
+    )
+    delay = MagicMock(return_value=MagicMock(id="watchdog-task-1"))
+    monkeypatch.setattr("app.ops_remediation.cooldown_active", lambda _s, _a: False)
+    monkeypatch.setattr("app.ops_remediation.set_cooldown", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("app.tasks.site_watchdog_check", MagicMock(delay=delay))
+
+    actions = apply_remediation(
+        MagicMock(),
+        settings,
+        [
+            OpsIssue(
+                code="site_watchdog_failed",
+                severity="critical",
+                message="watchdog stale",
+                fix_action="run_site_watchdog",
+            ),
+        ],
+        auto_fix=False,
+    )
+
+    assert actions[0].status == "enqueued"
+    assert actions[0].task_id == "watchdog-task-1"
+    delay.assert_called_once_with()
+
+
 def _celery_message(task_id: str, kwargs: dict) -> str:
     body = base64.b64encode(json.dumps([[], kwargs, {}]).encode()).decode()
     return json.dumps(

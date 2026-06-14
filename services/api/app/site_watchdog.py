@@ -65,6 +65,9 @@ def _api_base_url(settings: Settings) -> str:
 
 
 def _ui_base_url(settings: Settings) -> str:
+    internal = (settings.site_watchdog_internal_ui_url or "").strip()
+    if internal:
+        return internal.rstrip("/")
     explicit = (settings.site_watchdog_ui_base_url or "").strip()
     if explicit:
         return explicit.rstrip("/")
@@ -73,9 +76,6 @@ def _ui_base_url(settings: Settings) -> str:
         first = raw.split(",")[0].strip()
         if first and not _is_localhost_url(first):
             return first.rstrip("/")
-    internal = (settings.site_watchdog_internal_ui_url or "").strip()
-    if internal:
-        return internal.rstrip("/")
     return "http://operator-console:3000"
 
 
