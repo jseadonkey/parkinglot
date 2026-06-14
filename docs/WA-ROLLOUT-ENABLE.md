@@ -22,9 +22,9 @@ This will:
 
 Configured in `config/wa_statewide_rollout.yaml`:
 
-- Wait after each county ≈ **0.5 days + 0.05 × (parcels ÷ 10,000)**, capped at **2 days**
-- Small county (~5k parcels) → ~0.5 days before the next
-- Large county (~120k parcels) → ~1.1 days
+- Wait after each county ≈ **0.25 days + 0.025 × (parcels ÷ 10,000)**, capped at **1 day**
+- Small county (~5k parcels) → ~0.26 days before the next
+- Large county (~120k parcels) → ~0.55 days
 - Skips starting a county if **parking queue > 400**
 
 ## Check progress later

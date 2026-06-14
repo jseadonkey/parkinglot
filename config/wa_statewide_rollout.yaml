@@ -49,10 +49,10 @@ county_fips_priority:
 watech_max_features: null
 
 # Cooldown before the next county — keeps WA ingest moving while queue/load guards
-# still prevent overlap. Large counties should wait about a day, not a week+.
-min_days_base: 0.5
-min_days_per_10k_parcels: 0.05
-min_days_max: 2
+# still prevent overlap. Large counties should wait about half a day, not a week+.
+min_days_base: 0.25
+min_days_per_10k_parcels: 0.025
+min_days_max: 1
 # Legacy flat wait (used only if min_days_base / min_days_per_10k_parcels are omitted):
 # min_days_between_counties: 7
 
