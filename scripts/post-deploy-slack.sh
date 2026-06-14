@@ -112,6 +112,28 @@ _compose_api_post() {
   return 1
 }
 
+_compose_ops_refresh() {
+  cd "$ROOT"
+  docker compose "${ARGS[@]}" exec -T api python - <<'PY'
+import json
+
+from app.tasks import ops_remediation_loop, site_watchdog_check, wa_statewide_rollout_tick
+
+
+def emit(name, fn):
+    try:
+        result = fn()
+    except Exception as exc:
+        result = {"ok": False, "error": repr(exc)}
+    print(json.dumps({name: result}, default=str, sort_keys=True))
+
+
+emit("site_watchdog", site_watchdog_check)
+emit("ops_remediation", ops_remediation_loop)
+emit("wa_rollout", wa_statewide_rollout_tick)
+PY
+}
+
 if [[ "$MODE" != "none" ]]; then
   echo "Waiting for API after compose (alembic + uvicorn may take up to ~90s)…"
   sleep "${POST_DEPLOY_INITIAL_WAIT:-25}"
@@ -178,11 +200,7 @@ case "$MODE" in
     curl_post "/internal/slack/agent-discussion-now"
     ;;
   ops-refresh)
-    curl_post "/internal/watchdog/run-now"
-    sleep "${POST_DEPLOY_WATCHDOG_WAIT:-45}"
-    curl_post "/internal/ops/run-now"
-    sleep "${POST_DEPLOY_OPS_WAIT:-20}"
-    curl_post "/internal/ingest/wa-rollout-now"
+    _compose_ops_refresh
     ;;
   all|full)
     curl_post "/internal/slack/full-update-now"
