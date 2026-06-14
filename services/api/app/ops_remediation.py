@@ -657,7 +657,10 @@ def apply_remediation(
             continue
         seen_actions.add(action)
 
-        if not auto_fix:
+        lightweight_watchdog_refresh = action == "run_site_watchdog" and bool(
+            settings.ops_remediation_auto_fix,
+        )
+        if not auto_fix and not lightweight_watchdog_refresh:
             actions.append(
                 RemediationAction(action=action, status="skipped_disabled", detail="auto_fix off"),
             )

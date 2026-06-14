@@ -94,3 +94,46 @@ def test_assess_counts_pipeline_funnel_as_actionable_score_gap() -> None:
         out = assess_load_pressure(_settings(), cached_ops_report=report)
     assert out["pressure_level"] == "yellow"
     assert out["score_gaps"] == 1_500
+
+
+def test_assess_does_not_pause_rollout_for_operator_ui_only_watchdog_failure() -> None:
+    watchdog = {
+        "ok": False,
+        "checks": [
+            {
+                "name": "operator_ui",
+                "ok": False,
+                "detail": "https://vspecialist.com/operator — timed out",
+            },
+        ],
+    }
+    with (
+        patch("app.load_governor.inspect_redis_queues", return_value={"parking_depth": 0}),
+        patch("app.load_governor.inspect_celery_workers", return_value={"ok": True}),
+        patch("app.load_governor.load_watchdog_report", return_value=watchdog),
+        patch("app.load_governor.load_last_report", return_value=None),
+    ):
+        out = assess_load_pressure(_settings())
+    assert out["pressure_level"] == "green"
+    assert out["wa_rollout_allowed"] is True
+    assert out["signals"] == []
+
+
+def test_assess_pauses_rollout_for_api_watchdog_failure() -> None:
+    watchdog = {
+        "ok": False,
+        "checks": [
+            {"name": "operator_ui", "ok": False, "detail": "timed out"},
+            {"name": "api_ready", "ok": False, "detail": "HTTP 503"},
+        ],
+    }
+    with (
+        patch("app.load_governor.inspect_redis_queues", return_value={"parking_depth": 0}),
+        patch("app.load_governor.inspect_celery_workers", return_value={"ok": True}),
+        patch("app.load_governor.load_watchdog_report", return_value=watchdog),
+        patch("app.load_governor.load_last_report", return_value=None),
+    ):
+        out = assess_load_pressure(_settings())
+    assert out["pressure_level"] == "orange"
+    assert out["wa_rollout_allowed"] is False
+    assert out["signals"] == [{"code": "site_watchdog_failed", "failures": ["api_ready"]}]
