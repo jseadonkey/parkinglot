@@ -10,7 +10,7 @@ This is **not** the Slack pipeline digest (`slack_agent_digest`), which reports 
 |-------|----------------|
 | `GET /health` | Droplet Celery + GitHub Actions (external) |
 | `GET /ready` (Postgres) | Droplet Celery + GitHub Actions (external) |
-| Operator UI `/operator` | Droplet Celery + GitHub Actions (external) |
+| Operator UI `/operator` | Droplet Celery (internal Docker URL) + GitHub Actions (external public URL) |
 | Postgres `SELECT 1` | Droplet Celery |
 | Redis ping + parking queue depth | Droplet Celery |
 | Root disk usage | GitHub Actions (SSH host `df`, not inside API container) |
@@ -41,12 +41,17 @@ Alerts use plain text (not the pipeline Block Kit digest).
 ```bash
 SITE_WATCHDOG_ENABLED=true
 SITE_WATCHDOG_UI_BASE_URL=https://vspecialist.com
+SITE_WATCHDOG_INTERNAL_UI_URL=http://operator-console:3000
 # Optional: dedicated channel; else agents or digest channel
 # SITE_WATCHDOG_SLACK_CHANNEL_ID=C...
 SITE_WATCHDOG_PARKING_QUEUE_WARN=50000
 SITE_WATCHDOG_HEARTBEAT_HOURS=1
 SITE_WATCHDOG_CRONTAB_MINUTE=0
 ```
+
+On the Droplet, Celery prefers `SITE_WATCHDOG_INTERNAL_UI_URL` so the app-side watchdog
+does not depend on public DNS/TLS hostnames. GitHub Actions still verifies the public
+operator URL from outside the Droplet.
 
 ## Manual runs
 
