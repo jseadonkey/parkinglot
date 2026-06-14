@@ -1,0 +1,4 @@
+{
+  "requested_at": "2026-06-14T18:12:00Z",
+  "reason": "Trigger Deploy to Droplet for merged watchdog and WA rollout governor fixes"
+}
