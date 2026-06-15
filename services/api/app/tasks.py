@@ -63,6 +63,7 @@ from app.slack_digest import (
 )
 from app.storage import put_text_object
 from app.wa_statewide_rollout import (
+    county_ingest_lock_key,
     load_rollout_config,
     merge_rollout_config,
     next_county_to_ingest,
@@ -899,6 +900,24 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
         if county is None:
             return {"skipped": True, "reason": "all_priority_counties_have_parcels"}
 
+        try:
+            import redis
+
+            lock_client = redis.from_url(settings.redis_url)
+            try:
+                ttl = int(lock_client.ttl(county_ingest_lock_key(county)) or 0)
+            finally:
+                lock_client.close()
+            if ttl > 0:
+                return {
+                    "skipped": True,
+                    "reason": "watech_county_ingest_already_running",
+                    "county_fips": county,
+                    "lock_ttl_sec": ttl,
+                }
+        except Exception:
+            logger.exception("wa_statewide_rollout_tick: could not inspect county ingest lock")
+
         max_feat = rollout.get("watech_max_features")
         max_features: int | None
         if max_feat is None or max_feat == "":
@@ -1035,38 +1054,77 @@ def fetch_watech_county_and_ingest(
 
     from parking_ingestion.watech_parcels import fetch_county_geojson
 
-    collection = fetch_county_geojson(county_fips, max_features=max_features)
-    nfeat = len(collection.get("features", []))
-    if nfeat == 0:
+    settings = get_settings()
+    lock_key = county_ingest_lock_key(county_fips)
+    lock_token = uuid.uuid4().hex
+    lock_ttl_sec = 24 * 60 * 60
+    lock_client = None
+    release_lock = False
+    try:
+        import redis
+
+        lock_client = redis.from_url(settings.redis_url)
+        acquired = bool(lock_client.set(lock_key, lock_token, nx=True, ex=lock_ttl_sec))
+        if not acquired:
+            ttl = int(lock_client.ttl(lock_key) or 0)
+            return {
+                "skipped": True,
+                "reason": "watech_county_ingest_already_running",
+                "county_fips": county_fips,
+                "lock_ttl_sec": ttl,
+            }
+        release_lock = True
+
+        collection = fetch_county_geojson(county_fips, max_features=max_features)
+        nfeat = len(collection.get("features", []))
+        if nfeat == 0:
+            return {
+                "county_fips": county_fips,
+                "parcel_features": 0,
+                "ingest_task_id": None,
+                "warning": "no features returned (check county FIPS or layer availability)",
+            }
+
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".geojson",
+            delete=False,
+            encoding="utf-8",
+        ) as tmp:
+            json.dump(collection, tmp)
+            tmp_path = tmp.name
+
+        ar = ingest_geojson_path.delay(
+            tmp_path,
+            default_county_fips=county_fips,
+            auto_run_pipeline=auto_run_pipeline,
+            max_auto_pipeline=max_auto_pipeline,
+            delete_after=True,
+        )
+        # Keep the per-county lock until the TTL expires so the queued ingest can
+        # finish before another manual/Beat kick starts the same county again.
+        release_lock = False
         return {
             "county_fips": county_fips,
-            "parcel_features": 0,
-            "ingest_task_id": None,
-            "warning": "no features returned (check county FIPS or layer availability)",
+            "parcel_features": nfeat,
+            "ingest_task_id": ar.id,
+            "max_features_cap": max_features,
+            "lock_ttl_sec": lock_ttl_sec,
         }
-
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        suffix=".geojson",
-        delete=False,
-        encoding="utf-8",
-    ) as tmp:
-        json.dump(collection, tmp)
-        tmp_path = tmp.name
-
-    ar = ingest_geojson_path.delay(
-        tmp_path,
-        default_county_fips=county_fips,
-        auto_run_pipeline=auto_run_pipeline,
-        max_auto_pipeline=max_auto_pipeline,
-        delete_after=True,
-    )
-    return {
-        "county_fips": county_fips,
-        "parcel_features": nfeat,
-        "ingest_task_id": ar.id,
-        "max_features_cap": max_features,
-    }
+    finally:
+        if lock_client is not None:
+            if release_lock:
+                try:
+                    lock_client.eval(
+                        "if redis.call('get', KEYS[1]) == ARGV[1] then "
+                        "return redis.call('del', KEYS[1]) else return 0 end",
+                        1,
+                        lock_key,
+                        lock_token,
+                    )
+                except Exception:
+                    logger.exception("fetch_watech_county_and_ingest: could not release lock")
+            lock_client.close()
 
 
 def _governed_pipeline_limit(requested: int) -> tuple[int, dict[str, Any] | None]:

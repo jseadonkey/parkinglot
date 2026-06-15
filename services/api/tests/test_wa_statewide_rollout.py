@@ -4,6 +4,7 @@ from pathlib import Path
 
 from app.wa_statewide_rollout import (
     cooldown_days_after_county,
+    county_ingest_lock_key,
     county_priority_list,
     next_county_to_ingest,
 )
@@ -33,6 +34,11 @@ def test_cooldown_scales_with_parcel_count() -> None:
 
 def test_cooldown_legacy_flat_week() -> None:
     assert cooldown_days_after_county(1_000, {"min_days_between_counties": 7}) == 7.0
+
+
+def test_county_ingest_lock_key_is_county_scoped() -> None:
+    assert county_ingest_lock_key(" 53063 ") == "wa_statewide_rollout:county-ingest:53063"
+    assert county_ingest_lock_key("53011") != county_ingest_lock_key("53063")
 
 
 def test_next_county_skips_loaded(monkeypatch) -> None:
