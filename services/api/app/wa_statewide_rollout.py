@@ -108,6 +108,11 @@ def parking_queue_depth(redis_url: str) -> int:
         client.close()
 
 
+def county_ingest_lock_key(county_fips: str) -> str:
+    """Redis key used to prevent overlapping WaTech ingest jobs for one county."""
+    return f"wa_statewide_rollout:county-ingest:{county_fips.strip()}"
+
+
 def next_county_to_ingest(
     db: Session,
     *,
