@@ -1,4 +1,4 @@
-.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay validate-jurisdictions address-coverage-report address-health-agent generate-wa-jurisdiction-registry zoning-governance build-baltimore-zoning-overlay baltimore-zoning-tiers baltimore-phase-b-local deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local lob-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help cursor-droplet run-crew-tests crew-audit crew-audit-droplet
+.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay validate-jurisdictions address-coverage-report address-health-agent generate-wa-jurisdiction-registry zoning-governance zoning-followup-report build-baltimore-zoning-overlay baltimore-zoning-tiers baltimore-phase-b-local deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local lob-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help cursor-droplet run-crew-tests crew-audit crew-audit-droplet
 
 help:
 	@echo "Targets:"
@@ -16,6 +16,7 @@ help:
 	@echo "  make address-health-agent     - 12h-style review + source rotation (needs DATABASE_URL on Droplet)"
 	@echo "  make generate-wa-jurisdiction-registry - refresh 102-row city/county registry CSV"
 	@echo "  make zoning-governance  - validate jurisdiction zoning curation coverage for pilot/priority counties"
+	@echo "  make zoning-followup-report - report parcel-loaded WA counties still needing zoning"
 	@echo "  make build-baltimore-zoning-overlay - fetch parcels+zoning and build MD overlay GeoJSON (no DATABASE_URL)"
 	@echo "  make baltimore-zoning-tiers   - print tier counts from local overlay GeoJSON"
 	@echo "  make baltimore-phase-b-local  - fetch, build overlay, validate, summarize (no DATABASE_URL)"
@@ -118,6 +119,9 @@ generate-wa-jurisdiction-registry:
 
 zoning-governance:
 	@python3 scripts/check_zoning_governance.py
+
+zoning-followup-report:
+	@python3 scripts/zoning_followup_report.py
 
 build-baltimore-zoning-overlay:
 	@chmod +x scripts/fetch_baltimore_city_parcels.py scripts/fetch_baltimore_zoning_districts.py scripts/build_baltimore_zoning_overlay.py

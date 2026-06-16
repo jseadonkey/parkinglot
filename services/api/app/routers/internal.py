@@ -128,6 +128,7 @@ from app.wa_statewide_rollout import (
     parking_queue_depth,
     wa_rollout_cooldown_state,
 )
+from app.wa_zoning_followup import build_zoning_followup_summary
 from parking_core.pilot import load_pilot_config
 
 router = APIRouter(
@@ -876,6 +877,11 @@ def wa_rollout_status(db: Session = Depends(get_db)) -> WaRolloutStatusResponse:
         WaRolloutCountyRow(county_fips=fips, parcels_in_db=counts.get(fips, 0))
         for fips in priority
     ]
+    zoning_followup = build_zoning_followup_summary(
+        parcel_counts=counts,
+        registry_path=settings.wa_jurisdiction_registry_path,
+        priority_order=priority,
+    )
     return WaRolloutStatusResponse(
         rollout_enabled=settings.wa_statewide_rollout_enabled,
         next_county_fips=next_fips,
@@ -889,6 +895,7 @@ def wa_rollout_status(db: Session = Depends(get_db)) -> WaRolloutStatusResponse:
         last_ingested_county_fips=cooldown.get("last_county_fips"),
         last_ingested_county_parcels=cooldown.get("last_county_parcels_in_db"),
         counties=rows,
+        zoning_followup=zoning_followup,
     )
 
 

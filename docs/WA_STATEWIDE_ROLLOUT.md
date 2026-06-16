@@ -54,11 +54,23 @@ Restart **worker** + **beat** after deploy (new API image includes the task).
 ## Manual / status
 
 ```bash
-GET  /internal/ingest/wa-rollout-status   # counties loaded vs remaining
+GET  /internal/ingest/wa-rollout-status   # counties loaded vs remaining + zoning follow-up queue
 POST /internal/ingest/wa-rollout-now      # start next county now (if queue OK)
 ```
 
-From GitHub Actions: **Droplet resources** → `wa_rollout_status` or `wa_rollout_now`.
+From GitHub Actions: **Droplet resources** → `wa_rollout_status`, `zoning_followup_report`, or `wa_rollout_now`.
+
+After each county's parcel count becomes non-zero, the `zoning_followup` block on
+`wa-rollout-status` flags that county until the WA jurisdiction registry shows
+trusted zoning coverage (`qa_passed` / `curated`) for its registered city and
+unincorporated jurisdictions. The command-line equivalent is:
+
+```bash
+make zoning-followup-report
+```
+
+On the Droplet, that target uses `DATABASE_URL`; in GitHub Actions the
+`zoning_followup_report` input feeds live rollout JSON into the same reporter.
 
 ## Progress expectation
 

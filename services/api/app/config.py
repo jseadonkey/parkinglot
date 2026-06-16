@@ -45,6 +45,10 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("ZONING_RULES_PATH", "zoning_rules_path"),
     )
+    wa_jurisdiction_registry_path: str = Field(
+        default="data/jurisdictions/wa/jurisdiction_registry.csv",
+        validation_alias=AliasChoices("WA_JURISDICTION_REGISTRY_PATH", "wa_jurisdiction_registry_path"),
+    )
     storage_endpoint: str = "http://localhost:9000"
     storage_access_key: str = "minio"
     storage_secret_key: str = "minio12345"

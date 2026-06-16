@@ -18,6 +18,33 @@ Every pilot county must have an entry in `data/zoning/governance.yaml`.
 Priority counties in `config/geo_markets.yaml` must be `curated`; otherwise
 `make zoning-governance` fails.
 
+## Parcel-loaded county follow-up
+
+Parcel ingest and zoning curation are separate. For Washington, the WaTech parcel
+rollout can load a county before that county's city/county zoning sources are
+ready. To keep that gap visible, run:
+
+```bash
+make zoning-followup-report
+```
+
+With `DATABASE_URL` set, this reads live parcel counts and reports every
+parcel-loaded WA county whose jurisdiction registry rows are not yet trusted.
+The same summary is embedded as `zoning_followup` in:
+
+```bash
+GET /internal/ingest/wa-rollout-status
+```
+
+Status interpretation:
+
+- `needs_source_discovery` — parcels exist, but registry zoning rows are still
+  `not_started`; find official GIS/use-table sources next.
+- `in_progress` — a source/layer/rules draft exists; finish joins and QA.
+- `blocked` — a public-source blocker exists; choose another source or vendor.
+- `trusted` — registered jurisdictions are `qa_passed` / `curated` or
+  `not_applicable`.
+
 ## Scoring policy
 
 - **Permitted / full credit:** only local by-right symbols (Baltimore `P`).

@@ -66,7 +66,11 @@ on:
         type: boolean
         default: false
       wa_rollout_status:
-        description: "Print statewide county ingest progress JSON"
+        description: "Print statewide county ingest progress JSON (includes zoning follow-up)"
+        type: boolean
+        default: false
+      zoning_followup_report:
+        description: "Print parcel-loaded WA counties still needing zoning source/join/QA"
         type: boolean
         default: false
       enable_priority_pipeline:
@@ -161,6 +165,8 @@ jobs:
             MODE="wa-rollout-now"
           elif [ "${{ inputs.wa_rollout_status }}" = "true" ]; then
             MODE="wa-rollout-status"
+          elif [ "${{ inputs.zoning_followup_report }}" = "true" ]; then
+            MODE="zoning-followup-report"
           elif [ "${{ inputs.enable_priority_pipeline }}" = "true" ]; then
             MODE="enable-priority-pipeline"
           elif [ "${{ inputs.pause_wa_statewide_rollout }}" = "true" ]; then

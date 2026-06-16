@@ -257,6 +257,27 @@ class WaRolloutCountyRow(BaseModel):
     parcels_in_db: int
 
 
+class WaZoningFollowupCountyRow(BaseModel):
+    county_fips: str
+    parcels_in_db: int
+    zoning_status: str
+    needs_followup: bool
+    jurisdiction_count: int
+    jurisdiction_status_counts: dict[str, int]
+    sample_jurisdictions: list[str]
+    next_action: str
+
+
+class WaZoningFollowupSummary(BaseModel):
+    registry_path: str
+    loaded_counties: int
+    trusted_counties: int
+    followup_counties: int
+    blocked_counties: int
+    next_county_needing_zoning: str | None
+    counties: list[WaZoningFollowupCountyRow]
+
+
 class WaRolloutStatusResponse(BaseModel):
     """GET /internal/ingest/wa-rollout-status — slow statewide county ingest progress."""
 
@@ -272,6 +293,7 @@ class WaRolloutStatusResponse(BaseModel):
     last_ingested_county_fips: str | None = None
     last_ingested_county_parcels: int | None = None
     counties: list[WaRolloutCountyRow]
+    zoning_followup: WaZoningFollowupSummary | None = None
 
 
 class EnqueueUnscoredResponse(BaseModel):

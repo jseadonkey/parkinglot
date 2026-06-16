@@ -1116,6 +1116,17 @@ PY
       echo "INTERNAL_API_KEY not set"
     fi
     ;;
+  zoning-followup-report)
+    echo "=== WA rollout status → zoning follow-up report ==="
+    if [ -z "$KEY" ]; then
+      echo "INTERNAL_API_KEY not set"
+      exit 1
+    fi
+    tmp="$(mktemp)"
+    _internal_api_get "/internal/ingest/wa-rollout-status" > "$tmp"
+    python3 scripts/zoning_followup_report.py --rollout-status-json "$tmp"
+    rm -f "$tmp"
+    ;;
   wa-rollout-now)
     echo "=== POST /internal/ingest/wa-rollout-now (enqueue next county) ==="
     if [ -n "$KEY" ]; then
