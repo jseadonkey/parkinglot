@@ -66,9 +66,12 @@ from app.wa_statewide_rollout import (
     load_rollout_config,
     merge_rollout_config,
     next_county_to_ingest,
+    parcel_counts_by_county,
     parking_queue_depth,
     wa_rollout_cooldown_state,
+    wa_rollout_pending_ingest_state,
 )
+from app.wa_zoning_followup import build_zoning_followup_summary
 from app.zoning_entitlement import effective_zoning_code, parcel_zoning_symbol, parcel_zoning_tier
 from parking_core.models import OwnerCandidate, ParcelFeature, ScoreResult
 from parking_core.pilot import PilotConfig, load_pilot_config
@@ -81,6 +84,71 @@ from parking_scoring.engine import score_parcel
 from parking_workflows.state import WorkflowStatus, WorkflowStep
 
 logger = logging.getLogger(__name__)
+
+
+def _record_wa_zoning_followups_after_ingest(
+    db: Session,
+    *,
+    county_touches: dict[str, int],
+    source_path: str,
+) -> list[dict[str, Any]]:
+    """Create an explicit zoning acquisition follow-up when WA parcels land without trusted zoning."""
+    wa_counties = sorted(fips for fips, touched in county_touches.items() if fips.startswith("53") and touched > 0)
+    if not wa_counties:
+        return []
+
+    settings = get_settings()
+    counts = parcel_counts_by_county(db, wa_counties)
+    summary = build_zoning_followup_summary(
+        parcel_counts=counts,
+        registry_path=settings.wa_jurisdiction_registry_path,
+        priority_order=wa_counties,
+    )
+    followups = [row for row in summary.get("counties", []) if row.get("needs_followup")]
+    if not followups:
+        return []
+
+    for row in followups:
+        write_audit(
+            db,
+            actor="system",
+            action="wa_zoning_followup_required",
+            entity_type="county_fips",
+            entity_id=str(row["county_fips"]),
+            meta={
+                "source_path": source_path,
+                "parcels_touched_by_ingest": county_touches.get(str(row["county_fips"]), 0),
+                "parcels_in_db": row.get("parcels_in_db"),
+                "zoning_status": row.get("zoning_status"),
+                "jurisdiction_count": row.get("jurisdiction_count"),
+                "jurisdiction_status_counts": row.get("jurisdiction_status_counts"),
+                "next_action": row.get("next_action"),
+            },
+        )
+
+    from app.pilot_scope import COUNTY_DISPLAY_NAMES
+
+    bullets: list[str] = []
+    for row in followups[:5]:
+        fips = str(row["county_fips"])
+        name = COUNTY_DISPLAY_NAMES.get(fips, fips)
+        bullets.append(
+            f"• {name} (`{fips}`): {int(row.get('parcels_in_db') or 0):,} parcels · "
+            f"zoning `{row.get('zoning_status')}` · next: {row.get('next_action')}"
+        )
+    extra = ""
+    if len(followups) > len(bullets):
+        extra = f"\n• +{len(followups) - len(bullets)} more county/counties."
+    post_agent_event_to_slack(
+        settings,
+        agent="Zoning acquisition",
+        detail=(
+            "Parcel ingest found WA counties that still need trusted zoning sources/joins/QA.\n"
+            + "\n".join(bullets)
+            + extra
+        ),
+    )
+    return followups
 
 
 def enqueue_unscored_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
@@ -880,6 +948,16 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
 
     db = _session()
     try:
+        pending = wa_rollout_pending_ingest_state(db, merged)
+        if pending.get("pending"):
+            return {
+                "skipped": True,
+                "reason": "wa_rollout_pending_ingest",
+                "pending_county_fips": pending.get("pending_county_fips"),
+                "pending_age_days": pending.get("pending_age_days"),
+                "pending_lock_days": pending.get("pending_lock_days"),
+            }
+
         cooldown = wa_rollout_cooldown_state(db, merged)
         if not cooldown.get("ready"):
             return {
@@ -1159,6 +1237,7 @@ def ingest_geojson_path(
     inserted = 0
     updated = 0
     skipped = 0
+    county_touches: dict[str, int] = {}
     try:
         pilot = load_pilot_config(get_settings().pilot_config_path)
         zrp = (get_settings().zoning_rules_path or "").strip()
@@ -1234,6 +1313,7 @@ def ingest_geojson_path(
                 _upsert_identification_score(db, existing)
                 pid = str(existing.id)
                 updated += 1
+            county_touches[county] = county_touches.get(county, 0) + 1
             ids.append(pid)
         db.commit()
         write_audit(
@@ -1249,8 +1329,14 @@ def ingest_geojson_path(
                 "inserted": inserted,
                 "updated": updated,
                 "skipped": skipped,
+                "county_touches": county_touches,
                 "auto_run_pipeline": auto_run_pipeline,
             },
+        )
+        zoning_followups = _record_wa_zoning_followups_after_ingest(
+            db,
+            county_touches=county_touches,
+            source_path=path,
         )
         pipelines_enqueued = 0
         if auto_run_pipeline and ids:
@@ -1285,6 +1371,11 @@ def ingest_geojson_path(
         )
         if pipelines_enqueued:
             ingest_detail += f"\n• Scoring pipelines enqueued: *{pipelines_enqueued}* (prescreen-qualified)."
+        if zoning_followups:
+            ingest_detail += (
+                f"\n• Zoning follow-up opened for *{len(zoning_followups)}* WA county/counties "
+                "(source discovery / layer join / QA)."
+            )
         post_agent_event_to_slack(get_settings(), agent="Ingest agent", detail=ingest_detail)
         return {
             "parcel_ids": ids,
@@ -1292,6 +1383,8 @@ def ingest_geojson_path(
             "updated": updated,
             "skipped": skipped,
             "pipelines_enqueued": pipelines_enqueued,
+            "zoning_followup_required": len(zoning_followups),
+            "zoning_followup_counties": [str(row["county_fips"]) for row in zoning_followups],
         }
     finally:
         db.close()

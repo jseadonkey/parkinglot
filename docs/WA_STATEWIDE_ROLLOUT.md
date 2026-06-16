@@ -1,17 +1,17 @@
 # Washington statewide rollout (slow)
 
-**Paused by default** when `WA_STATEWIDE_ROLLOUT_ENABLED=false`. Use **`enable_slow_statewide_expansion`** on the Droplet to turn on **one county per day** while **keeping the priority pipeline** for top entitlement parcels.
+**Paused by default** when `WA_STATEWIDE_ROLLOUT_ENABLED=false`. Use **`enable_slow_statewide_expansion`** on the Droplet to turn on a **capacity-gated county loop** while **keeping the priority pipeline** for top entitlement parcels.
 
 Prioritize **top entitlement parcels** (deal context + `SCHEDULED_PRIORITY_PIPELINE_*`) — statewide ingest runs in parallel at a low rate, not instead of it.
 
-Adds **one new county at a time** from the public **WaTech** statewide parcel layer when the Celery **parking** queue is not overloaded. **Wait time before the next county scales with how many parcels the last county loaded** (small counties can advance in ~1 day; King-scale counties wait longer). King County is skipped once it already has rows in Postgres.
+Adds **one new county at a time** from the public **WaTech** statewide parcel layer when the Celery **parking** queue is not overloaded and the load governor says capacity is healthy enough. **Wait time before the next county scales with how many parcels the last county loaded**; an hourly Beat tick checks whether the next county can start. King County is skipped once it already has rows in Postgres.
 
 ## How it works
 
 | Piece | Role |
 |-------|------|
 | **`config/wa_statewide_rollout.yaml`** | County priority (Puget Sound first), pipeline cap per ingest, queue guard |
-| **Beat** `wa_statewide_rollout_tick` | Daily at **07:15 UTC** (default) |
+| **Beat** `wa_statewide_rollout_tick` | Hourly at **:15 UTC** by default; skips when cooldown/load/pending-ingest guards are active |
 | **Worker** `fetch_watech_county_and_ingest` | Downloads county GeoJSON from WaTech → `ingest_geojson_path` |
 | **Existing enqueue** | `SCHEDULED_ENQUEUE_*` continues draining pipeline backlog on loaded counties |
 
@@ -19,6 +19,7 @@ Default caps (tunable in `config/wa_statewide_rollout.yaml`):
 
 - **15** parcels get `run_pipeline` per new county ingest batch (`max_auto_pipeline`)
 - Skip a new county if **parking** queue depth **> 400**
+- Skip a duplicate start while the most recently started county has not landed rows yet (`pending_ingest_lock_days`, default **1.0**)
 - **Size-based cooldown** after each county (not a flat 7 days for everyone):
   - `min_days_base` (default **0.1**)
   - `+ min_days_per_10k_parcels` × (parcels in last county ÷ 10,000) (default **0.005**)
@@ -33,7 +34,7 @@ Default caps (tunable in `config/wa_statewide_rollout.yaml`):
 # GitHub Actions → Droplet resources → enable_slow_statewide_expansion = true
 ```
 
-This sets `WA_STATEWIDE_ROLLOUT_ENABLED=true`, keeps `SCHEDULED_PRIORITY_PIPELINE_ENABLED=true`, caps backlog enqueue at 75, and kickstarts the next county if the queue is healthy.
+This sets `WA_STATEWIDE_ROLLOUT_ENABLED=true`, checks hourly at `:15`, keeps `SCHEDULED_PRIORITY_PIPELINE_ENABLED=true`, caps backlog enqueue at 75, and kickstarts the next county if the queue is healthy.
 
 **Rollout only (no priority tweak):**
 

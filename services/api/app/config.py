@@ -318,7 +318,7 @@ class Settings(BaseSettings):
         ),
     )
 
-    # Slow WA statewide ingest: one new county per day via WaTech when parking queue is light.
+    # Slow WA statewide ingest: capacity-gated WaTech loop when parking queue is light.
     wa_statewide_rollout_enabled: bool = Field(
         default=False,
         validation_alias=AliasChoices(
@@ -340,10 +340,8 @@ class Settings(BaseSettings):
             "geo_markets_config_path",
         ),
     )
-    wa_statewide_rollout_crontab_hour: int = Field(
-        default=7,
-        ge=0,
-        le=23,
+    wa_statewide_rollout_crontab_hour: str = Field(
+        default="*",
         validation_alias=AliasChoices(
             "WA_STATEWIDE_ROLLOUT_CRONTAB_HOUR",
             "wa_statewide_rollout_crontab_hour",

@@ -98,6 +98,46 @@ def wa_rollout_cooldown_state(
     }
 
 
+def wa_rollout_pending_ingest_state(db: Session, config: dict[str, Any]) -> dict[str, Any]:
+    """Detect a county that has been started but has not landed rows yet."""
+    last = db.execute(
+        select(AuditLog)
+        .where(AuditLog.action == "wa_statewide_county_ingest")
+        .order_by(AuditLog.created_at.desc())
+        .limit(1),
+    ).scalar_one_or_none()
+    lock_days = float(config.get("pending_ingest_lock_days") or 1.0)
+    if last is None or last.created_at is None:
+        return {
+            "pending": False,
+            "pending_county_fips": None,
+            "pending_age_days": None,
+            "pending_lock_days": lock_days,
+        }
+
+    county = str(last.entity_id or "").strip()
+    if not county:
+        return {
+            "pending": False,
+            "pending_county_fips": None,
+            "pending_age_days": None,
+            "pending_lock_days": lock_days,
+        }
+
+    parcels = parcel_counts_by_county(db, [county]).get(county, 0)
+    created = last.created_at
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=UTC)
+    age_days = (datetime.now(UTC) - created).total_seconds() / 86400.0
+    pending = parcels <= 0 and age_days < lock_days
+    return {
+        "pending": pending,
+        "pending_county_fips": county if pending else None,
+        "pending_age_days": round(age_days, 2) if pending else None,
+        "pending_lock_days": lock_days,
+    }
+
+
 def parking_queue_depth(redis_url: str) -> int:
     import redis
 

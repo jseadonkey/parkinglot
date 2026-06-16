@@ -30,7 +30,7 @@ on:
         type: boolean
         default: false
       enable_wa_statewide_rollout:
-        description: "Enable daily WaTech ingest for next empty WA county + restart worker/beat"
+        description: "Enable capacity-gated WaTech ingest loop for next empty WA county + restart worker/beat"
         type: boolean
         default: false
       prioritize_baltimore_market:

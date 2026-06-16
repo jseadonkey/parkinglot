@@ -1,4 +1,4 @@
-# Slow statewide parcel ingest: one county per day (WaTech), Puget Sound first.
+# Slow statewide parcel ingest: one county at a time (WaTech), Puget Sound first.
 # See docs/WA_STATEWIDE_ROLLOUT.md and Beat task app.tasks.wa_statewide_rollout_tick.
 #
 # Run together with SCHEDULED_PRIORITY_PIPELINE_* so top King/Puget parcels still get
@@ -61,3 +61,7 @@ max_auto_pipeline: 15
 
 # Skip starting a new county if parking Celery queue is deeper than this.
 max_parking_queue_depth: 400
+
+# When the hourly rollout loop starts a county, do not start the same zero-row
+# county again until this lock expires. This protects long downloads/retries.
+pending_ingest_lock_days: 1.0

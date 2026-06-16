@@ -127,6 +127,7 @@ from app.wa_statewide_rollout import (
     parcel_counts_by_county,
     parking_queue_depth,
     wa_rollout_cooldown_state,
+    wa_rollout_pending_ingest_state,
 )
 from app.wa_zoning_followup import build_zoning_followup_summary
 from parking_core.pilot import load_pilot_config
@@ -868,6 +869,7 @@ def wa_rollout_status(db: Session = Depends(get_db)) -> WaRolloutStatusResponse:
     with_data = sum(1 for f in priority if counts.get(f, 0) > 0)
     next_fips = next_county_to_ingest(db, config=rollout, pilot_config_path=settings.pilot_config_path)
     cooldown = wa_rollout_cooldown_state(db, merged)
+    pending = wa_rollout_pending_ingest_state(db, merged)
     q_depth: int | None = None
     try:
         q_depth = parking_queue_depth(settings.redis_url)
@@ -894,6 +896,9 @@ def wa_rollout_status(db: Session = Depends(get_db)) -> WaRolloutStatusResponse:
         days_since_last_county_ingest=cooldown.get("days_since_last_ingest"),
         last_ingested_county_fips=cooldown.get("last_county_fips"),
         last_ingested_county_parcels=cooldown.get("last_county_parcels_in_db"),
+        pending_ingest_county_fips=pending.get("pending_county_fips"),
+        pending_ingest_age_days=pending.get("pending_age_days"),
+        pending_ingest_lock_days=pending.get("pending_lock_days"),
         counties=rows,
         zoning_followup=zoning_followup,
     )

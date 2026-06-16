@@ -292,6 +292,9 @@ class WaRolloutStatusResponse(BaseModel):
     days_since_last_county_ingest: float | None = None
     last_ingested_county_fips: str | None = None
     last_ingested_county_parcels: int | None = None
+    pending_ingest_county_fips: str | None = None
+    pending_ingest_age_days: float | None = None
+    pending_ingest_lock_days: float | None = None
     counties: list[WaRolloutCountyRow]
     zoning_followup: WaZoningFollowupSummary | None = None
 

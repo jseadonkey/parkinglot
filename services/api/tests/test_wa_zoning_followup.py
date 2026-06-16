@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
+from unittest.mock import MagicMock
 
 from app.wa_zoning_followup import build_zoning_followup_summary, summarize_county_zoning
 
@@ -94,3 +95,64 @@ def test_followup_summary_orders_loaded_counties_by_rollout_priority(tmp_path: P
     assert out["followup_counties"] == 1
     assert out["next_county_needing_zoning"] == "53063"
     assert [row["county_fips"] for row in out["counties"]] == ["53033", "53063"]
+
+
+def test_ingest_hook_records_zoning_followup_for_loaded_wa_county(monkeypatch) -> None:
+    from app import tasks
+
+    audits: list[dict[str, object]] = []
+    slack = MagicMock()
+
+    monkeypatch.setattr(tasks, "get_settings", lambda: MagicMock(wa_jurisdiction_registry_path="registry.csv"))
+    monkeypatch.setattr(tasks, "parcel_counts_by_county", lambda _db, counties: {counties[0]: 123})
+    monkeypatch.setattr(
+        tasks,
+        "build_zoning_followup_summary",
+        lambda **_kwargs: {
+            "counties": [
+                {
+                    "county_fips": "53063",
+                    "parcels_in_db": 123,
+                    "zoning_status": "needs_source_discovery",
+                    "needs_followup": True,
+                    "jurisdiction_count": 3,
+                    "jurisdiction_status_counts": {"not_started": 3},
+                    "next_action": "Find official zoning GIS/use-table sources.",
+                },
+            ],
+        },
+    )
+    monkeypatch.setattr(tasks, "post_agent_event_to_slack", slack)
+
+    def fake_write_audit(_db, **kwargs):
+        audits.append(kwargs)
+
+    monkeypatch.setattr(tasks, "write_audit", fake_write_audit)
+
+    out = tasks._record_wa_zoning_followups_after_ingest(
+        MagicMock(),
+        county_touches={"53063": 10},
+        source_path="/tmp/spokane.geojson",
+    )
+
+    assert [row["county_fips"] for row in out] == ["53063"]
+    assert audits[0]["action"] == "wa_zoning_followup_required"
+    assert audits[0]["entity_id"] == "53063"
+    assert audits[0]["meta"]["parcels_touched_by_ingest"] == 10
+    slack.assert_called_once()
+
+
+def test_ingest_hook_ignores_non_wa_counties(monkeypatch) -> None:
+    from app import tasks
+
+    parcel_counts = MagicMock()
+    monkeypatch.setattr(tasks, "parcel_counts_by_county", parcel_counts)
+
+    out = tasks._record_wa_zoning_followups_after_ingest(
+        MagicMock(),
+        county_touches={"24510": 100},
+        source_path="/tmp/baltimore.geojson",
+    )
+
+    assert out == []
+    parcel_counts.assert_not_called()

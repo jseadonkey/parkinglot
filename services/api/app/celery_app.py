@@ -140,7 +140,7 @@ if _s.exploration_campaign_enabled:
     )
 
 if _s.wa_statewide_rollout_enabled:
-    beat_schedule["wa-statewide-rollout-daily"] = {
+    beat_schedule["wa-statewide-rollout-loop"] = {
         "task": "app.tasks.wa_statewide_rollout_tick",
         "schedule": crontab(
             minute=_s.wa_statewide_rollout_crontab_minute,
@@ -148,7 +148,7 @@ if _s.wa_statewide_rollout_enabled:
         ),
     }
     logger.info(
-        "Beat: WA statewide rollout (one county/day) at %02d:%02d UTC",
+        "Beat: WA statewide rollout loop — hour=%s minute=%02d UTC",
         _s.wa_statewide_rollout_crontab_hour,
         _s.wa_statewide_rollout_crontab_minute,
     )
