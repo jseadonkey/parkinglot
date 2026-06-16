@@ -5,7 +5,6 @@ from pathlib import Path
 
 from app.wa_zoning_followup import build_zoning_followup_summary, summarize_county_zoning
 
-
 FIELDS = [
     "state_fips",
     "county_fips",
