@@ -1135,36 +1135,6 @@ PY
       echo "INTERNAL_API_KEY not set"
     fi
     ;;
-  wa-ingest-county-now)
-    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
-    COUNTY_FIPS="${COUNTY_FIPS:-${2:-53063}}"
-    MAX_AUTO_PIPELINE="${MAX_AUTO_PIPELINE:-15}"
-    echo "=== POST /internal/ingest/watech-county for ${COUNTY_FIPS} ==="
-    if [ -z "$KEY" ]; then
-      echo "INTERNAL_API_KEY not set"
-      exit 1
-    fi
-    payload="$(python3 - <<'PY'
-import json
-import os
-
-print(json.dumps({
-    "county_fips": os.environ.get("COUNTY_FIPS", "53063"),
-    "max_features": None,
-    "auto_run_pipeline": True,
-    "max_auto_pipeline": int(os.environ.get("MAX_AUTO_PIPELINE", "15")),
-}))
-PY
-)"
-    body="$(_internal_api_post_via_container "/internal/ingest/watech-county" "$payload")"
-    printf '%s\n' "$body"
-    task_id="$(printf '%s' "$body" | python3 -c 'import json,sys; print((json.load(sys.stdin) or {}).get("fetch_task_id",""))' 2>/dev/null || true)"
-    if [ -n "$task_id" ]; then
-      echo "=== initial task status ${task_id} ==="
-      _internal_api_get "/internal/tasks/${task_id}" || true
-      echo ""
-    fi
-    ;;
   seed-king-rate-comps)
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
     ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
