@@ -43,7 +43,7 @@ jobs:
           REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
           [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
           ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "cd $(printf '%q' "$REMOTE_PATH") && TASK_ID=$(printf '%q' "$TASK_ID") docker compose -f deploy/docker-compose.production.ghcr.yml --env-file deploy/.env exec -T api python - <<'PY'
+            "cd $(printf '%q' "$REMOTE_PATH") && docker compose -f deploy/docker-compose.production.ghcr.yml --env-file deploy/.env exec -T -e TASK_ID=$(printf '%q' "$TASK_ID") api python - <<'PY'
           import json
           import os
           import urllib.request
