@@ -1,0 +1,70 @@
+name: Deploy branch to Droplet once
+
+on:
+  push:
+    branches:
+      - cursor/wa-zoning-followup-9516
+    paths:
+      - ".github/workflows/deploy-branch-to-droplet-once.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-branch-to-droplet-once
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Deploy branch source and rebuild stack
+        env:
+          DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+          DROPLET_USER: ${{ secrets.DROPLET_USER }}
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
+
+          source scripts/lib/droplet-target.sh
+          assert_droplet_target "$PWD/scripts/sync-to-droplet.sh" "$DROPLET_HOST" "$REMOTE_PATH" "$DROPLET_USER"
+
+          remote_id="$(ssh -oBatchMode=yes -oConnectTimeout=15 "${DROPLET_USER}@${DROPLET_HOST}" \
+            "cat '${REMOTE_PATH}/.droplet-project-id' 2>/dev/null || true" | tr -d '\r\n')"
+          if [ -z "$remote_id" ]; then
+            ssh -oBatchMode=yes -oConnectTimeout=15 "${DROPLET_USER}@${DROPLET_HOST}" \
+              "mkdir -p '${REMOTE_PATH}' && printf '%s\n' '${DROPLET_PROJECT_ID}' > '${REMOTE_PATH}/.droplet-project-id' && chmod 644 '${REMOTE_PATH}/.droplet-project-id'"
+          elif [ "$remote_id" != "$DROPLET_PROJECT_ID" ]; then
+            echo "Remote project marker mismatch for ${REMOTE_PATH}: expected ${DROPLET_PROJECT_ID}, got ${remote_id:-missing}" >&2
+            exit 1
+          fi
+
+          rsync -az --delete \
+            --exclude .git \
+            --exclude node_modules \
+            --exclude .venv \
+            --exclude __pycache__ \
+            --exclude .next \
+            --exclude '*.pyc' \
+            --exclude .env \
+            --exclude deploy/.env \
+            ./ "${DROPLET_USER}@${DROPLET_HOST}:$REMOTE_PATH/"
+
+          ssh -oBatchMode=yes "${DROPLET_USER}@${DROPLET_HOST}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && test -f deploy/.env && docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env up -d --build && docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env ps api worker worker-slack beat approval-ui operator-console && curl -fsSk --connect-timeout 15 --max-time 30 \$(grep -E '^PUBLIC_API_URL=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^\"//;s/\"$//')/ready"
