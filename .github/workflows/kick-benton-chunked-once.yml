@@ -1,0 +1,67 @@
+name: Kick Benton chunked once
+
+on:
+  push:
+    branches:
+      - cursor/wa-zoning-followup-9516
+    paths:
+      - ".github/workflows/kick-benton-chunked-once.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  kick:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Kick Benton and watch rows
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && bash -s" <<'EOS'
+          set -euo pipefail
+          COMPOSE=(docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env)
+          KEY="$(grep -E '^INTERNAL_API_KEY=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')"
+          echo "=== trigger Benton direct chunked ingest ==="
+          "${COMPOSE[@]}" exec -T -e INTERNAL_API_KEY="$KEY" api python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          payload = json.dumps({"county_fips": "53005", "max_features": None, "auto_run_pipeline": True, "max_auto_pipeline": 15}).encode()
+          headers = {"Accept": "application/json", "Content-Type": "application/json", "X-Internal-Key": os.environ["INTERNAL_API_KEY"]}
+          req = urllib.request.Request("http://127.0.0.1:8000/internal/ingest/watech-county", data=payload, method="POST", headers=headers)
+          with urllib.request.urlopen(req, timeout=60) as resp:
+              print(resp.read().decode())
+          PY
+          echo "=== poll Benton row count ==="
+          for i in $(seq 1 24); do
+            "${COMPOSE[@]}" exec -T api python - <<'PY'
+          from sqlalchemy import func, select
+          from app.db.models import Parcel
+          from app.db.session import SessionLocal
+          with SessionLocal() as db:
+              print(db.scalar(select(func.count()).select_from(Parcel).where(Parcel.county_fips == "53005")) or 0)
+          PY
+            sleep 10
+          done
+          echo "=== recent worker logs ==="
+          "${COMPOSE[@]}" logs --since 8m worker 2>&1 | grep -Ei '53005|watech|page=|inserted|updated|failed|error' | tail -120 || true
+          EOS
