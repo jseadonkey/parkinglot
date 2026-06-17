@@ -1107,15 +1107,75 @@ def fetch_watech_county_and_ingest(
     auto_run_pipeline: bool = True,
     max_auto_pipeline: int = 100,
 ) -> dict[str, Any]:
-    """Download WaTech public parcel polygons for one county; write temp GeoJSON; enqueue ``ingest_geojson_path``."""
+    """Download WaTech public parcel polygons for one county and ingest page-by-page."""
     import json
     import tempfile
 
-    from parking_ingestion.watech_parcels import fetch_county_geojson
+    from parking_ingestion.watech_parcels import iter_county_geojson_pages
 
-    collection = fetch_county_geojson(county_fips, max_features=max_features)
-    nfeat = len(collection.get("features", []))
-    if nfeat == 0:
+    total_features = 0
+    inserted = 0
+    updated = 0
+    skipped = 0
+    pipelines_enqueued = 0
+    page_count = 0
+    sample_parcel_ids: list[str] = []
+    ingest_results: list[dict[str, Any]] = []
+    remaining_pipeline_cap = max(0, max_auto_pipeline)
+
+    for page_count, collection in enumerate(
+        iter_county_geojson_pages(county_fips, max_features=max_features),
+        start=1,
+    ):
+        nfeat = len(collection.get("features", []))
+        if nfeat == 0:
+            continue
+        total_features += nfeat
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=f".{county_fips}.page-{page_count}.geojson",
+            delete=False,
+            encoding="utf-8",
+        ) as tmp:
+            json.dump(collection, tmp)
+            tmp_path = tmp.name
+
+        page_pipeline_cap = remaining_pipeline_cap if auto_run_pipeline else 0
+        result = ingest_geojson_path.run(
+            tmp_path,
+            default_county_fips=county_fips,
+            auto_run_pipeline=auto_run_pipeline and page_pipeline_cap > 0,
+            max_auto_pipeline=page_pipeline_cap,
+            delete_after=True,
+        )
+        inserted += int(result.get("inserted") or 0)
+        updated += int(result.get("updated") or 0)
+        skipped += int(result.get("skipped") or 0)
+        page_enqueued = int(result.get("pipelines_enqueued") or 0)
+        pipelines_enqueued += page_enqueued
+        remaining_pipeline_cap = max(0, remaining_pipeline_cap - page_enqueued)
+        sample_parcel_ids.extend([str(pid) for pid in (result.get("parcel_ids") or [])[:5]])
+        ingest_results.append(
+            {
+                "page": page_count,
+                "features": nfeat,
+                "inserted": result.get("inserted"),
+                "updated": result.get("updated"),
+                "skipped": result.get("skipped"),
+                "pipelines_enqueued": page_enqueued,
+            },
+        )
+        logger.info(
+            "fetch_watech_county_and_ingest: county=%s page=%s features=%s inserted=%s updated=%s skipped=%s",
+            county_fips,
+            page_count,
+            nfeat,
+            result.get("inserted"),
+            result.get("updated"),
+            result.get("skipped"),
+        )
+
+    if total_features == 0:
         return {
             "county_fips": county_fips,
             "parcel_features": 0,
@@ -1123,27 +1183,17 @@ def fetch_watech_county_and_ingest(
             "warning": "no features returned (check county FIPS or layer availability)",
         }
 
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        suffix=".geojson",
-        delete=False,
-        encoding="utf-8",
-    ) as tmp:
-        json.dump(collection, tmp)
-        tmp_path = tmp.name
-
-    ar = ingest_geojson_path.delay(
-        tmp_path,
-        default_county_fips=county_fips,
-        auto_run_pipeline=auto_run_pipeline,
-        max_auto_pipeline=max_auto_pipeline,
-        delete_after=True,
-    )
     return {
         "county_fips": county_fips,
-        "parcel_features": nfeat,
-        "ingest_task_id": ar.id,
+        "parcel_features": total_features,
+        "pages_ingested": page_count,
+        "inserted": inserted,
+        "updated": updated,
+        "skipped": skipped,
+        "pipelines_enqueued": pipelines_enqueued,
         "max_features_cap": max_features,
+        "sample_parcel_ids": sample_parcel_ids[:20],
+        "page_results_sample": ingest_results[:10],
     }
 
 
