@@ -106,7 +106,7 @@ def wa_rollout_pending_ingest_state(db: Session, config: dict[str, Any]) -> dict
         .order_by(AuditLog.created_at.desc())
         .limit(1),
     ).scalar_one_or_none()
-    lock_days = float(config.get("pending_ingest_lock_days") or 1.0)
+    lock_days = float(config.get("pending_ingest_lock_days") or 0.1)
     if last is None or last.created_at is None:
         return {
             "pending": False,

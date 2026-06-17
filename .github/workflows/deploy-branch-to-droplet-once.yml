@@ -1,4 +1,5 @@
 name: Deploy branch to Droplet once
+# Temporary branch deploy trigger for WA rollout pending-lock update.
 
 on:
   push:

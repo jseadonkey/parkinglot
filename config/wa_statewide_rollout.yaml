@@ -64,4 +64,4 @@ max_parking_queue_depth: 400
 
 # When the hourly rollout loop starts a county, do not start the same zero-row
 # county again until this lock expires. This protects long downloads/retries.
-pending_ingest_lock_days: 1.0
+pending_ingest_lock_days: 0.1
