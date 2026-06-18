@@ -1,0 +1,38 @@
+# Capacity-gated WA Phase B (zoning overlay merge) loop.
+# See docs/WA-PHASE-B-ROLLOUT.md and app.tasks.wa_phase_b_rollout_tick.
+#
+# Runs on Celery Beat when WA_PHASE_B_ROLLOUT_ENABLED=true. Respects load governor
+# and parking queue depth like the parcel ingest loop.
+
+# Same county order as parcel rollout — Phase B only runs after parcels exist.
+county_fips_priority:
+  - "53033"
+  - "53053"
+  - "53061"
+  - "53035"
+  - "53067"
+  - "53057"
+  - "53029"
+  - "53011"
+  - "53063"
+  - "53005"
+  - "53077"
+
+# Skip Phase B when fewer than this fraction of county parcels lack zoning_code.
+min_missing_zoning_pct: 1.0
+
+# Cooldown after starting/completing a county Phase B run (hours).
+min_hours_between_county_merges: 6
+
+# Do not start another county merge if one started within this lock and has not completed.
+pending_merge_lock_hours: 12
+
+max_parking_queue_depth: 300
+
+# Per-county overlay builder settings (worker-visible paths under /app/data/…).
+counties:
+  "53005":
+    auto_build_overlay: true
+    overlay_path: "/app/data/benton/benton_county_zoning_overlay.geojson"
+    cache_dir: "/app/data/benton"
+    max_merge_pipeline: 100

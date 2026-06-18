@@ -357,6 +357,38 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Capacity-gated WA Phase B (zoning overlay merge) when parking queue is light.
+    wa_phase_b_rollout_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "WA_PHASE_B_ROLLOUT_ENABLED",
+            "wa_phase_b_rollout_enabled",
+        ),
+    )
+    wa_phase_b_rollout_config_path: str = Field(
+        default="/app/config/wa_phase_b_rollout.yaml",
+        validation_alias=AliasChoices(
+            "WA_PHASE_B_ROLLOUT_CONFIG_PATH",
+            "wa_phase_b_rollout_config_path",
+        ),
+    )
+    wa_phase_b_rollout_crontab_hour: str = Field(
+        default="*",
+        validation_alias=AliasChoices(
+            "WA_PHASE_B_ROLLOUT_CRONTAB_HOUR",
+            "wa_phase_b_rollout_crontab_hour",
+        ),
+    )
+    wa_phase_b_rollout_crontab_minute: int = Field(
+        default=45,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "WA_PHASE_B_ROLLOUT_CRONTAB_MINUTE",
+            "wa_phase_b_rollout_crontab_minute",
+        ),
+    )
+
     # Address health agent (12h): catalog rotation + connector triggers (see config/operator_agents.yaml).
     address_health_agent_enabled: bool = Field(
         default=True,

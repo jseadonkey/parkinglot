@@ -69,6 +69,18 @@ on:
         description: "Print statewide county ingest progress JSON (includes zoning follow-up)"
         type: boolean
         default: false
+      enable_wa_phase_b_rollout:
+        description: "Enable hourly capacity-gated Phase B zoning merge loop + restart worker/beat"
+        type: boolean
+        default: false
+      wa_phase_b_rollout_status:
+        description: "Print Phase B zoning merge queue JSON"
+        type: boolean
+        default: false
+      wa_phase_b_rollout_now:
+        description: "Enqueue next county Phase B merge now (requires Phase B rollout enabled)"
+        type: boolean
+        default: false
       zoning_followup_report:
         description: "Print parcel-loaded WA counties still needing zoning source/join/QA"
         type: boolean
@@ -165,6 +177,12 @@ jobs:
             MODE="wa-rollout-now"
           elif [ "${{ inputs.wa_rollout_status }}" = "true" ]; then
             MODE="wa-rollout-status"
+          elif [ "${{ inputs.enable_wa_phase_b_rollout }}" = "true" ]; then
+            MODE="enable-wa-phase-b-rollout"
+          elif [ "${{ inputs.wa_phase_b_rollout_status }}" = "true" ]; then
+            MODE="wa-phase-b-rollout-status"
+          elif [ "${{ inputs.wa_phase_b_rollout_now }}" = "true" ]; then
+            MODE="wa-phase-b-rollout-now"
           elif [ "${{ inputs.zoning_followup_report }}" = "true" ]; then
             MODE="zoning-followup-report"
           elif [ "${{ inputs.enable_priority_pipeline }}" = "true" ]; then

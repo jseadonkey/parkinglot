@@ -107,6 +107,10 @@ See `docs/zoning-sources-benton.md` for source URLs, join keys, and registry sta
 Tri-Cities demand POIs in `config/pilot_identification.yaml` improve demand scoring after
 zoning credit is attached.
 
+**Scheduled merge:** enable `WA_PHASE_B_ROLLOUT_ENABLED=true` on the Droplet
+(see `docs/WA-PHASE-B-ROLLOUT.md`). The hourly Beat loop runs Phase B when load
+governor and queue depth allow — same capacity gates as parcel ingest.
+
 ## Progress expectation
 
 - **~38 counties** remain after King (~124k parcels already loaded).

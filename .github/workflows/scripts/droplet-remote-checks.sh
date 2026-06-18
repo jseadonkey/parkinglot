@@ -829,6 +829,50 @@ PY
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
     docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps worker beat
     ;;
+  enable-wa-phase-b-rollout)
+    echo "=== enable WA Phase B rollout loop (capacity-gated zoning merge) ==="
+    python3 - <<'PY'
+import pathlib
+
+path = pathlib.Path("deploy/.env")
+if not path.is_file():
+    raise SystemExit("deploy/.env missing")
+
+updates = {
+    "WA_PHASE_B_ROLLOUT_ENABLED": "true",
+    "WA_PHASE_B_ROLLOUT_CONFIG_PATH": "/app/config/wa_phase_b_rollout.yaml",
+    "WA_PHASE_B_ROLLOUT_CRONTAB_HOUR": "*",
+    "WA_PHASE_B_ROLLOUT_CRONTAB_MINUTE": "45",
+}
+lines = path.read_text(encoding="utf-8").splitlines()
+keys = set(updates)
+out: list[str] = []
+seen: set[str] = set()
+for line in lines:
+    if not line or line.lstrip().startswith("#") or "=" not in line:
+        out.append(line)
+        continue
+    key = line.split("=", 1)[0].strip()
+    if key in keys:
+        out.append(f"{key}={updates[key]}")
+        seen.add(key)
+    else:
+        out.append(line)
+missing = [k for k in keys if k not in seen]
+if missing:
+    if out and out[-1].strip():
+        out.append("")
+    out.append("# WA Phase B rollout — hourly zoning merge when queue is light")
+    for key in sorted(missing):
+        out.append(f"{key}={updates[key]}")
+path.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
+for key, val in sorted(updates.items()):
+    print(f"Set {key}={val}")
+PY
+    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
+    echo "=== recreate worker + beat ==="
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps api worker beat
+    ;;
   enable-wa-statewide-rollout)
     echo "=== enable WA statewide rollout loop (capacity-gated via WaTech) ==="
     python3 - <<'PY'
@@ -1131,6 +1175,22 @@ PY
     echo "=== POST /internal/ingest/wa-rollout-now (enqueue next county) ==="
     if [ -n "$KEY" ]; then
       _internal_api_post "/internal/ingest/wa-rollout-now" || echo "wa-rollout-now failed"
+    else
+      echo "INTERNAL_API_KEY not set"
+    fi
+    ;;
+  wa-phase-b-rollout-status)
+    echo "=== GET /internal/ingest/wa-phase-b-rollout-status ==="
+    if [ -n "$KEY" ]; then
+      _internal_api_get "/internal/ingest/wa-phase-b-rollout-status" || echo "wa-phase-b-rollout-status failed"
+    else
+      echo "INTERNAL_API_KEY not set"
+    fi
+    ;;
+  wa-phase-b-rollout-now)
+    echo "=== POST /internal/ingest/wa-phase-b-rollout-now (enqueue next county Phase B merge) ==="
+    if [ -n "$KEY" ]; then
+      _internal_api_post "/internal/ingest/wa-phase-b-rollout-now" || echo "wa-phase-b-rollout-now failed"
     else
       echo "INTERNAL_API_KEY not set"
     fi

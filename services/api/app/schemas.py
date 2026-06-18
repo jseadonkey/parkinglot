@@ -299,6 +299,31 @@ class WaRolloutStatusResponse(BaseModel):
     zoning_followup: WaZoningFollowupSummary | None = None
 
 
+class WaPhaseBCountyCandidateRow(BaseModel):
+    county_fips: str
+    ready: bool
+    skip_reason: str
+    parcels_in_db: int
+    parcels_missing_zoning: int
+    zoning_status: str
+
+
+class WaPhaseBRolloutStatusResponse(BaseModel):
+    """GET /internal/ingest/wa-phase-b-rollout-status — scheduled zoning overlay merge queue."""
+
+    rollout_enabled: bool
+    next_county_fips: str | None
+    cooldown_ready: bool | None = None
+    required_cooldown_hours: float | None = None
+    hours_since_last_merge: float | None = None
+    last_merged_county_fips: str | None = None
+    pending_merge_county_fips: str | None = None
+    pending_merge_age_hours: float | None = None
+    pending_merge_lock_hours: float | None = None
+    counties: list[WaPhaseBCountyCandidateRow]
+    zoning_followup: WaZoningFollowupSummary | None = None
+
+
 class EnqueueUnscoredResponse(BaseModel):
     """Parcels missing entitlement score — pipelines enqueued directly (not a nested Celery task id)."""
 

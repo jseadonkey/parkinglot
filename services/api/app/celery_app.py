@@ -153,6 +153,20 @@ if _s.wa_statewide_rollout_enabled:
         _s.wa_statewide_rollout_crontab_minute,
     )
 
+if _s.wa_phase_b_rollout_enabled:
+    beat_schedule["wa-phase-b-rollout-loop"] = {
+        "task": "app.tasks.wa_phase_b_rollout_tick",
+        "schedule": crontab(
+            minute=_s.wa_phase_b_rollout_crontab_minute,
+            hour=_s.wa_phase_b_rollout_crontab_hour,
+        ),
+    }
+    logger.info(
+        "Beat: WA Phase B rollout loop — hour=%s minute=%02d UTC",
+        _s.wa_phase_b_rollout_crontab_hour,
+        _s.wa_phase_b_rollout_crontab_minute,
+    )
+
 if _s.address_health_agent_enabled:
     _ah_hour = (_s.address_health_agent_crontab_hour or "*/12").strip()
     beat_schedule["address-health-agent"] = {

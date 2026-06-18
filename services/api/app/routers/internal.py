@@ -81,6 +81,8 @@ from app.schemas import (
     SlackReportCatalogItem,
     SlackTestMessagePostResponse,
     SlackTestMessageRequest,
+    WaPhaseBCountyCandidateRow,
+    WaPhaseBRolloutStatusResponse,
     WaRolloutCountyRow,
     WaRolloutStatusResponse,
     WaTechCountyQueuedResponse,
@@ -117,8 +119,10 @@ from app.tasks import (
     slack_dual_agent_discussion,
     slack_plan_progress_report,
     slack_qualified_parcels_report,
+    wa_phase_b_rollout_tick,
     wa_statewide_rollout_tick,
 )
+from app.wa_phase_b_rollout import load_phase_b_config, phase_b_status_summary
 from app.wa_statewide_rollout import (
     county_priority_list,
     load_rollout_config,
@@ -908,6 +912,46 @@ def wa_rollout_status(db: Session = Depends(get_db)) -> WaRolloutStatusResponse:
 def wa_rollout_now() -> CeleryTaskIdResponse:
     """Enqueue the next county ingest immediately (same logic as daily Beat)."""
     async_result = wa_statewide_rollout_tick.delay()
+    return CeleryTaskIdResponse(task_id=async_result.id)
+
+
+@router.get("/ingest/wa-phase-b-rollout-status", response_model=WaPhaseBRolloutStatusResponse)
+def wa_phase_b_rollout_status(db: Session = Depends(get_db)) -> WaPhaseBRolloutStatusResponse:
+    """Progress for capacity-gated WA Phase B zoning overlay merges."""
+    settings = get_settings()
+    phase_b = load_phase_b_config(settings.wa_phase_b_rollout_config_path)
+    parcel_rollout = load_rollout_config(settings.wa_statewide_rollout_config_path)
+    raw = phase_b_status_summary(
+        db,
+        config=phase_b,
+        pilot_config_path=settings.pilot_config_path,
+        parcel_rollout_config=parcel_rollout,
+        rollout_enabled=settings.wa_phase_b_rollout_enabled,
+    )
+    counties = [WaPhaseBCountyCandidateRow(**row) for row in raw.get("counties") or []]
+    zoning_raw = raw.get("zoning_followup")
+    from app.schemas import WaZoningFollowupSummary
+
+    zoning = WaZoningFollowupSummary(**zoning_raw) if isinstance(zoning_raw, dict) else None
+    return WaPhaseBRolloutStatusResponse(
+        rollout_enabled=bool(raw.get("rollout_enabled")),
+        next_county_fips=raw.get("next_county_fips"),
+        cooldown_ready=raw.get("cooldown_ready"),
+        required_cooldown_hours=raw.get("required_cooldown_hours"),
+        hours_since_last_merge=raw.get("hours_since_last_merge"),
+        last_merged_county_fips=raw.get("last_merged_county_fips"),
+        pending_merge_county_fips=raw.get("pending_merge_county_fips"),
+        pending_merge_age_hours=raw.get("pending_merge_age_hours"),
+        pending_merge_lock_hours=raw.get("pending_merge_lock_hours"),
+        counties=counties,
+        zoning_followup=zoning,
+    )
+
+
+@router.post("/ingest/wa-phase-b-rollout-now", response_model=CeleryTaskIdResponse)
+def wa_phase_b_rollout_now() -> CeleryTaskIdResponse:
+    """Enqueue the next county Phase B merge immediately (same logic as scheduled Beat)."""
+    async_result = wa_phase_b_rollout_tick.delay()
     return CeleryTaskIdResponse(task_id=async_result.id)
 
 

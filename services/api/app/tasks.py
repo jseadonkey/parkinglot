@@ -1052,6 +1052,206 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
         db.close()
 
 
+@celery.task(name="app.tasks.fetch_build_merge_wa_county_zoning", bind=True)
+def fetch_build_merge_wa_county_zoning(
+    self,
+    county_fips: str,
+    *,
+    max_pipeline: int = 100,
+) -> dict[str, Any]:
+    """Build county zoning overlay GeoJSON and merge attributes into existing parcels."""
+    from parking_ingestion.wa_county_zoning_build import write_county_zoning_overlay
+
+    settings = get_settings()
+    from app.wa_phase_b_rollout import county_phase_b_settings, load_phase_b_config
+
+    phase_b = load_phase_b_config(settings.wa_phase_b_rollout_config_path)
+    county_settings = county_phase_b_settings(phase_b, county_fips)
+    overlay_path = Path(str(county_settings.get("overlay_path") or "").strip())
+    cache_dir_raw = str(county_settings.get("cache_dir") or "").strip()
+    cache_dir = Path(cache_dir_raw) if cache_dir_raw else overlay_path.parent
+    max_pipe = int(county_settings.get("max_merge_pipeline") or max_pipeline)
+
+    if not overlay_path:
+        return {"skipped": True, "reason": "overlay_path_not_configured", "county_fips": county_fips}
+
+    build_meta = write_county_zoning_overlay(
+        county_fips,
+        overlay_path,
+        cache_dir=cache_dir,
+    )
+    merge_result = merge_parcel_attributes_geojson.run(
+        str(overlay_path),
+        default_county_fips=county_fips,
+        refresh_pipeline=True,
+        max_pipeline=max_pipe,
+    )
+
+    db = _session()
+    try:
+        write_audit(
+            db,
+            actor="celery:wa_phase_b_rollout",
+            action="wa_phase_b_county_merge_completed",
+            entity_type="county_fips",
+            entity_id=county_fips,
+            meta={
+                "task_id": self.request.id,
+                "overlay_path": str(overlay_path),
+                "overlay_features": build_meta.get("feature_count"),
+                **merge_result,
+            },
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    post_agent_event_to_slack(
+        settings,
+        agent="Zoning acquisition",
+        detail=(
+            f"Phase B merge completed for county `{county_fips}` — "
+            f"overlay features *{build_meta.get('feature_count')}*, "
+            f"parcels updated *{merge_result.get('updated')}*, "
+            f"pipelines enqueued *{merge_result.get('pipelines_enqueued')}*."
+        ),
+    )
+    return {
+        "county_fips": county_fips,
+        "overlay_path": str(overlay_path),
+        "build": build_meta,
+        "merge": merge_result,
+    }
+
+
+@celery.task(name="app.tasks.wa_phase_b_rollout_tick")
+def wa_phase_b_rollout_tick() -> dict[str, Any]:
+    """Hourly: merge zoning overlay for the next parcel-loaded WA county when queue/load allow."""
+    settings = get_settings()
+    if not settings.wa_phase_b_rollout_enabled:
+        return {"skipped": True, "reason": "wa_phase_b_rollout_disabled"}
+
+    from app.load_governor import (
+        current_governor_state,
+        effective_wa_rollout_limits,
+        governor_allows_wa_rollout,
+        refresh_load_governor,
+    )
+    from app.wa_phase_b_rollout import (
+        load_phase_b_config,
+        next_county_for_phase_b,
+        wa_phase_b_cooldown_state,
+        wa_phase_b_pending_merge_state,
+    )
+
+    phase_b = load_phase_b_config(settings.wa_phase_b_rollout_config_path)
+    parcel_rollout = load_rollout_config(settings.wa_statewide_rollout_config_path)
+    pacing = wa_rollout_pacing()
+    merged = merge_rollout_config(parcel_rollout, pacing)
+    max_queue = int(phase_b.get("max_parking_queue_depth") or merged.get("max_parking_queue_depth") or 300)
+    queue_depth = parking_queue_depth(settings.redis_url)
+    governor = (
+        refresh_load_governor(settings)
+        if settings.load_governor_enabled
+        else current_governor_state(settings)
+    )
+    if settings.load_governor_enabled:
+        allowed, reason = governor_allows_wa_rollout(settings, governor)
+        if not allowed:
+            logger.info("wa_phase_b_rollout_tick: load_governor — %s", reason)
+            return {
+                "skipped": True,
+                "reason": "load_governor_blocked",
+                "load_governor": governor,
+            }
+    if queue_depth > max_queue:
+        logger.info(
+            "wa_phase_b_rollout_tick: parking queue=%s > max=%s — deferring Phase B merge",
+            queue_depth,
+            max_queue,
+        )
+        return {
+            "skipped": True,
+            "reason": "parking_queue_busy",
+            "parking_queue_depth": queue_depth,
+            "max_parking_queue_depth": max_queue,
+        }
+
+    db = _session()
+    try:
+        pending = wa_phase_b_pending_merge_state(db, phase_b)
+        if pending.get("pending"):
+            return {
+                "skipped": True,
+                "reason": "wa_phase_b_pending_merge",
+                "pending_county_fips": pending.get("pending_county_fips"),
+                "pending_age_hours": pending.get("pending_age_hours"),
+                "pending_lock_hours": pending.get("pending_lock_hours"),
+            }
+
+        cooldown = wa_phase_b_cooldown_state(db, phase_b)
+        if not cooldown.get("ready"):
+            return {
+                "skipped": True,
+                "reason": "wa_phase_b_cooldown",
+                "required_cooldown_hours": cooldown.get("required_cooldown_hours"),
+                "hours_since_last_merge": cooldown.get("hours_since_last_merge"),
+                "last_merged_county_fips": cooldown.get("last_county_fips"),
+            }
+
+        county = next_county_for_phase_b(
+            db,
+            config=phase_b,
+            pilot_config_path=settings.pilot_config_path,
+            parcel_rollout_config=parcel_rollout,
+        )
+        if county is None:
+            return {"skipped": True, "reason": "no_county_ready_for_phase_b"}
+
+        from app.wa_phase_b_rollout import county_phase_b_settings
+
+        county_settings = county_phase_b_settings(phase_b, county)
+        max_pipe = int(county_settings.get("max_merge_pipeline") or 100)
+        if settings.load_governor_enabled:
+            _, max_pipe = effective_wa_rollout_limits(
+                settings,
+                base_min_days=float(merged.get("min_days_between_counties") or 4),
+                base_max_auto_pipeline=max_pipe,
+                state=governor,
+            )
+
+        write_audit(
+            db,
+            actor="celery:wa_phase_b_rollout",
+            action="wa_phase_b_county_merge_started",
+            entity_type="county_fips",
+            entity_id=county,
+            meta={
+                "max_merge_pipeline": max_pipe,
+                "parking_queue_depth": queue_depth,
+            },
+        )
+        db.commit()
+        post_agent_event_to_slack(
+            settings,
+            agent="Zoning acquisition",
+            detail=(
+                f"Starting Phase B zoning merge for county `{county}` "
+                f"(pipeline cap {max_pipe}; queue depth {queue_depth})."
+            ),
+        )
+        ar = fetch_build_merge_wa_county_zoning.delay(county, max_pipeline=max_pipe)
+        return {
+            "skipped": False,
+            "county_fips": county,
+            "merge_task_id": ar.id,
+            "max_merge_pipeline": max_pipe,
+            "parking_queue_depth": queue_depth,
+        }
+    finally:
+        db.close()
+
+
 @celery.task(name="app.tasks.fetch_baltimore_city_and_ingest")
 def fetch_baltimore_city_and_ingest(
     max_features: int | None = None,
