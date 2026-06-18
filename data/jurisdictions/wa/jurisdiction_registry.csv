@@ -4,8 +4,12 @@ state_fips,county_fips,county_name,jurisdiction_type,jurisdiction_id,jurisdictio
 53,53001,Adams,county_unincorporated,adams_unincorporated,Adams County unincorporated,53001,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
 53,53003,Asotin,countywide,asotin_county,Asotin County,53003,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
 53,53003,Asotin,county_unincorporated,asotin_unincorporated,Asotin County unincorporated,53003,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
-53,53005,Benton,countywide,benton_county,Benton County,53005,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
-53,53005,Benton,county_unincorporated,benton_unincorporated,Benton County unincorporated,53005,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
+53,53005,Benton,countywide,benton_county,Benton County,53005,source_found,ingested,watech_statewide,not_started,2026-06-18,Parcels ingested (~30k); zoning overlay in progress — docs/zoning-sources-benton.md
+53,53005,Benton,county_unincorporated,benton_unincorporated,Benton County unincorporated,53005,source_found,not_started,,not_started,2026-06-18,Benton County Zoning MapServer/0 — LandUseTyp spatial join
+53,53005,Benton,city,kennewick_city,Kennewick,53005,source_found,not_started,,not_started,2026-06-18,Kennewick Parcel Zoning FeatureServer/59 — CountyTaxID attribute join
+53,53005,Benton,city,richland_city,Richland,53005,blocked,not_started,,not_started,2026-06-18,Richland REST pagination blocked; county spatial fallback interim
+53,53005,Benton,city,pasco_city,Pasco,53005,source_found,not_started,,not_started,2026-06-18,Pasco Zoning FeatureServer — Zone spatial join
+53,53005,Benton,city,west_richland_city,West Richland,53005,source_found,not_started,,not_started,2026-06-18,Uses Benton County + Richland zoning sources via situs routing
 53,53007,Chelan,countywide,chelan_county,Chelan County,53007,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml
 53,53007,Chelan,county_unincorporated,chelan_unincorporated,Chelan County unincorporated,53007,not_started,not_started,,not_started,2026-06-09,Unincorporated zoning/address authority
 53,53009,Clallam,countywide,clallam_county,Clallam County,53009,not_started,not_started,watech_statewide,not_started,2026-06-09,Auto-generated countywide row; cities expand via wa_cities_seed.yaml

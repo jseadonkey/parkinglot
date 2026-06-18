@@ -1,4 +1,4 @@
-.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay validate-jurisdictions address-coverage-report address-health-agent generate-wa-jurisdiction-registry zoning-governance zoning-followup-report build-baltimore-zoning-overlay baltimore-zoning-tiers baltimore-phase-b-local deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local lob-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help cursor-droplet run-crew-tests crew-audit crew-audit-droplet
+.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay validate-jurisdictions address-coverage-report address-health-agent generate-wa-jurisdiction-registry zoning-governance zoning-followup-report build-baltimore-zoning-overlay baltimore-zoning-tiers baltimore-phase-b-local benton-zoning-fetch benton-zoning-overlay deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local lob-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help cursor-droplet run-crew-tests crew-audit crew-audit-droplet
 
 help:
 	@echo "Targets:"
@@ -20,6 +20,8 @@ help:
 	@echo "  make build-baltimore-zoning-overlay - fetch parcels+zoning and build MD overlay GeoJSON (no DATABASE_URL)"
 	@echo "  make baltimore-zoning-tiers   - print tier counts from local overlay GeoJSON"
 	@echo "  make baltimore-phase-b-local  - fetch, build overlay, validate, summarize (no DATABASE_URL)"
+	@echo "  make benton-zoning-fetch      - cache Kennewick/Pasco/Benton County zoning GIS locally"
+	@echo "  make benton-zoning-overlay    - build Benton overlay GeoJSON from WaTech + cached zoning"
 	@echo "  make phase-c-run        - Phase C: readiness + portfolio internal APIs (needs DATABASE_URL; see scripts/execute-phase-c.sh)"
 	@echo "  make local              - docker compose (dev: Postgres, Redis, MinIO, api, worker, UI)"
 	@echo "  make slack-env-local    - merge SLACK_* into .env (needs SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID in env)"
@@ -135,6 +137,13 @@ baltimore-zoning-tiers:
 baltimore-phase-b-local: build-baltimore-zoning-overlay
 	@python3 scripts/validate_phase_b_overlay.py data/baltimore/baltimore_city_zoning_overlay.geojson
 	@python3 scripts/summarize_baltimore_zoning_tiers.py
+
+benton-zoning-fetch:
+	@python3 scripts/fetch_benton_zoning_layers.py
+
+benton-zoning-overlay: benton-zoning-fetch
+	@python3 scripts/build_benton_zoning_overlay.py
+	@python3 scripts/validate_phase_b_overlay.py data/benton/benton_county_zoning_overlay.geojson
 
 phase-c-run:
 	@test -n "$$DATABASE_URL" || (echo "export DATABASE_URL first"; exit 1)

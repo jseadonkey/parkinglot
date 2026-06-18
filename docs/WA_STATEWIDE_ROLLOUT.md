@@ -92,6 +92,21 @@ When diagnosing a county:
 3. If there are repeated starts but no completion audit and no rows, inspect worker
    logs and retry with the chunked worker path before advancing to the next county.
 
+## Benton zoning follow-up (after parcel load)
+
+Once Benton parcels land (~30k rows), prescreen scores stay low until zoning is merged.
+WaTech parcels do not include zoning; the next step is Phase B overlay merge:
+
+```bash
+make benton-zoning-fetch      # cache Kennewick/Pasco/Benton County GIS
+make benton-zoning-overlay    # build data/benton/benton_county_zoning_overlay.geojson
+make phase-b-run              # merge on Droplet (DATABASE_URL + PHASE_B_OVERLAY_PATH)
+```
+
+See `docs/zoning-sources-benton.md` for source URLs, join keys, and registry status.
+Tri-Cities demand POIs in `config/pilot_identification.yaml` improve demand scoring after
+zoning credit is attached.
+
 ## Progress expectation
 
 - **~38 counties** remain after King (~124k parcels already loaded).

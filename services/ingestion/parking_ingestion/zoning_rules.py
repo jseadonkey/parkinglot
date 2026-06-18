@@ -95,10 +95,13 @@ def zoning_rules_search_paths(explicit: Path | None = None) -> list[Path]:
 
     for candidate in (
         Path("/app/data/zoning/wa/kent_king_surface_parking_rules.yaml"),
+        Path("/app/data/zoning/wa/benton_tri_cities_surface_parking_rules.yaml"),
         Path("/app/data/zoning/md/baltimore_city_surface_parking_rules.yaml"),
         root / "data/zoning/wa/kent_king_surface_parking_rules.yaml",
+        root / "data/zoning/wa/benton_tri_cities_surface_parking_rules.yaml",
         root / "data/zoning/md/baltimore_city_surface_parking_rules.yaml",
         Path.cwd() / "data/zoning/wa/kent_king_surface_parking_rules.yaml",
+        Path.cwd() / "data/zoning/wa/benton_tri_cities_surface_parking_rules.yaml",
         Path.cwd() / "data/zoning/md/baltimore_city_surface_parking_rules.yaml",
     ):
         add(candidate)

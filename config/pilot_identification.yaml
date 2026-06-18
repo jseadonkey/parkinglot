@@ -86,6 +86,16 @@ scoring:
     - name: "Kent core / Station corridor (illustrative)"
       lat: 47.384
       lon: -122.233
+    # Benton County / Tri-Cities — used when scoring 53005 parcels after ingest.
+    - name: "Kennewick Columbia Center corridor (illustrative)"
+      lat: 46.212
+      lon: -119.159
+    - name: "Richland Parkway / George Washington Way (illustrative)"
+      lat: 46.285
+      lon: -119.275
+    - name: "Pasco downtown / Lewis Street (illustrative)"
+      lat: 46.239
+      lon: -119.101
 
 data_sources:
   parcel_vendor: "TBD — see docs/washington-data.md"

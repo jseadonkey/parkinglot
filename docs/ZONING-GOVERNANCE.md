@@ -79,3 +79,6 @@ make run-api-tests
 - **Washington counties (`53*`)** — not started for zoning governance. Parcel ingest can
   continue slowly, but zoning should not be treated as trusted until each city/county
   jurisdiction is mapped.
+- **Benton County (`53005`)** — parcels ingested; zoning sources discovered (Kennewick
+  attribute join + Pasco/Benton County spatial joins). See `docs/zoning-sources-benton.md`.
+  Registry status `source_found` / `in_progress`; not yet `curated`.
