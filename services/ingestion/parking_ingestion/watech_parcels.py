@@ -46,15 +46,36 @@ def fetch_county_geojson(
     layer_url: str = WATECH_STATEWIDE_PARCELS_LAYER,
 ) -> dict[str, Any]:
     """Download parcels for one WA county; return a GeoJSON FeatureCollection."""
+    features: list[dict[str, Any]] = []
+    for page in iter_county_geojson_pages(
+        county_fips_5,
+        page_size=page_size,
+        max_features=max_features,
+        sleep_sec=sleep_sec,
+        layer_url=layer_url,
+    ):
+        features.extend(page.get("features") or [])
+    return {"type": "FeatureCollection", "features": features}
+
+
+def iter_county_geojson_pages(
+    county_fips_5: str,
+    *,
+    page_size: int = 2000,
+    max_features: int | None = None,
+    sleep_sec: float = 0.15,
+    layer_url: str = WATECH_STATEWIDE_PARCELS_LAYER,
+):
+    """Yield county parcel GeoJSON in ArcGIS pages so large counties can stream into ingest."""
     fips_nr = county_fips_to_watech_fips_nr(county_fips_5)
     where = f"FIPS_NR='{fips_nr}'"
 
-    features: list[dict[str, Any]] = []
+    fetched = 0
     offset = 0
     total_cap = max_features if max_features is not None else 10**12
 
-    while len(features) < total_cap:
-        batch_limit = min(page_size, total_cap - len(features))
+    while fetched < total_cap:
+        batch_limit = min(page_size, total_cap - fetched)
         params: dict[str, str | int] = {
             "where": where,
             "outFields": "*",
@@ -87,10 +108,9 @@ def fetch_county_geojson(
                 fnr = str(props.get("FIPS_NR", fips_nr)).strip()
                 props["COUNTY_FIPS"] = watech_fips_nr_to_county_fips(fnr)
 
-        features.extend(batch)
+        fetched += len(batch)
+        yield {"type": "FeatureCollection", "features": batch}
         if len(batch) < batch_limit:
             break
         offset += len(batch)
         time.sleep(sleep_sec)
-
-    return {"type": "FeatureCollection", "features": features}

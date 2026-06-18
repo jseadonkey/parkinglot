@@ -257,6 +257,27 @@ class WaRolloutCountyRow(BaseModel):
     parcels_in_db: int
 
 
+class WaZoningFollowupCountyRow(BaseModel):
+    county_fips: str
+    parcels_in_db: int
+    zoning_status: str
+    needs_followup: bool
+    jurisdiction_count: int
+    jurisdiction_status_counts: dict[str, int]
+    sample_jurisdictions: list[str]
+    next_action: str
+
+
+class WaZoningFollowupSummary(BaseModel):
+    registry_path: str
+    loaded_counties: int
+    trusted_counties: int
+    followup_counties: int
+    blocked_counties: int
+    next_county_needing_zoning: str | None
+    counties: list[WaZoningFollowupCountyRow]
+
+
 class WaRolloutStatusResponse(BaseModel):
     """GET /internal/ingest/wa-rollout-status — slow statewide county ingest progress."""
 
@@ -271,7 +292,36 @@ class WaRolloutStatusResponse(BaseModel):
     days_since_last_county_ingest: float | None = None
     last_ingested_county_fips: str | None = None
     last_ingested_county_parcels: int | None = None
+    pending_ingest_county_fips: str | None = None
+    pending_ingest_age_days: float | None = None
+    pending_ingest_lock_days: float | None = None
     counties: list[WaRolloutCountyRow]
+    zoning_followup: WaZoningFollowupSummary | None = None
+
+
+class WaPhaseBCountyCandidateRow(BaseModel):
+    county_fips: str
+    ready: bool
+    skip_reason: str
+    parcels_in_db: int
+    parcels_missing_zoning: int
+    zoning_status: str
+
+
+class WaPhaseBRolloutStatusResponse(BaseModel):
+    """GET /internal/ingest/wa-phase-b-rollout-status — scheduled zoning overlay merge queue."""
+
+    rollout_enabled: bool
+    next_county_fips: str | None
+    cooldown_ready: bool | None = None
+    required_cooldown_hours: float | None = None
+    hours_since_last_merge: float | None = None
+    last_merged_county_fips: str | None = None
+    pending_merge_county_fips: str | None = None
+    pending_merge_age_hours: float | None = None
+    pending_merge_lock_hours: float | None = None
+    counties: list[WaPhaseBCountyCandidateRow]
+    zoning_followup: WaZoningFollowupSummary | None = None
 
 
 class EnqueueUnscoredResponse(BaseModel):

@@ -30,6 +30,11 @@ cities_by_county_fips:
     - { id: spokane_city, name: Spokane }
   "53011":
     - { id: vancouver_city, name: Vancouver }
+  "53005":
+    - { id: kennewick_city, name: Kennewick }
+    - { id: richland_city, name: Richland }
+    - { id: pasco_city, name: Pasco }
+    - { id: west_richland_city, name: West Richland }
   "53077":
     - { id: yakima_city, name: Yakima }
   "53073":

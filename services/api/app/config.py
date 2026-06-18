@@ -45,6 +45,10 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("ZONING_RULES_PATH", "zoning_rules_path"),
     )
+    wa_jurisdiction_registry_path: str = Field(
+        default="data/jurisdictions/wa/jurisdiction_registry.csv",
+        validation_alias=AliasChoices("WA_JURISDICTION_REGISTRY_PATH", "wa_jurisdiction_registry_path"),
+    )
     storage_endpoint: str = "http://localhost:9000"
     storage_access_key: str = "minio"
     storage_secret_key: str = "minio12345"
@@ -314,7 +318,7 @@ class Settings(BaseSettings):
         ),
     )
 
-    # Slow WA statewide ingest: one new county per day via WaTech when parking queue is light.
+    # Slow WA statewide ingest: capacity-gated WaTech loop when parking queue is light.
     wa_statewide_rollout_enabled: bool = Field(
         default=False,
         validation_alias=AliasChoices(
@@ -336,10 +340,8 @@ class Settings(BaseSettings):
             "geo_markets_config_path",
         ),
     )
-    wa_statewide_rollout_crontab_hour: int = Field(
-        default=7,
-        ge=0,
-        le=23,
+    wa_statewide_rollout_crontab_hour: str = Field(
+        default="*",
         validation_alias=AliasChoices(
             "WA_STATEWIDE_ROLLOUT_CRONTAB_HOUR",
             "wa_statewide_rollout_crontab_hour",
@@ -352,6 +354,38 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices(
             "WA_STATEWIDE_ROLLOUT_CRONTAB_MINUTE",
             "wa_statewide_rollout_crontab_minute",
+        ),
+    )
+
+    # Capacity-gated WA Phase B (zoning overlay merge) when parking queue is light.
+    wa_phase_b_rollout_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "WA_PHASE_B_ROLLOUT_ENABLED",
+            "wa_phase_b_rollout_enabled",
+        ),
+    )
+    wa_phase_b_rollout_config_path: str = Field(
+        default="/app/config/wa_phase_b_rollout.yaml",
+        validation_alias=AliasChoices(
+            "WA_PHASE_B_ROLLOUT_CONFIG_PATH",
+            "wa_phase_b_rollout_config_path",
+        ),
+    )
+    wa_phase_b_rollout_crontab_hour: str = Field(
+        default="*",
+        validation_alias=AliasChoices(
+            "WA_PHASE_B_ROLLOUT_CRONTAB_HOUR",
+            "wa_phase_b_rollout_crontab_hour",
+        ),
+    )
+    wa_phase_b_rollout_crontab_minute: int = Field(
+        default=45,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "WA_PHASE_B_ROLLOUT_CRONTAB_MINUTE",
+            "wa_phase_b_rollout_crontab_minute",
         ),
     )
 

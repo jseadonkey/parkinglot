@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
 from app.wa_statewide_rollout import (
     cooldown_days_after_county,
     county_priority_list,
     next_county_to_ingest,
+    wa_rollout_pending_ingest_state,
 )
 
 _PILOT = str(Path(__file__).resolve().parents[3] / "config/pilot.yaml")
@@ -46,3 +49,46 @@ def test_next_county_skips_loaded(monkeypatch) -> None:
         fake_counts,
     )
     assert next_county_to_ingest(None, config=cfg, pilot_config_path=_PILOT) == "53053"
+
+
+def test_pending_ingest_blocks_duplicate_zero_row_county(monkeypatch) -> None:
+    class _Result:
+        def scalar_one_or_none(self):
+            return SimpleNamespace(
+                action="wa_statewide_county_ingest",
+                entity_id="53063",
+                created_at=datetime.now(UTC) - timedelta(hours=2),
+            )
+
+    db = SimpleNamespace(execute=lambda *_args, **_kwargs: _Result())
+    monkeypatch.setattr(
+        "app.wa_statewide_rollout.parcel_counts_by_county",
+        lambda _db, _county_fips: {"53063": 0},
+    )
+
+    out = wa_rollout_pending_ingest_state(db, {"pending_ingest_lock_days": 1.0})
+
+    assert out["pending"] is True
+    assert out["pending_county_fips"] == "53063"
+    assert out["pending_age_days"] < 1.0
+
+
+def test_pending_ingest_clears_after_rows_land(monkeypatch) -> None:
+    class _Result:
+        def scalar_one_or_none(self):
+            return SimpleNamespace(
+                action="wa_statewide_county_ingest",
+                entity_id="53063",
+                created_at=datetime.now(UTC) - timedelta(hours=2),
+            )
+
+    db = SimpleNamespace(execute=lambda *_args, **_kwargs: _Result())
+    monkeypatch.setattr(
+        "app.wa_statewide_rollout.parcel_counts_by_county",
+        lambda _db, _county_fips: {"53063": 25},
+    )
+
+    out = wa_rollout_pending_ingest_state(db, {"pending_ingest_lock_days": 1.0})
+
+    assert out["pending"] is False
+    assert out["pending_county_fips"] is None

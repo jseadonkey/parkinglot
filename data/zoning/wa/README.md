@@ -16,6 +16,8 @@
 
 See `docs/zoning-sources-kent.md` for layer URLs.
 
+Benton County (`53005`) overlay workflow: `docs/zoning-sources-benton.md`.
+
 ## Before merge (Phase B)
 
 Dry-run counts with the same property rules as production merge:

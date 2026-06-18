@@ -1,0 +1,34 @@
+# Surface parking suitability by zone code (Benton County + Tri-Cities).
+# NOT LEGAL ADVICE — conservative placeholders until ordinance/GIS QA.
+# Unknown codes use default_when_unknown (conservative false).
+
+version: 1
+default_when_unknown: false
+
+jurisdictions:
+  kennewick_city:
+    source_url: "https://maps.ci.kennewick.wa.us/server/rest/services/Public/AllGISLayers/FeatureServer/59"
+    zones:
+      # Kennewick parcel-zoning layer uses short district codes (e.g. RL, RM-4, C-1).
+      # Curate from Kennewick Municipal Code Title 18 before trusting prescreen scores.
+      "C-1":
+        allows_surface_parking: true
+        note: "Verify commercial parking principal-use table in Kennewick zoning code."
+
+  pasco_city:
+    source_url: "https://gis.pasco-wa.gov/gs/rest/services/Citybase_Published_Layers/Zoning/FeatureServer/0"
+    zones:
+      "C-2":
+        allows_surface_parking: true
+        note: "Verify Pasco zoning code commercial parking allowances."
+
+  benton_unincorporated:
+    source_url: "https://maps.co.benton.wa.us/server/rest/services/Zoning/MapServer/0"
+    zones:
+      "COMMERCIAL":
+        allows_surface_parking: true
+        note: "Verify Benton County Code Chapter 17 commercial parking principal uses."
+
+  richland_city:
+    source_url: "https://gisweb24.ci.richland.wa.us/arcgis24web/rest/services/Richland/Zoning/MapServer"
+    zones: {}

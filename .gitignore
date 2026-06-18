@@ -37,3 +37,6 @@ services/crew/.env
 # Operator admin agent snapshots (Droplet + CI artifacts)
 data/operator-agent/*.json
 !data/operator-agent/.gitkeep
+
+# Benton / Tri-Cities zoning GIS cache (regenerate via make benton-zoning-fetch)
+data/benton/
