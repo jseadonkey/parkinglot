@@ -1,0 +1,48 @@
+name: Check Benton count once
+
+on:
+  push:
+    branches:
+      - cursor/wa-zoning-followup-9516
+    paths:
+      - ".github/workflows/check-benton-count-once.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Count Benton parcels
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env exec -T api python - <<'PY'
+          from sqlalchemy import func, select
+          from app.db.models import Parcel
+          from app.db.session import SessionLocal
+
+          with SessionLocal() as db:
+              for fips in ['53005', '53077']:
+                  count = db.scalar(select(func.count()).select_from(Parcel).where(Parcel.county_fips == fips)) or 0
+                  print(f'{fips}={count}')
+          PY"
