@@ -134,6 +134,16 @@ def test_load_effective_zoning_rules_includes_baltimore(tmp_path: Path) -> None:
         assert resolve_surface_parking("C-1", "baltimore_city", None, rules) is False
 
 
+def test_load_effective_zoning_rules_includes_wa_county_templates() -> None:
+    rules = load_effective_zoning_rules()
+    jurisdictions = rules.get("jurisdictions") or {}
+    assert "yakima_unincorporated" in jurisdictions
+    assert "yakima_city" in jurisdictions
+    assert "adams_unincorporated" in jurisdictions
+    assert resolve_surface_parking("GC", "yakima_unincorporated", None, rules) is False
+    assert resolve_surface_parking("B-2", "yakima_city", None, rules) is False
+
+
 def test_loader_baltimore_jurisdiction_inferred_from_fips(tmp_path: Path) -> None:
     rules_yaml = tmp_path / "md.yaml"
     rules_yaml.write_text(

@@ -47,8 +47,11 @@ make run-api-tests
 
 ## Current state
 
-- **Baltimore City (`24510`)** — curated for Article 32 principal-use surface parking.
-- **Baltimore County (`24005`)** — paused; curate before activation.
-- **Washington counties (`53*`)** — not started for zoning governance. Parcel ingest can
-  continue slowly, but zoning should not be treated as trusted until each city/county
-  jurisdiction is mapped.
+- **Baltimore City (`24510`)** - curated for Article 32 principal-use surface parking.
+- **Baltimore County (`24005`)** - paused; curate before activation.
+- **Washington counties (`53*`)** - every county now has a generated source
+  document (`docs/zoning-sources-*.md`), source-catalog/address template rows,
+  governance coverage, and a conservative rules block in
+  `data/zoning/wa/wa_county_surface_parking_rules.yaml`. Parcel ingest can
+  continue slowly, but zoning should not be treated as trusted until each
+  city/county jurisdiction is mapped from official GIS and ordinance use tables.

@@ -6,7 +6,7 @@ from typing import Any
 
 import yaml
 
-# Repo root (…/services/ingestion/parking_ingestion/zoning_rules.py → parents[3]).
+# Repo root (.../services/ingestion/parking_ingestion/zoning_rules.py -> parents[3]).
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # County FIPS → zoning_rules.yaml jurisdiction key (ingest when overlay omits ZONING_JURISDICTION).
@@ -66,7 +66,7 @@ def merge_zoning_rules(base: dict[str, Any], extra: dict[str, Any]) -> dict[str,
 def _repo_root() -> Path:
     """Monorepo root — works from source tree or installed site-packages."""
     here = Path(__file__).resolve()
-    marker = Path("data") / "zoning" / "wa" / "kent_king_surface_parking_rules.yaml"
+    marker = Path("data") / "zoning" / "wa" / "wa_county_surface_parking_rules.yaml"
     for parent in (here.parent, *here.parents):
         if (parent / marker).is_file():
             return parent
@@ -95,10 +95,13 @@ def zoning_rules_search_paths(explicit: Path | None = None) -> list[Path]:
 
     for candidate in (
         Path("/app/data/zoning/wa/kent_king_surface_parking_rules.yaml"),
+        Path("/app/data/zoning/wa/wa_county_surface_parking_rules.yaml"),
         Path("/app/data/zoning/md/baltimore_city_surface_parking_rules.yaml"),
         root / "data/zoning/wa/kent_king_surface_parking_rules.yaml",
+        root / "data/zoning/wa/wa_county_surface_parking_rules.yaml",
         root / "data/zoning/md/baltimore_city_surface_parking_rules.yaml",
         Path.cwd() / "data/zoning/wa/kent_king_surface_parking_rules.yaml",
+        Path.cwd() / "data/zoning/wa/wa_county_surface_parking_rules.yaml",
         Path.cwd() / "data/zoning/md/baltimore_city_surface_parking_rules.yaml",
     ):
         add(candidate)

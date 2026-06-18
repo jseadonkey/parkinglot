@@ -39,9 +39,13 @@ def _ensure_repo_paths() -> None:
 def main() -> int:
     _ensure_repo_paths()
 
-    _default_rules = _REPO_ROOT / "data/zoning/wa/kent_king_surface_parking_rules.yaml"
-    if _default_rules.is_file():
-        os.environ.setdefault("ZONING_RULES_PATH", str(_default_rules))
+    _default_rules = [
+        _REPO_ROOT / "data/zoning/wa/kent_king_surface_parking_rules.yaml",
+        _REPO_ROOT / "data/zoning/wa/wa_county_surface_parking_rules.yaml",
+    ]
+    _existing_rules = [str(path) for path in _default_rules if path.is_file()]
+    if _existing_rules:
+        os.environ.setdefault("ZONING_RULES_PATH", ",".join(_existing_rules))
 
     from parking_core.pilot import load_pilot_config
     from parking_ingestion.geojson_loader import iter_parcels_from_geojson_dict, load_geojson_path

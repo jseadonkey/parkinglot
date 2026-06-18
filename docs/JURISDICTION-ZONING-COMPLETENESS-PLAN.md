@@ -13,7 +13,8 @@ work sessions without repeatedly asking for product direction. It complements:
   "layers of truth" implementation order.
 - [PHASED-EXECUTION-PLAN-A-E.md](PHASED-EXECUTION-PLAN-A-E.md) for the shipped
   Phase A-E automation and internal endpoints.
-- [zoning-sources-kent.md](zoning-sources-kent.md) and
+- Generated Washington county docs (`zoning-sources-*.md`),
+  [zoning-sources-kent.md](zoning-sources-kent.md), and
   [zoning-sources-baltimore.md](zoning-sources-baltimore.md) as examples of
   jurisdiction-specific source notes.
 
@@ -103,8 +104,8 @@ creating parallel workflows:
 | Phase B overlay validation | `scripts/validate_phase_b_overlay.py`, `make validate-phase-b-overlay`, `scripts/execute-phase-b.sh` |
 | Readiness gap checks | `GET /internal/stats/export-readiness`, `scripts/check_export_readiness.py`, `make readiness` |
 | Score and pipeline backfills | Phase A endpoints and `scripts/execute-phase-a.sh` |
-| Existing zoning rules | `data/zoning/wa/kent_king_surface_parking_rules.yaml`, `data/zoning/md/baltimore_city_surface_parking_rules.yaml` |
-| Example source docs | `docs/zoning-sources-kent.md`, `docs/zoning-sources-baltimore.md` |
+| Existing zoning rules | `data/zoning/wa/wa_county_surface_parking_rules.yaml`, `data/zoning/wa/kent_king_surface_parking_rules.yaml`, `data/zoning/md/baltimore_city_surface_parking_rules.yaml` |
+| Example source docs | `docs/zoning-sources-*.md`, `docs/zoning-sources-kent.md`, `docs/zoning-sources-baltimore.md` |
 | Baltimore overlay example | `scripts/fetch_baltimore_zoning_districts.py`, `scripts/build_baltimore_zoning_overlay.py` |
 
 ## 5. Deliverables to create and maintain
