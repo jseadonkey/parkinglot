@@ -1,7 +1,7 @@
 # WA Phase B rollout (scheduled zoning overlay merge)
 
 When **`WA_PHASE_B_ROLLOUT_ENABLED=true`**, Celery Beat runs **`wa_phase_b_rollout_tick`**
-hourly (default minute `:45` UTC). The loop mirrors the parcel ingest rollout:
+hourly (default minute `:45` UTC). Production deploys set this automatically — see [WA-INGEST-AUTOMATION.md](WA-INGEST-AUTOMATION.md). The loop:
 
 1. **Load governor** — skip when pressure is orange/red (same gate as parcel ingest).
 2. **Queue depth** — skip when the parking Celery queue exceeds `max_parking_queue_depth`.
@@ -15,14 +15,17 @@ join + Pasco/Benton County spatial joins) then calls **`merge_parcel_attributes_
 
 ## Enable on Droplet
 
+**Automatic:** every **Deploy to Droplet** runs `scripts/ensure-wa-ingest-automation.sh`.
+
+Manual merge into `deploy/.env`:
+
 ```bash
-# deploy/.env
 WA_PHASE_B_ROLLOUT_ENABLED=true
 WA_PHASE_B_ROLLOUT_CRONTAB_HOUR=*
 WA_PHASE_B_ROLLOUT_CRONTAB_MINUTE=45
 ```
 
-Restart **worker + beat** after changing env vars.
+Restart **worker + beat** after manual env edits.
 
 ## Status / manual kick
 

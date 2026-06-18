@@ -119,7 +119,12 @@ import json
 import time
 
 from app.celery_app import celery
-from app.tasks import ops_remediation_loop, site_watchdog_check, wa_statewide_rollout_tick
+from app.tasks import (
+    ops_remediation_loop,
+    site_watchdog_check,
+    wa_phase_b_rollout_tick,
+    wa_statewide_rollout_tick,
+)
 
 
 def emit(payload):
@@ -152,6 +157,7 @@ def enqueue_and_poll(name, task, timeout_seconds=120):
 enqueue_and_poll("site_watchdog", site_watchdog_check, timeout_seconds=90)
 enqueue_and_poll("ops_remediation", ops_remediation_loop, timeout_seconds=90)
 enqueue_and_poll("wa_rollout", wa_statewide_rollout_tick, timeout_seconds=60)
+enqueue_and_poll("wa_phase_b_rollout", wa_phase_b_rollout_tick, timeout_seconds=60)
 PY
 }
 

@@ -1,6 +1,8 @@
 # Washington statewide rollout (slow)
 
-**Paused by default** when `WA_STATEWIDE_ROLLOUT_ENABLED=false`. Use **`enable_slow_statewide_expansion`** on the Droplet to turn on a **capacity-gated county loop** while **keeping the priority pipeline** for top entitlement parcels.
+**Paused by default in a fresh clone** when `WA_STATEWIDE_ROLLOUT_ENABLED=false`. On the **production Droplet**, every **Deploy to Droplet** run enables Phase A + Phase B + priority pipeline automatically via `scripts/ensure-wa-ingest-automation.sh` — see [WA-INGEST-AUTOMATION.md](WA-INGEST-AUTOMATION.md).
+
+For manual enable without deploy, use **`enable_slow_statewide_expansion`** on the Droplet to turn on a **capacity-gated county loop** while **keeping the priority pipeline** for top entitlement parcels.
 
 Prioritize **top entitlement parcels** (deal context + `SCHEDULED_PRIORITY_PIPELINE_*`) — statewide ingest runs in parallel at a low rate, not instead of it.
 

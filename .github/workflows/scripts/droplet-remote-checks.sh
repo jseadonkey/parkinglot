@@ -830,48 +830,12 @@ PY
     docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps worker beat
     ;;
   enable-wa-phase-b-rollout)
-    echo "=== enable WA Phase B rollout loop (capacity-gated zoning merge) ==="
-    python3 - <<'PY'
-import pathlib
-
-path = pathlib.Path("deploy/.env")
-if not path.is_file():
-    raise SystemExit("deploy/.env missing")
-
-updates = {
-    "WA_PHASE_B_ROLLOUT_ENABLED": "true",
-    "WA_PHASE_B_ROLLOUT_CONFIG_PATH": "/app/config/wa_phase_b_rollout.yaml",
-    "WA_PHASE_B_ROLLOUT_CRONTAB_HOUR": "*",
-    "WA_PHASE_B_ROLLOUT_CRONTAB_MINUTE": "45",
-}
-lines = path.read_text(encoding="utf-8").splitlines()
-keys = set(updates)
-out: list[str] = []
-seen: set[str] = set()
-for line in lines:
-    if not line or line.lstrip().startswith("#") or "=" not in line:
-        out.append(line)
-        continue
-    key = line.split("=", 1)[0].strip()
-    if key in keys:
-        out.append(f"{key}={updates[key]}")
-        seen.add(key)
-    else:
-        out.append(line)
-missing = [k for k in keys if k not in seen]
-if missing:
-    if out and out[-1].strip():
-        out.append("")
-    out.append("# WA Phase B rollout — hourly zoning merge when queue is light")
-    for key in sorted(missing):
-        out.append(f"{key}={updates[key]}")
-path.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
-for key, val in sorted(updates.items()):
-    print(f"Set {key}={val}")
-PY
-    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
-    echo "=== recreate worker + beat ==="
-    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps api worker beat
+    export COMPOSE_FILE="${1:-deploy/docker-compose.production.ghcr.yml}"
+    bash scripts/ensure-wa-ingest-automation.sh
+    ;;
+  ensure-wa-ingest-automation)
+    export COMPOSE_FILE="${1:-deploy/docker-compose.production.ghcr.yml}"
+    bash scripts/ensure-wa-ingest-automation.sh
     ;;
   enable-wa-statewide-rollout)
     echo "=== enable WA statewide rollout loop (capacity-gated via WaTech) ==="
@@ -1095,61 +1059,12 @@ PY
     fi
     ;;
   enable-slow-statewide-expansion)
-    echo "=== enable slow statewide expansion loop (size-based cooldown + keep priority pipeline) ==="
-    python3 - <<'PY'
-import pathlib
-
-path = pathlib.Path("deploy/.env")
-if not path.is_file():
-    raise SystemExit("deploy/.env missing")
-
-updates = {
-    "GEO_MARKETS_CONFIG_PATH": "/app/config/geo_markets.yaml",
-    "WA_STATEWIDE_ROLLOUT_ENABLED": "true",
-    "WA_STATEWIDE_ROLLOUT_CONFIG_PATH": "/app/config/wa_statewide_rollout.yaml",
-    "WA_STATEWIDE_ROLLOUT_CRONTAB_HOUR": "*",
-    "WA_STATEWIDE_ROLLOUT_CRONTAB_MINUTE": "15",
-    "SCHEDULED_PRIORITY_PIPELINE_ENABLED": "true",
-    "SCHEDULED_PRIORITY_PIPELINE_LIMIT": "75",
-    "SCHEDULED_PRIORITY_PIPELINE_CRONTAB_HOUR": "*/2",
-    "SCHEDULED_PRIORITY_PIPELINE_CRONTAB_MINUTE": "20",
-    "SCHEDULED_ENQUEUE_UNSCORED_LIMIT": "75",
-}
-lines = path.read_text(encoding="utf-8").splitlines()
-keys = set(updates)
-out: list[str] = []
-seen: set[str] = set()
-for line in lines:
-    if not line or line.lstrip().startswith("#") or "=" not in line:
-        out.append(line)
-        continue
-    key = line.split("=", 1)[0].strip()
-    if key in keys:
-        out.append(f"{key}={updates[key]}")
-        seen.add(key)
-    else:
-        out.append(line)
-missing = [k for k in keys if k not in seen]
-if missing:
-    if out and out[-1].strip():
-        out.append("")
-    out.append("# Slow statewide expansion — WaTech; size-based cooldown between counties; priority pipeline stays on")
-    for key in sorted(missing):
-        out.append(f"{key}={updates[key]}")
-path.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
-for key, val in sorted(updates.items()):
-    print(f"Set {key}={val}")
-PY
-    COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
-    echo "=== recreate worker + beat ==="
-    docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps api worker beat
-    echo "=== rollout status (before kickstart) ==="
+    export COMPOSE_FILE="${1:-deploy/docker-compose.production.ghcr.yml}"
+    bash scripts/ensure-wa-ingest-automation.sh
+    echo "=== rollout status (after ensure) ==="
     if [ -n "$KEY" ]; then
       _internal_api_get "/internal/ingest/wa-rollout-status" || true
-    fi
-    if [ "${KICKSTART_ROLLOUT:-true}" = "true" ] && [ -n "$KEY" ]; then
-      echo "=== POST /internal/ingest/wa-rollout-now (first/next county if queue OK) ==="
-      _internal_api_post "/internal/ingest/wa-rollout-now" || echo "wa-rollout-now skipped or deferred"
+      _internal_api_get "/internal/ingest/wa-phase-b-rollout-status" || true
     fi
     ;;
   wa-rollout-status)
