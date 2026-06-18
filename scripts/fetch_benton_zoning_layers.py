@@ -14,10 +14,10 @@ if _ingest.is_dir():
     sys.path.insert(0, str(_ingest))
 
 from parking_ingestion.benton_zoning import (  # noqa: E402
-    fetch_kennewick_zoning_by_tax_id,
-    fetch_zoning_geojson,
     BENTON_COUNTY_ZONING_LAYER,
     PASCO_ZONING_LAYER,
+    fetch_kennewick_zoning_by_tax_id,
+    fetch_zoning_geojson,
 )
 
 
