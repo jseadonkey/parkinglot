@@ -71,6 +71,26 @@ def test_county_ready_skips_when_zoning_mostly_present(monkeypatch) -> None:
     assert reason == "zoning_mostly_present"
 
 
+def test_county_ready_auto_build_allows_blocked_registry_status(monkeypatch) -> None:
+    config = load_phase_b_config(_CONFIG)
+    monkeypatch.setattr(
+        "app.wa_phase_b_rollout.county_missing_zoning_stats",
+        lambda _db, _fips: {"total": 100, "missing_zoning": 100},
+    )
+    ok, reason = county_ready_for_phase_b(
+        None,
+        county_fips="53005",
+        config=config,
+        followup_row={
+            "needs_followup": True,
+            "zoning_status": "blocked",
+            "jurisdiction_status_counts": {"source_found": 4, "blocked": 1},
+        },
+    )
+    assert ok is True
+    assert reason == "ready"
+
+
 def test_cooldown_blocks_recent_merge(monkeypatch) -> None:
     from datetime import UTC, datetime
 

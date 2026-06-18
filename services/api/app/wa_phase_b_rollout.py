@@ -124,7 +124,9 @@ def county_ready_for_phase_b(
 ) -> tuple[bool, str]:
     if not followup_row.get("needs_followup"):
         return False, "zoning_trusted_or_no_parcels"
-    if followup_row.get("zoning_status") == "blocked":
+    settings = county_phase_b_settings(config, county_fips)
+    auto_build = bool(settings.get("auto_build_overlay"))
+    if followup_row.get("zoning_status") == "blocked" and not auto_build:
         return False, "zoning_blocked"
     jurisdiction_counts = followup_row.get("jurisdiction_status_counts") or {}
     if isinstance(jurisdiction_counts, dict) and jurisdiction_counts.keys() <= BLOCKED_ZONING_STATUSES:
