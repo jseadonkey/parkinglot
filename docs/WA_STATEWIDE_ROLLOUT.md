@@ -12,14 +12,14 @@ Adds **one new county at a time** from the public **WaTech** statewide parcel la
 |-------|------|
 | **`config/wa_statewide_rollout.yaml`** | County priority (Puget Sound first), pipeline cap per ingest, queue guard |
 | **Beat** `wa_statewide_rollout_tick` | Hourly at **:15 UTC** by default; skips when cooldown/load/pending-ingest guards are active |
-| **Worker** `fetch_watech_county_and_ingest` | Downloads county GeoJSON from WaTech → `ingest_geojson_path` |
+| **Worker** `fetch_watech_county_and_ingest` | Streams WaTech ArcGIS pages into `ingest_geojson_path` and writes completion audit totals |
 | **Existing enqueue** | `SCHEDULED_ENQUEUE_*` continues draining pipeline backlog on loaded counties |
 
 Default caps (tunable in `config/wa_statewide_rollout.yaml`):
 
 - **15** parcels get `run_pipeline` per new county ingest batch (`max_auto_pipeline`)
 - Skip a new county if **parking** queue depth **> 400**
-- Skip a duplicate start while the most recently started county has not landed rows yet (`pending_ingest_lock_days`, default **1.0**)
+- Skip a duplicate start while the most recently started county has not landed rows yet (`pending_ingest_lock_days`, default **0.1**)
 - **Size-based cooldown** after each county (not a flat 7 days for everyone):
   - `min_days_base` (default **0.1**)
   - `+ min_days_per_10k_parcels` × (parcels in last county ÷ 10,000) (default **0.005**)
@@ -72,6 +72,25 @@ make zoning-followup-report
 
 On the Droplet, that target uses `DATABASE_URL`; in GitHub Actions the
 `zoning_followup_report` input feeds live rollout JSON into the same reporter.
+
+## Benton lesson: prove rows, not just starts
+
+Do not treat `wa_statewide_county_ingest` as proof of ingest completion. That audit
+means the rollout loop **started** a county. Benton (`53005`) exposed why this
+matters: the old all-at-once fetch/handoff path repeatedly recorded starts but no
+rows landed.
+
+The worker now streams WaTech in pages and calls `ingest_geojson_path` per page.
+This gives durable partial progress (2k-row chunks) and writes
+`wa_statewide_county_ingest_completed` with `pages_ingested`, `inserted`,
+`updated`, `skipped`, and `parcel_features`.
+
+When diagnosing a county:
+
+1. Check `/internal/ingest/wa-rollout-status` for `parcels_in_db`.
+2. Check latest `wa_statewide_county_ingest_completed` audit for page/row totals.
+3. If there are repeated starts but no completion audit and no rows, inspect worker
+   logs and retry with the chunked worker path before advancing to the next county.
 
 ## Progress expectation
 

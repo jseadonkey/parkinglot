@@ -151,6 +151,30 @@ def _record_wa_zoning_followups_after_ingest(
     return followups
 
 
+def _record_watech_county_ingest_completion(county_fips: str, result: dict[str, Any]) -> None:
+    db = _session()
+    try:
+        write_audit(
+            db,
+            actor="celery:fetch_watech_county_and_ingest",
+            action="wa_statewide_county_ingest_completed",
+            entity_type="county_fips",
+            entity_id=county_fips,
+            meta={
+                "parcel_features": result.get("parcel_features"),
+                "pages_ingested": result.get("pages_ingested"),
+                "inserted": result.get("inserted"),
+                "updated": result.get("updated"),
+                "skipped": result.get("skipped"),
+                "pipelines_enqueued": result.get("pipelines_enqueued"),
+                "max_features_cap": result.get("max_features_cap"),
+                "warning": result.get("warning"),
+            },
+        )
+    finally:
+        db.close()
+
+
 def enqueue_unscored_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
     """Enqueue ``run_pipeline`` for prescreen-qualified parcels missing an entitlement score."""
     return enqueue_incomplete_pipeline_jobs(limit)
@@ -1176,14 +1200,16 @@ def fetch_watech_county_and_ingest(
         )
 
     if total_features == 0:
-        return {
+        result = {
             "county_fips": county_fips,
             "parcel_features": 0,
             "ingest_task_id": None,
             "warning": "no features returned (check county FIPS or layer availability)",
         }
+        _record_watech_county_ingest_completion(county_fips, result)
+        return result
 
-    return {
+    result = {
         "county_fips": county_fips,
         "parcel_features": total_features,
         "pages_ingested": page_count,
@@ -1195,6 +1221,8 @@ def fetch_watech_county_and_ingest(
         "sample_parcel_ids": sample_parcel_ids[:20],
         "page_results_sample": ingest_results[:10],
     }
+    _record_watech_county_ingest_completion(county_fips, result)
+    return result
 
 
 def _governed_pipeline_limit(requested: int) -> tuple[int, dict[str, Any] | None]:
