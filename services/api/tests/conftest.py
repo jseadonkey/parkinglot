@@ -8,6 +8,7 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _RULE_PATHS = [
     _REPO_ROOT / "data/zoning/wa/kent_king_surface_parking_rules.yaml",
+    _REPO_ROOT / "data/zoning/wa/wa_county_surface_parking_rules.yaml",
     _REPO_ROOT / "data/zoning/md/baltimore_city_surface_parking_rules.yaml",
 ]
 _rules = [str(p) for p in _RULE_PATHS if p.is_file()]

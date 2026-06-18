@@ -156,7 +156,7 @@ Populate **`zoning_code`** and **`zoning_allows_surface_parking`** (and optional
 ### Prerequisites
 
 - Jurisdiction’s **zoning GIS** (or assessor export) you can **spatially join** to parcel polygons outside this app (QGIS, ArcGIS, Python, county workflow).  
-- `data/zoning/wa/kent_king_surface_parking_rules.yaml` (or path from **`ZONING_RULES_PATH`**) curated for **`ZONING`** + **`ZONING_JURISDICTION`** pairs you emit.
+- `data/zoning/wa/wa_county_surface_parking_rules.yaml` (or path from **`ZONING_RULES_PATH`**) curated for **`ZONING`** + **`ZONING_JURISDICTION`** pairs you emit.
 
 ### Tasks (execute in order)
 
@@ -176,7 +176,7 @@ Populate **`zoning_code`** and **`zoning_allows_surface_parking`** (and optional
    - This updates existing parcels, merges **`raw_properties`**, refreshes **identification** scores, and enqueues **`run_pipeline`** up to **`max_pipeline`**.
 
 4. **Verify rules coverage**  
-   - If `zoning_allows_surface_parking` is wrong, fix **`kent_king_surface_parking_rules.yaml`** (or jurisdiction file) and remerge or re-ingest.
+   - If `zoning_allows_surface_parking` is wrong, fix **`wa_county_surface_parking_rules.yaml`** (or jurisdiction file) and remerge or re-ingest.
 
 5. **Re-run Phase A checks**  
    - `check_export_readiness.py` → zoning gap counts should fall.
@@ -191,11 +191,11 @@ Populate **`zoning_code`** and **`zoning_allows_surface_parking`** (and optional
 - `services/ingestion/parking_ingestion/geojson_loader.py` (property aliases)  
 - `services/ingestion/parking_ingestion/zoning_rules.py`  
 - `POST /internal/ingest/merge-geojson-attributes` — `services/api/app/tasks.py` (`merge_parcel_attributes_geojson`)  
-- `docs/zoning-sources-kent.md`, `data/zoning/wa/README.md`
+- `docs/zoning-sources-*.md`, `data/zoning/wa/README.md`
 
 ### Backlog — merge a **real** zoning overlay (tracked deliverable)
 
-The codebase includes merge endpoints, **`scripts/execute-phase-b.sh`**, and **`scripts/validate_phase_b_overlay.py`**. What is **not** done until ops/GIS completes it is the **authoritative overlay GeoJSON per pilot county**: spatial join parcel polygons to jurisdiction zoning GIS (outside this repo), properties aligned with **`geojson_loader`** aliases and **`kent_king_surface_parking_rules.yaml`**, staged on the Droplet under **`data/`** (worker path **`/app/data/...`**), then merge + verify **`parcels_missing_zoning_code`** drops and counsel spot-checks **`zoning_allows_surface_parking`**. Treat **“implement Phase B for production parcels”** as **shipping that file + running merge**, not only enabling the automation. Use the jurisdiction completeness plan for the repeatable registry/source-catalog, city-vs-county resolver, value-source, and feedback-loop requirements.
+The codebase includes merge endpoints, **`scripts/execute-phase-b.sh`**, and **`scripts/validate_phase_b_overlay.py`**. What is **not** done until ops/GIS completes it is the **authoritative overlay GeoJSON per pilot county**: spatial join parcel polygons to jurisdiction zoning GIS (outside this repo), properties aligned with **`geojson_loader`** aliases and **`wa_county_surface_parking_rules.yaml`**, staged on the Droplet under **`data/`** (worker path **`/app/data/...`**), then merge + verify **`parcels_missing_zoning_code`** drops and counsel spot-checks **`zoning_allows_surface_parking`**. Treat **“implement Phase B for production parcels”** as **shipping that file + running merge**, not only enabling the automation. Use the jurisdiction completeness plan for the repeatable registry/source-catalog, city-vs-county resolver, value-source, and feedback-loop requirements.
 
 ---
 

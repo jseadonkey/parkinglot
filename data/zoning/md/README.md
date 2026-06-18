@@ -7,7 +7,8 @@
 When **`ZONING_RULES_PATH`** is unset, the API/worker merges (if present):
 
 1. `data/zoning/wa/kent_king_surface_parking_rules.yaml`
-2. `data/zoning/md/baltimore_city_surface_parking_rules.yaml`
+2. `data/zoning/wa/wa_county_surface_parking_rules.yaml`
+3. `data/zoning/md/baltimore_city_surface_parking_rules.yaml`
 
 Set **`ZONING_RULES_PATH`** to a comma-separated list to override or add files.
 

@@ -1,67 +1,1114 @@
 version: 1
-
 policy:
-  full_credit_symbols: ["P"]
-  conditional_symbols: ["CB"]
-  council_symbols: ["CO"]
+  full_credit_symbols:
+  - P
+  conditional_symbols:
+  - CB
+  council_symbols:
+  - CO
   unknown_default_must_be_false: true
-  note: >
-    Surface-parking entitlement is jurisdiction-specific. Each market must map
-    zoning codes to Article/ordinance symbols before scores are trusted.
+  note: 'Surface-parking entitlement is jurisdiction-specific. Each market must map zoning codes to Article/ordinance symbols
+    before scores are trusted.
 
+    '
 county_coverage:
-  "24510":
-    county_name: "Baltimore City, MD"
+  '24510':
+    county_name: Baltimore City, MD
     status: curated
-    jurisdiction_keys: ["baltimore_city"]
-    note: "Priority market. Article 32 principal-use parking table curated for current pilot."
-  "24005":
-    county_name: "Baltimore County, MD"
+    jurisdiction_keys:
+    - baltimore_city
+    note: Priority market. Article 32 principal-use parking table curated for current pilot.
+  '24005':
+    county_name: Baltimore County, MD
     status: paused
     jurisdiction_keys: []
-    note: "Paused; curate Baltimore County zoning before ingest/pipeline activation."
-  "53":
-    state_name: "Washington"
+    note: Paused; curate Baltimore County zoning before ingest/pipeline activation.
+  '53':
+    state_name: Washington
     status: not_started
-    jurisdiction_keys: ["kent_city", "king_unincorporated"]
-    note: >
-      Statewide parcel ingest can load geometry, but zoning entitlement must be
-      curated by city/unincorporated jurisdiction before scores are trusted.
+    jurisdiction_keys:
+    - kent_city
+    - king_unincorporated
+    note: 'Statewide parcel ingest can load geometry, but zoning entitlement must be curated by city/unincorporated jurisdiction
+      before scores are trusted.
 
+      '
+  '53001':
+    county_name: Adams County, WA
+    status: not_started
+    jurisdiction_keys:
+    - adams_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53003':
+    county_name: Asotin County, WA
+    status: not_started
+    jurisdiction_keys:
+    - asotin_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53005':
+    county_name: Benton County, WA
+    status: not_started
+    jurisdiction_keys:
+    - benton_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53007':
+    county_name: Chelan County, WA
+    status: not_started
+    jurisdiction_keys:
+    - chelan_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53009':
+    county_name: Clallam County, WA
+    status: not_started
+    jurisdiction_keys:
+    - clallam_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53011':
+    county_name: Clark County, WA
+    status: not_started
+    jurisdiction_keys:
+    - clark_unincorporated
+    - vancouver_city
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53013':
+    county_name: Columbia County, WA
+    status: not_started
+    jurisdiction_keys:
+    - columbia_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53015':
+    county_name: Cowlitz County, WA
+    status: not_started
+    jurisdiction_keys:
+    - cowlitz_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53017':
+    county_name: Douglas County, WA
+    status: not_started
+    jurisdiction_keys:
+    - douglas_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53019':
+    county_name: Ferry County, WA
+    status: not_started
+    jurisdiction_keys:
+    - ferry_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53021':
+    county_name: Franklin County, WA
+    status: not_started
+    jurisdiction_keys:
+    - franklin_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53023':
+    county_name: Garfield County, WA
+    status: not_started
+    jurisdiction_keys:
+    - garfield_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53025':
+    county_name: Grant County, WA
+    status: not_started
+    jurisdiction_keys:
+    - grant_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53027':
+    county_name: Grays Harbor County, WA
+    status: not_started
+    jurisdiction_keys:
+    - grays_harbor_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53029':
+    county_name: Island County, WA
+    status: not_started
+    jurisdiction_keys:
+    - island_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53031':
+    county_name: Jefferson County, WA
+    status: not_started
+    jurisdiction_keys:
+    - jefferson_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53033':
+    county_name: King County, WA
+    status: not_started
+    jurisdiction_keys:
+    - king_unincorporated
+    - seattle_city
+    - bellevue_city
+    - kent_city
+    - renton_city
+    - federal_way_city
+    - kirkland_city
+    - redmond_city
+    - auburn_city
+    - burien_city
+    - shoreline_city
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53035':
+    county_name: Kitsap County, WA
+    status: not_started
+    jurisdiction_keys:
+    - kitsap_unincorporated
+    - bremerton_city
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53037':
+    county_name: Kittitas County, WA
+    status: not_started
+    jurisdiction_keys:
+    - kittitas_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53039':
+    county_name: Klickitat County, WA
+    status: not_started
+    jurisdiction_keys:
+    - klickitat_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53041':
+    county_name: Lewis County, WA
+    status: not_started
+    jurisdiction_keys:
+    - lewis_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53043':
+    county_name: Lincoln County, WA
+    status: not_started
+    jurisdiction_keys:
+    - lincoln_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53045':
+    county_name: Mason County, WA
+    status: not_started
+    jurisdiction_keys:
+    - mason_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53047':
+    county_name: Okanogan County, WA
+    status: not_started
+    jurisdiction_keys:
+    - okanogan_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53049':
+    county_name: Pacific County, WA
+    status: not_started
+    jurisdiction_keys:
+    - pacific_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53051':
+    county_name: Pend Oreille County, WA
+    status: not_started
+    jurisdiction_keys:
+    - pend_oreille_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53053':
+    county_name: Pierce County, WA
+    status: not_started
+    jurisdiction_keys:
+    - pierce_unincorporated
+    - tacoma_city
+    - lakewood_city
+    - puyallup_city
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53055':
+    county_name: San Juan County, WA
+    status: not_started
+    jurisdiction_keys:
+    - san_juan_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53057':
+    county_name: Skagit County, WA
+    status: not_started
+    jurisdiction_keys:
+    - skagit_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53059':
+    county_name: Skamania County, WA
+    status: not_started
+    jurisdiction_keys:
+    - skamania_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53061':
+    county_name: Snohomish County, WA
+    status: not_started
+    jurisdiction_keys:
+    - snohomish_unincorporated
+    - everett_city
+    - lynnwood_city
+    - edmonds_city
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53063':
+    county_name: Spokane County, WA
+    status: not_started
+    jurisdiction_keys:
+    - spokane_unincorporated
+    - spokane_city
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53065':
+    county_name: Stevens County, WA
+    status: not_started
+    jurisdiction_keys:
+    - stevens_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53067':
+    county_name: Thurston County, WA
+    status: not_started
+    jurisdiction_keys:
+    - thurston_unincorporated
+    - olympia_city
+    - lacey_city
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53069':
+    county_name: Wahkiakum County, WA
+    status: not_started
+    jurisdiction_keys:
+    - wahkiakum_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53071':
+    county_name: Walla Walla County, WA
+    status: not_started
+    jurisdiction_keys:
+    - walla_walla_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53073':
+    county_name: Whatcom County, WA
+    status: not_started
+    jurisdiction_keys:
+    - whatcom_unincorporated
+    - bellingham_city
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53075':
+    county_name: Whitman County, WA
+    status: not_started
+    jurisdiction_keys:
+    - whitman_unincorporated
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
+  '53077':
+    county_name: Yakima County, WA
+    status: not_started
+    jurisdiction_keys:
+    - yakima_unincorporated
+    - yakima_city
+    note: Template coverage is ready; zoning score remains untrusted until each listed jurisdiction is curated.
 jurisdictions:
   baltimore_city:
-    display_name: "Baltimore City"
+    display_name: Baltimore City
     status: curated
-    state_fips: "24"
-    county_fips: ["24510"]
-    authority: "Baltimore City Article 32"
-    rules_file: "data/zoning/md/baltimore_city_surface_parking_rules.yaml"
-    source_doc: "docs/zoning-sources-baltimore.md"
+    state_fips: '24'
+    county_fips:
+    - '24510'
+    authority: Baltimore City Article 32
+    rules_file: data/zoning/md/baltimore_city_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-baltimore.md
     legal_review_required: true
-    scoring_policy: "Only P gets full credit; CB/CO require parcel-specific override or counsel-approved path."
-    last_reviewed: "2026-06-06"
-    reviewed_by: "Cursor agent; counsel still required before acquisition/outreach decisions"
+    scoring_policy: Only P gets full credit; CB/CO require parcel-specific override or counsel-approved path.
+    last_reviewed: '2026-06-06'
+    reviewed_by: Cursor agent; counsel still required before acquisition/outreach decisions
   kent_city:
-    display_name: "Kent, WA"
+    display_name: Kent, WA
     status: not_started
-    state_fips: "53"
-    county_fips: ["53033"]
-    authority: "Kent zoning code"
-    rules_file: "data/zoning/wa/kent_king_surface_parking_rules.yaml"
-    source_doc: "docs/zoning-sources-kent.md"
+    state_fips: '53'
+    county_fips:
+    - '53033'
+    authority: Kent zoning code
+    rules_file: data/zoning/wa/kent_king_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-kent.md
     legal_review_required: true
-    scoring_policy: "Do not trust zoning score until Kent ordinance use table is curated."
+    scoring_policy: Do not trust zoning score until Kent ordinance use table is curated.
     last_reviewed: null
     reviewed_by: null
   king_unincorporated:
-    display_name: "Unincorporated King County, WA"
+    display_name: Unincorporated King County, WA
     status: not_started
-    state_fips: "53"
-    county_fips: ["53033"]
-    authority: "King County Title 21A"
-    rules_file: "data/zoning/wa/kent_king_surface_parking_rules.yaml"
-    source_doc: "docs/zoning-sources-kent.md"
+    state_fips: '53'
+    county_fips:
+    - '53033'
+    authority: King County Title 21A
+    rules_file: data/zoning/wa/kent_king_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-kent.md
     legal_review_required: true
-    scoring_policy: "Do not trust zoning score until King County parking-use rules are curated."
+    scoring_policy: Do not trust zoning score until King County parking-use rules are curated.
+    last_reviewed: null
+    reviewed_by: null
+    source_url: https://gis-kingcounty.opendata.arcgis.com/datasets/kingcounty::zoning-for-unincorporated-king-county
+  adams_unincorporated:
+    display_name: Unincorporated Adams County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53001'
+    authority: Adams County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-adams.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  asotin_unincorporated:
+    display_name: Unincorporated Asotin County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53003'
+    authority: Asotin County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-asotin.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  benton_unincorporated:
+    display_name: Unincorporated Benton County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53005'
+    authority: Benton County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-benton.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  chelan_unincorporated:
+    display_name: Unincorporated Chelan County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53007'
+    authority: Chelan County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-chelan.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  clallam_unincorporated:
+    display_name: Unincorporated Clallam County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53009'
+    authority: Clallam County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-clallam.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  clark_unincorporated:
+    display_name: Unincorporated Clark County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53011'
+    authority: Clark County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-clark.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  vancouver_city:
+    display_name: Vancouver, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53011'
+    authority: Vancouver zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-clark.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  columbia_unincorporated:
+    display_name: Unincorporated Columbia County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53013'
+    authority: Columbia County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-columbia.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  cowlitz_unincorporated:
+    display_name: Unincorporated Cowlitz County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53015'
+    authority: Cowlitz County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-cowlitz.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  douglas_unincorporated:
+    display_name: Unincorporated Douglas County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53017'
+    authority: Douglas County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-douglas.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  ferry_unincorporated:
+    display_name: Unincorporated Ferry County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53019'
+    authority: Ferry County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-ferry.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  franklin_unincorporated:
+    display_name: Unincorporated Franklin County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53021'
+    authority: Franklin County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-franklin.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  garfield_unincorporated:
+    display_name: Unincorporated Garfield County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53023'
+    authority: Garfield County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-garfield.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  grant_unincorporated:
+    display_name: Unincorporated Grant County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53025'
+    authority: Grant County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-grant.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  grays_harbor_unincorporated:
+    display_name: Unincorporated Grays Harbor County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53027'
+    authority: Grays Harbor County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-grays-harbor.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  island_unincorporated:
+    display_name: Unincorporated Island County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53029'
+    authority: Island County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-island.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  jefferson_unincorporated:
+    display_name: Unincorporated Jefferson County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53031'
+    authority: Jefferson County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-jefferson.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  seattle_city:
+    display_name: Seattle, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53033'
+    authority: Seattle zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-king.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  bellevue_city:
+    display_name: Bellevue, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53033'
+    authority: Bellevue zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-king.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  renton_city:
+    display_name: Renton, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53033'
+    authority: Renton zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-king.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  federal_way_city:
+    display_name: Federal Way, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53033'
+    authority: Federal Way zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-king.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  kirkland_city:
+    display_name: Kirkland, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53033'
+    authority: Kirkland zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-king.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  redmond_city:
+    display_name: Redmond, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53033'
+    authority: Redmond zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-king.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  auburn_city:
+    display_name: Auburn, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53033'
+    authority: Auburn zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-king.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  burien_city:
+    display_name: Burien, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53033'
+    authority: Burien zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-king.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  shoreline_city:
+    display_name: Shoreline, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53033'
+    authority: Shoreline zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-king.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  kitsap_unincorporated:
+    display_name: Unincorporated Kitsap County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53035'
+    authority: Kitsap County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-kitsap.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  bremerton_city:
+    display_name: Bremerton, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53035'
+    authority: Bremerton zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-kitsap.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  kittitas_unincorporated:
+    display_name: Unincorporated Kittitas County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53037'
+    authority: Kittitas County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-kittitas.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  klickitat_unincorporated:
+    display_name: Unincorporated Klickitat County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53039'
+    authority: Klickitat County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-klickitat.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  lewis_unincorporated:
+    display_name: Unincorporated Lewis County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53041'
+    authority: Lewis County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-lewis.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  lincoln_unincorporated:
+    display_name: Unincorporated Lincoln County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53043'
+    authority: Lincoln County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-lincoln.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  mason_unincorporated:
+    display_name: Unincorporated Mason County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53045'
+    authority: Mason County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-mason.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  okanogan_unincorporated:
+    display_name: Unincorporated Okanogan County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53047'
+    authority: Okanogan County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-okanogan.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  pacific_unincorporated:
+    display_name: Unincorporated Pacific County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53049'
+    authority: Pacific County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-pacific.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  pend_oreille_unincorporated:
+    display_name: Unincorporated Pend Oreille County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53051'
+    authority: Pend Oreille County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-pend-oreille.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  pierce_unincorporated:
+    display_name: Unincorporated Pierce County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53053'
+    authority: Pierce County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-pierce.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  tacoma_city:
+    display_name: Tacoma, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53053'
+    authority: Tacoma zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-pierce.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  lakewood_city:
+    display_name: Lakewood, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53053'
+    authority: Lakewood zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-pierce.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  puyallup_city:
+    display_name: Puyallup, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53053'
+    authority: Puyallup zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-pierce.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  san_juan_unincorporated:
+    display_name: Unincorporated San Juan County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53055'
+    authority: San Juan County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-san-juan.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  skagit_unincorporated:
+    display_name: Unincorporated Skagit County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53057'
+    authority: Skagit County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-skagit.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  skamania_unincorporated:
+    display_name: Unincorporated Skamania County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53059'
+    authority: Skamania County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-skamania.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  snohomish_unincorporated:
+    display_name: Unincorporated Snohomish County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53061'
+    authority: Snohomish County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-snohomish.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  everett_city:
+    display_name: Everett, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53061'
+    authority: Everett zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-snohomish.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  lynnwood_city:
+    display_name: Lynnwood, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53061'
+    authority: Lynnwood zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-snohomish.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  edmonds_city:
+    display_name: Edmonds, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53061'
+    authority: Edmonds zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-snohomish.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  spokane_unincorporated:
+    display_name: Unincorporated Spokane County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53063'
+    authority: Spokane County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-spokane.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  spokane_city:
+    display_name: Spokane, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53063'
+    authority: Spokane zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-spokane.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  stevens_unincorporated:
+    display_name: Unincorporated Stevens County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53065'
+    authority: Stevens County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-stevens.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  thurston_unincorporated:
+    display_name: Unincorporated Thurston County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53067'
+    authority: Thurston County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-thurston.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  olympia_city:
+    display_name: Olympia, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53067'
+    authority: Olympia zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-thurston.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  lacey_city:
+    display_name: Lacey, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53067'
+    authority: Lacey zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-thurston.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  wahkiakum_unincorporated:
+    display_name: Unincorporated Wahkiakum County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53069'
+    authority: Wahkiakum County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-wahkiakum.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  walla_walla_unincorporated:
+    display_name: Unincorporated Walla Walla County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53071'
+    authority: Walla Walla County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-walla-walla.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  whatcom_unincorporated:
+    display_name: Unincorporated Whatcom County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53073'
+    authority: Whatcom County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-whatcom.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  bellingham_city:
+    display_name: Bellingham, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53073'
+    authority: Bellingham zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-whatcom.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  whitman_unincorporated:
+    display_name: Unincorporated Whitman County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53075'
+    authority: Whitman County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-whitman.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+  yakima_unincorporated:
+    display_name: Unincorporated Yakima County, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53077'
+    authority: Yakima County zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-yakima.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until county ordinance use table is curated.
+    last_reviewed: null
+    reviewed_by: null
+    source_url: https://maps.yakimacounty.us/server/rest/services/Planning/CountyZoning/MapServer/0
+  yakima_city:
+    display_name: Yakima, WA
+    status: not_started
+    state_fips: '53'
+    county_fips:
+    - '53077'
+    authority: Yakima zoning code
+    rules_file: data/zoning/wa/wa_county_surface_parking_rules.yaml
+    source_doc: docs/zoning-sources-yakima.md
+    legal_review_required: true
+    scoring_policy: Do not trust zoning score until city ordinance use table is curated.
     last_reviewed: null
     reviewed_by: null

@@ -46,7 +46,7 @@ The county layer applies to **unincorporated** King County, **not** to land insi
    - Outside city limits but unincorporated King → use **King County** current zone field (e.g. catalog **CURRZONE** / “current zoning codes” semantics).  
 3. **Emit GeoJSON** (or enrich before ingest) with at least:  
    - **`ZONING`** — normalized zone code string for that jurisdiction.  
-   - **`ZONING_JURISDICTION`** — either `kent_city` or `king_unincorporated` (required for YAML rule lookup in `data/zoning/wa/kent_king_surface_parking_rules.yaml`).  
+   - **`ZONING_JURISDICTION`** — either `kent_city` or `king_unincorporated` (required for YAML rule lookup in `data/zoning/wa/wa_county_surface_parking_rules.yaml` or the Kent/King compatibility file).  
    - Optionally **`ZONING_ALLOWS_SURFACE_PARKING`** — explicit `true` / `false` if you already computed allowance; if omitted, the ingest loader infers from the rules file.  
 4. **Ingest** via existing endpoints (`/internal/ingest/geojson-upload`, etc.). Rules path: see `data/zoning/wa/README.md` and optional env **`ZONING_RULES_PATH`**.
 
@@ -55,5 +55,6 @@ The county layer applies to **unincorporated** King County, **not** to land insi
 ## Related docs
 
 - `docs/washington-data.md` — parcel ingest entry points.  
-- `data/zoning/wa/kent_king_surface_parking_rules.yaml` — curated zone → surface-parking suitability (placeholders until GIS/legal review).  
+- `data/zoning/wa/wa_county_surface_parking_rules.yaml` — statewide WA county/city templates.  
+- `data/zoning/wa/kent_king_surface_parking_rules.yaml` — Kent/King compatibility rules (placeholders until GIS/legal review).  
 - `config/pilot.yaml` — `data_sources` pointers.
