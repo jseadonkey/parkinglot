@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
 
-from sqlalchemy import case, desc, func, inspect, literal, nulls_last, select
+from sqlalchemy import case, desc, func, inspect, literal, nulls_last, select, union_all
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore
@@ -22,6 +22,8 @@ from app.zoning_entitlement import (
 ParcelSortProfile = Literal["combined", "entitlement", "strategic", "identification"]
 ZoningTierFilter = Literal["permitted", "conditional", "council", "excluded"]
 COMBINED: str = "combined"
+MIN_SCORE_CANDIDATES = 5_000
+MAX_SCORE_CANDIDATES = 50_000
 
 
 def _parcel_column_exists(db: Session, column: str) -> bool:
@@ -206,6 +208,34 @@ def _latest_scores_pivot_subq(parcel_scope: Any) -> Any:
     )
 
 
+def _score_candidate_cap(limit: int) -> int:
+    """Bound expensive score ranking work while keeping enough rows for filters."""
+    return min(max(limit * 100, MIN_SCORE_CANDIDATES), MAX_SCORE_CANDIDATES)
+
+
+def _top_score_candidate_subq(parcel_scope: Any, *, limit: int) -> Any:
+    """Parcel ids likely to appear in the score-sorted list.
+
+    The full list endpoint only renders a limited operator table.  Ranking every
+    parcel in every pilot county before applying that table limit is too costly
+    once statewide parcel inventory reaches millions of rows.  Start from the
+    highest raw scores per profile, then compute exact latest-profile ordering
+    for that bounded candidate set.
+    """
+    cap = _score_candidate_cap(limit)
+    per_profile = []
+    for profile in (ENTITLEMENT, STRATEGIC, IDENTIFICATION):
+        per_profile.append(
+            select(ParcelScore.parcel_id.label("parcel_id"))
+            .join(parcel_scope, ParcelScore.parcel_id == parcel_scope.c.parcel_id)
+            .where(ParcelScore.score_profile == profile)
+            .order_by(desc(ParcelScore.total_score), desc(ParcelScore.created_at))
+            .limit(cap),
+        )
+    candidates = union_all(*per_profile).subquery()
+    return select(candidates.c.parcel_id).distinct().subquery()
+
+
 def query_parcels_scored_list(
     db: Session,
     *,
@@ -224,7 +254,8 @@ def query_parcels_scored_list(
     parcel_scope = _parcel_scope_subq(county_fips=cf, state_fips=st, zoning_tier=tier)
     if parcel_scope is None:
         return []
-    latest_scores = _latest_scores_pivot_subq(parcel_scope)
+    candidate_scope = _top_score_candidate_subq(parcel_scope, limit=cap)
+    latest_scores = _latest_scores_pivot_subq(candidate_scope)
     ent_sub = latest_scores.c.ent_score
     str_sub = latest_scores.c.str_score
     id_sub = latest_scores.c.id_score
@@ -257,17 +288,10 @@ def query_parcels_scored_list(
         ent_sub.label("ent_score"),
         str_sub.label("str_score"),
         id_sub.label("id_score"),
-    ).outerjoin(latest_scores, Parcel.id == latest_scores.c.parcel_id)
-    if cf:
-        stmt = stmt.where(Parcel.county_fips == cf)
-    elif st:
-        stmt = stmt.where(Parcel.county_fips.startswith(st))
-    if tier in ("permitted", "conditional", "council", "excluded"):
-        codes = baltimore_zone_codes_for_tier(tier)
-        if codes:
-            stmt = stmt.where(Parcel.county_fips == "24510", func.upper(Parcel.zoning_code).in_(sorted(codes)))
-        else:
-            return []
+    ).join(candidate_scope, Parcel.id == candidate_scope.c.parcel_id).outerjoin(
+        latest_scores,
+        Parcel.id == latest_scores.c.parcel_id,
+    )
     if min_entitlement_score is not None:
         stmt = stmt.where(ent_sub.isnot(None), ent_sub >= float(min_entitlement_score))
     stmt = stmt.order_by(nulls_last(desc(sort_col)), desc(Parcel.created_at)).limit(cap)
