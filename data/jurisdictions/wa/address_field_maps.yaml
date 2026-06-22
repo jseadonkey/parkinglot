@@ -63,15 +63,86 @@ counties:
   "53053":
     inherit: default_wa_watech
     address_source: watech_pierce
+    situs_street:
+      - Site_Address
+      - SITUS_ADDRESS
+      - PROPERTY_ADDRESS
+    situs_city:
+      - City_State
+      - SITUS_CITY_NM
+      - SITUS_CITY
+    situs_zip:
+      - Zipcode
+      - SITUS_ZIP_NR
+      - SITUS_ZIP
+    mailing:
+      - Delivery_Address
+      - MAILING_ADDRESS
+    owner:
+      - Business_Name
+      - OWNER_NAME
+    notes: "Pierce — county Tax_Parcels service exposes Site_Address/City_State/Zipcode."
   "53061":
     inherit: default_wa_watech
     address_source: watech_snohomish
+    situs_street:
+      - SITUSLINE1
+      - SITUS_ADDRESS
+      - PROPERTY_ADDRESS
+    situs_city:
+      - SITUSCITY
+      - SITUS_CITY_NM
+      - SITUS_CITY
+    situs_state:
+      - SITUSSTATE
+      - SITUS_STATE
+    situs_zip:
+      - SITUSZIP
+      - SITUS_ZIP_NR
+      - SITUS_ZIP
+    mailing:
+      - TAXPRLINE1
+      - OWNERLINE1
+      - MAILING_ADDRESS
+    owner:
+      - OWNERNAME
+      - TAXPRNAME
+      - OWNER_NAME
+    notes: "Snohomish — public Parcels FeatureServer exposes SITUSLINE1/SITUSCITY/SITUSZIP."
   "53035":
     inherit: default_wa_watech
     address_source: watech_kitsap
+    situs_street:
+      - SITUS_ADDRESS
+      - SUB_ADDRESS
+      - PROPERTY_ADDRESS
+    situs_city:
+      - SITUS_CITY_NM
+      - SITUS_CITY
+    situs_zip:
+      - SITUS_ZIP_NR
+      - SITUS_ZIP
+    notes: "Kitsap — county parcel service follows WaTech normalized situs fields."
   "53067":
     inherit: default_wa_watech
     address_source: watech_thurston
+    situs_street:
+      - SITUS_STRE
+      - SITUS_ADDRESS
+      - PROPERTY_ADDRESS
+    situs_city:
+      - SITUS_CITY
+      - SITUS_CITY_NM
+    situs_zip:
+      - SITUS_ZIP
+      - SITUS_ZIP_NR
+    mailing:
+      - ADDRESS1
+      - ADDRESS2
+      - MAILING_ADDRESS
+    owner:
+      - OWNER_NAME
+    notes: "Thurston — county parcel service exposes SITUS_STRE/SITUS_CITY/SITUS_ZIP."
   "24510":
     address_source: baltimore_realproperty
     notes: "Baltimore City — normalized in baltimore_parcels.py / address backfill batch."
