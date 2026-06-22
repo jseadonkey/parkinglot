@@ -46,7 +46,7 @@ def test_active_puget_counties_have_post_centroid_sources():
 
 
 def test_public_arcgis_address_sources_have_join_fields():
-    for source_id, config in ARCGIS_ADDRESS_SOURCES.items():
+    for config in ARCGIS_ADDRESS_SOURCES.values():
         assert config["url"]
         assert config["join_fields"]
         assert config["address_fields"]
