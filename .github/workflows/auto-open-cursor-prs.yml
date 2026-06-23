@@ -106,29 +106,29 @@ jobs:
               risk_note="This branch touches repository automation, deploy, scripts, or compose files. Existing auto-merge will intentionally leave it for explicit review/merge."
             fi
 
-            body="$(cat <<EOF
-## Summary
-
-Auto-opened for \`$branch\` so Cursor work cannot sit unmerged and undeployed without a PR.
-
-Latest commit: \`$title\`
-
-## How tested
-
-- [ ] \`make api-ci\` passes locally, or CI is green on this branch
-- [ ] If this changes Droplet / phased rollout / GIS ops, noted in PR or linked from [docs/PHASED-EXECUTION-PLAN-A-E.md](docs/PHASED-EXECUTION-PLAN-A-E.md)
-- [x] If this is expected to go live, PR is non-draft; if draft, explain why it is not deployable yet
-- [ ] If this touches \`.github/\`, \`deploy/\`, \`scripts/\`, or compose files, deployment/merge path is called out (see [docs/PR-DEPLOY-POLICY.md](docs/PR-DEPLOY-POLICY.md))
-
-## Notes for reviewers (optional)
-
-$risk_note
-EOF
-)"
+            body_file="$(mktemp)"
+            {
+              echo "## Summary"
+              echo
+              echo "Auto-opened for \`$branch\` so Cursor work cannot sit unmerged and undeployed without a PR."
+              echo
+              echo "Latest commit: \`$title\`"
+              echo
+              echo "## How tested"
+              echo
+              echo "- [ ] \`make api-ci\` passes locally, or CI is green on this branch"
+              echo "- [ ] If this changes Droplet / phased rollout / GIS ops, noted in PR or linked from [docs/PHASED-EXECUTION-PLAN-A-E.md](docs/PHASED-EXECUTION-PLAN-A-E.md)"
+              echo "- [x] If this is expected to go live, PR is non-draft; if draft, explain why it is not deployable yet"
+              echo "- [ ] If this touches \`.github/\`, \`deploy/\`, \`scripts/\`, or compose files, deployment/merge path is called out (see [docs/PR-DEPLOY-POLICY.md](docs/PR-DEPLOY-POLICY.md))"
+              echo
+              echo "## Notes for reviewers (optional)"
+              echo
+              echo "$risk_note"
+            } > "$body_file"
 
             gh pr create \
               --base "$BASE_BRANCH" \
               --head "$branch" \
               --title "$title" \
-              --body "$body"
+              --body-file "$body_file"
           done <<<"${{ steps.branches.outputs.branches }}"
