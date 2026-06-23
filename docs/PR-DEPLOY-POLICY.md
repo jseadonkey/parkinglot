@@ -6,19 +6,26 @@ the PR as non-draft (`draft=false`) once the change is ready for CI.
 
 ## Why the WA rollout fix did not deploy automatically
 
-Two gates blocked it:
+Three gates can block an otherwise ready Cursor branch:
 
-1. The PR was still **draft**. Auto-merge intentionally skips draft PRs.
-2. The PR touched workflows/deploy/scripts. Auto-merge intentionally skips those
+1. No PR exists for the `cursor/*` branch.
+2. The PR is still **draft**. Auto-merge intentionally skips draft PRs.
+3. The PR touches workflows/deploy/scripts. Auto-merge intentionally skips those
    high-risk ops changes because they can affect production automation.
 
-The result was a CI-green branch that was not merged to `main`, so the normal
-GHCR/build/deploy chain never ran.
+Any of those leaves a branch unmerged to `main`, so the normal GHCR/build/deploy
+chain never runs.
+
+`auto-open-cursor-prs.yml` covers the first gate by opening a non-draft PR for
+new `cursor/*` pushes and by sweeping every 15 minutes for existing cursor
+branches that still lack PRs.
 
 ## Ongoing rules
 
 - **Implementation PRs:** create as non-draft unless the work is knowingly
   incomplete or explicitly review-only.
+- **Cursor branches without PRs:** `auto-open-cursor-prs.yml` should open them
+  automatically. If it cannot, agents should open the PR directly as non-draft.
 - **Draft PRs:** must include a clear reason they are not live.
 - **High-risk ops PRs:** if they touch `.github/`, `deploy/`, `scripts/`, or
   compose files, expect manual/explicit deployment or human merge review.
