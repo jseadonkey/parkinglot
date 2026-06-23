@@ -1,0 +1,106 @@
+name: Emergency API restart 4c10
+
+on:
+  push:
+    branches:
+      - cursor/fix-api-restart-4c10
+    paths:
+      - .github/workflows/emergency-api-restart-4c10.yml
+
+permissions:
+  contents: read
+
+jobs:
+  restart-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Restart API and capture diagnostics
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+          DROPLET_USER: ${{ secrets.DROPLET_USER }}
+          DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+        run: |
+          set -euo pipefail
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
+          ssh -oBatchMode=yes "$DROPLET_USER@$DROPLET_HOST" "cd $(printf '%q' "$REMOTE_PATH") && bash -s" <<'REMOTE'
+          set -euo pipefail
+          COMPOSE_REL="deploy/docker-compose.production.ghcr.yml"
+          if ! docker compose -f "$COMPOSE_REL" --env-file deploy/.env ps -q api >/dev/null 2>&1; then
+            for alt in deploy/docker-compose.production.ghcr-full.yml deploy/docker-compose.production.yml; do
+              if docker compose -f "$alt" --env-file deploy/.env ps -q api >/dev/null 2>&1; then
+                COMPOSE_REL="$alt"
+                break
+              fi
+            done
+          fi
+          ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
+          echo "=== using compose file ==="
+          printf '%s\n' "$COMPOSE_REL"
+          echo "=== before: compose ps api caddy ==="
+          docker compose "${ARGS[@]}" ps api caddy 2>/dev/null || docker compose "${ARGS[@]}" ps api
+          echo "=== before: api state ==="
+          api_id="$(docker compose "${ARGS[@]}" ps -q api 2>/dev/null || true)"
+          if [ -n "$api_id" ]; then
+            docker inspect --format 'status={{.State.Status}} restarting={{.State.Restarting}} exit={{.State.ExitCode}} error={{.State.Error}} started={{.State.StartedAt}} finished={{.State.FinishedAt}}' "$api_id" || true
+          fi
+          echo "=== api logs before restart (tail 160) ==="
+          docker compose "${ARGS[@]}" logs --no-color --tail 160 api || true
+          echo "=== force recreate api ==="
+          docker compose "${ARGS[@]}" up -d --force-recreate --no-deps api
+          echo "=== wait for api health ==="
+          ok=false
+          for i in $(seq 1 30); do
+            sleep 2
+            body="$(docker compose "${ARGS[@]}" exec -T api python - <<'PY' 2>/dev/null || true
+import urllib.error
+import urllib.request
+
+try:
+    with urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=3) as resp:
+        print(resp.read().decode())
+except Exception as exc:
+    print(type(exc).__name__ + ": " + str(exc))
+PY
+)"
+            echo "health_poll=${i} ${body}"
+            if printf '%s' "$body" | grep -q '"status"'; then
+              ok=true
+              break
+            fi
+          done
+          echo "=== after: compose ps api caddy ==="
+          docker compose "${ARGS[@]}" ps api caddy 2>/dev/null || docker compose "${ARGS[@]}" ps api
+          echo "=== after: api state ==="
+          api_id="$(docker compose "${ARGS[@]}" ps -q api 2>/dev/null || true)"
+          if [ -n "$api_id" ]; then
+            docker inspect --format 'status={{.State.Status}} restarting={{.State.Restarting}} exit={{.State.ExitCode}} error={{.State.Error}} started={{.State.StartedAt}} finished={{.State.FinishedAt}}' "$api_id" || true
+          fi
+          echo "=== api logs after restart (tail 220) ==="
+          docker compose "${ARGS[@]}" logs --no-color --tail 220 api || true
+          echo "=== public API probes from droplet ==="
+          base="$(grep -E '^PUBLIC_API_URL=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')"
+          if [ -z "$base" ]; then
+            host="$(grep -E '^API_HOST=' deploy/.env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//')"
+            base="https://$host"
+          fi
+          curl -sSk --connect-timeout 10 --max-time 20 -w '\nhealth_http=%{http_code}\n' "$base/health" || true
+          curl -sSk --connect-timeout 10 --max-time 20 -w '\nready_http=%{http_code}\n' "$base/ready" || true
+          if [ "$ok" != true ]; then
+            exit 1
+          fi
+          REMOTE
