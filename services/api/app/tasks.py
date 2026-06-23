@@ -1071,6 +1071,9 @@ def fetch_build_merge_wa_county_zoning(
     cache_dir_raw = str(county_settings.get("cache_dir") or "").strip()
     cache_dir = Path(cache_dir_raw) if cache_dir_raw else overlay_path.parent
     max_pipe = int(county_settings.get("max_merge_pipeline") or max_pipeline)
+    zoning_sources = county_settings.get("zoning_sources")
+    if not isinstance(zoning_sources, list):
+        zoning_sources = None
 
     if not overlay_path:
         return {"skipped": True, "reason": "overlay_path_not_configured", "county_fips": county_fips}
@@ -1079,6 +1082,7 @@ def fetch_build_merge_wa_county_zoning(
         county_fips,
         overlay_path,
         cache_dir=cache_dir,
+        zoning_sources=zoning_sources,
     )
     merge_result = merge_parcel_attributes_geojson.run(
         str(overlay_path),
