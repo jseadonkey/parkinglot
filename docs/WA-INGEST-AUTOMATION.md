@@ -61,6 +61,11 @@ Phase B runs **automatically only for counties with an overlay builder or staged
 
 Today:
 
+- **King (`53033`)** — `auto_build_overlay: true` for unincorporated King County zoning
+- **Pierce (`53053`)** — `auto_build_overlay: true` for county zoning
+- **Snohomish (`53061`)** — `auto_build_overlay: true` for county zoning
+- **Kitsap (`53035`)** — `auto_build_overlay: true` for county zoning; verify catalog license note before redistribution
+- **Thurston (`53067`)** — `auto_build_overlay: true` for county zoning
 - **Benton (`53005`)** — `auto_build_overlay: true` (Tri-Cities GIS)
 - Other loaded counties — flagged by `wa_zoning_followup_required` until sources + config are added
 

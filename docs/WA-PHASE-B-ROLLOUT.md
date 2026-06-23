@@ -10,8 +10,15 @@ hourly (default minute `:45` UTC). Production deploys set this automatically —
 5. **Pick next county** — first priority county with parcels loaded, zoning follow-up needed,
    missing zoning on ≥ `min_missing_zoning_pct` of rows, and an overlay builder or staged file.
 
-For Benton (`53005`), the worker **builds the overlay automatically** (Kennewick attribute
-join + Pasco/Benton County spatial joins) then calls **`merge_parcel_attributes_geojson`**.
+For configured counties, the worker **builds the overlay automatically** then calls
+**`merge_parcel_attributes_geojson`**:
+
+- King (`53033`) — King County unincorporated zoning (`CURRZONE`; cities clipped out).
+- Pierce (`53053`) — Pierce County zoning (`ZONING`).
+- Snohomish (`53061`) — Snohomish County zoning (`ABBREV`).
+- Kitsap (`53035`) — Kitsap County zoning (`ZONEBREV`; verify non-commercial catalog note before redistribution).
+- Thurston (`53067`) — Thurston County zoning (`ZoneCode`).
+- Benton (`53005`) — Kennewick attribute join + Pasco/Benton County spatial joins.
 
 ## Enable on Droplet
 
@@ -39,10 +46,12 @@ GitHub Actions: **Droplet resources** → `wa_phase_b_rollout_status` / `enable_
 
 ## Config
 
-`config/wa_phase_b_rollout.yaml` — county priority, cooldowns, per-county overlay paths.
+`config/wa_phase_b_rollout.yaml` — county priority, cooldowns, per-county overlay paths,
+and optional `zoning_sources` ArcGIS layer blocks used by the generic WA spatial builder.
 
 ## Related
 
 - `docs/zoning-sources-benton.md` — GIS sources for Benton overlay builder
+- `data/jurisdictions/wa/source_catalog.csv` — source provenance and license notes
 - `docs/WA_STATEWIDE_ROLLOUT.md` — Phase A parcel ingest loop
 - `scripts/execute-phase-b.sh` — one-shot manual merge runner
