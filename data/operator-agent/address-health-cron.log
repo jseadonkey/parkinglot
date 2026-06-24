@@ -1,0 +1,5001 @@
+{
+  "checked_at": "2026-06-24T13:06:41.377664+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.678880+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.837563+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.533587+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.759571+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.740544+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.969376+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.897737+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.124924+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.275891+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.318246+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.379267+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.669687+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.847507+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.518932+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.743403+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.736398+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.919358+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.908576+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.132585+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.282855+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.320689+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.384693+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.684784+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.837573+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.529513+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.602317+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.744560+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.825717+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.902493+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.091546+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.320690+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.355714+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.384399+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.678671+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.828118+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.523810+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.694407+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.704660+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.736118+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.889132+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.071553+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.275685+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.315372+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.380372+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.675856+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.829420+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.539604+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.741377+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.939283+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:24.136640+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.882571+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.032476+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.287654+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.327144+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.477544+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.624703+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.835631+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.531672+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.604174+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.647432+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.682585+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.907620+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.138601+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.388752+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.470959+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.531358+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.672625+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.838484+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.504540+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.534420+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.722786+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.905112+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.870217+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:40.965883+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.393585+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.512106+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.531733+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.649668+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.844567+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.536613+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.768375+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.751716+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.956866+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.919670+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.019260+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.455541+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.525094+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.519367+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.675633+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.842684+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.515507+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.741351+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.729604+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.825720+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.886650+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.060264+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.353292+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.490010+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.542432+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.669677+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.857570+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.533652+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.797631+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.761629+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.924231+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.878679+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.044638+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.396684+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.517787+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.552452+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.680580+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.852521+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.535538+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.757072+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.733537+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.964376+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.905585+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.084429+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.390617+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.514022+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.540000+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.654604+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.846504+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.530601+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.788121+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.936052+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:24.164436+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.891744+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:40.976209+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.364110+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.506459+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.553402+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.667131+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.835501+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.530598+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.818321+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.749582+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.840034+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.902472+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.107288+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.399152+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.522561+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.598421+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.657593+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.835605+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.519514+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.607843+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.702463+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.794573+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.910554+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.017467+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.384634+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.590496+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.661292+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.652707+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.840591+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.508920+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.682189+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.710655+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.735256+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.923533+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.123728+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.453685+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.642568+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.669515+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.661278+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.846599+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.521651+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.732212+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.743650+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.829673+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.899560+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.074890+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.465668+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.661880+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.672410+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.644744+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.843458+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:23.073882+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:23.295768+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.738542+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.840092+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.898588+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.025657+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.376662+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.630310+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.659067+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.649524+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.850492+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.513950+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.744490+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.738564+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.925654+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.902524+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.080817+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.456752+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.644289+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.682031+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.661558+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.832787+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.515680+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.670311+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.715545+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.811926+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.905572+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.137333+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.381657+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.648181+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.710409+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.641863+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.845613+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.525353+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.765373+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.741563+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.822233+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.879471+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.029840+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.389546+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.669085+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.736437+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.681603+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.849490+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.517765+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.584243+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.732599+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.956168+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.873243+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:40.983568+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.376810+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.675736+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.788903+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.644683+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.856618+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.527574+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.638646+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.725723+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.959108+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.893579+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.128374+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.382068+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.728002+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.854366+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.735060+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.848624+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:23.038759+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:23.231921+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.713544+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.844444+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.892590+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.009069+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.462207+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.817122+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.857315+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": false,
+        "warning": "source_id nominatim_centroid_fallback not in catalog \u2014 add connector before ingest"
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.651610+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.843471+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.516593+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.608529+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.709499+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.828416+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.916651+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.143405+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.389807+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.795556+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
+{
+  "checked_at": "2026-06-24T13:06:41.984361+00:00",
+  "policy": {
+    "min_candidate_address_pct": 35.0,
+    "min_parcels_loaded": 50,
+    "stagnation_hours": 12.0,
+    "max_rotations_per_week": 3
+  },
+  "active_counties": [
+    "24510",
+    "53033",
+    "53053",
+    "53061",
+    "53035",
+    "53067"
+  ],
+  "counties": [
+    {
+      "county_fips": "24510",
+      "parcels_loaded": 223139,
+      "candidate_pool": 702,
+      "candidate_with_address": 655,
+      "candidate_gap": 47,
+      "candidate_address_pct": 93.3
+    },
+    {
+      "county_fips": "53033",
+      "parcels_loaded": 124290,
+      "candidate_pool": 81,
+      "candidate_with_address": 81,
+      "candidate_gap": 0,
+      "candidate_address_pct": 100.0
+    },
+    {
+      "county_fips": "53053",
+      "parcels_loaded": 640025,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53061",
+      "parcels_loaded": 624360,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53035",
+      "parcels_loaded": 116386,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    },
+    {
+      "county_fips": "53067",
+      "parcels_loaded": 123073,
+      "candidate_pool": 0,
+      "candidate_with_address": 0,
+      "candidate_gap": 0,
+      "candidate_address_pct": 0.0
+    }
+  ],
+  "rotations": [
+    {
+      "county_fips": "53053",
+      "from": "pierce_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53053",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53061",
+      "from": "snohomish_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53061",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53035",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53035",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": false,
+        "field_maps_updated": true
+      }
+    },
+    {
+      "county_fips": "53067",
+      "from": "wa_county_assessor_roll",
+      "to": "nominatim_centroid_fallback",
+      "reason": "stagnant_below_threshold",
+      "catalog_sync": {
+        "county_fips": "53067",
+        "new_source_id": "nominatim_centroid_fallback",
+        "catalog_updated": true,
+        "field_maps_updated": true
+      }
+    }
+  ],
+  "connector_runs": [
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    },
+    {
+      "action": "wa_centroid_geocode_backfill",
+      "source_id": "nominatim_centroid_fallback",
+      "result": {
+        "error": "<urlopen error [Errno 111] Connection refused>"
+      }
+    }
+  ],
+  "state": {
+    "24510": {
+      "active_source_id": "baltimore_realproperty",
+      "last_checked_at": "2026-06-24T12:31:05.655614+00:00",
+      "last_coverage_pct": 93.3,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:40:19.616256+00:00"
+    },
+    "53033": {
+      "active_source_id": "watech_statewide_parcels",
+      "last_checked_at": "2026-06-24T12:33:42.829038+00:00",
+      "last_coverage_pct": 100.0,
+      "last_reason": "coverage_ok",
+      "last_improved_at": "2026-06-23T14:41:33.319118+00:00"
+    },
+    "53053": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T12:45:22.504670+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:49:58.133496+00:00",
+      "last_rotated_at": "2026-06-24T12:45:22.627576+00:00",
+      "rotations_this_week": 2
+    },
+    "53061": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:01:23.719733+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:56:16.316512+00:00",
+      "last_rotated_at": "2026-06-24T13:01:23.901206+00:00",
+      "rotations_this_week": 2
+    },
+    "53035": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:04:40.901442+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:03.374243+00:00",
+      "last_rotated_at": "2026-06-24T13:04:41.135070+00:00",
+      "rotations_this_week": 2
+    },
+    "53067": {
+      "active_source_id": "nominatim_centroid_fallback",
+      "last_checked_at": "2026-06-24T13:06:41.442497+00:00",
+      "last_coverage_pct": 0.0,
+      "last_reason": "stagnant_below_threshold",
+      "last_improved_at": "2026-06-23T14:58:18.713789+00:00",
+      "last_rotated_at": "2026-06-24T13:06:41.959993+00:00",
+      "rotations_this_week": 2
+    }
+  }
+}
