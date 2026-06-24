@@ -45,6 +45,10 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("ZONING_RULES_PATH", "zoning_rules_path"),
     )
+    wa_jurisdiction_registry_path: str = Field(
+        default="data/jurisdictions/wa/jurisdiction_registry.csv",
+        validation_alias=AliasChoices("WA_JURISDICTION_REGISTRY_PATH", "wa_jurisdiction_registry_path"),
+    )
     storage_endpoint: str = "http://localhost:9000"
     storage_access_key: str = "minio"
     storage_secret_key: str = "minio12345"
@@ -74,7 +78,7 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("SLACK_AGENT_EVENT_UPDATES", "slack_agent_event_updates"),
     )
-    # Celery Beat: pipeline standup digest (default once daily at 08:00 UTC).
+    # Celery Beat: pipeline standup digest (default hourly at :00 UTC).
     slack_digest_crontab_minute: int = Field(
         default=0,
         ge=0,
@@ -82,23 +86,16 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("SLACK_DIGEST_CRONTAB_MINUTE", "slack_digest_crontab_minute"),
     )
     slack_digest_crontab_hour: str = Field(
-        default="8",
+        default="*",
         validation_alias=AliasChoices("SLACK_DIGEST_CRONTAB_HOUR", "slack_digest_crontab_hour"),
     )
     slack_digest_window_hours: int = Field(
-        default=24,
+        default=1,
         ge=1,
         le=24,
         validation_alias=AliasChoices("SLACK_DIGEST_WINDOW_HOURS", "slack_digest_window_hours"),
     )
-    # Celery Beat: A-E execution plan progress report (off by default — enable if you want it).
-    slack_plan_progress_enabled: bool = Field(
-        default=False,
-        validation_alias=AliasChoices(
-            "SLACK_PLAN_PROGRESS_ENABLED",
-            "slack_plan_progress_enabled",
-        ),
-    )
+    # Celery Beat: A-E execution plan progress report (default hourly at :05 UTC).
     slack_plan_progress_crontab_minute: int = Field(
         default=5,
         ge=0,
@@ -109,75 +106,15 @@ class Settings(BaseSettings):
         ),
     )
     slack_plan_progress_crontab_hour: str = Field(
-        default="8",
+        default="*",
         validation_alias=AliasChoices(
             "SLACK_PLAN_PROGRESS_CRONTAB_HOUR",
             "slack_plan_progress_crontab_hour",
         ),
     )
-    slack_qualified_parcels_enabled: bool = Field(
+    slack_coalesce_enabled: bool = Field(
         default=True,
-        validation_alias=AliasChoices(
-            "SLACK_QUALIFIED_PARCELS_ENABLED",
-            "slack_qualified_parcels_enabled",
-        ),
-    )
-    slack_qualified_parcels_crontab_minute: int = Field(
-        default=0,
-        ge=0,
-        le=59,
-        validation_alias=AliasChoices(
-            "SLACK_QUALIFIED_PARCELS_CRONTAB_MINUTE",
-            "slack_qualified_parcels_crontab_minute",
-        ),
-    )
-    slack_qualified_parcels_crontab_hour: int = Field(
-        default=14,
-        ge=0,
-        le=23,
-        validation_alias=AliasChoices(
-            "SLACK_QUALIFIED_PARCELS_CRONTAB_HOUR",
-            "slack_qualified_parcels_crontab_hour",
-        ),
-    )
-    slack_qualified_parcels_crontab_day_of_week: str = Field(
-        default="1",
-        validation_alias=AliasChoices(
-            "SLACK_QUALIFIED_PARCELS_CRONTAB_DAY_OF_WEEK",
-            "slack_qualified_parcels_crontab_day_of_week",
-        ),
-    )
-    slack_dual_agent_discussion_enabled: bool = Field(
-        default=False,
-        validation_alias=AliasChoices(
-            "SLACK_DUAL_AGENT_DISCUSSION_ENABLED",
-            "slack_dual_agent_discussion_enabled",
-        ),
-    )
-    slack_dual_agent_discussion_crontab_minute: int = Field(
-        default=30,
-        ge=0,
-        le=59,
-        validation_alias=AliasChoices(
-            "SLACK_DUAL_AGENT_DISCUSSION_CRONTAB_MINUTE",
-            "slack_dual_agent_discussion_crontab_minute",
-        ),
-    )
-    slack_dual_agent_discussion_crontab_hour: int = Field(
-        default=15,
-        ge=0,
-        le=23,
-        validation_alias=AliasChoices(
-            "SLACK_DUAL_AGENT_DISCUSSION_CRONTAB_HOUR",
-            "slack_dual_agent_discussion_crontab_hour",
-        ),
-    )
-    slack_dual_agent_discussion_crontab_day_of_week: str = Field(
-        default="1",
-        validation_alias=AliasChoices(
-            "SLACK_DUAL_AGENT_DISCUSSION_CRONTAB_DAY_OF_WEEK",
-            "slack_dual_agent_discussion_crontab_day_of_week",
-        ),
+        validation_alias=AliasChoices("SLACK_COALESCE_ENABLED", "slack_coalesce_enabled"),
     )
 
     # Optional Celery Beat: ingest GeoJSON from a path on the API container (e.g. rsync county export).
@@ -385,7 +322,7 @@ class Settings(BaseSettings):
         ),
     )
 
-    # Slow WA statewide ingest: one new county per day via WaTech when parking queue is light.
+    # Slow WA statewide ingest: capacity-gated WaTech loop when parking queue is light.
     wa_statewide_rollout_enabled: bool = Field(
         default=False,
         validation_alias=AliasChoices(
@@ -407,10 +344,8 @@ class Settings(BaseSettings):
             "geo_markets_config_path",
         ),
     )
-    wa_statewide_rollout_crontab_hour: int = Field(
-        default=7,
-        ge=0,
-        le=23,
+    wa_statewide_rollout_crontab_hour: str = Field(
+        default="*",
         validation_alias=AliasChoices(
             "WA_STATEWIDE_ROLLOUT_CRONTAB_HOUR",
             "wa_statewide_rollout_crontab_hour",
@@ -423,6 +358,38 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices(
             "WA_STATEWIDE_ROLLOUT_CRONTAB_MINUTE",
             "wa_statewide_rollout_crontab_minute",
+        ),
+    )
+
+    # Capacity-gated WA Phase B (zoning overlay merge) when parking queue is light.
+    wa_phase_b_rollout_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "WA_PHASE_B_ROLLOUT_ENABLED",
+            "wa_phase_b_rollout_enabled",
+        ),
+    )
+    wa_phase_b_rollout_config_path: str = Field(
+        default="/app/config/wa_phase_b_rollout.yaml",
+        validation_alias=AliasChoices(
+            "WA_PHASE_B_ROLLOUT_CONFIG_PATH",
+            "wa_phase_b_rollout_config_path",
+        ),
+    )
+    wa_phase_b_rollout_crontab_hour: str = Field(
+        default="*",
+        validation_alias=AliasChoices(
+            "WA_PHASE_B_ROLLOUT_CRONTAB_HOUR",
+            "wa_phase_b_rollout_crontab_hour",
+        ),
+    )
+    wa_phase_b_rollout_crontab_minute: int = Field(
+        default=45,
+        ge=0,
+        le=59,
+        validation_alias=AliasChoices(
+            "WA_PHASE_B_ROLLOUT_CRONTAB_MINUTE",
+            "wa_phase_b_rollout_crontab_minute",
         ),
     )
 

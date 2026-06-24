@@ -35,6 +35,15 @@ def test_ui_base_prefers_explicit() -> None:
     assert _ui_base_url(settings) == "https://vspecialist.com"
 
 
+def test_ui_base_prefers_internal_over_public_config() -> None:
+    settings = Settings(
+        site_watchdog_internal_ui_url="http://operator-console:3000",
+        site_watchdog_ui_base_url="https://parking.vspecialist.com",
+        cors_allow_origins="https://api.vspecialist.com",
+    )
+    assert _ui_base_url(settings) == "http://operator-console:3000"
+
+
 def test_ui_base_uses_cors_origin() -> None:
     settings = Settings(cors_allow_origins="https://vspecialist.com,https://other.example.com")
     assert _ui_base_url(settings) == "https://vspecialist.com"
@@ -130,6 +139,7 @@ def test_watchdog_runs_without_slack_configuration() -> None:
         site_watchdog_slack_channel_id="",
         slack_agent_discussion_channel_id="",
         slack_digest_channel_id="",
+        slack_coalesce_enabled=False,
     )
     db = MagicMock()
     report = {"ok": True, "failure_count": 0, "checks": []}

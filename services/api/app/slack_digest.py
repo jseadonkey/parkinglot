@@ -430,20 +430,6 @@ def build_data_gathering_progress_mrkdwn(db: Session) -> str:
     return _trim_mrkdwn("\n".join(parts), 2900)
 
 
-def _slack_schedule_label(
-    *,
-    hour: int | str,
-    minute: int,
-    day_of_week: str = "*",
-) -> str:
-    h = str(hour)
-    if day_of_week != "*":
-        return f"weekly (dow={day_of_week}) {h}:{minute:02d} UTC"
-    if h == "*":
-        return f"hourly :{minute:02d} UTC"
-    return f"daily {h}:{minute:02d} UTC"
-
-
 def slack_reporting_catalog(settings: Settings | None = None) -> list[dict[str, str]]:
     """Inventory of automated Slack posts (for status API and digest footer)."""
     s = settings or get_settings()
@@ -454,52 +440,23 @@ def slack_reporting_catalog(settings: Settings | None = None) -> list[dict[str, 
     rows: list[dict[str, str]] = [
         {
             "id": "standup",
-            "schedule_utc": _slack_schedule_label(
-                hour=s.slack_digest_crontab_hour,
-                minute=s.slack_digest_crontab_minute,
-            ),
+            "schedule_utc": f"crontab hour={s.slack_digest_crontab_hour} minute={s.slack_digest_crontab_minute:02d}",
             "channel": digest_ch,
-            "description": f"Pipeline standup ({s.slack_digest_window_hours}h window)",
+            "description": f"Hourly pipeline standup ({s.slack_digest_window_hours}h window)",
+        },
+        {
+            "id": "qualified_parcels",
+            "schedule_utc": "daily 14:00",
+            "channel": digest_ch,
+            "description": "Qualified vs below-floor parcels with score rationale",
+        },
+        {
+            "id": "dual_agent",
+            "schedule_utc": "daily 15:30",
+            "channel": agent_ch,
+            "description": "Atlas + Beacon rankings and joint comparison (3 messages)",
         },
     ]
-    if s.slack_plan_progress_enabled:
-        rows.append(
-            {
-                "id": "plan_progress",
-                "schedule_utc": _slack_schedule_label(
-                    hour=s.slack_plan_progress_crontab_hour,
-                    minute=s.slack_plan_progress_crontab_minute,
-                ),
-                "channel": digest_ch,
-                "description": "A–E execution plan progress from export-readiness metrics",
-            },
-        )
-    if s.slack_qualified_parcels_enabled:
-        rows.append(
-            {
-                "id": "qualified_parcels",
-                "schedule_utc": _slack_schedule_label(
-                    hour=s.slack_qualified_parcels_crontab_hour,
-                    minute=s.slack_qualified_parcels_crontab_minute,
-                    day_of_week=s.slack_qualified_parcels_crontab_day_of_week,
-                ),
-                "channel": digest_ch,
-                "description": "Qualified vs below-floor parcels with score rationale",
-            },
-        )
-    if s.slack_dual_agent_discussion_enabled:
-        rows.append(
-            {
-                "id": "dual_agent",
-                "schedule_utc": _slack_schedule_label(
-                    hour=s.slack_dual_agent_discussion_crontab_hour,
-                    minute=s.slack_dual_agent_discussion_crontab_minute,
-                    day_of_week=s.slack_dual_agent_discussion_crontab_day_of_week,
-                ),
-                "channel": agent_ch,
-                "description": "Atlas + Beacon rankings and joint comparison (3 messages)",
-            },
-        )
     if s.site_watchdog_enabled:
         hb = s.site_watchdog_heartbeat_hours
         rows.append(
@@ -576,24 +533,6 @@ def build_slack_digest_blocks(
     failed_n = int(failed_n or 0)
     failed_lines = _recent_failed_workflow_lines(db, cutoff)
     gathering_body = build_data_gathering_progress_mrkdwn(db)
-    pq = 0
-    prescreen_mrkdwn = "_Prescreen counts unavailable._"
-    try:
-        er = export_readiness_summary(db)
-        pq = int((er.get("parcels_prescreen_qualified") or {}).get("count") or 0)
-        pf = float((er.get("parcels_prescreen_qualified") or {}).get("floor") or 0)
-        ruled = int((er.get("parcels_ruled_out_by_prescreen") or {}).get("count") or 0)
-        backlog = int((er.get("parcels_pipeline_funnel_backlog") or {}).get("count") or 0)
-        total_er = int(er.get("parcel_row_total") or 0)
-        pct = (100.0 * pq / total_er) if total_er > 0 else 0.0
-        prescreen_mrkdwn = (
-            f"*Prescreen (auto-score eligible)*\n"
-            f"• Passed Cartographer prescreen (≥ *{pf:.0f}*): *{pq:,}* "
-            f"({pct:.1f}% of {total_er:,} parcels in DB)\n"
-            f"• Ruled out at prescreen: *{ruled:,}* · awaiting Atlas/Beacon pipeline: *{backlog:,}*"
-        )
-    except Exception:
-        logger.exception("export_readiness_summary failed in Slack standup prescreen block")
     ingest_body = build_ingest_agent_mrkdwn(
         db,
         settings,
@@ -618,7 +557,6 @@ def build_slack_digest_blocks(
     )
     fallback = (
         f"{header}\n"
-        f"Prescreen auto-score eligible: {pq:,} | "
         f"Data: +{ingest['inserted']} new / {ingest['updated']} updated parcels ({ingest_batches} ingest jobs) | "
         f"DB total={total_parcels} | scores written={total_score_rows} | "
         f"pending approvals={pending} | workflow failures={failed_n}"
@@ -645,13 +583,6 @@ def build_slack_digest_blocks(
             ],
         },
         {"type": "divider"},
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": prescreen_mrkdwn,
-            },
-        },
         {
             "type": "section",
             "text": {
@@ -776,8 +707,6 @@ def build_plan_progress_report_blocks(db: Session) -> tuple[list[dict[str, Any]]
 
     phase_text = (
         f"*A - scores, demand, readiness* — _{a_status}_\n"
-        f"• *Passed prescreen (auto-score eligible):* *{int(prescreen.get('count') or 0):,}* "
-        f"(floor ≥ {float(prescreen.get('floor') or 0):.0f})\n"
         f"• Missing identification score: {_gap_text(summary, 'parcels_missing_score_identification')}\n"
         f"• Missing entitlement / strategic: "
         f"{_gap_text(summary, 'parcels_missing_score_entitlement')} / "
@@ -928,16 +857,6 @@ def build_qualified_parcels_report_blocks(
             unqualified_all.append((parcel, ps))
     n_qualified_total = len(qualified_all)
     n_unqualified_total = len(unqualified_all)
-    prescreen_qualified = 0
-    prescreen_floor = float(
-        load_pilot_config(settings.pilot_identification_config_path).scoring.qualified_min_score
-    )
-    try:
-        er = export_readiness_summary(db)
-        prescreen_qualified = int((er.get("parcels_prescreen_qualified") or {}).get("count") or 0)
-        prescreen_floor = float((er.get("parcels_prescreen_qualified") or {}).get("floor") or prescreen_floor)
-    except Exception:
-        logger.exception("export_readiness_summary failed in qualified parcels report")
     qualified = sorted(qualified_all, key=lambda x: float(x[1].total_score), reverse=True)[:max_qualified]
     unqualified = sorted(unqualified_all, key=lambda x: float(x[1].total_score), reverse=True)[:max_unqualified]
 
@@ -971,9 +890,7 @@ def build_qualified_parcels_report_blocks(
                     "type": "mrkdwn",
                     "text": (
                         f"_{region}_ · pilot floor *{floor:.0f}* (`qualified_min_score`) · "
-                        f"*{n_qualified_total}* at/above entitlement floor · "
-                        f"*{prescreen_qualified:,}* passed prescreen (≥ {prescreen_floor:.0f}) · "
-                        f"*{n_unqualified_total}* below entitlement floor · "
+                        f"*{n_qualified_total}* qualified · *{n_unqualified_total}* below floor · "
                         f"{len(rows)} scored parcel(s) · _{ts}_"
                     ),
                 },

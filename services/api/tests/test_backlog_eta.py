@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from app.backlog_eta import backlog_eta_summary
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def _export_payload() -> dict:
@@ -50,7 +53,6 @@ def test_backlog_eta_prioritizes_address_backfill_and_ignores_citywide_poi() -> 
     assert out["summary"]["active_parking_queue_depth"] == 0
     assert out["summary"]["data_source"] == "ops_remediation_snapshot"
     assert out["summary"]["data_checked_at"] == "2026-06-07T16:00:00+00:00"
-    assert out["summary"]["parcels_prescreen_qualified"] == 12000
     assert "address backfill" in out["summary"]["decision"]
     inv = out["inventory"]
     assert inv["records_gathered"] == 223139
@@ -278,7 +280,7 @@ def test_backlog_eta_inventory_falls_back_to_pilot_yaml_without_scope() -> None:
     settings = SimpleNamespace(
         ops_remediation_auto_fix=False,
         ops_remediation_allow_db_writes=False,
-        pilot_config_path="config/pilot.yaml",
+        pilot_config_path=str(REPO_ROOT / "config/pilot.yaml"),
     )
     with (
         patch(

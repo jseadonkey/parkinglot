@@ -1,0 +1,98 @@
+# Capacity-gated WA Phase B (zoning overlay merge) loop.
+# See docs/WA-PHASE-B-ROLLOUT.md and app.tasks.wa_phase_b_rollout_tick.
+#
+# Runs on Celery Beat when WA_PHASE_B_ROLLOUT_ENABLED=true. Respects load governor
+# and parking queue depth like the parcel ingest loop.
+
+# Same county order as parcel rollout — Phase B only runs after parcels exist.
+county_fips_priority:
+  - "53033"
+  - "53053"
+  - "53061"
+  - "53035"
+  - "53067"
+  - "53057"
+  - "53029"
+  - "53011"
+  - "53063"
+  - "53005"
+  - "53077"
+
+# Skip Phase B when fewer than this fraction of county parcels lack zoning_code.
+min_missing_zoning_pct: 1.0
+
+# Cooldown after starting/completing a county Phase B run (hours).
+min_hours_between_county_merges: 6
+
+# Do not start another county merge if one started within this lock and has not completed.
+pending_merge_lock_hours: 12
+
+max_parking_queue_depth: 300
+
+# Per-county overlay builder settings (worker-visible paths under /app/data/…).
+counties:
+  "53033":
+    auto_build_overlay: true
+    overlay_path: "/app/data/king/king_county_zoning_overlay.geojson"
+    cache_dir: "/app/data/king"
+    max_merge_pipeline: 100
+    zoning_sources:
+      - source_id: "king_unincorporated_zoning"
+        label: "King County unincorporated zoning"
+        layer_url: "https://gismaps.kingcounty.gov/ArcGIS/rest/services/Districts/DistrictsReport/MapServer/22"
+        zoning_field: "CURRZONE"
+        zoning_jurisdiction: "king_unincorporated"
+        out_fields: "CURRZONE"
+  "53053":
+    auto_build_overlay: true
+    overlay_path: "/app/data/pierce/pierce_county_zoning_overlay.geojson"
+    cache_dir: "/app/data/pierce"
+    max_merge_pipeline: 100
+    zoning_sources:
+      - source_id: "pierce_county_zoning"
+        label: "Pierce County zoning"
+        layer_url: "https://services2.arcgis.com/1UvBaQ5y1ubjUPmd/ArcGIS/rest/services/Zoning/FeatureServer/0"
+        zoning_field: "ZONING"
+        zoning_jurisdiction: "pierce_county"
+        out_fields: "ZONING,JURISDICT,ZON_CUR_NA,ZON_TYP"
+  "53061":
+    auto_build_overlay: true
+    overlay_path: "/app/data/snohomish/snohomish_county_zoning_overlay.geojson"
+    cache_dir: "/app/data/snohomish"
+    max_merge_pipeline: 100
+    zoning_sources:
+      - source_id: "snohomish_county_zoning"
+        label: "Snohomish County zoning"
+        layer_url: "https://services6.arcgis.com/z6WYi9VRHfgwgtyW/arcgis/rest/services/CouncilExv1A_Zoning/FeatureServer/0"
+        zoning_field: "ABBREV"
+        zoning_jurisdiction: "snohomish_county"
+        out_fields: "ABBREV,LABEL,AREA_TYPE"
+  "53035":
+    auto_build_overlay: true
+    overlay_path: "/app/data/kitsap/kitsap_county_zoning_overlay.geojson"
+    cache_dir: "/app/data/kitsap"
+    max_merge_pipeline: 100
+    zoning_sources:
+      - source_id: "kitsap_county_zoning"
+        label: "Kitsap County zoning"
+        layer_url: "https://gis.parametrix.com/arcgis/rest/services/KitsapSR16PR_Zoning_Web/MapServer/0"
+        zoning_field: "ZONEBREV"
+        zoning_jurisdiction: "kitsap_county"
+        out_fields: "ZONEBREV,ZONE_DESCR,ZONING_DEN,GMA_JURISD"
+  "53067":
+    auto_build_overlay: true
+    overlay_path: "/app/data/thurston/thurston_county_zoning_overlay.geojson"
+    cache_dir: "/app/data/thurston"
+    max_merge_pipeline: 100
+    zoning_sources:
+      - source_id: "thurston_county_zoning"
+        label: "Thurston County zoning"
+        layer_url: "https://tconline.co.thurston.wa.us/server/rest/services/ThurstonExt/Thurston_Zoning/FeatureServer/1"
+        zoning_field: "ZoneCode"
+        zoning_jurisdiction: "thurston_county"
+        out_fields: "ZoneCode,Name,Jurisdiction,PlanningAreaName"
+  "53005":
+    auto_build_overlay: true
+    overlay_path: "/app/data/benton/benton_county_zoning_overlay.geojson"
+    cache_dir: "/app/data/benton"
+    max_merge_pipeline: 100

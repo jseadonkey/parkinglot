@@ -39,7 +39,9 @@ fi
 
 _env_val() {
   local key="$1"
-  grep -E "^${key}=" "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^"//;s/"$//'
+  awk -F= -v key="$key" '$1 == key {sub(/^[^=]*=/, ""); print; exit}' "$ENV_FILE" \
+    | tr -d '\r' \
+    | sed 's/^"//;s/"$//'
 }
 
 BASE="$(_env_val PUBLIC_API_URL)"
@@ -110,6 +112,55 @@ _compose_api_post() {
   return 1
 }
 
+_compose_ops_refresh() {
+  cd "$ROOT"
+  docker compose "${ARGS[@]}" exec -T api python - <<'PY'
+import json
+import time
+
+from app.celery_app import celery
+from app.tasks import (
+    ops_remediation_loop,
+    site_watchdog_check,
+    wa_phase_b_rollout_tick,
+    wa_statewide_rollout_tick,
+)
+
+
+def emit(payload):
+    print(json.dumps(payload, default=str, sort_keys=True), flush=True)
+
+
+def enqueue_and_poll(name, task, timeout_seconds=120):
+    try:
+        async_result = task.delay()
+    except Exception as exc:
+        emit({name: {"queued": False, "error": repr(exc)}})
+        return
+
+    task_id = async_result.id
+    emit({name: {"queued": True, "task_id": task_id}})
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        result = celery.AsyncResult(task_id)
+        if result.ready():
+            if result.successful():
+                emit({name: {"task_id": task_id, "state": result.state, "result": result.result}})
+            else:
+                emit({name: {"task_id": task_id, "state": result.state, "error": repr(result.result)}})
+            return
+        time.sleep(5)
+    result = celery.AsyncResult(task_id)
+    emit({name: {"task_id": task_id, "state": result.state, "timed_out": True}})
+
+
+enqueue_and_poll("site_watchdog", site_watchdog_check, timeout_seconds=90)
+enqueue_and_poll("ops_remediation", ops_remediation_loop, timeout_seconds=90)
+enqueue_and_poll("wa_rollout", wa_statewide_rollout_tick, timeout_seconds=60)
+enqueue_and_poll("wa_phase_b_rollout", wa_phase_b_rollout_tick, timeout_seconds=60)
+PY
+}
+
 if [[ "$MODE" != "none" ]]; then
   echo "Waiting for API after compose (alembic + uvicorn may take up to ~90s)…"
   sleep "${POST_DEPLOY_INITIAL_WAIT:-25}"
@@ -175,11 +226,14 @@ case "$MODE" in
   discussion)
     curl_post "/internal/slack/agent-discussion-now"
     ;;
+  ops-refresh)
+    _compose_ops_refresh
+    ;;
   all|full)
     curl_post "/internal/slack/full-update-now"
     ;;
   *)
-    echo "Usage: $0 {all|full|digest|qualified|discussion|none}" >&2
+    echo "Usage: $0 {all|full|digest|qualified|discussion|ops-refresh|none}" >&2
     exit 2
     ;;
 esac

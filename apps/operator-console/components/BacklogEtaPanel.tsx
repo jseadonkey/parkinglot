@@ -27,7 +27,9 @@ type BacklogEtaItem = {
 type ServerLoadJob = {
   name: string;
   schedule_utc: string;
+  schedule_label?: string;
   load_tier: string;
+  effective_load_tier?: string;
   status: string;
   note: string;
 };
@@ -103,11 +105,6 @@ type BacklogEta = {
     wa_rollout_allowed?: boolean | null;
     ops_autofix_allowed?: boolean | null;
     score_gaps_total?: number | null;
-    parcel_row_total?: number | null;
-    parcels_prescreen_qualified?: number | null;
-    prescreen_floor?: number | null;
-    parcels_ruled_out_by_prescreen?: number | null;
-    parcels_pipeline_funnel_backlog?: number | null;
   };
   items: BacklogEtaItem[];
   degraded?: boolean;
@@ -147,12 +144,14 @@ function pressureLabel(level: string | null | undefined): string {
 }
 
 function loadTierClass(tier: string | undefined): string {
+  if (tier === "none") return "badge";
   if (tier === "high") return "badge badge-load-high";
   if (tier === "medium") return "badge badge-load-medium";
   return "badge badge-load-low";
 }
 
 function loadTierLabel(tier: string | undefined): string {
+  if (tier === "none") return "None now";
   if (tier === "high") return "High CPU/DB";
   if (tier === "medium") return "Moderate";
   return "Light";
@@ -162,6 +161,28 @@ function jobStatusLabel(status: string): string {
   if (status === "throttled") return "Throttled";
   if (status === "paused") return "Paused";
   return "Active";
+}
+
+function jobLoadLabel(job: ServerLoadJob): string {
+  const effective = job.effective_load_tier ?? job.load_tier;
+  const effectiveLabel = loadTierLabel(effective);
+  if (job.status === "paused") return "None while paused";
+  if (job.status === "throttled") return `${effectiveLabel} now`;
+  return effectiveLabel;
+}
+
+function jobLoadDetail(job: ServerLoadJob): string {
+  const effective = job.effective_load_tier ?? job.load_tier;
+  if (job.status === "paused") {
+    return `Potential: ${loadTierLabel(job.load_tier)} when resumed.`;
+  }
+  if (job.status === "throttled") {
+    return `Potential: ${loadTierLabel(job.load_tier)}; currently capped.`;
+  }
+  if (effective !== job.load_tier) {
+    return `Potential: ${loadTierLabel(job.load_tier)}.`;
+  }
+  return "";
 }
 
 function countLabel(value: number, degraded?: boolean): string {
@@ -290,50 +311,6 @@ export function BacklogEtaPanel() {
           </div>
         </div>
       </div>
-
-      {backlogView.summary.parcels_prescreen_qualified != null ? (
-        <div className="gathering-hero" style={{ marginTop: "1rem" }}>
-          <div className="gathering-hero-head">
-            <h3 className="gathering-hero-title">Prescreen (auto-score eligible)</h3>
-            <p className="muted gathering-hero-region">
-              Only parcels passing Cartographer identification prescreen enter scheduled Atlas/Beacon batches.
-            </p>
-          </div>
-          <div className="gathering-hero-stats">
-            <div className="gathering-stat gathering-stat-done">
-              <div className="gathering-stat-label">Pass prescreen</div>
-              <div className="gathering-stat-n">
-                {countLabel(backlogView.summary.parcels_prescreen_qualified, backlogView.degraded)}
-              </div>
-              <div className="gathering-stat-sub muted">
-                {backlogView.summary.prescreen_floor != null
-                  ? `Cartographer ≥ ${backlogView.summary.prescreen_floor}`
-                  : "Eligible for auto-score pipeline"}
-                {backlogView.summary.parcel_row_total != null
-                  ? ` · of ${backlogView.summary.parcel_row_total.toLocaleString()} in DB`
-                  : ""}
-              </div>
-            </div>
-            <div className="gathering-stat gathering-stat-pending">
-              <div className="gathering-stat-label">Pipeline backlog</div>
-              <div className="gathering-stat-n">
-                {countLabel(
-                  backlogView.summary.parcels_pipeline_funnel_backlog ?? 0,
-                  backlogView.degraded,
-                )}
-              </div>
-              <div className="gathering-stat-sub muted">Prescreen-qualified parcels awaiting Atlas/Beacon</div>
-            </div>
-            <div className="gathering-stat gathering-stat-active">
-              <div className="gathering-stat-label">Ruled out</div>
-              <div className="gathering-stat-n">
-                {countLabel(backlogView.summary.parcels_ruled_out_by_prescreen ?? 0, backlogView.degraded)}
-              </div>
-              <div className="gathering-stat-sub muted">Below prescreen floor — not auto-scored by design</div>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       <h3 style={{ margin: "1.25rem 0 0.5rem", fontSize: "1rem" }}>Working on now</h3>
       <p className="muted" style={{ marginTop: 0 }}>
@@ -504,8 +481,8 @@ export function BacklogEtaPanel() {
               <thead>
                 <tr>
                   <th>Scheduled automation</th>
-                  <th>UTC schedule</th>
-                  <th>Server load</th>
+                  <th>Schedule</th>
+                  <th>Expected load</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -516,9 +493,13 @@ export function BacklogEtaPanel() {
                       <strong>{job.name}</strong>
                       {job.note ? <div className="muted">{job.note}</div> : null}
                     </td>
-                    <td className="mono">{job.schedule_utc}</td>
                     <td>
-                      <span className={loadTierClass(job.load_tier)}>{loadTierLabel(job.load_tier)}</span>
+                      <strong>{job.schedule_label ?? job.schedule_utc}</strong>
+                      <div className="muted cell-sub">Cron: <span className="mono">{job.schedule_utc}</span></div>
+                    </td>
+                    <td>
+                      <span className={loadTierClass(job.effective_load_tier ?? job.load_tier)}>{jobLoadLabel(job)}</span>
+                      {jobLoadDetail(job) ? <div className="muted cell-sub">{jobLoadDetail(job)}</div> : null}
                     </td>
                     <td>{jobStatusLabel(job.status)}</td>
                   </tr>
@@ -637,7 +618,7 @@ export function BacklogEtaPanel() {
             <th>Work</th>
             <th>Status</th>
             <th>Schedule</th>
-            <th>Server load</th>
+            <th>Expected load</th>
             <th>What it means</th>
           </tr>
         </thead>
@@ -650,9 +631,13 @@ export function BacklogEtaPanel() {
                   {job.note ? <div className="muted">{job.note}</div> : null}
                 </td>
                 <td>{jobStatusLabel(job.status)}</td>
-                <td className="mono">{job.schedule_utc}</td>
                 <td>
-                  <span className={loadTierClass(job.load_tier)}>{loadTierLabel(job.load_tier)}</span>
+                  <strong>{job.schedule_label ?? job.schedule_utc}</strong>
+                  <div className="muted cell-sub">Cron: <span className="mono">{job.schedule_utc}</span></div>
+                </td>
+                <td>
+                  <span className={loadTierClass(job.effective_load_tier ?? job.load_tier)}>{jobLoadLabel(job)}</span>
+                  {jobLoadDetail(job) ? <div className="muted cell-sub">{jobLoadDetail(job)}</div> : null}
                 </td>
                 <td>
                   {job.status === "paused"

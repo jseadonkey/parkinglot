@@ -292,6 +292,40 @@ jobs:
           bash scripts/droplet-post-deploy-operator-agents.sh
           EOS
 
+      - name: Ensure WA ingest automation (Phase A + Phase B + priority pipeline)
+        id: ensure_wa_automation
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            bash -s -- "$REMOTE_PATH" <<'EOS'
+          set -euo pipefail
+          REMOTE_PATH="$1"
+          cd "$REMOTE_PATH"
+          test -f deploy/.env
+          test -f scripts/ensure-wa-ingest-automation.sh
+          export COMPOSE_FILE="deploy/${{ steps.opts.outputs.compose_file }}"
+          bash scripts/ensure-wa-ingest-automation.sh
+          EOS
+
+      - name: Refresh watchdog, ops, and WA rollout
+        id: post_deploy_ops
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            bash -s -- "$REMOTE_PATH" <<'EOS'
+          set -euo pipefail
+          REMOTE_PATH="$1"
+          cd "$REMOTE_PATH"
+          test -f deploy/.env
+          test -f scripts/post-deploy-slack.sh
+          export COMPOSE_FILE="deploy/${{ steps.opts.outputs.compose_file }}"
+          bash scripts/post-deploy-slack.sh ops-refresh
+          EOS
+
       # Do not fail the whole deploy if Slack enqueue fails (containers are already updated).
       - name: Enqueue Slack tasks (post-deploy script)
         id: post_slack

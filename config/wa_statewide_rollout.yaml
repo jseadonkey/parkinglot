@@ -1,4 +1,4 @@
-# Slow statewide parcel ingest: one county per day (WaTech), Puget Sound first.
+# Slow statewide parcel ingest: one county at a time (WaTech), Puget Sound first.
 # See docs/WA_STATEWIDE_ROLLOUT.md and Beat task app.tasks.wa_statewide_rollout_tick.
 #
 # Run together with SCHEDULED_PRIORITY_PIPELINE_* so top King/Puget parcels still get
@@ -48,11 +48,11 @@ county_fips_priority:
 # Cap WaTech download per run (null = full county). Use a number only for experiments.
 watech_max_features: null
 
-# Cooldown before the next county — scales with parcels loaded in the last county (see cooldown_days_after_county).
-# ~5k parcels → ~1 day; ~50k → ~4 days; ~120k+ → up to min_days_max (not one flat week for every county).
-min_days_base: 0.5
-min_days_per_10k_parcels: 0.75
-min_days_max: 10
+# Cooldown before the next county — keeps WA ingest moving while queue/load guards
+# still prevent overlap. Large counties should wait hours, not days.
+min_days_base: 0.1
+min_days_per_10k_parcels: 0.005
+min_days_max: 0.5
 # Legacy flat wait (used only if min_days_base / min_days_per_10k_parcels are omitted):
 # min_days_between_counties: 7
 
@@ -61,3 +61,7 @@ max_auto_pipeline: 15
 
 # Skip starting a new county if parking Celery queue is deeper than this.
 max_parking_queue_depth: 400
+
+# When the hourly rollout loop starts a county, do not start the same zero-row
+# county again until this lock expires. This protects long downloads/retries.
+pending_ingest_lock_days: 0.1

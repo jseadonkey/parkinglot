@@ -18,7 +18,6 @@ def test_slack_reporting_catalog_includes_core_reports() -> None:
     s = Settings(
         slack_digest_channel_id="C_DIGEST",
         slack_agent_discussion_channel_id="C_AGENTS",
-        slack_dual_agent_discussion_enabled=True,
         site_watchdog_enabled=True,
         site_watchdog_slack_channel_id="C_WATCH",
     )
@@ -47,7 +46,6 @@ def test_build_slack_digest_blocks_includes_readiness_and_catalog() -> None:
         "parcels_pipeline_funnel_backlog": {"count": 0, "pct": 0},
         "parcels_missing_owner_outreach_brief": {"count": 0, "pct": 0},
         "parcels_prescreen_qualified": {"count": 0, "floor": 50},
-        "parcels_ruled_out_by_prescreen": {"count": 0, "pct": 0},
     }
     scope_stub = {
         "region_name": "Test region",
@@ -75,7 +73,6 @@ def test_build_slack_digest_blocks_includes_readiness_and_catalog() -> None:
     assert "parcels.created_at" in section_text
     assert "Other Slack reports" in section_text
     assert "Pipeline activity" in section_text
-    assert "Prescreen (auto-score eligible)" in section_text
 
 
 def test_build_ingest_agent_explains_refresh_vs_new_rows() -> None:

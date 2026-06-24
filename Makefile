@@ -1,4 +1,4 @@
-.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay validate-jurisdictions address-coverage-report address-health-agent generate-wa-jurisdiction-registry zoning-governance build-baltimore-zoning-overlay baltimore-zoning-tiers baltimore-phase-b-local deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-pull-full prod-up-ghcr prod-up-ghcr-full tf-init tf-plan slack-env-local lob-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis droplet-auto-commit-deploy-install gh-slack-notify-secret-help cursor-droplet run-crew-tests crew-audit crew-audit-droplet
+.PHONY: help verify-sample api-ci openapi-export export-readiness readiness phase-a-run phase-b-run phase-c-run validate-phase-b-overlay validate-jurisdictions address-coverage-report address-health-agent generate-wa-jurisdiction-registry zoning-governance zoning-followup-report build-baltimore-zoning-overlay baltimore-zoning-tiers baltimore-phase-b-local benton-zoning-fetch benton-zoning-overlay deploy-env-check ae-setup-check operator-todos a-e-setup operator-console-help local prod-up prod-down prod-pull prod-up-ghcr prod-pull-full prod-up-ghcr-full tf-init tf-plan slack-env-local lob-env-local droplet-sync droplet-rebuild droplet-rebuild-postgis gh-slack-notify-secret-help cursor-droplet run-crew-tests crew-audit crew-audit-droplet
 
 help:
 	@echo "Targets:"
@@ -16,9 +16,12 @@ help:
 	@echo "  make address-health-agent     - 12h-style review + source rotation (needs DATABASE_URL on Droplet)"
 	@echo "  make generate-wa-jurisdiction-registry - refresh 102-row city/county registry CSV"
 	@echo "  make zoning-governance  - validate jurisdiction zoning curation coverage for pilot/priority counties"
+	@echo "  make zoning-followup-report - report parcel-loaded WA counties still needing zoning"
 	@echo "  make build-baltimore-zoning-overlay - fetch parcels+zoning and build MD overlay GeoJSON (no DATABASE_URL)"
 	@echo "  make baltimore-zoning-tiers   - print tier counts from local overlay GeoJSON"
 	@echo "  make baltimore-phase-b-local  - fetch, build overlay, validate, summarize (no DATABASE_URL)"
+	@echo "  make benton-zoning-fetch      - cache Kennewick/Pasco/Benton County zoning GIS locally"
+	@echo "  make benton-zoning-overlay    - build Benton overlay GeoJSON from WaTech + cached zoning"
 	@echo "  make phase-c-run        - Phase C: readiness + portfolio internal APIs (needs DATABASE_URL; see scripts/execute-phase-c.sh)"
 	@echo "  make local              - docker compose (dev: Postgres, Redis, MinIO, api, worker, UI)"
 	@echo "  make slack-env-local    - merge SLACK_* into .env (needs SLACK_BOT_TOKEN + SLACK_DIGEST_CHANNEL_ID in env)"
@@ -27,7 +30,6 @@ help:
 	@echo "  make droplet-sync       - rsync to parkinglot Droplet (uses deploy/droplet.target; no raw IP needed)"
 	@echo "  make droplet-rebuild    - SSH rebuild production stack (uses deploy/droplet.target)"
 	@echo "  make droplet-rebuild-postgis - same + on-droplet PostGIS addon (USE_LOCAL_POSTGIS=1)"
-	@echo "  make droplet-auto-commit-deploy-install - hourly commit+deploy cron on Droplet (run on server)"
 	@echo "  make gh-slack-notify-secret-help - print how to pipe INTERNAL_API_KEY into gh secret set"
 	@echo "  make prod-up            - production compose build on Droplet (needs deploy/.env)"
 	@echo "  make prod-up-ghcr       - production using GHCR API image (needs API_IMAGE in deploy/.env)"
@@ -120,6 +122,9 @@ generate-wa-jurisdiction-registry:
 zoning-governance:
 	@python3 scripts/check_zoning_governance.py
 
+zoning-followup-report:
+	@python3 scripts/zoning_followup_report.py
+
 build-baltimore-zoning-overlay:
 	@chmod +x scripts/fetch_baltimore_city_parcels.py scripts/fetch_baltimore_zoning_districts.py scripts/build_baltimore_zoning_overlay.py
 	@python3 scripts/fetch_baltimore_city_parcels.py -o data/baltimore/baltimore_city_parcels.geojson
@@ -132,6 +137,13 @@ baltimore-zoning-tiers:
 baltimore-phase-b-local: build-baltimore-zoning-overlay
 	@python3 scripts/validate_phase_b_overlay.py data/baltimore/baltimore_city_zoning_overlay.geojson
 	@python3 scripts/summarize_baltimore_zoning_tiers.py
+
+benton-zoning-fetch:
+	@python3 scripts/fetch_benton_zoning_layers.py
+
+benton-zoning-overlay: benton-zoning-fetch
+	@python3 scripts/build_benton_zoning_overlay.py
+	@python3 scripts/validate_phase_b_overlay.py data/benton/benton_county_zoning_overlay.geojson
 
 phase-c-run:
 	@test -n "$$DATABASE_URL" || (echo "export DATABASE_URL first"; exit 1)
@@ -189,9 +201,6 @@ droplet-rebuild:
 
 droplet-rebuild-postgis:
 	@USE_LOCAL_POSTGIS=1 ./scripts/remote-rebuild.sh
-
-droplet-auto-commit-deploy-install:
-	@./scripts/droplet-auto-commit-deploy-install.sh
 
 gh-slack-notify-secret-help:
 	@echo "Pipe INTERNAL_API_KEY value (key only) on stdin, e.g.:"

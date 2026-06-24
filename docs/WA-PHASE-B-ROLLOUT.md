@@ -1,0 +1,57 @@
+# WA Phase B rollout (scheduled zoning overlay merge)
+
+When **`WA_PHASE_B_ROLLOUT_ENABLED=true`**, Celery Beat runs **`wa_phase_b_rollout_tick`**
+hourly (default minute `:45` UTC). Production deploys set this automatically — see [WA-INGEST-AUTOMATION.md](WA-INGEST-AUTOMATION.md). The loop:
+
+1. **Load governor** — skip when pressure is orange/red (same gate as parcel ingest).
+2. **Queue depth** — skip when the parking Celery queue exceeds `max_parking_queue_depth`.
+3. **Pending lock** — skip if a county merge started recently and has not completed.
+4. **Cooldown** — wait `min_hours_between_county_merges` after the last successful merge.
+5. **Pick next county** — first priority county with parcels loaded, zoning follow-up needed,
+   missing zoning on ≥ `min_missing_zoning_pct` of rows, and an overlay builder or staged file.
+
+For configured counties, the worker **builds the overlay automatically** then calls
+**`merge_parcel_attributes_geojson`**:
+
+- King (`53033`) — King County unincorporated zoning (`CURRZONE`; cities clipped out).
+- Pierce (`53053`) — Pierce County zoning (`ZONING`).
+- Snohomish (`53061`) — Snohomish County zoning (`ABBREV`).
+- Kitsap (`53035`) — Kitsap County zoning (`ZONEBREV`; verify non-commercial catalog note before redistribution).
+- Thurston (`53067`) — Thurston County zoning (`ZoneCode`).
+- Benton (`53005`) — Kennewick attribute join + Pasco/Benton County spatial joins.
+
+## Enable on Droplet
+
+**Automatic:** every **Deploy to Droplet** runs `scripts/ensure-wa-ingest-automation.sh`.
+
+Manual merge into `deploy/.env`:
+
+```bash
+WA_PHASE_B_ROLLOUT_ENABLED=true
+WA_PHASE_B_ROLLOUT_CRONTAB_HOUR=*
+WA_PHASE_B_ROLLOUT_CRONTAB_MINUTE=45
+```
+
+Restart **worker + beat** after manual env edits.
+
+## Status / manual kick
+
+```bash
+GET  /internal/ingest/wa-phase-b-rollout-status
+POST /internal/ingest/wa-phase-b-rollout-now
+```
+
+GitHub Actions: **Droplet resources** → `wa_phase_b_rollout_status` / `enable_wa_phase_b_rollout`
+(when wired).
+
+## Config
+
+`config/wa_phase_b_rollout.yaml` — county priority, cooldowns, per-county overlay paths,
+and optional `zoning_sources` ArcGIS layer blocks used by the generic WA spatial builder.
+
+## Related
+
+- `docs/zoning-sources-benton.md` — GIS sources for Benton overlay builder
+- `data/jurisdictions/wa/source_catalog.csv` — source provenance and license notes
+- `docs/WA_STATEWIDE_ROLLOUT.md` — Phase A parcel ingest loop
+- `scripts/execute-phase-b.sh` — one-shot manual merge runner

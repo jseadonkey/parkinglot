@@ -23,7 +23,7 @@ echo "==> verify WA centroid backfill route in running API container"
 docker compose -f "$COMPOSE_FILE" $PG_EXTRA --env-file deploy/.env exec -T api python - <<'PY'
 from app.main import app
 
-paths = {getattr(r, "path", "") for r in app.routes}
+paths = set(app.openapi().get("paths") or {})
 needed = "/internal/metrics/backfill-wa-centroid-addresses"
 if needed not in paths:
     raise SystemExit(

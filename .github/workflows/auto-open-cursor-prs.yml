@@ -1,0 +1,134 @@
+name: Auto-open Cursor PRs
+
+on:
+  push:
+    branches:
+      - "cursor/**"
+  schedule:
+    # Sweep for branches created before this workflow existed, or if a push event
+    # was skipped by GitHub.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Optional cursor/* branch to open; blank scans all cursor branches"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: auto-open-cursor-prs
+  cancel-in-progress: false
+
+jobs:
+  open:
+    name: Open missing Cursor PRs
+    runs-on: ubuntu-latest
+    env:
+      BASE_BRANCH: main
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      MANUAL_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select cursor branches without PRs
+        id: branches
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch --prune origin "+refs/heads/*:refs/remotes/origin/*"
+
+          if [ -n "$MANUAL_BRANCH" ]; then
+            candidates="$MANUAL_BRANCH"
+          elif [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            candidates="$GITHUB_REF_NAME"
+          else
+            candidates="$(git for-each-ref \
+              --format='%(refname:strip=3)' \
+              'refs/remotes/origin/cursor/*' \
+              | sort -u)"
+          fi
+
+          selected=()
+          while IFS= read -r branch; do
+            [ -n "$branch" ] || continue
+            if [[ "$branch" != cursor/* ]]; then
+              echo "Skipping $branch: not a cursor/* branch."
+              continue
+            fi
+            if ! git rev-parse --verify --quiet "origin/$branch" >/dev/null; then
+              echo "Skipping $branch: origin/$branch does not exist."
+              continue
+            fi
+            if git diff --quiet "origin/$BASE_BRANCH...origin/$branch"; then
+              echo "Skipping $branch: no changes versus $BASE_BRANCH."
+              continue
+            fi
+            open_count="$(gh pr list \
+              --head "$branch" \
+              --state open \
+              --json number \
+              --jq 'length')"
+            if [ "$open_count" != "0" ]; then
+              echo "Skipping $branch: open PR already exists."
+              continue
+            fi
+            selected+=("$branch")
+          done <<<"$candidates"
+
+          {
+            echo "branches<<EOF"
+            printf '%s\n' "${selected[@]:-}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open non-draft PRs
+        if: steps.branches.outputs.branches != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          while IFS= read -r branch; do
+            [ -n "$branch" ] || continue
+
+            title="$(git log -1 --pretty=%s "origin/$branch")"
+            changed_files="$(git diff --name-only "origin/$BASE_BRANCH...origin/$branch")"
+
+            risk_note="Safe implementation branch: existing auto-merge can merge it after CI passes."
+            if grep -Eq '^(\.github/|deploy/|scripts/|docker-compose\.yml$)' <<<"$changed_files"; then
+              risk_note="This branch touches repository automation, deploy, scripts, or compose files. Existing auto-merge will intentionally leave it for explicit review/merge."
+            fi
+
+            body_file="$(mktemp)"
+            {
+              echo "## Summary"
+              echo
+              echo "Auto-opened for \`$branch\` so Cursor work cannot sit unmerged and undeployed without a PR."
+              echo
+              echo "Latest commit: \`$title\`"
+              echo
+              echo "## How tested"
+              echo
+              echo "- [ ] \`make api-ci\` passes locally, or CI is green on this branch"
+              echo "- [ ] If this changes Droplet / phased rollout / GIS ops, noted in PR or linked from [docs/PHASED-EXECUTION-PLAN-A-E.md](docs/PHASED-EXECUTION-PLAN-A-E.md)"
+              echo "- [x] If this is expected to go live, PR is non-draft; if draft, explain why it is not deployable yet"
+              echo "- [ ] If this touches \`.github/\`, \`deploy/\`, \`scripts/\`, or compose files, deployment/merge path is called out (see [docs/PR-DEPLOY-POLICY.md](docs/PR-DEPLOY-POLICY.md))"
+              echo
+              echo "## Notes for reviewers (optional)"
+              echo
+              echo "$risk_note"
+            } > "$body_file"
+
+            gh pr create \
+              --base "$BASE_BRANCH" \
+              --head "$branch" \
+              --title "$title" \
+              --body-file "$body_file"
+          done <<<"${{ steps.branches.outputs.branches }}"

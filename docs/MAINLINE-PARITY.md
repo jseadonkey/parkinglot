@@ -38,6 +38,8 @@ flowchart TD
 | **Prefer GHCR only when tag = main** | If using `prod-up-ghcr`, the image tag must match a `main` commit that passed parity + tests. |
 | **One Cursor window = parkinglot Droplet** | Open `parkinglot-droplet.code-workspace` so agents edit the same tree you deploy. |
 
+See also [PR-DEPLOY-POLICY.md](PR-DEPLOY-POLICY.md): implementation PRs should not stay draft when the user expects deployment, and high-risk ops PRs need an explicit deploy/merge path.
+
 ## Quick checks
 
 ```bash

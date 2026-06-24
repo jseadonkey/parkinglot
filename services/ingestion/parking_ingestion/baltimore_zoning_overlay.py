@@ -17,7 +17,14 @@ DEFAULT_ZONING_FIELD = "Zoning"
 
 
 def _parcel_apn(props: dict[str, Any], *, county_fips: str = BALTIMORE_CITY_COUNTY_FIPS) -> str:
-    return parcel_apn_from_props(props, county_fips=county_fips)
+    apn = parcel_apn_from_props(props, county_fips=county_fips)
+    if apn:
+        return apn
+    for key in ("PARCEL_ID_NR", "ORIG_PARCEL_ID", "PIN", "TAXPIN"):
+        val = str(props.get(key) or "").strip()
+        if val:
+            return val
+    return ""
 
 
 def _zoning_code_from_props(props: dict[str, Any], zoning_field: str) -> str | None:

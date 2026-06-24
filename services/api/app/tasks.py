@@ -61,14 +61,18 @@ from app.slack_digest import (
     post_digest_to_slack,
     post_text_to_slack,
 )
+from app.slack_queue_coalesce import maybe_skip_stale_slack_run
 from app.storage import put_text_object
 from app.wa_statewide_rollout import (
     load_rollout_config,
     merge_rollout_config,
     next_county_to_ingest,
+    parcel_counts_by_county,
     parking_queue_depth,
     wa_rollout_cooldown_state,
+    wa_rollout_pending_ingest_state,
 )
+from app.wa_zoning_followup import build_zoning_followup_summary
 from app.zoning_entitlement import effective_zoning_code, parcel_zoning_symbol, parcel_zoning_tier
 from parking_core.models import OwnerCandidate, ParcelFeature, ScoreResult
 from parking_core.pilot import PilotConfig, load_pilot_config
@@ -81,6 +85,95 @@ from parking_scoring.engine import score_parcel
 from parking_workflows.state import WorkflowStatus, WorkflowStep
 
 logger = logging.getLogger(__name__)
+
+
+def _record_wa_zoning_followups_after_ingest(
+    db: Session,
+    *,
+    county_touches: dict[str, int],
+    source_path: str,
+) -> list[dict[str, Any]]:
+    """Create an explicit zoning acquisition follow-up when WA parcels land without trusted zoning."""
+    wa_counties = sorted(fips for fips, touched in county_touches.items() if fips.startswith("53") and touched > 0)
+    if not wa_counties:
+        return []
+
+    settings = get_settings()
+    counts = parcel_counts_by_county(db, wa_counties)
+    summary = build_zoning_followup_summary(
+        parcel_counts=counts,
+        registry_path=settings.wa_jurisdiction_registry_path,
+        priority_order=wa_counties,
+    )
+    followups = [row for row in summary.get("counties", []) if row.get("needs_followup")]
+    if not followups:
+        return []
+
+    for row in followups:
+        write_audit(
+            db,
+            actor="system",
+            action="wa_zoning_followup_required",
+            entity_type="county_fips",
+            entity_id=str(row["county_fips"]),
+            meta={
+                "source_path": source_path,
+                "parcels_touched_by_ingest": county_touches.get(str(row["county_fips"]), 0),
+                "parcels_in_db": row.get("parcels_in_db"),
+                "zoning_status": row.get("zoning_status"),
+                "jurisdiction_count": row.get("jurisdiction_count"),
+                "jurisdiction_status_counts": row.get("jurisdiction_status_counts"),
+                "next_action": row.get("next_action"),
+            },
+        )
+
+    from app.pilot_scope import COUNTY_DISPLAY_NAMES
+
+    bullets: list[str] = []
+    for row in followups[:5]:
+        fips = str(row["county_fips"])
+        name = COUNTY_DISPLAY_NAMES.get(fips, fips)
+        bullets.append(
+            f"• {name} (`{fips}`): {int(row.get('parcels_in_db') or 0):,} parcels · "
+            f"zoning `{row.get('zoning_status')}` · next: {row.get('next_action')}"
+        )
+    extra = ""
+    if len(followups) > len(bullets):
+        extra = f"\n• +{len(followups) - len(bullets)} more county/counties."
+    post_agent_event_to_slack(
+        settings,
+        agent="Zoning acquisition",
+        detail=(
+            "Parcel ingest found WA counties that still need trusted zoning sources/joins/QA.\n"
+            + "\n".join(bullets)
+            + extra
+        ),
+    )
+    return followups
+
+
+def _record_watech_county_ingest_completion(county_fips: str, result: dict[str, Any]) -> None:
+    db = _session()
+    try:
+        write_audit(
+            db,
+            actor="celery:fetch_watech_county_and_ingest",
+            action="wa_statewide_county_ingest_completed",
+            entity_type="county_fips",
+            entity_id=county_fips,
+            meta={
+                "parcel_features": result.get("parcel_features"),
+                "pages_ingested": result.get("pages_ingested"),
+                "inserted": result.get("inserted"),
+                "updated": result.get("updated"),
+                "skipped": result.get("skipped"),
+                "pipelines_enqueued": result.get("pipelines_enqueued"),
+                "max_features_cap": result.get("max_features_cap"),
+                "warning": result.get("warning"),
+            },
+        )
+    finally:
+        db.close()
 
 
 def enqueue_unscored_pipeline_jobs(limit: int = 100) -> dict[str, Any]:
@@ -880,6 +973,16 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
 
     db = _session()
     try:
+        pending = wa_rollout_pending_ingest_state(db, merged)
+        if pending.get("pending"):
+            return {
+                "skipped": True,
+                "reason": "wa_rollout_pending_ingest",
+                "pending_county_fips": pending.get("pending_county_fips"),
+                "pending_age_days": pending.get("pending_age_days"),
+                "pending_lock_days": pending.get("pending_lock_days"),
+            }
+
         cooldown = wa_rollout_cooldown_state(db, merged)
         if not cooldown.get("ready"):
             return {
@@ -944,6 +1047,210 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
             "fetch_task_id": ar.id,
             "max_features": max_features,
             "max_auto_pipeline": max_pipe,
+            "parking_queue_depth": queue_depth,
+        }
+    finally:
+        db.close()
+
+
+@celery.task(name="app.tasks.fetch_build_merge_wa_county_zoning", bind=True)
+def fetch_build_merge_wa_county_zoning(
+    self,
+    county_fips: str,
+    *,
+    max_pipeline: int = 100,
+) -> dict[str, Any]:
+    """Build county zoning overlay GeoJSON and merge attributes into existing parcels."""
+    from parking_ingestion.wa_county_zoning_build import write_county_zoning_overlay
+
+    settings = get_settings()
+    from app.wa_phase_b_rollout import county_phase_b_settings, load_phase_b_config
+
+    phase_b = load_phase_b_config(settings.wa_phase_b_rollout_config_path)
+    county_settings = county_phase_b_settings(phase_b, county_fips)
+    overlay_path = Path(str(county_settings.get("overlay_path") or "").strip())
+    cache_dir_raw = str(county_settings.get("cache_dir") or "").strip()
+    cache_dir = Path(cache_dir_raw) if cache_dir_raw else overlay_path.parent
+    max_pipe = int(county_settings.get("max_merge_pipeline") or max_pipeline)
+    zoning_sources = county_settings.get("zoning_sources")
+    if not isinstance(zoning_sources, list):
+        zoning_sources = None
+
+    if not overlay_path:
+        return {"skipped": True, "reason": "overlay_path_not_configured", "county_fips": county_fips}
+
+    build_meta = write_county_zoning_overlay(
+        county_fips,
+        overlay_path,
+        cache_dir=cache_dir,
+        zoning_sources=zoning_sources,
+    )
+    merge_result = merge_parcel_attributes_geojson.run(
+        str(overlay_path),
+        default_county_fips=county_fips,
+        refresh_pipeline=True,
+        max_pipeline=max_pipe,
+    )
+
+    db = _session()
+    try:
+        write_audit(
+            db,
+            actor="celery:wa_phase_b_rollout",
+            action="wa_phase_b_county_merge_completed",
+            entity_type="county_fips",
+            entity_id=county_fips,
+            meta={
+                "task_id": self.request.id,
+                "overlay_path": str(overlay_path),
+                "overlay_features": build_meta.get("feature_count"),
+                **merge_result,
+            },
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    post_agent_event_to_slack(
+        settings,
+        agent="Zoning acquisition",
+        detail=(
+            f"Phase B merge completed for county `{county_fips}` — "
+            f"overlay features *{build_meta.get('feature_count')}*, "
+            f"parcels updated *{merge_result.get('updated')}*, "
+            f"pipelines enqueued *{merge_result.get('pipelines_enqueued')}*."
+        ),
+    )
+    return {
+        "county_fips": county_fips,
+        "overlay_path": str(overlay_path),
+        "build": build_meta,
+        "merge": merge_result,
+    }
+
+
+@celery.task(name="app.tasks.wa_phase_b_rollout_tick")
+def wa_phase_b_rollout_tick() -> dict[str, Any]:
+    """Hourly: merge zoning overlay for the next parcel-loaded WA county when queue/load allow."""
+    settings = get_settings()
+    if not settings.wa_phase_b_rollout_enabled:
+        return {"skipped": True, "reason": "wa_phase_b_rollout_disabled"}
+
+    from app.load_governor import (
+        current_governor_state,
+        effective_wa_rollout_limits,
+        governor_allows_wa_rollout,
+        refresh_load_governor,
+    )
+    from app.wa_phase_b_rollout import (
+        load_phase_b_config,
+        next_county_for_phase_b,
+        wa_phase_b_cooldown_state,
+        wa_phase_b_pending_merge_state,
+    )
+
+    phase_b = load_phase_b_config(settings.wa_phase_b_rollout_config_path)
+    parcel_rollout = load_rollout_config(settings.wa_statewide_rollout_config_path)
+    pacing = wa_rollout_pacing()
+    merged = merge_rollout_config(parcel_rollout, pacing)
+    max_queue = int(phase_b.get("max_parking_queue_depth") or merged.get("max_parking_queue_depth") or 300)
+    queue_depth = parking_queue_depth(settings.redis_url)
+    governor = (
+        refresh_load_governor(settings)
+        if settings.load_governor_enabled
+        else current_governor_state(settings)
+    )
+    if settings.load_governor_enabled:
+        allowed, reason = governor_allows_wa_rollout(settings, governor)
+        if not allowed:
+            logger.info("wa_phase_b_rollout_tick: load_governor — %s", reason)
+            return {
+                "skipped": True,
+                "reason": "load_governor_blocked",
+                "load_governor": governor,
+            }
+    if queue_depth > max_queue:
+        logger.info(
+            "wa_phase_b_rollout_tick: parking queue=%s > max=%s — deferring Phase B merge",
+            queue_depth,
+            max_queue,
+        )
+        return {
+            "skipped": True,
+            "reason": "parking_queue_busy",
+            "parking_queue_depth": queue_depth,
+            "max_parking_queue_depth": max_queue,
+        }
+
+    db = _session()
+    try:
+        pending = wa_phase_b_pending_merge_state(db, phase_b)
+        if pending.get("pending"):
+            return {
+                "skipped": True,
+                "reason": "wa_phase_b_pending_merge",
+                "pending_county_fips": pending.get("pending_county_fips"),
+                "pending_age_hours": pending.get("pending_age_hours"),
+                "pending_lock_hours": pending.get("pending_lock_hours"),
+            }
+
+        cooldown = wa_phase_b_cooldown_state(db, phase_b)
+        if not cooldown.get("ready"):
+            return {
+                "skipped": True,
+                "reason": "wa_phase_b_cooldown",
+                "required_cooldown_hours": cooldown.get("required_cooldown_hours"),
+                "hours_since_last_merge": cooldown.get("hours_since_last_merge"),
+                "last_merged_county_fips": cooldown.get("last_county_fips"),
+            }
+
+        county = next_county_for_phase_b(
+            db,
+            config=phase_b,
+            pilot_config_path=settings.pilot_config_path,
+            parcel_rollout_config=parcel_rollout,
+        )
+        if county is None:
+            return {"skipped": True, "reason": "no_county_ready_for_phase_b"}
+
+        from app.wa_phase_b_rollout import county_phase_b_settings
+
+        county_settings = county_phase_b_settings(phase_b, county)
+        max_pipe = int(county_settings.get("max_merge_pipeline") or 100)
+        if settings.load_governor_enabled:
+            _, max_pipe = effective_wa_rollout_limits(
+                settings,
+                base_min_days=float(merged.get("min_days_between_counties") or 4),
+                base_max_auto_pipeline=max_pipe,
+                state=governor,
+            )
+
+        write_audit(
+            db,
+            actor="celery:wa_phase_b_rollout",
+            action="wa_phase_b_county_merge_started",
+            entity_type="county_fips",
+            entity_id=county,
+            meta={
+                "max_merge_pipeline": max_pipe,
+                "parking_queue_depth": queue_depth,
+            },
+        )
+        db.commit()
+        post_agent_event_to_slack(
+            settings,
+            agent="Zoning acquisition",
+            detail=(
+                f"Starting Phase B zoning merge for county `{county}` "
+                f"(pipeline cap {max_pipe}; queue depth {queue_depth})."
+            ),
+        )
+        ar = fetch_build_merge_wa_county_zoning.delay(county, max_pipeline=max_pipe)
+        return {
+            "skipped": False,
+            "county_fips": county,
+            "merge_task_id": ar.id,
+            "max_merge_pipeline": max_pipe,
             "parking_queue_depth": queue_depth,
         }
     finally:
@@ -1029,44 +1336,98 @@ def fetch_watech_county_and_ingest(
     auto_run_pipeline: bool = True,
     max_auto_pipeline: int = 100,
 ) -> dict[str, Any]:
-    """Download WaTech public parcel polygons for one county; write temp GeoJSON; enqueue ``ingest_geojson_path``."""
+    """Download WaTech public parcel polygons for one county and ingest page-by-page."""
     import json
     import tempfile
 
-    from parking_ingestion.watech_parcels import fetch_county_geojson
+    from parking_ingestion.watech_parcels import iter_county_geojson_pages
 
-    collection = fetch_county_geojson(county_fips, max_features=max_features)
-    nfeat = len(collection.get("features", []))
-    if nfeat == 0:
-        return {
+    total_features = 0
+    inserted = 0
+    updated = 0
+    skipped = 0
+    pipelines_enqueued = 0
+    page_count = 0
+    sample_parcel_ids: list[str] = []
+    ingest_results: list[dict[str, Any]] = []
+    remaining_pipeline_cap = max(0, max_auto_pipeline)
+
+    for page_count, collection in enumerate(
+        iter_county_geojson_pages(county_fips, max_features=max_features),
+        start=1,
+    ):
+        nfeat = len(collection.get("features", []))
+        if nfeat == 0:
+            continue
+        total_features += nfeat
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=f".{county_fips}.page-{page_count}.geojson",
+            delete=False,
+            encoding="utf-8",
+        ) as tmp:
+            json.dump(collection, tmp)
+            tmp_path = tmp.name
+
+        page_pipeline_cap = remaining_pipeline_cap if auto_run_pipeline else 0
+        result = ingest_geojson_path.run(
+            tmp_path,
+            default_county_fips=county_fips,
+            auto_run_pipeline=auto_run_pipeline and page_pipeline_cap > 0,
+            max_auto_pipeline=page_pipeline_cap,
+            delete_after=True,
+        )
+        inserted += int(result.get("inserted") or 0)
+        updated += int(result.get("updated") or 0)
+        skipped += int(result.get("skipped") or 0)
+        page_enqueued = int(result.get("pipelines_enqueued") or 0)
+        pipelines_enqueued += page_enqueued
+        remaining_pipeline_cap = max(0, remaining_pipeline_cap - page_enqueued)
+        sample_parcel_ids.extend([str(pid) for pid in (result.get("parcel_ids") or [])[:5]])
+        ingest_results.append(
+            {
+                "page": page_count,
+                "features": nfeat,
+                "inserted": result.get("inserted"),
+                "updated": result.get("updated"),
+                "skipped": result.get("skipped"),
+                "pipelines_enqueued": page_enqueued,
+            },
+        )
+        logger.info(
+            "fetch_watech_county_and_ingest: county=%s page=%s features=%s inserted=%s updated=%s skipped=%s",
+            county_fips,
+            page_count,
+            nfeat,
+            result.get("inserted"),
+            result.get("updated"),
+            result.get("skipped"),
+        )
+
+    if total_features == 0:
+        result = {
             "county_fips": county_fips,
             "parcel_features": 0,
             "ingest_task_id": None,
             "warning": "no features returned (check county FIPS or layer availability)",
         }
+        _record_watech_county_ingest_completion(county_fips, result)
+        return result
 
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        suffix=".geojson",
-        delete=False,
-        encoding="utf-8",
-    ) as tmp:
-        json.dump(collection, tmp)
-        tmp_path = tmp.name
-
-    ar = ingest_geojson_path.delay(
-        tmp_path,
-        default_county_fips=county_fips,
-        auto_run_pipeline=auto_run_pipeline,
-        max_auto_pipeline=max_auto_pipeline,
-        delete_after=True,
-    )
-    return {
+    result = {
         "county_fips": county_fips,
-        "parcel_features": nfeat,
-        "ingest_task_id": ar.id,
+        "parcel_features": total_features,
+        "pages_ingested": page_count,
+        "inserted": inserted,
+        "updated": updated,
+        "skipped": skipped,
+        "pipelines_enqueued": pipelines_enqueued,
         "max_features_cap": max_features,
+        "sample_parcel_ids": sample_parcel_ids[:20],
+        "page_results_sample": ingest_results[:10],
     }
+    _record_watech_county_ingest_completion(county_fips, result)
+    return result
 
 
 def _governed_pipeline_limit(requested: int) -> tuple[int, dict[str, Any] | None]:
@@ -1159,6 +1520,7 @@ def ingest_geojson_path(
     inserted = 0
     updated = 0
     skipped = 0
+    county_touches: dict[str, int] = {}
     try:
         pilot = load_pilot_config(get_settings().pilot_config_path)
         zrp = (get_settings().zoning_rules_path or "").strip()
@@ -1234,6 +1596,7 @@ def ingest_geojson_path(
                 _upsert_identification_score(db, existing)
                 pid = str(existing.id)
                 updated += 1
+            county_touches[county] = county_touches.get(county, 0) + 1
             ids.append(pid)
         db.commit()
         write_audit(
@@ -1249,8 +1612,14 @@ def ingest_geojson_path(
                 "inserted": inserted,
                 "updated": updated,
                 "skipped": skipped,
+                "county_touches": county_touches,
                 "auto_run_pipeline": auto_run_pipeline,
             },
+        )
+        zoning_followups = _record_wa_zoning_followups_after_ingest(
+            db,
+            county_touches=county_touches,
+            source_path=path,
         )
         pipelines_enqueued = 0
         if auto_run_pipeline and ids:
@@ -1285,6 +1654,11 @@ def ingest_geojson_path(
         )
         if pipelines_enqueued:
             ingest_detail += f"\n• Scoring pipelines enqueued: *{pipelines_enqueued}* (prescreen-qualified)."
+        if zoning_followups:
+            ingest_detail += (
+                f"\n• Zoning follow-up opened for *{len(zoning_followups)}* WA county/counties "
+                "(source discovery / layer join / QA)."
+            )
         post_agent_event_to_slack(get_settings(), agent="Ingest agent", detail=ingest_detail)
         return {
             "parcel_ids": ids,
@@ -1292,6 +1666,8 @@ def ingest_geojson_path(
             "updated": updated,
             "skipped": skipped,
             "pipelines_enqueued": pipelines_enqueued,
+            "zoning_followup_required": len(zoning_followups),
+            "zoning_followup_counties": [str(row["county_fips"]) for row in zoning_followups],
         }
     finally:
         db.close()
@@ -1852,6 +2228,8 @@ def refresh_entitlement_scores_batch(
 def slack_qualified_parcels_report() -> dict[str, Any]:
     """Post Block Kit summary of qualified vs not-qualified parcels (latest scores + rationale)."""
     settings = get_settings()
+    if skip := maybe_skip_stale_slack_run(settings, "app.tasks.slack_qualified_parcels_report"):
+        return skip
     token = (settings.slack_bot_token or "").strip()
     channel = (settings.slack_digest_channel_id or "").strip()
     if not token or not channel:
@@ -1875,6 +2253,8 @@ def slack_qualified_parcels_report() -> dict[str, Any]:
 def slack_plan_progress_report() -> dict[str, Any]:
     """Post hourly A-E plan progress to the same channel as the regular Slack updates."""
     settings = get_settings()
+    if skip := maybe_skip_stale_slack_run(settings, "app.tasks.slack_plan_progress_report"):
+        return skip
     token = (settings.slack_bot_token or "").strip()
     channel = (settings.slack_digest_channel_id or "").strip()
     if not token or not channel:
@@ -1898,6 +2278,8 @@ def slack_plan_progress_report() -> dict[str, Any]:
 def slack_dual_agent_discussion() -> dict[str, Any]:
     """Post 3 sequential messages to SLACK_AGENT_DISCUSSION_CHANNEL_ID (Atlas, Beacon, joint)."""
     settings = get_settings()
+    if skip := maybe_skip_stale_slack_run(settings, "app.tasks.slack_dual_agent_discussion"):
+        return skip
     token = (settings.slack_bot_token or "").strip()
     channel = (settings.slack_agent_discussion_channel_id or "").strip()
     if not token or not channel:
@@ -1930,6 +2312,8 @@ def slack_dual_agent_discussion() -> dict[str, Any]:
 def slack_agent_digest() -> dict[str, Any]:
     """Scheduled standup: post a Block Kit digest to Slack (worker executes; Beat only schedules)."""
     settings = get_settings()
+    if skip := maybe_skip_stale_slack_run(settings, "app.tasks.slack_agent_digest"):
+        return skip
     token = (settings.slack_bot_token or "").strip()
     channel = (settings.slack_digest_channel_id or "").strip()
     if not token or not channel:
@@ -1962,6 +2346,8 @@ def ops_remediation_loop() -> dict[str, Any]:
     from app.ops_remediation import run_ops_remediation_loop
 
     settings = get_settings()
+    if skip := maybe_skip_stale_slack_run(settings, "app.tasks.ops_remediation_loop"):
+        return skip
     if not settings.ops_remediation_enabled:
         return {"skipped": True, "reason": "ops_remediation_disabled"}
 
@@ -1987,6 +2373,8 @@ def site_watchdog_check() -> dict[str, Any]:
     )
 
     settings = get_settings()
+    if skip := maybe_skip_stale_slack_run(settings, "app.tasks.site_watchdog_check"):
+        return skip
     token = (settings.slack_bot_token or "").strip()
     channel = watchdog_slack_channel(settings)
     slack_configured = bool(token and channel)

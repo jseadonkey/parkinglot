@@ -30,56 +30,34 @@ _SLACK_BEAT_OPTIONS = {"queue": SLACK_QUEUE}
 
 _s = get_settings()
 
-
-def _slack_crontab(*, minute: int, hour: int | str, day_of_week: str = "*") -> crontab:
-    kwargs: dict = {"minute": minute, "hour": hour}
-    if day_of_week != "*":
-        kwargs["day_of_week"] = day_of_week
-    return crontab(**kwargs)
-
-
 beat_schedule: dict = {
-    "slack-parking-digest": {
+    "slack-parking-digest-hourly": {
         "task": "app.tasks.slack_agent_digest",
-        "schedule": _slack_crontab(
+        "schedule": crontab(
             minute=_s.slack_digest_crontab_minute,
             hour=_s.slack_digest_crontab_hour,
         ),
         "options": _SLACK_BEAT_OPTIONS,
     },
-}
-
-if _s.slack_plan_progress_enabled:
-    beat_schedule["slack-plan-progress"] = {
+    "slack-plan-progress-hourly": {
         "task": "app.tasks.slack_plan_progress_report",
-        "schedule": _slack_crontab(
+        "schedule": crontab(
             minute=_s.slack_plan_progress_crontab_minute,
             hour=_s.slack_plan_progress_crontab_hour,
         ),
         "options": _SLACK_BEAT_OPTIONS,
-    }
-
-if _s.slack_qualified_parcels_enabled:
-    beat_schedule["slack-qualified-parcels"] = {
+    },
+    "slack-qualified-parcels-daily": {
         "task": "app.tasks.slack_qualified_parcels_report",
-        "schedule": _slack_crontab(
-            minute=_s.slack_qualified_parcels_crontab_minute,
-            hour=_s.slack_qualified_parcels_crontab_hour,
-            day_of_week=_s.slack_qualified_parcels_crontab_day_of_week,
-        ),
+        "schedule": crontab(minute=0, hour=14),
         "options": _SLACK_BEAT_OPTIONS,
-    }
-
-if _s.slack_dual_agent_discussion_enabled:
-    beat_schedule["slack-dual-agent-discussion"] = {
+    },
+    "slack-dual-agent-discussion-daily": {
         "task": "app.tasks.slack_dual_agent_discussion",
-        "schedule": _slack_crontab(
-            minute=_s.slack_dual_agent_discussion_crontab_minute,
-            hour=_s.slack_dual_agent_discussion_crontab_hour,
-            day_of_week=_s.slack_dual_agent_discussion_crontab_day_of_week,
-        ),
+        "schedule": crontab(minute=30, hour=15),
         "options": _SLACK_BEAT_OPTIONS,
-    }
+    },
+}
 
 logger.info(
     "Beat: pipeline Slack digest — hour=%s minute=%02d window=%sh (slack queue)",
@@ -87,14 +65,11 @@ logger.info(
     _s.slack_digest_crontab_minute,
     _s.slack_digest_window_hours,
 )
-if _s.slack_plan_progress_enabled:
-    logger.info(
-        "Beat: A-E plan progress Slack report — hour=%s minute=%02d (slack queue)",
-        _s.slack_plan_progress_crontab_hour,
-        _s.slack_plan_progress_crontab_minute,
-    )
-else:
-    logger.info("Beat: A-E plan progress Slack report disabled (SLACK_PLAN_PROGRESS_ENABLED=false)")
+logger.info(
+    "Beat: A-E plan progress Slack report — hour=%s minute=%02d (slack queue)",
+    _s.slack_plan_progress_crontab_hour,
+    _s.slack_plan_progress_crontab_minute,
+)
 
 if _s.site_watchdog_enabled:
     _wd_minute = (_s.site_watchdog_crontab_minute or "0").strip()
@@ -165,7 +140,7 @@ if _s.exploration_campaign_enabled:
     )
 
 if _s.wa_statewide_rollout_enabled:
-    beat_schedule["wa-statewide-rollout-daily"] = {
+    beat_schedule["wa-statewide-rollout-loop"] = {
         "task": "app.tasks.wa_statewide_rollout_tick",
         "schedule": crontab(
             minute=_s.wa_statewide_rollout_crontab_minute,
@@ -173,9 +148,23 @@ if _s.wa_statewide_rollout_enabled:
         ),
     }
     logger.info(
-        "Beat: WA statewide rollout (one county/day) at %02d:%02d UTC",
+        "Beat: WA statewide rollout loop — hour=%s minute=%02d UTC",
         _s.wa_statewide_rollout_crontab_hour,
         _s.wa_statewide_rollout_crontab_minute,
+    )
+
+if _s.wa_phase_b_rollout_enabled:
+    beat_schedule["wa-phase-b-rollout-loop"] = {
+        "task": "app.tasks.wa_phase_b_rollout_tick",
+        "schedule": crontab(
+            minute=_s.wa_phase_b_rollout_crontab_minute,
+            hour=_s.wa_phase_b_rollout_crontab_hour,
+        ),
+    }
+    logger.info(
+        "Beat: WA Phase B rollout loop — hour=%s minute=%02d UTC",
+        _s.wa_phase_b_rollout_crontab_hour,
+        _s.wa_phase_b_rollout_crontab_minute,
     )
 
 if _s.address_health_agent_enabled:

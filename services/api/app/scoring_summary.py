@@ -9,13 +9,6 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db.models import Parcel, ParcelScore
-from app.pipeline_funnel import (
-    count_where,
-    identification_prescreen_floor,
-    identification_prescreen_qualified,
-    pipeline_funnel_backlog,
-    ruled_out_by_prescreen,
-)
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
 from parking_core.pilot import load_pilot_config
 
@@ -89,17 +82,9 @@ def scoring_summary_stats(db: Session) -> dict[str, Any]:
     sub_id = _latest_scores_subquery(IDENTIFICATION)
 
     total_parcels = int(db.scalar(select(func.count()).select_from(Parcel)) or 0)
-    floor_i = identification_prescreen_floor()
-    prescreen_qualified = count_where(db, identification_prescreen_qualified(floor_i))
-    ruled_out_prescreen = count_where(db, ruled_out_by_prescreen(floor_i))
-    pipeline_backlog = count_where(db, pipeline_funnel_backlog(floor_i))
 
     return {
         "total_parcels": total_parcels,
-        "parcels_prescreen_qualified": prescreen_qualified,
-        "prescreen_floor": floor_i,
-        "parcels_ruled_out_by_prescreen": ruled_out_prescreen,
-        "parcels_pipeline_funnel_backlog": pipeline_backlog,
         "parcels_with_latest_entitlement_score": _count_subquery_rows(db, sub_ent),
         "parcels_with_latest_strategic_score": _count_subquery_rows(db, sub_str),
         "parcels_with_latest_identification_score": _count_subquery_rows(db, sub_id),

@@ -21,10 +21,6 @@ type QualifiedMinScores = {
 
 type ScoringSummary = {
   total_parcels: number;
-  parcels_prescreen_qualified: number;
-  prescreen_floor: number;
-  parcels_ruled_out_by_prescreen: number;
-  parcels_pipeline_funnel_backlog: number;
   parcels_with_latest_entitlement_score: number;
   parcels_with_latest_strategic_score: number;
   parcels_with_latest_identification_score: number;
@@ -307,22 +303,8 @@ export default function OverviewPage() {
   const qualFloor =
     scopeView?.qualified_min_score.entitlement ?? PILOT_SCOPE_DEFAULTS.qualified_min_entitlement;
 
-  const prescreenQualified =
-    summaryView?.parcels_prescreen_qualified ??
-    readinessView?.parcels_prescreen_qualified.count ??
-    null;
-  const prescreenFloor =
-    summaryView?.prescreen_floor ??
-    readinessView?.parcels_prescreen_qualified.floor ??
-    scopeView?.qualified_min_score.identification ??
-    null;
-  const ruledOutPrescreen =
-    summaryView?.parcels_ruled_out_by_prescreen ??
-    readinessView?.parcels_ruled_out_by_prescreen.count ??
-    null;
-
   const funnelSteps = useMemo((): FunnelStep[] => {
-    if (!summaryView && prescreenQualified == null) return [];
+    if (!summaryView) return [];
     const ownerTargetTotal = readinessView?.parcels_owner_outreach_targets?.count ?? null;
     const withBrief = readinessView
       ? Math.max(
@@ -332,20 +314,7 @@ export default function OverviewPage() {
             readinessView.parcel_row_total) - readinessView.parcels_missing_owner_outreach_brief.count,
         )
       : null;
-    const floors: QualifiedMinScores =
-      summaryView?.qualified_min_score ??
-      scopeView?.qualified_min_score ?? {
-        entitlement: PILOT_SCOPE_DEFAULTS.qualified_min_entitlement,
-        strategic: 65,
-        identification: 60,
-      };
-    const total = summaryView?.total_parcels ?? readinessView?.parcel_row_total ?? 0;
-    const prescreen =
-      summaryView?.parcels_prescreen_qualified ?? readinessView?.parcels_prescreen_qualified.count ?? null;
-    const prescreenDetail =
-      prescreenFloor != null
-        ? `Cartographer identification ≥ ${prescreenFloor} — only these parcels are eligible for scheduled Atlas/Beacon auto-score.`
-        : "Parcels that pass identification prescreen — eligible for Atlas/Beacon pipeline batches.";
+    const floors = summaryView.qualified_min_score;
 
     return [
       {
@@ -353,29 +322,27 @@ export default function OverviewPage() {
         label: "Parcels ingested",
         detail:
           "Only APNs loaded from county GIS (Baltimore EGIS, Washington assessor/WaTech) — not every parcel in configured markets.",
-        count: total,
+        count: summaryView.total_parcels,
       },
       {
-        key: "prescreen",
-        label:
-          prescreenFloor != null
-            ? `Pass prescreen (≥ ${prescreenFloor})`
-            : "Pass prescreen (auto-score eligible)",
-        detail: prescreenDetail,
-        count: prescreen,
+        key: "identification",
+        label: `Identification prescreen (≥ ${floors.identification})`,
+        detail:
+          "Cartographer score at ingest — only parcels at or above this floor should enter the full pipeline (owner lookup, memo, contract).",
+        count: summaryView.qualified_count_identification,
       },
       {
         key: "pipeline",
         label: "Full pipeline scored",
         detail:
           "Atlas (entitlement) first — if below floor, Beacon and enrichment are skipped. If Atlas passes, Beacon runs; enrichment only when both pass.",
-        count: summaryView?.parcels_with_both_profiles_scored ?? null,
+        count: summaryView.parcels_with_both_profiles_scored,
       },
       {
         key: "qualified",
         label: `Qualified (entitlement ≥ ${floors.entitlement})`,
         detail: "Parcels meeting the pilot floor for deal outreach and operator boards.",
-        count: summaryView?.qualified_count_entitlement ?? null,
+        count: summaryView.qualified_count_entitlement,
       },
       {
         key: "brief",
@@ -386,7 +353,7 @@ export default function OverviewPage() {
         count: withBrief,
       },
     ];
-  }, [summaryView, readinessView, prescreenQualified, prescreenFloor, scopeView]);
+  }, [summaryView, readinessView]);
 
   const outreachStats = useMemo(() => {
     const rows = outreachView?.rows ?? [];
@@ -623,21 +590,6 @@ export default function OverviewPage() {
             <div className="cell-sub muted">Blocked, failed, or approvals waiting</div>
           </div>
           <div className="stat stat-emphasis">
-            <div className="muted">Pass prescreen</div>
-            <div className="n">
-              {readinessLoading && prescreenQualified == null
-                ? "…"
-                : formatCount(prescreenQualified)}
-            </div>
-            <div className="cell-sub muted">
-              Auto-score eligible
-              {prescreenFloor != null ? ` (Cartographer ≥ ${prescreenFloor})` : ""}
-              {ruledOutPrescreen != null && prescreenQualified != null
-                ? ` · ${ruledOutPrescreen.toLocaleString()} ruled out`
-                : ""}
-            </div>
-          </div>
-          <div className="stat stat-emphasis">
             <div className="muted">Pipeline backlog</div>
             <div className="n">
               {readinessLoading ? "…" : formatCount(readinessView?.parcels_pipeline_funnel_backlog.count ?? null)}
@@ -809,52 +761,26 @@ export default function OverviewPage() {
       </div>
 
       <h2>Scoring totals</h2>
-      <p className="muted">
-        <strong>Pass prescreen</strong> is the auto-score pool: parcels whose latest Cartographer score meets the
-        prescreen floor. Scheduled pipeline batches and ops auto-fix only target that pool — not the full{" "}
-        {formatCount(summaryView?.total_parcels ?? readinessView?.parcel_row_total ?? null)}-row inventory.
-      </p>
       {summaryErr ? <div className="error">{summaryErr}</div> : null}
       <div className="cols" style={{ marginTop: "0.5rem" }}>
-        {summaryView || prescreenQualified != null ? (
+        {summaryView ? (
           <>
-            <div className="stat stat-emphasis">
-              <div className="muted">Pass prescreen (auto-score eligible)</div>
-              <div className="n">{formatCount(prescreenQualified)}</div>
-              {prescreenFloor != null ? (
-                <div className="cell-sub muted">Floor ≥ {prescreenFloor} (identification)</div>
-              ) : null}
-            </div>
-            <div className="stat">
-              <div className="muted">Ruled out at prescreen</div>
-              <div className="n">{formatCount(ruledOutPrescreen)}</div>
-            </div>
             <div className="stat">
               <div className="muted">Parcels in DB</div>
-              <div className="n">{formatCount(summaryView?.total_parcels ?? readinessView?.parcel_row_total ?? null)}</div>
+              <div className="n">{formatCount(summaryView.total_parcels)}</div>
             </div>
             <div className="stat">
-              <div className="muted">Pipeline backlog</div>
-              <div className="n">
-                {formatCount(
-                  summaryView?.parcels_pipeline_funnel_backlog ??
-                    readinessView?.parcels_pipeline_funnel_backlog.count ??
-                    null,
-                )}
-              </div>
+              <div className="muted">Identification prescreen</div>
+              <div className="n">{formatCount(summaryView.parcels_with_latest_identification_score)}</div>
             </div>
-            {summaryView ? (
-              <>
-                <div className="stat">
-                  <div className="muted">Full pipeline (both scores)</div>
-                  <div className="n">{formatCount(summaryView.parcels_with_both_profiles_scored)}</div>
-                </div>
-                <div className="stat">
-                  <div className="muted">Qualified (entitlement)</div>
-                  <div className="n">{formatCount(summaryView.qualified_count_entitlement)}</div>
-                </div>
-              </>
-            ) : null}
+            <div className="stat">
+              <div className="muted">Full pipeline (both scores)</div>
+              <div className="n">{formatCount(summaryView.parcels_with_both_profiles_scored)}</div>
+            </div>
+            <div className="stat">
+              <div className="muted">Qualified (entitlement)</div>
+              <div className="n">{formatCount(summaryView.qualified_count_entitlement)}</div>
+            </div>
           </>
         ) : summaryLoading ? (
           <p className="muted">Loading scoring totals…</p>

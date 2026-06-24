@@ -657,7 +657,10 @@ def apply_remediation(
             continue
         seen_actions.add(action)
 
-        if not auto_fix:
+        lightweight_watchdog_refresh = action == "run_site_watchdog" and bool(
+            settings.ops_remediation_auto_fix,
+        )
+        if not auto_fix and not lightweight_watchdog_refresh:
             actions.append(
                 RemediationAction(action=action, status="skipped_disabled", detail="auto_fix off"),
             )
@@ -810,18 +813,6 @@ def build_slack_text(report: dict[str, Any], *, recovered: bool = False) -> str:
         f"*{report.get('issue_count', 0)}* issue(s) ({report.get('critical_count', 0)} critical)",
         "",
     ]
-    export = report.get("export_readiness") if isinstance(report.get("export_readiness"), dict) else {}
-    if export:
-        pq = int((export.get("parcels_prescreen_qualified") or {}).get("count") or 0)
-        pf = float((export.get("parcels_prescreen_qualified") or {}).get("floor") or 0)
-        ruled = int((export.get("parcels_ruled_out_by_prescreen") or {}).get("count") or 0)
-        backlog = int((export.get("parcels_pipeline_funnel_backlog") or {}).get("count") or 0)
-        total = int(export.get("parcel_row_total") or 0)
-        lines.append(
-            f"*Prescreen pool:* *{pq:,}* passed (≥{pf:.0f}) of {total:,} parcels · "
-            f"*{backlog:,}* awaiting pipeline · *{ruled:,}* ruled out at prescreen"
-        )
-        lines.append("")
     for item in report.get("issues") or []:
         if item.get("severity") == "info" and report.get("critical_count", 0) > 0:
             continue

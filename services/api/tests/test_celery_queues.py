@@ -15,15 +15,13 @@ def test_default_queue_is_parking() -> None:
 
 def test_beat_slack_entries_target_slack_queue() -> None:
     schedule = celery.conf.beat_schedule or {}
-    for key in ("slack-parking-digest", "slack-qualified-parcels"):
-        entry = schedule[key]
-        assert entry["options"]["queue"] == SLACK_QUEUE
     for key in (
-        "slack-plan-progress",
-        "slack-dual-agent-discussion",
+        "slack-parking-digest-hourly",
+        "slack-plan-progress-hourly",
+        "slack-qualified-parcels-daily",
+        "slack-dual-agent-discussion-daily",
         "site-watchdog",
         "ops-remediation-loop",
     ):
-        if key not in schedule:
-            continue
-        assert schedule[key]["options"]["queue"] == SLACK_QUEUE
+        entry = schedule[key]
+        assert entry["options"]["queue"] == SLACK_QUEUE
