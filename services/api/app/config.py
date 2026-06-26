@@ -420,6 +420,22 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Rollout Orchestrator — stale lock recovery + Slack status (see config/rollout_agents.yaml).
+    rollout_orchestrator_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "ROLLOUT_ORCHESTRATOR_ENABLED",
+            "rollout_orchestrator_enabled",
+        ),
+    )
+    rollout_orchestrator_crontab_minute: str = Field(
+        default="*/30",
+        validation_alias=AliasChoices(
+            "ROLLOUT_ORCHESTRATOR_CRONTAB_MINUTE",
+            "rollout_orchestrator_crontab_minute",
+        ),
+    )
+
     # Address health agent (12h): catalog rotation + connector triggers (see config/operator_agents.yaml).
     address_health_agent_enabled: bool = Field(
         default=True,

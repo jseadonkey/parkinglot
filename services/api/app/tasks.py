@@ -1424,6 +1424,23 @@ def wa_phase_b_rollout_tick() -> dict[str, Any]:
         db.close()
 
 
+@celery.task(name="app.tasks.rollout_orchestrator_tick")
+def rollout_orchestrator_tick() -> dict[str, Any]:
+    """Every 30m: clear stale Phase B locks, optionally re-kick Phase B, Slack on state change."""
+    settings = get_settings()
+    if not settings.rollout_orchestrator_enabled:
+        return {"skipped": True, "reason": "rollout_orchestrator_disabled"}
+
+    from app.db import SessionLocal
+    from app.rollout_orchestrator import run_orchestrator_tick
+
+    db = SessionLocal()
+    try:
+        return run_orchestrator_tick(db, settings)
+    finally:
+        db.close()
+
+
 @celery.task(name="app.tasks.fetch_baltimore_city_and_ingest")
 def fetch_baltimore_city_and_ingest(
     max_features: int | None = None,

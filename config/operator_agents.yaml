@@ -52,6 +52,26 @@ operator_admin_agent:
     - DROPLET_SSH_PRIVATE_KEY
     - DROPLET_HOST
 
+baltimore_phase_b_agent:
+  description: Merge staged CityView zoning overlay for Baltimore City (24510); auto-chains after Pierce.
+  registry: config/rollout_agents.yaml#baltimore_phase_b
+  droplet:
+    celery_task: app.tasks.merge_baltimore_zoning_overlay
+    orchestrator_task: app.tasks.rollout_orchestrator_tick
+  env:
+    BALTIMORE_PHASE_B_AFTER_PIERCE_ENABLED: "true"
+    BALTIMORE_PHASE_B_AFTER_PIERCE_TRIGGER_FIPS: "53053"
+
+rollout_orchestrator:
+  description: Supervisor for WA Phase A/B queue — stale lock recovery, Baltimore chain visibility, Slack alerts.
+  schedule_utc: "*/30 * * * *"
+  registry: config/rollout_agents.yaml#rollout_orchestrator
+  droplet:
+    celery_beat_task: app.tasks.rollout_orchestrator_tick
+  env:
+    ROLLOUT_ORCHESTRATOR_ENABLED: "true"
+    ROLLOUT_ORCHESTRATOR_CRONTAB_MINUTE: "*/30"
+
 api_features:
   # Verified on every deploy by droplet-post-deploy-operator-agents.sh
   wa_centroid_backfill_route: /internal/metrics/backfill-wa-centroid-addresses
