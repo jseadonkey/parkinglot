@@ -167,6 +167,17 @@ if _s.wa_phase_b_rollout_enabled:
         _s.wa_phase_b_rollout_crontab_minute,
     )
 
+if _s.rollout_orchestrator_enabled:
+    _orch_minute = (_s.rollout_orchestrator_crontab_minute or "*/30").strip()
+    beat_schedule["rollout-orchestrator"] = {
+        "task": "app.tasks.rollout_orchestrator_tick",
+        "schedule": crontab(minute=_orch_minute),
+    }
+    logger.info(
+        "Beat: rollout orchestrator at minute=%s UTC (parking queue)",
+        _orch_minute,
+    )
+
 if _s.address_health_agent_enabled:
     _ah_hour = (_s.address_health_agent_crontab_hour or "*/12").strip()
     beat_schedule["address-health-agent"] = {

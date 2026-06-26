@@ -1,0 +1,96 @@
+# Rollout agent registry — see docs/ROLLOUT-AGENTS-PLAN.md
+#
+# disposition: keep | augment | build | replace (never replace without plan update)
+# type: celery | crewai | github_actions | slack_persona | pipeline
+
+agents:
+  rollout_orchestrator:
+    disposition: build
+    type: celery
+    task: app.tasks.rollout_orchestrator_tick
+    description: >
+      Supervisor for WA Phase A/B county queue — stale lock recovery, idle kick,
+      Baltimore chain validation, Slack status on state change.
+    schedule_utc: "*/30 * * * *"
+    env:
+      ROLLOUT_ORCHESTRATOR_ENABLED: "true"
+      ROLLOUT_ORCHESTRATOR_CRONTAB_MINUTE: "*/30"
+
+  phase_a_ingest:
+    disposition: keep
+    type: celery
+    task: app.tasks.wa_statewide_rollout_tick
+    description: WaTech parcel ingest for next zero-row county when governor allows.
+    config: config/wa_statewide_rollout.yaml
+
+  phase_b_zoning:
+    disposition: augment
+    type: celery
+    tasks:
+      - app.tasks.wa_phase_b_rollout_tick
+      - app.tasks.fetch_build_merge_wa_county_zoning
+    description: Overlay build + attribute merge per county; Redis per-county lock.
+    config: config/wa_phase_b_rollout.yaml
+
+  baltimore_phase_b:
+    disposition: augment
+    type: celery
+    task: app.tasks.merge_baltimore_zoning_overlay
+    description: Merge staged CityView overlay for Baltimore City (24510).
+    trigger: after Pierce (53053) WA Phase B completes
+    overlay_path: /app/data/baltimore/baltimore_city_zoning_overlay.geojson
+
+  pipeline_agent:
+    disposition: keep
+    type: pipeline
+    tasks:
+      - app.tasks.run_pipeline
+      - app.tasks.enqueue_priority_qualified_scheduled
+    description: Atlas/Beacon/Cartographer scoring after attributes land.
+
+  address_health:
+    disposition: keep
+    type: celery
+    registry: config/operator_agents.yaml#address_health_agent
+
+  ops_remediation:
+    disposition: augment
+    type: celery
+    task: app.tasks.ops_remediation_loop
+    note: Throttle when phase_b_zoning active county holds parking queue.
+
+  crew_zoning_analyst:
+    disposition: augment
+    type: crewai
+    config: services/crew/config/agents.yaml#zoning_analyst
+    trigger_planned: post_phase_b_merge_per_county
+
+  crew_revenue_actuary:
+    disposition: keep
+    type: crewai
+    config: services/crew/config/agents.yaml#revenue_actuary
+
+  crew_finops_comptroller:
+    disposition: augment
+    type: crewai
+    config: services/crew/config/agents.yaml#finops_comptroller
+
+  slack_digest:
+    disposition: augment
+    type: slack_persona
+    tasks:
+      - app.tasks.slack_agent_digest
+      - app.tasks.slack_plan_progress_report
+
+chains:
+  wa_county_rollout:
+    - phase_a_ingest
+    - phase_b_zoning
+    - pipeline_agent
+  baltimore_market:
+    - baltimore_phase_b
+    - pipeline_agent
+  cross_market:
+    description: After Pierce phase_b_zoning completes, enqueue baltimore_phase_b.
+    when: county_fips == "53053"
+    then: baltimore_phase_b
