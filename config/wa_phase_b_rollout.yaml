@@ -21,11 +21,15 @@ county_fips_priority:
 # Skip Phase B when fewer than this fraction of county parcels lack zoning_code.
 min_missing_zoning_pct: 1.0
 
-# Cooldown after starting/completing a county Phase B run (hours).
+# Skip re-merge when a county already completed Phase B and missing zoning is below this pct.
+phase_b_remerge_min_missing_pct: 10.0
+
 min_hours_between_county_merges: 6
 
-# Do not start another county merge if one started within this lock and has not completed.
-pending_merge_lock_hours: 12
+# Do not start another county merge if one started within this window and has not completed.
+# Also used as stale recovery: after this many hours with no completion and no live lock, retry.
+pending_merge_stale_hours: 72
+pending_merge_lock_hours: 72
 
 max_parking_queue_depth: 300
 

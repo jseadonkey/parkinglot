@@ -46,10 +46,109 @@ def county_missing_zoning_stats(db: Session, county_fips: str) -> dict[str, int]
     return {"total": total, "missing_zoning": missing}
 
 
+PHASE_B_MERGE_LOCK_PREFIX = "wa_phase_b_merge_lock:"
+DEFAULT_PHASE_B_MERGE_LOCK_TTL_SEC = 72 * 3600
+
+
 def _latest_audit(db: Session, action: str) -> AuditLog | None:
     return db.execute(
         select(AuditLog).where(AuditLog.action == action).order_by(AuditLog.created_at.desc()).limit(1),
     ).scalar_one_or_none()
+
+
+def _county_merge_completed_after(db: Session, county_fips: str, started_at: datetime) -> AuditLog | None:
+    started = started_at.replace(tzinfo=UTC) if started_at.tzinfo is None else started_at
+    return db.execute(
+        select(AuditLog)
+        .where(
+            AuditLog.action == "wa_phase_b_county_merge_completed",
+            AuditLog.entity_id == county_fips,
+            AuditLog.created_at >= started,
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(1),
+    ).scalar_one_or_none()
+
+
+def _phase_b_merge_lock_key(county_fips: str) -> str:
+    return f"{PHASE_B_MERGE_LOCK_PREFIX}{str(county_fips).strip()}"
+
+
+def phase_b_merge_lock_holder(redis_url: str, county_fips: str) -> str | None:
+    import redis
+
+    client = redis.from_url(redis_url)
+    try:
+        raw = client.get(_phase_b_merge_lock_key(county_fips))
+        if not raw:
+            return None
+        return str(raw.decode() if isinstance(raw, bytes) else raw).strip() or None
+    finally:
+        client.close()
+
+
+def celery_task_still_active(task_id: str) -> bool:
+    from celery.result import AsyncResult
+
+    state = AsyncResult(task_id).state
+    return state in {"PENDING", "STARTED", "RETRY"}
+
+
+def try_acquire_phase_b_merge_lock(
+    redis_url: str,
+    county_fips: str,
+    task_id: str,
+    *,
+    ttl_sec: int = DEFAULT_PHASE_B_MERGE_LOCK_TTL_SEC,
+) -> bool:
+    import redis
+
+    client = redis.from_url(redis_url)
+    try:
+        return bool(client.set(_phase_b_merge_lock_key(county_fips), task_id, nx=True, ex=ttl_sec))
+    finally:
+        client.close()
+
+
+def release_phase_b_merge_lock(redis_url: str, county_fips: str, task_id: str) -> None:
+    import redis
+
+    client = redis.from_url(redis_url)
+    key = _phase_b_merge_lock_key(county_fips)
+    try:
+        holder = client.get(key)
+        if not holder:
+            return
+        holder_s = holder.decode() if isinstance(holder, bytes) else str(holder)
+        if holder_s == task_id:
+            client.delete(key)
+    finally:
+        client.close()
+
+
+def acquire_phase_b_merge_lock_or_skip(
+    redis_url: str,
+    county_fips: str,
+    task_id: str,
+    *,
+    ttl_sec: int = DEFAULT_PHASE_B_MERGE_LOCK_TTL_SEC,
+) -> tuple[bool, str | None]:
+    """Return (acquired, blocking_task_id). Takes over stale locks from dead Celery tasks."""
+    if try_acquire_phase_b_merge_lock(redis_url, county_fips, task_id, ttl_sec=ttl_sec):
+        return True, None
+
+    holder = phase_b_merge_lock_holder(redis_url, county_fips)
+    if holder and holder != task_id and celery_task_still_active(holder):
+        return False, holder
+
+    import redis
+
+    client = redis.from_url(redis_url)
+    try:
+        client.set(_phase_b_merge_lock_key(county_fips), task_id, ex=ttl_sec)
+    finally:
+        client.close()
+    return True, None
 
 
 def wa_phase_b_cooldown_state(db: Session, config: dict[str, Any]) -> dict[str, Any]:
@@ -75,44 +174,68 @@ def wa_phase_b_cooldown_state(db: Session, config: dict[str, Any]) -> dict[str, 
     }
 
 
-def wa_phase_b_pending_merge_state(db: Session, config: dict[str, Any]) -> dict[str, Any]:
-    lock_hours = float(config.get("pending_merge_lock_hours") or 12.0)
+def wa_phase_b_pending_merge_state(
+    db: Session,
+    config: dict[str, Any],
+    *,
+    redis_url: str | None = None,
+) -> dict[str, Any]:
+    """True while the latest started county merge lacks a same-county completion audit."""
+    stale_hours = float(
+        config.get("pending_merge_stale_hours") or config.get("pending_merge_lock_hours") or 72.0,
+    )
     started = _latest_audit(db, "wa_phase_b_county_merge_started")
-    completed = _latest_audit(db, "wa_phase_b_county_merge_completed")
     if started is None or started.created_at is None:
         return {
             "pending": False,
             "pending_county_fips": None,
             "pending_age_hours": None,
-            "pending_lock_hours": lock_hours,
+            "pending_lock_hours": stale_hours,
         }
-    if completed is not None and completed.created_at is not None:
-        s = started.created_at
-        c = completed.created_at
-        if s.tzinfo is None:
-            s = s.replace(tzinfo=UTC)
-        if c.tzinfo is None:
-            c = c.replace(tzinfo=UTC)
-        if c >= s:
-            return {
-                "pending": False,
-                "pending_county_fips": None,
-                "pending_age_hours": None,
-                "pending_lock_hours": lock_hours,
-            }
 
     county = str(started.entity_id or "").strip()
     created = started.created_at
     if created.tzinfo is None:
         created = created.replace(tzinfo=UTC)
     age_hours = (datetime.now(UTC) - created).total_seconds() / 3600.0
-    pending = bool(county) and age_hours < lock_hours
+
+    if county and _county_merge_completed_after(db, county, created) is not None:
+        return {
+            "pending": False,
+            "pending_county_fips": None,
+            "pending_age_hours": None,
+            "pending_lock_hours": stale_hours,
+        }
+
+    if redis_url and county:
+        holder = phase_b_merge_lock_holder(redis_url, county)
+        if holder and celery_task_still_active(holder):
+            return {
+                "pending": True,
+                "pending_county_fips": county,
+                "pending_age_hours": round(age_hours, 2),
+                "pending_lock_hours": stale_hours,
+            }
+
+    # Started audit without completion and no live worker task — allow retry.
     return {
-        "pending": pending,
-        "pending_county_fips": county if pending else None,
-        "pending_age_hours": round(age_hours, 2) if pending else None,
-        "pending_lock_hours": lock_hours,
+        "pending": False,
+        "pending_county_fips": None,
+        "pending_age_hours": None,
+        "pending_lock_hours": stale_hours,
     }
+
+
+def _latest_county_merge_completed(db: Session, county_fips: str) -> AuditLog | None:
+    return db.execute(
+        select(AuditLog)
+        .where(
+            AuditLog.action == "wa_phase_b_county_merge_completed",
+            AuditLog.entity_id == county_fips,
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(1),
+    ).scalar_one_or_none()
 
 
 def county_ready_for_phase_b(
@@ -147,6 +270,10 @@ def county_ready_for_phase_b(
     missing_pct = 100.0 * float(missing) / float(total)
     if missing_pct < min_pct:
         return False, "zoning_mostly_present"
+
+    remerge_min_pct = float(config.get("phase_b_remerge_min_missing_pct") or 10.0)
+    if _latest_county_merge_completed(db, county_fips) is not None and missing_pct < remerge_min_pct:
+        return False, "phase_b_recently_completed"
     return True, "ready"
 
 
@@ -185,6 +312,7 @@ def phase_b_status_summary(
     pilot_config_path: str,
     parcel_rollout_config: dict[str, Any],
     rollout_enabled: bool,
+    redis_url: str | None = None,
 ) -> dict[str, Any]:
     priority = county_priority_list(config, pilot_config_path=pilot_config_path)
     if not priority:
@@ -201,7 +329,7 @@ def phase_b_status_summary(
         parcel_rollout_config=parcel_rollout_config,
     )
     cooldown = wa_phase_b_cooldown_state(db, config)
-    pending = wa_phase_b_pending_merge_state(db, config)
+    pending = wa_phase_b_pending_merge_state(db, config, redis_url=redis_url)
     candidates = []
     for row in summary.get("counties") or []:
         fips = row.get("county_fips")
