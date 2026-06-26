@@ -389,6 +389,37 @@ class Settings(BaseSettings):
         ),
     )
 
+    # After Pierce (53053) WA Phase B completes, enqueue Baltimore overlay merge if zoning gaps remain.
+    baltimore_phase_b_after_pierce_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "BALTIMORE_PHASE_B_AFTER_PIERCE_ENABLED",
+            "baltimore_phase_b_after_pierce_enabled",
+        ),
+    )
+    baltimore_phase_b_after_pierce_trigger_fips: str = Field(
+        default="53053",
+        validation_alias=AliasChoices(
+            "BALTIMORE_PHASE_B_AFTER_PIERCE_TRIGGER_FIPS",
+            "baltimore_phase_b_after_pierce_trigger_fips",
+        ),
+    )
+    baltimore_phase_b_overlay_path: str = Field(
+        default="/app/data/baltimore/baltimore_city_zoning_overlay.geojson",
+        validation_alias=AliasChoices(
+            "BALTIMORE_PHASE_B_OVERLAY_PATH",
+            "baltimore_phase_b_overlay_path",
+        ),
+    )
+    baltimore_phase_b_merge_max_pipeline: int = Field(
+        default=100,
+        ge=0,
+        validation_alias=AliasChoices(
+            "BALTIMORE_PHASE_B_MERGE_MAX_PIPELINE",
+            "baltimore_phase_b_merge_max_pipeline",
+        ),
+    )
+
     # Address health agent (12h): catalog rotation + connector triggers (see config/operator_agents.yaml).
     address_health_agent_enabled: bool = Field(
         default=True,
