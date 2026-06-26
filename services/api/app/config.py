@@ -112,10 +112,6 @@ class Settings(BaseSettings):
             "slack_plan_progress_crontab_hour",
         ),
     )
-    slack_coalesce_enabled: bool = Field(
-        default=True,
-        validation_alias=AliasChoices("SLACK_COALESCE_ENABLED", "slack_coalesce_enabled"),
-    )
 
     # Optional Celery Beat: ingest GeoJSON from a path on the API container (e.g. rsync county export).
     scheduled_geojson_ingest_path: str = Field(
@@ -390,6 +386,37 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices(
             "WA_PHASE_B_ROLLOUT_CRONTAB_MINUTE",
             "wa_phase_b_rollout_crontab_minute",
+        ),
+    )
+
+    # After Pierce (53053) WA Phase B completes, enqueue Baltimore overlay merge if zoning gaps remain.
+    baltimore_phase_b_after_pierce_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "BALTIMORE_PHASE_B_AFTER_PIERCE_ENABLED",
+            "baltimore_phase_b_after_pierce_enabled",
+        ),
+    )
+    baltimore_phase_b_after_pierce_trigger_fips: str = Field(
+        default="53053",
+        validation_alias=AliasChoices(
+            "BALTIMORE_PHASE_B_AFTER_PIERCE_TRIGGER_FIPS",
+            "baltimore_phase_b_after_pierce_trigger_fips",
+        ),
+    )
+    baltimore_phase_b_overlay_path: str = Field(
+        default="/app/data/baltimore/baltimore_city_zoning_overlay.geojson",
+        validation_alias=AliasChoices(
+            "BALTIMORE_PHASE_B_OVERLAY_PATH",
+            "baltimore_phase_b_overlay_path",
+        ),
+    )
+    baltimore_phase_b_merge_max_pipeline: int = Field(
+        default=100,
+        ge=0,
+        validation_alias=AliasChoices(
+            "BALTIMORE_PHASE_B_MERGE_MAX_PIPELINE",
+            "baltimore_phase_b_merge_max_pipeline",
         ),
     )
 

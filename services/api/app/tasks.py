@@ -1145,14 +1145,145 @@ def fetch_build_merge_wa_county_zoning(
                 f"pipelines enqueued *{merge_result.get('pipelines_enqueued')}*."
             ),
         )
+        followup = _maybe_enqueue_baltimore_after_wa_phase_b(county_fips, settings)
         return {
             "county_fips": county_fips,
             "overlay_path": str(overlay_path),
             "build": build_meta,
             "merge": merge_result,
+            "baltimore_followup": followup,
         }
     finally:
         release_phase_b_merge_lock(settings.redis_url, county_fips, str(self.request.id))
+
+
+def _maybe_enqueue_baltimore_after_wa_phase_b(county_fips: str, settings: Any) -> dict[str, Any]:
+    from app.baltimore_phase_b import (
+        BALTIMORE_CITY_FIPS,
+        baltimore_needs_phase_b_merge,
+        should_enqueue_baltimore_after_wa_county,
+    )
+
+    ok, reason = should_enqueue_baltimore_after_wa_county(settings, county_fips)
+    if not ok:
+        return {"skipped": True, "reason": reason}
+
+    db = _session()
+    try:
+        needs, stats = baltimore_needs_phase_b_merge(db)
+        if not needs:
+            return {"skipped": True, "reason": stats.get("reason", "not_needed"), **stats}
+    finally:
+        db.close()
+
+    ar = merge_baltimore_zoning_overlay.delay()
+    post_agent_event_to_slack(
+        settings,
+        agent="Zoning acquisition",
+        detail=(
+            f"Pierce Phase B complete — queued Baltimore City (`{BALTIMORE_CITY_FIPS}`) "
+            f"overlay merge (task `{ar.id}`; "
+            f"*{stats.get('missing_zoning')}* parcels still missing zoning)."
+        ),
+    )
+    return {"skipped": False, "merge_task_id": ar.id, "baltimore_stats": stats}
+
+
+@celery.task(name="app.tasks.merge_baltimore_zoning_overlay", bind=True)
+def merge_baltimore_zoning_overlay(self) -> dict[str, Any]:
+    """Merge staged Baltimore City zoning overlay into existing parcels (Phase B)."""
+    from app.baltimore_phase_b import (
+        BALTIMORE_CITY_FIPS,
+        baltimore_needs_phase_b_merge,
+        baltimore_overlay_path,
+    )
+    from app.wa_phase_b_rollout import acquire_phase_b_merge_lock_or_skip, release_phase_b_merge_lock
+
+    settings = get_settings()
+    overlay = baltimore_overlay_path(settings)
+    if not overlay.is_file():
+        return {"skipped": True, "reason": "baltimore_overlay_missing", "path": str(overlay)}
+
+    acquired, blocking_task_id = acquire_phase_b_merge_lock_or_skip(
+        settings.redis_url,
+        BALTIMORE_CITY_FIPS,
+        str(self.request.id),
+    )
+    if not acquired:
+        logger.info(
+            "merge_baltimore_zoning_overlay: duplicate skipped blocking_task=%s",
+            blocking_task_id,
+        )
+        return {
+            "skipped": True,
+            "reason": "duplicate_merge_in_progress",
+            "blocking_task_id": blocking_task_id,
+        }
+
+    max_pipe = int(settings.baltimore_phase_b_merge_max_pipeline or 100)
+    try:
+        db = _session()
+        try:
+            needs, stats = baltimore_needs_phase_b_merge(db)
+            if not needs:
+                return {
+                    "skipped": True,
+                    "reason": stats.get("reason", "not_needed"),
+                    **stats,
+                }
+            write_audit(
+                db,
+                actor="celery:baltimore_phase_b",
+                action="baltimore_phase_b_merge_started",
+                entity_type="county_fips",
+                entity_id=BALTIMORE_CITY_FIPS,
+                meta={"overlay_path": str(overlay), "max_merge_pipeline": max_pipe},
+            )
+            db.commit()
+        finally:
+            db.close()
+
+        merge_result = merge_parcel_attributes_geojson.run(
+            str(overlay),
+            default_county_fips=BALTIMORE_CITY_FIPS,
+            refresh_pipeline=True,
+            max_pipeline=max_pipe,
+        )
+
+        db = _session()
+        try:
+            write_audit(
+                db,
+                actor="celery:baltimore_phase_b",
+                action="baltimore_phase_b_merge_completed",
+                entity_type="county_fips",
+                entity_id=BALTIMORE_CITY_FIPS,
+                meta={
+                    "task_id": self.request.id,
+                    "overlay_path": str(overlay),
+                    **merge_result,
+                },
+            )
+            db.commit()
+        finally:
+            db.close()
+
+        post_agent_event_to_slack(
+            settings,
+            agent="Zoning acquisition",
+            detail=(
+                f"Baltimore City Phase B merge completed — "
+                f"parcels updated *{merge_result.get('updated')}*, "
+                f"pipelines enqueued *{merge_result.get('pipelines_enqueued')}*."
+            ),
+        )
+        return {
+            "county_fips": BALTIMORE_CITY_FIPS,
+            "overlay_path": str(overlay),
+            "merge": merge_result,
+        }
+    finally:
+        release_phase_b_merge_lock(settings.redis_url, BALTIMORE_CITY_FIPS, str(self.request.id))
 
 
 @celery.task(name="app.tasks.wa_phase_b_rollout_tick")
