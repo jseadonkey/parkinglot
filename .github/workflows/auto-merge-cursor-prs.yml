@@ -141,27 +141,15 @@ jobs:
 
             changed_files="$(gh pr diff "$pr_number" --name-only)"
             touches_workflows=false
-            touches_high_risk_ops=false
             while IFS= read -r changed_file; do
               if [[ "$changed_file" == .github/workflows/* ]]; then
                 touches_workflows=true
                 break
               fi
-              if [[ "$changed_file" == .github/* ]] ||
-                 [[ "$changed_file" == deploy/* ]] ||
-                 [[ "$changed_file" == scripts/* ]] ||
-                 [[ "$changed_file" == docker-compose.yml ]]; then
-                touches_high_risk_ops=true
-              fi
             done <<<"$changed_files"
 
             if [ "$touches_workflows" = "true" ]; then
               echo "Skipping #$pr_number because GitHub Actions tokens cannot merge workflow-file changes."
-              echo "::endgroup::"
-              continue
-            fi
-            if [ "$touches_high_risk_ops" = "true" ]; then
-              echo "Skipping #$pr_number because it changes deploy, script, or repository automation files."
               echo "::endgroup::"
               continue
             fi

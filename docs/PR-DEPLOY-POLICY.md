@@ -10,8 +10,10 @@ Three gates can block an otherwise ready Cursor branch:
 
 1. No PR exists for the `cursor/*` branch.
 2. The PR is still **draft**. Auto-merge intentionally skips draft PRs.
-3. The PR touches workflows/deploy/scripts. Auto-merge intentionally skips those
-   high-risk ops changes because they can affect production automation.
+3. The PR touches **workflow files** under `.github/workflows/`. Auto-merge intentionally skips those
+   because GitHub Actions tokens cannot merge workflow changes automatically.
+
+Deploy, script, and compose changes **do** auto-merge once CI is green (same as application code).
 
 Any of those leaves a branch unmerged to `main`, so the normal GHCR/build/deploy
 chain never runs.
