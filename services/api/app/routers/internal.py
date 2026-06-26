@@ -927,6 +927,7 @@ def wa_phase_b_rollout_status(db: Session = Depends(get_db)) -> WaPhaseBRolloutS
         pilot_config_path=settings.pilot_config_path,
         parcel_rollout_config=parcel_rollout,
         rollout_enabled=settings.wa_phase_b_rollout_enabled,
+        redis_url=settings.redis_url,
     )
     counties = [WaPhaseBCountyCandidateRow(**row) for row in raw.get("counties") or []]
     zoning_raw = raw.get("zoning_followup")

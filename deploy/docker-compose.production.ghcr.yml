@@ -246,7 +246,7 @@ services:
       <<: *worker-beat-env
     volumes:
       - ../config:/app/config:ro
-      - ../data:/app/data:ro
+      - ../data:/app/data:rw
       # Address health agent writes snapshots + may rotate jurisdiction catalog YAML/CSV.
       - ../data/operator-agent:/app/data/operator-agent:rw
       - ../data/jurisdictions/wa:/app/data/jurisdictions/wa:rw

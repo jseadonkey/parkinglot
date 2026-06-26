@@ -239,7 +239,7 @@ services:
       <<: *worker-beat-env
     volumes:
       - ../config:/app/config:ro
-      - ../data:/app/data:ro
+      - ../data:/app/data:rw
       - ../data/operator-agent:/app/data/operator-agent:rw
       - ../data/jurisdictions/wa:/app/data/jurisdictions/wa:rw
     depends_on:
