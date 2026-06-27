@@ -96,6 +96,33 @@ def test_loader_reads_baltimore_realproperty_zonecode() -> None:
     assert attrs["zoning_entitlement_tier"] == "conditional"
 
 
+def test_build_overlay_skips_null_zoning_geometry() -> None:
+    parcels = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": _square(0.5, 0.5, 0.1),
+                "properties": {"APN": "BC-NULL-Z", "COUNTY_FIPS": "24510"},
+            }
+        ],
+    }
+    zoning = {
+        "type": "FeatureCollection",
+        "features": [
+            {"type": "Feature", "geometry": None, "properties": {"Zoning": "R-5"}},
+            {
+                "type": "Feature",
+                "geometry": _square(0, 0, 2),
+                "properties": {"Zoning": "C-3"},
+            },
+        ],
+    }
+    overlay = build_zoning_overlay_geojson(parcels, zoning)
+    assert len(overlay["features"]) == 1
+    assert overlay["features"][0]["properties"]["ZONING"] == "C-3"
+
+
 def test_build_overlay_skips_parcels_without_apn() -> None:
     parcels = {
         "type": "FeatureCollection",
