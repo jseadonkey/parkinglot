@@ -1807,9 +1807,13 @@ def ingest_geojson_path(
         )
         pipelines_enqueued = 0
         if auto_run_pipeline and ids:
-            qualified = filter_prescreen_qualified_ids(db, ids)
-            pipelines_enqueued = min(len(qualified), max(0, max_auto_pipeline))
-            for pid in qualified[: max(0, max_auto_pipeline)]:
+            qualified = filter_prescreen_qualified_ids(
+                db,
+                ids,
+                limit=max(0, max_auto_pipeline),
+            )
+            pipelines_enqueued = len(qualified)
+            for pid in qualified:
                 run_pipeline.delay(pid)
             if len(qualified) > max_auto_pipeline:
                 logger.warning(
@@ -1886,6 +1890,7 @@ def merge_parcel_attributes_geojson(
     skipped_region = 0
     not_found = 0
     pipeline_ids: list[str] = []
+    merge_commit_batch = 2000
     try:
         for attrs, _geom in iter_parcels_from_geojson_dict(data, rules_path=zoning_rules_arg):
             county = str(attrs["county_fips"] or "").strip() or (default_county_fips or "").strip()
@@ -1920,6 +1925,8 @@ def merge_parcel_attributes_geojson(
             _upsert_entitlement_score(db, row)
             updated += 1
             pipeline_ids.append(str(row.id))
+            if updated % merge_commit_batch == 0:
+                db.commit()
         db.commit()
         write_audit(
             db,
@@ -1937,8 +1944,8 @@ def merge_parcel_attributes_geojson(
         cap = min(max(max_pipeline, 0), 5000)
         enq = 0
         if refresh_pipeline and pipeline_ids and cap > 0:
-            qualified = filter_prescreen_qualified_ids(db, pipeline_ids)
-            for pid in qualified[:cap]:
+            qualified = filter_prescreen_qualified_ids(db, pipeline_ids, limit=cap)
+            for pid in qualified:
                 run_pipeline.delay(pid)
                 enq += 1
             if len(pipeline_ids) > len(qualified):
