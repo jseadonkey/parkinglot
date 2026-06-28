@@ -28,8 +28,10 @@ agents:
     type: celery
     tasks:
       - app.tasks.wa_phase_b_rollout_tick
+      - app.tasks.build_county_zoning_overlay
+      - app.tasks.merge_county_wa_zoning_overlay
       - app.tasks.fetch_build_merge_wa_county_zoning
-    description: Overlay build + attribute merge per county; Redis per-county lock.
+    description: Split build → validate → merge per county; Redis lock on merge only.
     config: config/wa_phase_b_rollout.yaml
 
   baltimore_phase_b:

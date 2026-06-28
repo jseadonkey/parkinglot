@@ -1052,17 +1052,102 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
         db.close()
 
 
-@celery.task(name="app.tasks.fetch_build_merge_wa_county_zoning", bind=True)
-def fetch_build_merge_wa_county_zoning(
-    self,
-    county_fips: str,
-    *,
-    max_pipeline: int = 100,
-) -> dict[str, Any]:
-    """Build county zoning overlay GeoJSON and merge attributes into existing parcels."""
+@celery.task(name="app.tasks.build_county_zoning_overlay", bind=True)
+def build_county_zoning_overlay(self, county_fips: str) -> dict[str, Any]:
+    """Build county zoning overlay GeoJSON on disk and validate before merge."""
     from parking_ingestion.wa_county_zoning_build import write_county_zoning_overlay
 
+    from app.phase_b_overlay_validation import validate_overlay_for_county_merge
+    from app.wa_phase_b_rollout import county_phase_b_settings, load_phase_b_config
+
     settings = get_settings()
+    cf = str(county_fips).strip()
+    phase_b = load_phase_b_config(settings.wa_phase_b_rollout_config_path)
+    county_settings = county_phase_b_settings(phase_b, cf)
+    overlay_path = Path(str(county_settings.get("overlay_path") or "").strip())
+    cache_dir_raw = str(county_settings.get("cache_dir") or "").strip()
+    cache_dir = Path(cache_dir_raw) if cache_dir_raw else overlay_path.parent
+    zoning_sources = county_settings.get("zoning_sources")
+    if not isinstance(zoning_sources, list):
+        zoning_sources = None
+
+    if not overlay_path:
+        return {
+            "ok": False,
+            "skipped": True,
+            "reason": "overlay_path_not_configured",
+            "county_fips": cf,
+        }
+
+    build_meta = write_county_zoning_overlay(
+        cf,
+        overlay_path,
+        cache_dir=cache_dir,
+        zoning_sources=zoning_sources,
+    )
+
+    min_cov_raw = county_settings.get("min_overlay_coverage_pct_of_parcels")
+    if min_cov_raw is None:
+        min_cov_raw = phase_b.get("min_overlay_coverage_pct_of_parcels")
+    min_cov = float(min_cov_raw) if min_cov_raw is not None else None
+
+    db = _session()
+    try:
+        validation = validate_overlay_for_county_merge(
+            db,
+            overlay_path,
+            cf,
+            pilot_config_path=settings.pilot_config_path,
+            min_coverage_pct=min_cov,
+        )
+        write_audit(
+            db,
+            actor="celery:wa_phase_b_rollout",
+            action="wa_phase_b_county_overlay_built",
+            entity_type="county_fips",
+            entity_id=cf,
+            meta={
+                "task_id": self.request.id,
+                "overlay_path": str(overlay_path),
+                "feature_count": build_meta.get("feature_count"),
+                **validation,
+            },
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    result: dict[str, Any] = {
+        "ok": bool(validation.get("ok")),
+        "county_fips": cf,
+        "overlay_path": str(overlay_path),
+        "build": build_meta,
+        "validation": validation,
+    }
+    if not validation.get("ok"):
+        result["validation_failed"] = True
+        post_agent_event_to_slack(
+            settings,
+            agent="Zoning acquisition",
+            detail=(
+                f"Phase B overlay build for `{cf}` failed validation — "
+                f"*{validation.get('reason')}* "
+                f"(coverage *{validation.get('coverage_pct', '?')}%*, "
+                f"need *≥{validation.get('required_min_coverage_pct', '?')}%*; "
+                f"merge not started)."
+            ),
+        )
+    return result
+
+
+@celery.task(name="app.tasks.merge_county_wa_zoning_overlay", bind=True)
+def merge_county_wa_zoning_overlay(
+    self,
+    county_fips_or_build: str | dict[str, Any],
+    overlay_path: str | None = None,
+    max_pipeline: int = 100,
+) -> dict[str, Any]:
+    """Merge a staged county overlay into Postgres (Phase B). Accepts build task output from a chain."""
     from app.wa_phase_b_rollout import (
         acquire_phase_b_merge_lock_or_skip,
         county_phase_b_settings,
@@ -1070,48 +1155,62 @@ def fetch_build_merge_wa_county_zoning(
         release_phase_b_merge_lock,
     )
 
+    settings = get_settings()
+    build_result: dict[str, Any] | None = None
+    if isinstance(county_fips_or_build, dict):
+        build_result = county_fips_or_build
+        cf = str(build_result.get("county_fips") or "").strip()
+        overlay_path = str(build_result.get("overlay_path") or overlay_path or "").strip()
+        if not build_result.get("ok") or build_result.get("validation_failed"):
+            return {
+                "skipped": True,
+                "reason": "build_or_validation_failed",
+                "county_fips": cf,
+                "build": build_result,
+            }
+    else:
+        cf = str(county_fips_or_build).strip()
+
+    if not cf:
+        return {"skipped": True, "reason": "county_fips_missing"}
+
+    phase_b = load_phase_b_config(settings.wa_phase_b_rollout_config_path)
+    county_settings = county_phase_b_settings(phase_b, cf)
+    if not overlay_path:
+        overlay_path = str(county_settings.get("overlay_path") or "").strip()
+    overlay = Path(overlay_path)
+    max_pipe = int(county_settings.get("max_merge_pipeline") or max_pipeline)
+
+    if not overlay_path or not overlay.is_file():
+        return {
+            "skipped": True,
+            "reason": "overlay_missing",
+            "county_fips": cf,
+            "overlay_path": overlay_path,
+        }
+
     acquired, blocking_task_id = acquire_phase_b_merge_lock_or_skip(
         settings.redis_url,
-        county_fips,
+        cf,
         str(self.request.id),
     )
     if not acquired:
         logger.info(
-            "fetch_build_merge_wa_county_zoning: duplicate skipped county=%s blocking_task=%s",
-            county_fips,
+            "merge_county_wa_zoning_overlay: duplicate skipped county=%s blocking_task=%s",
+            cf,
             blocking_task_id,
         )
         return {
             "skipped": True,
             "reason": "duplicate_merge_in_progress",
-            "county_fips": county_fips,
+            "county_fips": cf,
             "blocking_task_id": blocking_task_id,
         }
 
-    phase_b = load_phase_b_config(settings.wa_phase_b_rollout_config_path)
-    county_settings = county_phase_b_settings(phase_b, county_fips)
-    overlay_path = Path(str(county_settings.get("overlay_path") or "").strip())
-    cache_dir_raw = str(county_settings.get("cache_dir") or "").strip()
-    cache_dir = Path(cache_dir_raw) if cache_dir_raw else overlay_path.parent
-    max_pipe = int(county_settings.get("max_merge_pipeline") or max_pipeline)
-    zoning_sources = county_settings.get("zoning_sources")
-    if not isinstance(zoning_sources, list):
-        zoning_sources = None
-
-    if not overlay_path:
-        release_phase_b_merge_lock(settings.redis_url, county_fips, str(self.request.id))
-        return {"skipped": True, "reason": "overlay_path_not_configured", "county_fips": county_fips}
-
     try:
-        build_meta = write_county_zoning_overlay(
-            county_fips,
-            overlay_path,
-            cache_dir=cache_dir,
-            zoning_sources=zoning_sources,
-        )
         merge_result = merge_parcel_attributes_geojson.run(
-            str(overlay_path),
-            default_county_fips=county_fips,
+            str(overlay),
+            default_county_fips=cf,
             refresh_pipeline=True,
             max_pipeline=max_pipe,
         )
@@ -1123,11 +1222,11 @@ def fetch_build_merge_wa_county_zoning(
                 actor="celery:wa_phase_b_rollout",
                 action="wa_phase_b_county_merge_completed",
                 entity_type="county_fips",
-                entity_id=county_fips,
+                entity_id=cf,
                 meta={
                     "task_id": self.request.id,
-                    "overlay_path": str(overlay_path),
-                    "overlay_features": build_meta.get("feature_count"),
+                    "overlay_path": str(overlay),
+                    "overlay_features": (build_result or {}).get("build", {}).get("feature_count"),
                     **merge_result,
                 },
             )
@@ -1139,22 +1238,49 @@ def fetch_build_merge_wa_county_zoning(
             settings,
             agent="Zoning acquisition",
             detail=(
-                f"Phase B merge completed for county `{county_fips}` — "
-                f"overlay features *{build_meta.get('feature_count')}*, "
+                f"Phase B merge completed for county `{cf}` — "
                 f"parcels updated *{merge_result.get('updated')}*, "
                 f"pipelines enqueued *{merge_result.get('pipelines_enqueued')}*."
             ),
         )
-        followup = _maybe_enqueue_baltimore_after_wa_phase_b(county_fips, settings)
+        followup = _maybe_enqueue_baltimore_after_wa_phase_b(cf, settings)
         return {
-            "county_fips": county_fips,
-            "overlay_path": str(overlay_path),
-            "build": build_meta,
+            "county_fips": cf,
+            "overlay_path": str(overlay),
+            "build": (build_result or {}).get("build"),
+            "validation": (build_result or {}).get("validation"),
             "merge": merge_result,
             "baltimore_followup": followup,
         }
     finally:
-        release_phase_b_merge_lock(settings.redis_url, county_fips, str(self.request.id))
+        release_phase_b_merge_lock(settings.redis_url, cf, str(self.request.id))
+
+
+@celery.task(name="app.tasks.fetch_build_merge_wa_county_zoning", bind=True)
+def fetch_build_merge_wa_county_zoning(
+    self,
+    county_fips: str,
+    *,
+    max_pipeline: int = 100,
+) -> dict[str, Any]:
+    """Build county overlay then merge — backward-compatible wrapper around split tasks."""
+    build_result = build_county_zoning_overlay.run(county_fips)
+    if not build_result.get("ok"):
+        return {
+            "county_fips": county_fips,
+            "build": build_result,
+            "merge": {"skipped": True, "reason": "build_or_validation_failed"},
+        }
+    merge_result = merge_county_wa_zoning_overlay.run(
+        build_result,
+        max_pipeline=max_pipeline,
+    )
+    return {
+        "county_fips": county_fips,
+        "build": build_result,
+        "merge": merge_result,
+        "baltimore_followup": merge_result.get("baltimore_followup"),
+    }
 
 
 def _maybe_enqueue_baltimore_after_wa_phase_b(county_fips: str, settings: Any) -> dict[str, Any]:
@@ -1401,6 +1527,7 @@ def wa_phase_b_rollout_tick() -> dict[str, Any]:
             meta={
                 "max_merge_pipeline": max_pipe,
                 "parking_queue_depth": queue_depth,
+                "phase_b_chain": True,
             },
         )
         db.commit()
@@ -1408,15 +1535,21 @@ def wa_phase_b_rollout_tick() -> dict[str, Any]:
             settings,
             agent="Zoning acquisition",
             detail=(
-                f"Starting Phase B zoning merge for county `{county}` "
-                f"(pipeline cap {max_pipe}; queue depth {queue_depth})."
+                f"Starting Phase B for county `{county}` "
+                f"(build → validate → merge; pipeline cap {max_pipe}; queue depth {queue_depth})."
             ),
         )
-        ar = fetch_build_merge_wa_county_zoning.delay(county, max_pipeline=max_pipe)
+        from celery import chain
+
+        ar = chain(
+            build_county_zoning_overlay.s(county),
+            merge_county_wa_zoning_overlay.s(max_pipeline=max_pipe),
+        ).apply_async()
         return {
             "skipped": False,
             "county_fips": county,
             "merge_task_id": ar.id,
+            "phase_b_chain": True,
             "max_merge_pipeline": max_pipe,
             "parking_queue_depth": queue_depth,
         }

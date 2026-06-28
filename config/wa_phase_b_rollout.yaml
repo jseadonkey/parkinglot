@@ -24,6 +24,10 @@ min_missing_zoning_pct: 1.0
 # Skip re-merge when a county already completed Phase B and missing zoning is below this pct.
 phase_b_remerge_min_missing_pct: 10.0
 
+# Overlay must cover at least this % of DB parcels before merge (large counties use tiered
+# defaults in phase_b_overlay_validation when unset). Baltimore 20k/223k sample fails tier.
+min_overlay_coverage_pct_of_parcels: null
+
 min_hours_between_county_merges: 6
 
 # Do not start another county merge if one started within this window and has not completed.
