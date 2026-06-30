@@ -1055,10 +1055,9 @@ def wa_statewide_rollout_tick() -> dict[str, Any]:
 @celery.task(name="app.tasks.build_county_zoning_overlay", bind=True)
 def build_county_zoning_overlay(self, county_fips: str) -> dict[str, Any]:
     """Build county zoning overlay GeoJSON on disk and validate before merge."""
-    from parking_ingestion.wa_county_zoning_build import write_county_zoning_overlay
-
     from app.phase_b_overlay_validation import validate_overlay_for_county_merge
     from app.wa_phase_b_rollout import county_phase_b_settings, load_phase_b_config
+    from parking_ingestion.wa_county_zoning_build import write_county_zoning_overlay
 
     settings = get_settings()
     cf = str(county_fips).strip()

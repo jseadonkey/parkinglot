@@ -182,7 +182,8 @@ def build_zoning_overlay_geojson(
         )
 
     logger.info(
-        "baltimore zoning overlay: parcels_in=%s skipped_parcels=%s skipped_zoning=%s matched=%s unmatched=%s no_zoning_code=%s out=%s",
+        "baltimore zoning overlay: parcels_in=%s skipped_parcels=%s skipped_zoning=%s "
+        "matched=%s unmatched=%s no_zoning_code=%s out=%s",
         len(parcels_fc.get("features") or []),
         skipped_parcels,
         skipped_zoning,

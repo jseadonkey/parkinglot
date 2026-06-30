@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 
 def test_fetch_build_merge_skips_merge_when_validation_fails(monkeypatch) -> None:
     from app.tasks import fetch_build_merge_wa_county_zoning
