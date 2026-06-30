@@ -16,6 +16,35 @@ logger = logging.getLogger(__name__)
 DEFAULT_ZONING_FIELD = "Zoning"
 
 
+def _feature_geometry(feat: dict[str, Any]) -> BaseGeometry | None:
+    """Return shapely geometry for a GeoJSON feature, or None if missing/invalid."""
+    geom = feat.get("geometry")
+    if not geom or not isinstance(geom, dict):
+        return None
+    try:
+        g = shape(geom)
+    except Exception:
+        return None
+    return None if g.is_empty else g
+
+
+def _filter_features_with_geometry(
+    features: list[dict[str, Any]],
+    *,
+    label: str,
+) -> tuple[list[dict[str, Any]], int]:
+    kept: list[dict[str, Any]] = []
+    skipped = 0
+    for feat in features:
+        if _feature_geometry(feat) is None:
+            skipped += 1
+            continue
+        kept.append(feat)
+    if skipped:
+        logger.warning("%s: skipped %s features with missing/invalid geometry", label, skipped)
+    return kept, skipped
+
+
 def _parcel_apn(props: dict[str, Any], *, county_fips: str = BALTIMORE_CITY_COUNTY_FIPS) -> str:
     apn = parcel_apn_from_props(props, county_fips=county_fips)
     if apn:
@@ -81,11 +110,27 @@ def build_zoning_overlay_geojson(
     if not zoning_features:
         raise ValueError("zoning FeatureCollection has no features")
 
+    parcel_features, skipped_parcels = _filter_features_with_geometry(
+        list(parcel_features),
+        label="parcel",
+    )
+    zoning_features, skipped_zoning = _filter_features_with_geometry(
+        list(zoning_features),
+        label="zoning",
+    )
+    if not parcel_features:
+        return {"type": "FeatureCollection", "features": []}
+    if not zoning_features:
+        raise ValueError("zoning FeatureCollection has no valid features")
+
     zoning_geoms: list[BaseGeometry] = []
     zoning_codes: list[str | None] = []
     for zf in zoning_features:
         zprops = zf.get("properties") or {}
-        zoning_geoms.append(shape(zf["geometry"]))
+        z_geom = _feature_geometry(zf)
+        if z_geom is None:
+            continue
+        zoning_geoms.append(z_geom)
         zoning_codes.append(_zoning_code_from_props(zprops, zoning_field))
 
     tree = STRtree(zoning_geoms)
@@ -102,8 +147,8 @@ def build_zoning_overlay_geojson(
         if not str(props.get("COUNTY_FIPS", "")).strip():
             props["COUNTY_FIPS"] = county_fips
 
-        p_geom = shape(pf["geometry"])
-        if p_geom.is_empty:
+        p_geom = _feature_geometry(pf)
+        if p_geom is None:
             continue
 
         pt = p_geom.representative_point()
@@ -137,8 +182,11 @@ def build_zoning_overlay_geojson(
         )
 
     logger.info(
-        "baltimore zoning overlay: parcels_in=%s matched=%s unmatched=%s no_zoning_code=%s out=%s",
-        len(parcel_features),
+        "baltimore zoning overlay: parcels_in=%s skipped_parcels=%s skipped_zoning=%s "
+        "matched=%s unmatched=%s no_zoning_code=%s out=%s",
+        len(parcels_fc.get("features") or []),
+        skipped_parcels,
+        skipped_zoning,
         matched,
         unmatched,
         no_zoning_code,

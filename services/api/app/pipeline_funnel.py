@@ -13,6 +13,9 @@ from app.db.models import Parcel, ParcelScore
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
 from parking_core.pilot import load_pilot_config
 
+# Postgres/psycopg cap bind parameters at 65535; keep IN lists well under that.
+PG_IN_LIST_CHUNK_SIZE = 5000
+
 
 def identification_prescreen_floor() -> float:
     settings = get_settings()
@@ -246,12 +249,15 @@ def parcel_prescreen_qualified(db: Session, parcel_id: object, *, floor: float |
     return int(ok or 0) > 0
 
 
-def filter_prescreen_qualified_ids(db: Session, parcel_ids: list[str]) -> list[str]:
-    """Keep only parcel ids that pass the identification prescreen floor."""
-    if not parcel_ids:
+def _latest_identification_scores_for_ids(
+    db: Session,
+    parcel_uuids: list[uuid.UUID],
+    *,
+    floor: float,
+) -> list[tuple[str, float]]:
+    """Return (parcel_id, total_score) for ids whose latest identification score ≥ floor."""
+    if not parcel_uuids:
         return []
-    floor = identification_prescreen_floor()
-    uuids = [uuid.UUID(pid) for pid in parcel_ids]
     agg = (
         select(
             ParcelScore.parcel_id.label("pid"),
@@ -261,8 +267,8 @@ def filter_prescreen_qualified_ids(db: Session, parcel_ids: list[str]) -> list[s
         .group_by(ParcelScore.parcel_id)
         .subquery()
     )
-    rows = db.scalars(
-        select(ParcelScore.parcel_id)
+    rows = db.execute(
+        select(ParcelScore.parcel_id, ParcelScore.total_score)
         .join(
             agg,
             and_(
@@ -271,10 +277,40 @@ def filter_prescreen_qualified_ids(db: Session, parcel_ids: list[str]) -> list[s
             ),
         )
         .where(
-            ParcelScore.parcel_id.in_(uuids),
+            ParcelScore.parcel_id.in_(parcel_uuids),
             ParcelScore.score_profile == IDENTIFICATION,
             ParcelScore.total_score >= floor,
         )
-        .order_by(ParcelScore.total_score.desc())
     ).all()
-    return [str(pid) for pid in rows]
+    return [(str(pid), float(score)) for pid, score in rows]
+
+
+def filter_prescreen_qualified_ids(
+    db: Session,
+    parcel_ids: list[str],
+    *,
+    limit: int | None = None,
+) -> list[str]:
+    """Keep only parcel ids that pass the identification prescreen floor.
+
+    Queries are chunked so large county merges (200k+ parcels) stay under Postgres
+    bind-parameter limits.
+    """
+    if not parcel_ids:
+        return []
+    floor = identification_prescreen_floor()
+    scored: list[tuple[str, float]] = []
+    seen: set[str] = set()
+    for start in range(0, len(parcel_ids), PG_IN_LIST_CHUNK_SIZE):
+        chunk = parcel_ids[start : start + PG_IN_LIST_CHUNK_SIZE]
+        uuids = [uuid.UUID(pid) for pid in chunk]
+        for pid, score in _latest_identification_scores_for_ids(db, uuids, floor=floor):
+            if pid in seen:
+                continue
+            seen.add(pid)
+            scored.append((pid, score))
+    scored.sort(key=lambda item: item[1], reverse=True)
+    ordered = [pid for pid, _ in scored]
+    if limit is not None:
+        return ordered[: max(limit, 0)]
+    return ordered
