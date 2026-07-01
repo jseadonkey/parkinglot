@@ -43,6 +43,8 @@ PressureLevel = Literal["green", "yellow", "orange", "red"]
 _QUEUE_YELLOW = 100
 _QUEUE_ORANGE = 500
 _QUEUE_RED = 2_000
+# When orange/red and queue is still deep, stop adding more pipeline work.
+_QUEUE_PAUSE_PIPELINE_ENQUEUE = 300
 
 # Cached export-readiness gaps (downstream work waiting in Postgres).
 _SCORE_GAPS_YELLOW = 20_000
@@ -263,6 +265,10 @@ def current_governor_state(settings: Settings) -> dict[str, Any]:
 def effective_pipeline_limit(requested: int, settings: Settings, state: dict[str, Any] | None = None) -> int:
     """Scale Beat pipeline enqueue cap by current pressure."""
     st = state or current_governor_state(settings)
+    parking = int(st.get("parking_queue_depth") or 0)
+    level = str(st.get("pressure_level") or "green")
+    if parking >= _QUEUE_PAUSE_PIPELINE_ENQUEUE and _severity_rank(level) >= _severity_rank("orange"):
+        return 0
     mult = float(st.get("pipeline_enqueue_multiplier") or 1.0)
     if mult <= 0:
         return 0

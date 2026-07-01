@@ -927,6 +927,12 @@ def exploration_campaign_tick() -> dict[str, Any]:
 @celery.task(name="app.tasks.wa_statewide_rollout_tick")
 def wa_statewide_rollout_tick() -> dict[str, Any]:
     """Daily: ingest the next WA county (zero rows in DB) from WaTech when the parking queue is not overloaded."""
+    from app.celery_tick_guard import run_guarded_tick
+
+    return run_guarded_tick("wa_statewide_rollout_tick", _wa_statewide_rollout_tick_body)
+
+
+def _wa_statewide_rollout_tick_body() -> dict[str, Any]:
     settings = get_settings()
     if not settings.wa_statewide_rollout_enabled:
         return {"skipped": True, "reason": "wa_statewide_rollout_disabled"}
@@ -1414,6 +1420,12 @@ def merge_baltimore_zoning_overlay(self) -> dict[str, Any]:
 @celery.task(name="app.tasks.wa_phase_b_rollout_tick")
 def wa_phase_b_rollout_tick() -> dict[str, Any]:
     """Hourly: merge zoning overlay for the next parcel-loaded WA county when queue/load allow."""
+    from app.celery_tick_guard import run_guarded_tick
+
+    return run_guarded_tick("wa_phase_b_rollout_tick", _wa_phase_b_rollout_tick_body)
+
+
+def _wa_phase_b_rollout_tick_body() -> dict[str, Any]:
     settings = get_settings()
     if not settings.wa_phase_b_rollout_enabled:
         return {"skipped": True, "reason": "wa_phase_b_rollout_disabled"}
@@ -1559,6 +1571,12 @@ def wa_phase_b_rollout_tick() -> dict[str, Any]:
 @celery.task(name="app.tasks.rollout_orchestrator_tick")
 def rollout_orchestrator_tick() -> dict[str, Any]:
     """Every 30m: clear stale Phase B locks, optionally re-kick Phase B, Slack on state change."""
+    from app.celery_tick_guard import run_guarded_tick
+
+    return run_guarded_tick("rollout_orchestrator_tick", _rollout_orchestrator_tick_body)
+
+
+def _rollout_orchestrator_tick_body() -> dict[str, Any]:
     settings = get_settings()
     if not settings.rollout_orchestrator_enabled:
         return {"skipped": True, "reason": "rollout_orchestrator_disabled"}
@@ -1762,6 +1780,15 @@ def _governed_pipeline_limit(requested: int) -> tuple[int, dict[str, Any] | None
 @celery.task(name="app.tasks.enqueue_priority_qualified_scheduled")
 def enqueue_priority_qualified_scheduled(limit: int = 75) -> dict[str, Any]:
     """Beat: drain prescreen-qualified backlog starting with highest entitlement scores."""
+    from app.celery_tick_guard import run_guarded_tick
+
+    return run_guarded_tick(
+        "enqueue_priority_qualified_scheduled",
+        lambda: _enqueue_priority_qualified_scheduled_body(limit),
+    )
+
+
+def _enqueue_priority_qualified_scheduled_body(limit: int) -> dict[str, Any]:
     cap, governor = _governed_pipeline_limit(limit)
     if cap <= 0:
         return {
@@ -1786,6 +1813,15 @@ def enqueue_priority_qualified_scheduled(limit: int = 75) -> dict[str, Any]:
 @celery.task(name="app.tasks.enqueue_unscored_pipelines_scheduled")
 def enqueue_unscored_pipelines_scheduled(limit: int = 100) -> dict[str, Any]:
     """Beat: enqueue ``run_pipeline`` for parcels missing entitlement **or** strategic scores."""
+    from app.celery_tick_guard import run_guarded_tick
+
+    return run_guarded_tick(
+        "enqueue_unscored_pipelines_scheduled",
+        lambda: _enqueue_unscored_pipelines_scheduled_body(limit),
+    )
+
+
+def _enqueue_unscored_pipelines_scheduled_body(limit: int) -> dict[str, Any]:
     cap, governor = _governed_pipeline_limit(limit)
     if cap <= 0:
         return {
@@ -1810,6 +1846,12 @@ def enqueue_unscored_pipelines_scheduled(limit: int = 100) -> dict[str, Any]:
 @celery.task(name="app.tasks.load_governor_refresh")
 def load_governor_refresh() -> dict[str, Any]:
     """Periodic: refresh load governor from queue/workers + cached ops snapshot."""
+    from app.celery_tick_guard import run_guarded_tick
+
+    return run_guarded_tick("load_governor_refresh", _load_governor_refresh_body)
+
+
+def _load_governor_refresh_body() -> dict[str, Any]:
     settings = get_settings()
     if not settings.load_governor_enabled:
         return {"skipped": True, "reason": "load_governor_disabled"}
@@ -2414,6 +2456,12 @@ def backfill_wa_centroid_addresses_batch(
 @celery.task(name="app.tasks.address_health_agent_tick")
 def address_health_agent_tick() -> dict[str, Any]:
     """Every 12h: run address health review script (backup to GitHub Actions + Droplet cron)."""
+    from app.celery_tick_guard import run_guarded_tick
+
+    return run_guarded_tick("address_health_agent_tick", _address_health_agent_tick_body)
+
+
+def _address_health_agent_tick_body() -> dict[str, Any]:
     import json
     import subprocess
     import sys

@@ -37,7 +37,7 @@ def test_assess_orange_on_deep_queue() -> None:
         out = assess_load_pressure(_settings())
     assert out["pressure_level"] == "orange"
     assert out["wa_rollout_allowed"] is False
-    assert effective_pipeline_limit(75, _settings(), out) == 18
+    assert effective_pipeline_limit(75, _settings(), out) == 0
 
 
 def test_assess_yellow_on_score_gaps_snapshot() -> None:
