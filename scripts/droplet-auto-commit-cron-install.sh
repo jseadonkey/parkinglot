@@ -15,7 +15,7 @@ LOG="/var/log/parkinglot-auto-commit.log"
 mkdir -p "${ROOT}/data/operator-agent"
 CRON_LINE="*/15 * * * * cd ${ROOT} && ${ROOT}/scripts/droplet-auto-commit.sh >> ${LOG} 2>&1"
 
-( crontab -l 2>/dev/null | grep -v 'droplet-auto-commit.sh' || true
+( crontab -l 2>/dev/null | grep -v 'droplet-auto-commit.sh' | grep -v 'droplet-auto-commit-deploy.sh' || true
   echo "$CRON_LINE"
 ) | crontab -
 
