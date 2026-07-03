@@ -1843,6 +1843,46 @@ def _enqueue_unscored_pipelines_scheduled_body(limit: int) -> dict[str, Any]:
     return out
 
 
+@celery.task(name="app.tasks.dispatch_guarded_scheduled_tick")
+def dispatch_guarded_scheduled_tick(
+    tick_key: str,
+    target_task: str,
+    target_kwargs: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Beat entrypoint on slack queue: enqueue a guarded parking tick only when needed."""
+    from app.celery_app import celery as celery_app
+    from app.celery_tick_guard import TICK_TASK_EXPIRES_SEC, should_skip_beat_tick_dispatch
+
+    settings = get_settings()
+    skip = should_skip_beat_tick_dispatch(settings, tick_key)
+    if skip:
+        logger.info(
+            "dispatch_guarded_scheduled_tick: skipped tick_key=%s reason=%s",
+            tick_key,
+            skip.get("reason"),
+        )
+        return skip
+
+    result = celery_app.send_task(
+        target_task,
+        kwargs=target_kwargs or {},
+        queue="parking",
+        expires=TICK_TASK_EXPIRES_SEC,
+    )
+    logger.info(
+        "dispatch_guarded_scheduled_tick: dispatched tick_key=%s target=%s task_id=%s",
+        tick_key,
+        target_task,
+        result.id,
+    )
+    return {
+        "dispatched": True,
+        "tick_key": tick_key,
+        "target_task": target_task,
+        "target_task_id": result.id,
+    }
+
+
 @celery.task(name="app.tasks.load_governor_refresh")
 def load_governor_refresh() -> dict[str, Any]:
     """Periodic: refresh load governor from queue/workers + cached ops snapshot."""
@@ -1855,9 +1895,14 @@ def _load_governor_refresh_body() -> dict[str, Any]:
     settings = get_settings()
     if not settings.load_governor_enabled:
         return {"skipped": True, "reason": "load_governor_disabled"}
+    from app.celery_tick_guard import janitor_purge_stale_tick_backlogs
     from app.load_governor import refresh_load_governor
 
-    return refresh_load_governor(settings)
+    janitor = janitor_purge_stale_tick_backlogs(settings)
+    state = refresh_load_governor(settings)
+    if janitor.get("removed_total"):
+        state["tick_backlog_janitor"] = janitor
+    return state
 
 
 @celery.task(name="app.tasks.ingest_geojson_path")

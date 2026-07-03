@@ -24,9 +24,32 @@ SLACK_TASK_NAMES: tuple[str, ...] = (
     "app.tasks.slack_dual_agent_discussion",
     "app.tasks.site_watchdog_check",
     "app.tasks.ops_remediation_loop",
+    "app.tasks.dispatch_guarded_scheduled_tick",
 )
 
 _SLACK_BEAT_OPTIONS = {"queue": SLACK_QUEUE}
+_GUARDED_BEAT_OPTIONS = {**_SLACK_BEAT_OPTIONS, "expires": 3600}
+
+
+def _guarded_beat_entry(
+    tick_key: str,
+    target_task: str,
+    schedule: crontab,
+    *,
+    target_kwargs: dict | None = None,
+) -> dict:
+    """Beat fires a slack-queue dispatcher; parking work is enqueued only when clear."""
+    entry: dict = {
+        "task": "app.tasks.dispatch_guarded_scheduled_tick",
+        "schedule": schedule,
+        "kwargs": {
+            "tick_key": tick_key,
+            "target_task": target_task,
+            "target_kwargs": target_kwargs or {},
+        },
+        "options": _GUARDED_BEAT_OPTIONS,
+    }
+    return entry
 
 _s = get_settings()
 
@@ -140,13 +163,14 @@ if _s.exploration_campaign_enabled:
     )
 
 if _s.wa_statewide_rollout_enabled:
-    beat_schedule["wa-statewide-rollout-loop"] = {
-        "task": "app.tasks.wa_statewide_rollout_tick",
-        "schedule": crontab(
+    beat_schedule["wa-statewide-rollout-loop"] = _guarded_beat_entry(
+        "wa_statewide_rollout_tick",
+        "app.tasks.wa_statewide_rollout_tick",
+        crontab(
             minute=_s.wa_statewide_rollout_crontab_minute,
             hour=_s.wa_statewide_rollout_crontab_hour,
         ),
-    }
+    )
     logger.info(
         "Beat: WA statewide rollout loop — hour=%s minute=%02d UTC",
         _s.wa_statewide_rollout_crontab_hour,
@@ -154,13 +178,14 @@ if _s.wa_statewide_rollout_enabled:
     )
 
 if _s.wa_phase_b_rollout_enabled:
-    beat_schedule["wa-phase-b-rollout-loop"] = {
-        "task": "app.tasks.wa_phase_b_rollout_tick",
-        "schedule": crontab(
+    beat_schedule["wa-phase-b-rollout-loop"] = _guarded_beat_entry(
+        "wa_phase_b_rollout_tick",
+        "app.tasks.wa_phase_b_rollout_tick",
+        crontab(
             minute=_s.wa_phase_b_rollout_crontab_minute,
             hour=_s.wa_phase_b_rollout_crontab_hour,
         ),
-    }
+    )
     logger.info(
         "Beat: WA Phase B rollout loop — hour=%s minute=%02d UTC",
         _s.wa_phase_b_rollout_crontab_hour,
@@ -169,10 +194,11 @@ if _s.wa_phase_b_rollout_enabled:
 
 if _s.rollout_orchestrator_enabled:
     _orch_minute = (_s.rollout_orchestrator_crontab_minute or "*/30").strip()
-    beat_schedule["rollout-orchestrator"] = {
-        "task": "app.tasks.rollout_orchestrator_tick",
-        "schedule": crontab(minute=_orch_minute),
-    }
+    beat_schedule["rollout-orchestrator"] = _guarded_beat_entry(
+        "rollout_orchestrator_tick",
+        "app.tasks.rollout_orchestrator_tick",
+        crontab(minute=_orch_minute),
+    )
     logger.info(
         "Beat: rollout orchestrator at minute=%s UTC (parking queue)",
         _orch_minute,
@@ -180,13 +206,14 @@ if _s.rollout_orchestrator_enabled:
 
 if _s.address_health_agent_enabled:
     _ah_hour = (_s.address_health_agent_crontab_hour or "*/12").strip()
-    beat_schedule["address-health-agent"] = {
-        "task": "app.tasks.address_health_agent_tick",
-        "schedule": crontab(
+    beat_schedule["address-health-agent"] = _guarded_beat_entry(
+        "address_health_agent_tick",
+        "app.tasks.address_health_agent_tick",
+        crontab(
             minute=_s.address_health_agent_crontab_minute,
             hour=_ah_hour,
         ),
-    }
+    )
     logger.info(
         "Beat: address health agent at hour=%s minute=%02d UTC",
         _ah_hour,
@@ -194,14 +221,15 @@ if _s.address_health_agent_enabled:
     )
 
 if _s.scheduled_priority_pipeline_enabled:
-    beat_schedule["enqueue-priority-qualified"] = {
-        "task": "app.tasks.enqueue_priority_qualified_scheduled",
-        "schedule": crontab(
+    beat_schedule["enqueue-priority-qualified"] = _guarded_beat_entry(
+        "enqueue_priority_qualified_scheduled",
+        "app.tasks.enqueue_priority_qualified_scheduled",
+        crontab(
             minute=_s.scheduled_priority_pipeline_crontab_minute,
             hour=_s.scheduled_priority_pipeline_crontab_hour,
         ),
-        "kwargs": {"limit": _s.scheduled_priority_pipeline_limit},
-    }
+        target_kwargs={"limit": _s.scheduled_priority_pipeline_limit},
+    )
     logger.info(
         "Beat: priority qualified pipelines — hour=%s minute=%02d limit=%s",
         _s.scheduled_priority_pipeline_crontab_hour,
@@ -210,14 +238,15 @@ if _s.scheduled_priority_pipeline_enabled:
     )
 
 if _s.scheduled_enqueue_unscored_enabled:
-    beat_schedule["enqueue-unscored-pipelines"] = {
-        "task": "app.tasks.enqueue_unscored_pipelines_scheduled",
-        "schedule": crontab(
+    beat_schedule["enqueue-unscored-pipelines"] = _guarded_beat_entry(
+        "enqueue_unscored_pipelines_scheduled",
+        "app.tasks.enqueue_unscored_pipelines_scheduled",
+        crontab(
             minute=_s.scheduled_enqueue_unscored_crontab_minute,
             hour=_s.scheduled_enqueue_unscored_crontab_hour,
         ),
-        "kwargs": {"limit": _s.scheduled_enqueue_unscored_limit},
-    }
+        target_kwargs={"limit": _s.scheduled_enqueue_unscored_limit},
+    )
     logger.info(
         "Beat: enqueue unscored pipelines — hour=%s minute=%02d limit=%s",
         _s.scheduled_enqueue_unscored_crontab_hour,
@@ -247,10 +276,11 @@ if _s.scheduled_refresh_identification_enabled:
     )
 
 if _s.load_governor_enabled:
-    beat_schedule["load-governor-refresh"] = {
-        "task": "app.tasks.load_governor_refresh",
-        "schedule": crontab(minute="*/30"),
-    }
+    beat_schedule["load-governor-refresh"] = _guarded_beat_entry(
+        "load_governor_refresh",
+        "app.tasks.load_governor_refresh",
+        crontab(minute="*/30"),
+    )
     logger.info("Beat: load governor refresh every 30 minutes")
 
 if _s.scheduled_refresh_demand_enabled:

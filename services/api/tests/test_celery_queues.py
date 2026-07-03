@@ -25,3 +25,20 @@ def test_beat_slack_entries_target_slack_queue() -> None:
     ):
         entry = schedule[key]
         assert entry["options"]["queue"] == SLACK_QUEUE
+
+
+def test_guarded_beat_entries_use_slack_dispatcher() -> None:
+    schedule = celery.conf.beat_schedule or {}
+    for key in (
+        "load-governor-refresh",
+        "rollout-orchestrator",
+        "enqueue-priority-qualified",
+        "enqueue-unscored-pipelines",
+    ):
+        if key not in schedule:
+            continue
+        entry = schedule[key]
+        assert entry["task"] == "app.tasks.dispatch_guarded_scheduled_tick"
+        assert entry["options"]["queue"] == SLACK_QUEUE
+        assert "tick_key" in entry["kwargs"]
+        assert "target_task" in entry["kwargs"]

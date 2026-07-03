@@ -31,6 +31,21 @@ GUARDED_TICK_KEYS: frozenset[str] = frozenset(
 
 IN_FLIGHT_KEY_PREFIX = "celery_tick:in_flight:"
 DEFAULT_IN_FLIGHT_TTL_SEC = 3 * 3600
+# Discard parking-queue tick copies that workers never reach in time.
+TICK_TASK_EXPIRES_SEC = 3600
+
+PIPELINE_ENQUEUE_TICK_KEYS: frozenset[str] = frozenset(
+    {
+        "enqueue_priority_qualified_scheduled",
+        "enqueue_unscored_pipelines_scheduled",
+    }
+)
+WA_ROLLOUT_TICK_KEYS: frozenset[str] = frozenset(
+    {
+        "wa_statewide_rollout_tick",
+        "wa_phase_b_rollout_tick",
+    }
+)
 
 
 def _redis_client(settings: Settings) -> redis.Redis:
@@ -57,6 +72,46 @@ def count_queued_tick_tasks(settings: Settings, tick_key: str) -> int:
         except (json.JSONDecodeError, TypeError, AttributeError):
             continue
     return count
+
+
+def collapse_queued_tick_tasks_to_one(settings: Settings, tick_key: str) -> int:
+    """Leave at most one queued copy (BRPOP consumes list tail — keep the newest)."""
+    if tick_key not in GUARDED_TICK_KEYS:
+        return 0
+    client = _redis_client(settings)
+    items = client.lrange(PARKING_QUEUE, 0, -1)
+    if not items:
+        return 0
+    kept: list[str] = []
+    tick_items: list[str] = []
+    for raw in items:
+        try:
+            msg = json.loads(raw)
+            name = str(msg.get("headers", {}).get("task") or "")
+            if task_suffix(name) == tick_key:
+                tick_items.append(raw)
+                continue
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            pass
+        kept.append(raw)
+    removed = 0
+    if len(tick_items) > 1:
+        kept.append(tick_items[-1])
+        removed = len(tick_items) - 1
+    elif len(tick_items) == 1:
+        kept.append(tick_items[0])
+    if removed:
+        pipe = client.pipeline()
+        pipe.delete(PARKING_QUEUE)
+        if kept:
+            pipe.rpush(PARKING_QUEUE, *kept)
+        pipe.execute()
+        logger.info(
+            "celery_tick_guard: collapsed %s queued %s task(s) to one",
+            removed,
+            tick_key,
+        )
+    return removed
 
 
 def purge_queued_tick_tasks(settings: Settings, tick_key: str) -> int:
@@ -98,6 +153,79 @@ def release_tick_in_flight(settings: Settings, tick_key: str, task_id: str) -> N
     key = _in_flight_key(tick_key)
     if client.get(key) == task_id:
         client.delete(key)
+
+
+def should_skip_beat_tick_dispatch(settings: Settings, tick_key: str) -> dict[str, Any] | None:
+    """Return a skip payload when Beat should not enqueue another parking-queue tick."""
+    if tick_key not in GUARDED_TICK_KEYS:
+        return None
+
+    client = _redis_client(settings)
+    holder = client.get(_in_flight_key(tick_key))
+    if holder and holder != "" and celery_task_still_active(holder):
+        queued = count_queued_tick_tasks(settings, tick_key)
+        return {
+            "skipped": True,
+            "reason": "tick_in_flight",
+            "tick_key": tick_key,
+            "holder_task_id": holder,
+            "queued_siblings": queued,
+        }
+
+    queued = count_queued_tick_tasks(settings, tick_key)
+    if queued >= 1:
+        return {
+            "skipped": True,
+            "reason": "tick_already_queued",
+            "tick_key": tick_key,
+            "queued_siblings": queued,
+        }
+
+    if tick_key in PIPELINE_ENQUEUE_TICK_KEYS and settings.load_governor_enabled:
+        from app.load_governor import current_governor_state, effective_pipeline_limit
+
+        governor = current_governor_state(settings)
+        if effective_pipeline_limit(1, settings, governor) <= 0:
+            return {
+                "skipped": True,
+                "reason": "load_governor_paused_pipeline_enqueue",
+                "tick_key": tick_key,
+                "load_governor": governor,
+            }
+
+    if tick_key in WA_ROLLOUT_TICK_KEYS and settings.load_governor_enabled:
+        from app.load_governor import current_governor_state, governor_allows_wa_rollout
+
+        governor = current_governor_state(settings)
+        allowed, detail = governor_allows_wa_rollout(settings, governor)
+        if not allowed:
+            return {
+                "skipped": True,
+                "reason": "load_governor_blocked",
+                "tick_key": tick_key,
+                "load_governor": governor,
+                "detail": detail,
+            }
+
+    return None
+
+
+def janitor_purge_stale_tick_backlogs(settings: Settings) -> dict[str, Any]:
+    """Proactively drop redundant queued tick copies (runs during load governor refresh)."""
+    summary: dict[str, Any] = {"ticks": {}, "removed_total": 0}
+    for tick_key in sorted(GUARDED_TICK_KEYS):
+        client = _redis_client(settings)
+        holder = client.get(_in_flight_key(tick_key))
+        if holder and celery_task_still_active(holder):
+            removed = purge_queued_tick_tasks(settings, tick_key)
+            action = "purged_while_in_flight"
+        else:
+            removed = collapse_queued_tick_tasks_to_one(settings, tick_key)
+            action = "collapsed_to_one"
+        if removed:
+            summary["ticks"][tick_key] = {"action": action, "removed": removed}
+            summary["removed_total"] += removed
+    return summary
 
 
 def guard_scheduled_tick(
