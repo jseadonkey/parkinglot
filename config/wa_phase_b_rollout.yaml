@@ -6,36 +6,64 @@
 
 # Same county order as parcel rollout — Phase B only runs after parcels exist.
 county_fips_priority:
-  - "53033"
-  - "53053"
-  - "53061"
-  - "53035"
-  - "53067"
-  - "53057"
-  - "53029"
-  - "53011"
-  - "53063"
-  - "53005"
-  - "53077"
+  - "53033" # King
+  - "53053" # Pierce
+  - "53061" # Snohomish
+  - "53035" # Kitsap
+  - "53067" # Thurston
+  - "53057" # Skagit
+  - "53029" # Island
+  - "53011" # Clark
+  - "53063" # Spokane
+  - "53005" # Benton
+  - "53077" # Yakima
+  - "53007" # Chelan
+  - "53009" # Clallam
+  - "53015" # Cowlitz
+  - "53021" # Franklin
+  - "53025" # Grant
+  - "53027" # Grays Harbor
+  - "53037" # Kittitas
+  - "53039" # Klickitat
+  - "53041" # Lewis
+  - "53045" # Mason
+  - "53047" # Okanogan
+  - "53049" # Pacific
+  - "53051" # Pend Oreille
+  - "53055" # San Juan
+  - "53059" # Skamania
+  - "53065" # Stevens
+  - "53069" # Wahkiakum
+  - "53071" # Walla Walla
+  - "53073" # Whatcom
+  - "53001" # Adams
+  - "53003" # Asotin
+  - "53013" # Columbia
+  - "53017" # Douglas
+  - "53019" # Ferry
+  - "53023" # Garfield
+  - "53043" # Lincoln
+  - "53075" # Whitman
 
 # Skip Phase B when fewer than this fraction of county parcels lack zoning_code.
 min_missing_zoning_pct: 1.0
 
-# Skip re-merge when a county already completed Phase B and missing zoning is below this pct.
-phase_b_remerge_min_missing_pct: 10.0
+# Re-merge when gaps remain after a prior Phase B completion (1.0 = any gap above min_missing).
+phase_b_remerge_min_missing_pct: 1.0
 
 # Overlay must cover at least this % of DB parcels before merge (large counties use tiered
 # defaults in phase_b_overlay_validation when unset). Baltimore 20k/223k sample fails tier.
 min_overlay_coverage_pct_of_parcels: null
 
-min_hours_between_county_merges: 6
+# Shorter cooldown so the hourly Beat loop can advance through counties faster.
+min_hours_between_county_merges: 1
 
 # Do not start another county merge if one started within this window and has not completed.
 # Also used as stale recovery: after this many hours with no completion and no live lock, retry.
 pending_merge_stale_hours: 72
 pending_merge_lock_hours: 72
 
-max_parking_queue_depth: 300
+max_parking_queue_depth: 400
 
 # Per-county overlay builder settings (worker-visible paths under /app/data/…).
 counties:

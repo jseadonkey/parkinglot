@@ -78,6 +78,7 @@ def test_county_ready_skips_when_zoning_mostly_present(monkeypatch) -> None:
 
 def test_county_ready_skips_after_recent_completion_when_coverage_sufficient(monkeypatch) -> None:
     config = load_phase_b_config(_CONFIG)
+    config = {**config, "phase_b_remerge_min_missing_pct": 10.0}
     monkeypatch.setattr(
         "app.wa_phase_b_rollout.county_missing_zoning_stats",
         lambda _db, _fips: {"total": 1000, "missing_zoning": 45},
