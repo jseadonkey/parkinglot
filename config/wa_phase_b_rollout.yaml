@@ -187,11 +187,20 @@ counties:
         extra_fields: "ZoneName,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
   "53047": # Okanogan
     auto_build_overlay: true
-    overlay_path: "/app/data/wa/53047/okanogan_waza_zoning_overlay.geojson"
+    overlay_path: "/app/data/wa/53047/okanogan_county_zoning_overlay.geojson"
     cache_dir: "/app/data/wa/53047"
     max_merge_pipeline: 100
     min_overlay_coverage_pct_of_parcels: 0
     zoning_sources:
+      # Official unincorporated county zoning (excludes CITY/TOWN carve-outs).
+      - source_id: "okanogan_county_zoning_2023"
+        label: "Okanogan County zoning 2023 (unincorporated)"
+        layer_url: "https://services3.arcgis.com/p1XMcn4KWrkdZVeA/arcgis/rest/services/County_Zoning_2023_01_24/FeatureServer/0"
+        zoning_field: "CODE"
+        zoning_jurisdiction: "okanogan_county"
+        where: "CODE <> 'CITY/TOWN'"
+        out_fields: "CODE,ZONE,PIN,ORDINANCE,UPDATED"
+        extra_fields: "ZONE,PIN,ORDINANCE,UPDATED"
       - source_id: "waza_53047"
         label: "WAZA Okanogan (Commerce statewide)"
         layer_url: "https://services6.arcgis.com/tboeqGwETr5ppr5Q/arcgis/rest/services/WAZA_Prototype_Layers/FeatureServer/0"
@@ -204,11 +213,18 @@ counties:
         extra_fields: "ZoneName,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
   "53025": # Grant
     auto_build_overlay: true
-    overlay_path: "/app/data/wa/53025/grant_waza_zoning_overlay.geojson"
+    overlay_path: "/app/data/wa/53025/grant_county_zoning_overlay.geojson"
     cache_dir: "/app/data/wa/53025"
     max_merge_pipeline: 100
     min_overlay_coverage_pct_of_parcels: 0
     zoning_sources:
+      - source_id: "grant_county_zoning"
+        label: "Grant County zoning (unincorporated)"
+        layer_url: "https://services2.arcgis.com/hQZvdtFxRzJpMtdS/arcgis/rest/services/Zoning/FeatureServer/0"
+        zoning_field: "ZONECODE"
+        zoning_jurisdiction: "grant_county"
+        out_fields: "ZONECODE,ZoneDesig"
+        extra_fields: "ZoneDesig"
       - source_id: "waza_53025"
         label: "WAZA Grant (Commerce statewide)"
         layer_url: "https://services6.arcgis.com/tboeqGwETr5ppr5Q/arcgis/rest/services/WAZA_Prototype_Layers/FeatureServer/0"
@@ -255,11 +271,19 @@ counties:
         extra_fields: "ZoneName,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
   "53009": # Clallam
     auto_build_overlay: true
-    overlay_path: "/app/data/wa/53009/clallam_waza_zoning_overlay.geojson"
+    overlay_path: "/app/data/wa/53009/clallam_zoning_overlay.geojson"
     cache_dir: "/app/data/wa/53009"
     max_merge_pipeline: 100
     min_overlay_coverage_pct_of_parcels: 0
     zoning_sources:
+      # Official City of Port Angeles districts (PAMC Title 17) — fills WAZA city gap.
+      - source_id: "port_angeles_zoning"
+        label: "City of Port Angeles zoning (COPA)"
+        layer_url: "https://gis.cityofpa.us/legacy/rest/services/Planning/Planning/MapServer/4"
+        zoning_field: "Zoning"
+        zoning_jurisdiction: "port_angeles"
+        out_fields: "Zoning,Ordinance,Status,Jurisdiction,Notes"
+        extra_fields: "Ordinance,Status,Jurisdiction,Notes"
       - source_id: "waza_53009"
         label: "WAZA Clallam (Commerce statewide)"
         layer_url: "https://services6.arcgis.com/tboeqGwETr5ppr5Q/arcgis/rest/services/WAZA_Prototype_Layers/FeatureServer/0"
