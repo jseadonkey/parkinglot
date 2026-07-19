@@ -19,6 +19,8 @@ class ParcelFeature(BaseModel):
     zoning_entitlement_tier: str | None = None
     is_corner_lot: bool = False
     distance_to_nearest_demand_m: float | None = None
+    # OSM commercial POI count within ~400m (optional demand proxy when far from named POIs).
+    poi_commercial_count_400m: int | None = None
     raw_properties: dict[str, Any] | None = None
 
 
@@ -28,6 +30,7 @@ class ScoreBreakdown(BaseModel):
     corner_component: float
     demand_proximity_component: float
     parking_market_component: float = 0.0
+    suitability_component: float = 0.0
     notes: list[str] = Field(default_factory=list)
 
 

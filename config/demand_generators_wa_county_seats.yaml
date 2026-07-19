@@ -1,0 +1,122 @@
+# County-seat / primary commercial nodes for Washington statewide demand proximity.
+# Used so vacant/zoned parcels outside Seattle get a local demand signal for prospect ranking.
+- name: "Adams County — Ritzville"
+  lat: 47.1274
+  lon: -118.3799
+- name: "Asotin County — Clarkston"
+  lat: 46.4165
+  lon: -117.0450
+- name: "Benton County — Kennewick Columbia Center"
+  lat: 46.2112
+  lon: -119.1589
+- name: "Benton County — Richland"
+  lat: 46.2857
+  lon: -119.2845
+- name: "Chelan County — Wenatchee"
+  lat: 47.4235
+  lon: -120.3103
+- name: "Clallam County — Port Angeles"
+  lat: 48.1181
+  lon: -123.4307
+- name: "Clark County — Vancouver downtown"
+  lat: 45.6280
+  lon: -122.6739
+- name: "Columbia County — Dayton"
+  lat: 46.3238
+  lon: -117.9725
+- name: "Cowlitz County — Longview"
+  lat: 46.1382
+  lon: -122.9382
+- name: "Douglas County — East Wenatchee"
+  lat: 47.4157
+  lon: -120.2931
+- name: "Ferry County — Republic"
+  lat: 48.6482
+  lon: -118.7378
+- name: "Franklin County — Pasco downtown"
+  lat: 46.2396
+  lon: -119.1006
+- name: "Garfield County — Pomeroy"
+  lat: 46.4749
+  lon: -117.6027
+- name: "Grant County — Moses Lake"
+  lat: 47.1301
+  lon: -119.2781
+- name: "Grays Harbor County — Aberdeen"
+  lat: 46.9754
+  lon: -123.8157
+- name: "Island County — Oak Harbor"
+  lat: 48.2932
+  lon: -122.6432
+- name: "Jefferson County — Port Townsend"
+  lat: 48.1170
+  lon: -122.7604
+- name: "King County — Kent Station corridor"
+  lat: 47.3840
+  lon: -122.2330
+- name: "Kitsap County — Bremerton"
+  lat: 47.5673
+  lon: -122.6329
+- name: "Kittitas County — Ellensburg"
+  lat: 46.9965
+  lon: -120.5478
+- name: "Klickitat County — Goldendale"
+  lat: 45.8207
+  lon: -120.8217
+- name: "Lewis County — Centralia"
+  lat: 46.7162
+  lon: -122.9543
+- name: "Lincoln County — Davenport"
+  lat: 47.6540
+  lon: -118.1500
+- name: "Mason County — Shelton"
+  lat: 47.2151
+  lon: -123.1007
+- name: "Okanogan County — Omak"
+  lat: 48.4109
+  lon: -119.5275
+- name: "Pacific County — Raymond"
+  lat: 46.6865
+  lon: -123.7329
+- name: "Pend Oreille County — Newport"
+  lat: 48.1796
+  lon: -117.0457
+- name: "Pierce County — Tacoma downtown"
+  lat: 47.2529
+  lon: -122.4443
+- name: "San Juan County — Friday Harbor"
+  lat: 48.5340
+  lon: -123.0170
+- name: "Skagit County — Mount Vernon"
+  lat: 48.4212
+  lon: -122.3340
+- name: "Skamania County — Stevenson"
+  lat: 45.6957
+  lon: -121.8845
+- name: "Snohomish County — Everett downtown"
+  lat: 47.9790
+  lon: -122.2021
+- name: "Spokane County — Spokane downtown"
+  lat: 47.6588
+  lon: -117.4260
+- name: "Stevens County — Colville"
+  lat: 48.5466
+  lon: -117.9056
+- name: "Thurston County — Olympia"
+  lat: 47.0379
+  lon: -122.9007
+- name: "Wahkiakum County — Cathlamet"
+  lat: 46.2032
+  lon: -123.3832
+- name: "Walla Walla County — Walla Walla"
+  lat: 46.0646
+  lon: -118.3430
+- name: "Whatcom County — Bellingham"
+  lat: 48.7519
+  lon: -122.4787
+- name: "Whitman County — Pullman"
+  lat: 46.7298
+  lon: -117.1817
+- name: "Yakima County — Yakima downtown"
+  lat: 46.6021
+  lon: -120.5059

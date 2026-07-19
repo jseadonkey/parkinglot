@@ -19,6 +19,19 @@ For configured counties, the worker **builds the overlay automatically** then ca
 - Kitsap (`53035`) — Kitsap County zoning (`ZONEBREV`; verify non-commercial catalog note before redistribution).
 - Thurston (`53067`) — Thurston County zoning (`ZoneCode`).
 - Benton (`53005`) — Kennewick attribute join + Pasco/Benton County spatial joins.
+- **WAZA counties** (Franklin, San Juan, Whitman, Okanogan, Grant, Asotin, Pend Oreille,
+  Clallam, Adams, Lincoln) — Washington State Zoning Atlas
+  (`WAZA_Prototype_Layers/FeatureServer/0`), filtered by `COUNTYFP`, with per-feature
+  `Jurisdiction` → `ZONING_JURISDICTION` and standardized use flags for rules drafting.
+  Parcel base must come from WaTech **Current_Parcels** so APNs join cleanly.
+- **Ferry (`53019`)** — no traditional zoning districts (county FAQ); absent from WAZA.
+  Leave `zoning_code` null; do not invent overlay rules.
+
+Gap recovery (re-ingest + WAZA populate + entitlement rescore):
+
+```bash
+bash scripts/droplet-waza-fix-remaining.sh
+```
 
 ## Enable on Droplet
 

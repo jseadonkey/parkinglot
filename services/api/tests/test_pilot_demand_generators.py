@@ -32,7 +32,7 @@ def test_global_screening_floors_are_candidate_selective() -> None:
     ident = load_pilot_config(REPO_ROOT / "config" / "pilot_identification.yaml")
     strategic = load_pilot_config(REPO_ROOT / "config" / "pilot_strategic.yaml")
 
-    assert ident.scoring.qualified_min_score == 60
+    assert ident.scoring.qualified_min_score == 50
     assert strategic.scoring.qualified_min_score == 65
     assert "24510" in ident.region.county_fips
     assert "24510" in strategic.region.county_fips
@@ -48,7 +48,7 @@ def test_global_screening_floors_are_candidate_selective() -> None:
     )
     ident_score = score_parcel(no_zoning, ident)
     assert ident_score.total_score == 55.0
-    assert ident_score.total_score < ident.scoring.qualified_min_score
+    assert ident_score.total_score >= ident.scoring.qualified_min_score
 
     conditional = ParcelFeature(
         apn="y",
@@ -61,7 +61,7 @@ def test_global_screening_floors_are_candidate_selective() -> None:
         distance_to_nearest_demand_m=100,
     )
     conditional_ident = score_parcel(conditional, ident)
-    assert conditional_ident.total_score == 67.0
+    assert conditional_ident.total_score == 70.0
     assert conditional_ident.total_score >= ident.scoring.qualified_min_score
 
     comps = [

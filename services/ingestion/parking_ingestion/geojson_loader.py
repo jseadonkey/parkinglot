@@ -82,7 +82,15 @@ def iter_parcels_from_geojson_dict(
         raise ValueError(msg)
 
     for feat in features:
-        geom = shape(feat["geometry"])
+        raw_geom = feat.get("geometry") if isinstance(feat, dict) else None
+        if not isinstance(raw_geom, dict) or not raw_geom.get("type"):
+            continue
+        try:
+            geom = shape(raw_geom)
+        except Exception:
+            continue
+        if geom is None or geom.is_empty:
+            continue
         props = feat.get("properties") or {}
         apn = str(
             _prop(

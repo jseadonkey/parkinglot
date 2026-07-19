@@ -101,8 +101,17 @@ def build_zoning_overlay_geojson(
     county_fips: str = BALTIMORE_CITY_COUNTY_FIPS,
     zoning_field: str = DEFAULT_ZONING_FIELD,
     zoning_jurisdiction: str = "baltimore_city",
+    jurisdiction_field: str | None = None,
+    jurisdiction_normalizer: Any | None = None,
+    extra_fields: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Join parcel polygons to zoning districts; output overlay FeatureCollection for merge."""
+    """Join parcel polygons to zoning districts; output overlay FeatureCollection for merge.
+
+    ``jurisdiction_field`` (optional): read ``ZONING_JURISDICTION`` per-zoning-feature
+    (e.g. WAZA ``Jurisdiction``) instead of the fixed ``zoning_jurisdiction`` string;
+    ``jurisdiction_normalizer`` maps the raw name to a stable key. ``extra_fields``
+    copies additional zoning-feature attributes onto the matched parcel.
+    """
     parcel_features = parcels_fc.get("features") or []
     zoning_features = zoning_fc.get("features") or []
     if not parcel_features:
@@ -123,8 +132,11 @@ def build_zoning_overlay_geojson(
     if not zoning_features:
         raise ValueError("zoning FeatureCollection has no valid features")
 
+    extra_fields = list(extra_fields or [])
     zoning_geoms: list[BaseGeometry] = []
     zoning_codes: list[str | None] = []
+    zoning_jurisdictions: list[str] = []
+    zoning_extras: list[dict[str, Any]] = []
     for zf in zoning_features:
         zprops = zf.get("properties") or {}
         z_geom = _feature_geometry(zf)
@@ -132,6 +144,19 @@ def build_zoning_overlay_geojson(
             continue
         zoning_geoms.append(z_geom)
         zoning_codes.append(_zoning_code_from_props(zprops, zoning_field))
+        juris = zoning_jurisdiction
+        if jurisdiction_field:
+            raw_j = zprops.get(jurisdiction_field)
+            if raw_j is not None and str(raw_j).strip():
+                juris = (
+                    jurisdiction_normalizer(str(raw_j).strip())
+                    if jurisdiction_normalizer is not None
+                    else str(raw_j).strip()
+                )
+        zoning_jurisdictions.append(juris or zoning_jurisdiction)
+        zoning_extras.append(
+            {f: zprops.get(f) for f in extra_fields if zprops.get(f) is not None}
+        )
 
     tree = STRtree(zoning_geoms)
     out_features: list[dict[str, Any]] = []
@@ -171,7 +196,9 @@ def build_zoning_overlay_geojson(
         props["APN"] = apn
         props["COUNTY_FIPS"] = county_fips
         props["ZONING"] = z_code
-        props["ZONING_JURISDICTION"] = zoning_jurisdiction
+        props["ZONING_JURISDICTION"] = zoning_jurisdictions[z_idx]
+        for k, v in zoning_extras[z_idx].items():
+            props.setdefault(k, v)
 
         out_features.append(
             {

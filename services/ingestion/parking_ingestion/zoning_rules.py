@@ -181,13 +181,26 @@ def zoning_entitlement_tier(symbol: str | None) -> str:
     s = (symbol or "").strip().upper()
     if s == "P":
         return "permitted"
-    if s == "CB":
+    if s in ("CB", "M"):
         return "conditional"
+    if s == "PV":
+        # WAZA COM/MXU/IND provisional — human/counsel still reviews before outreach.
+        return "provisional"
     if s == "CO":
         return "council"
     if s in ("NOT_LISTED", "ACCESSORY_ONLY"):
         return "excluded"
     return "unknown"
+
+
+def all_zone_codes_for_tier(tier: str, rules: dict[str, Any]) -> set[str]:
+    """Union of zone codes matching ``tier`` across every jurisdiction in ``rules``."""
+    out: set[str] = set()
+    for jk in (rules.get("jurisdictions") or {}):
+        if not isinstance(jk, str):
+            continue
+        out |= zone_codes_for_tier(jk, tier, rules)
+    return out
 
 
 def zone_codes_for_tier(

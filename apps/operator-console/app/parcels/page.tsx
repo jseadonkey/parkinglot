@@ -26,8 +26,24 @@ type ParcelRow = {
   identification_score: number | null;
   combined_score: number | null;
   created_at: string;
+  suitability: string | null;
+  is_vacant_land: boolean | null;
+  improvement_ratio: number | null;
   revenue: ParcelRevenueSummary | null;
 };
+
+const SUITABILITY_LABEL: Record<string, string> = {
+  vacant: "Vacant lot",
+  underutilized: "Underutilized",
+  improved: "Improved",
+  unknown: "Unknown",
+};
+
+function suitabilityBadgeClass(s: string | null): string {
+  if (s === "vacant") return "badge badge-ok";
+  if (s === "underutilized") return "badge badge-warn";
+  return "badge";
+}
 
 type ScoredList = {
   sort: SortProfile;
@@ -50,6 +66,7 @@ export default function ParcelsPage() {
   const [stateFips, setStateFips] = useState("");
   const [countyFips, setCountyFips] = useState("");
   const [zoningTier, setZoningTier] = useState("");
+  const [suitability, setSuitability] = useState("");
   const [qualifiedOnly, setQualifiedOnly] = useState(false);
   const [counties, setCounties] = useState<PilotCounty[]>([]);
   const [rows, setRows] = useState<ParcelRow[]>([]);
@@ -85,6 +102,7 @@ export default function ParcelsPage() {
       if (countyFips) params.set("county_fips", countyFips);
       else if (stateFips) params.set("state_fips", stateFips);
       if (zoningTier) params.set("zoning_tier", zoningTier);
+      if (suitability) params.set("suitability", suitability);
       params.set("include_revenue", "true");
       if (qualifiedOnly) params.set("qualified_only", "true");
       const res = await fetch(bridgeUrl(`internal/parcels/scored-list?${params}`), { cache: "no-store" });
@@ -100,7 +118,7 @@ export default function ParcelsPage() {
     } finally {
       setLoading(false);
     }
-  }, [limit, sort, stateFips, countyFips, zoningTier, qualifiedOnly]);
+  }, [limit, sort, stateFips, countyFips, zoningTier, suitability, qualifiedOnly]);
 
   useEffect(() => {
     void load();
@@ -119,23 +137,31 @@ export default function ParcelsPage() {
       }
       return "No Baltimore parcels in the database yet. Run Droplet resources → baltimore_ingest_now or baltimore_zoning_overlay, then refresh.";
     }
-    if (zoningTier && (stateFips === "53" || countyFips.startsWith("53"))) {
-      return "The zoning tier filter is currently Baltimore-only. Clear the zoning tier to browse Washington parcels.";
-    }
-    if (stateFips || countyFips || zoningTier) {
-      return "No parcels match the state, county, or Baltimore zoning tier filters. Try “All states” and “All tiers”.";
+    if (stateFips || countyFips || zoningTier || suitability) {
+      return "No parcels match these filters. Try “Prospect shortlist”, clear the zoning tier, or pick another county.";
     }
     return "No scored parcels in the database yet. Run county ingest on the Droplet (Baltimore or Washington), then refresh.";
   })();
 
+  const applyProspectShortlist = () => {
+    setZoningTier("prospect");
+    setSuitability("vacant_or_underutilized");
+    setSort("identification");
+    setQualifiedOnly(false);
+    setLimit(100);
+  };
+
   return (
     <div className="page-content">
       <p className="muted" style={{ marginTop: 0 }}>
-        Scored parcels across pilot markets (MD, WA, and more). High-scoring rows include illustrative revenue from
-        nearby paid parking comps and estimated stall counts. Start with <strong>All states</strong> and leave{" "}
-        <strong>High scores only</strong> off to browse inventory; turn it on for deal-ready shortlists.
+        Ranked prospects for every county: zoning (curated or WAZA provisional), vacant/underutilized sites, and
+        demand proximity. Humans review before any owner outreach. Use <strong>Prospect shortlist</strong> per county,
+        or browse all inventory with filters below.
       </p>
       <div className="panel" style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
+        <button type="button" className="primary" onClick={applyProspectShortlist}>
+          Prospect shortlist
+        </button>
         <label className="muted">
           State{" "}
           <select
@@ -174,13 +200,24 @@ export default function ParcelsPage() {
           </select>
         </label>
         <label className="muted">
-          Baltimore zoning tier{" "}
+          Zoning signal{" "}
           <select value={zoningTier} onChange={(e) => setZoningTier(e.target.value)}>
             <option value="">All tiers</option>
+            <option value="prospect">Prospect (P / conditional / WAZA)</option>
             <option value="permitted">Permitted (P)</option>
-            <option value="conditional">Conditional (BMZA)</option>
+            <option value="conditional">Conditional</option>
+            <option value="provisional">Provisional (WAZA COM/MXU/IND)</option>
             <option value="council">Council ordinance</option>
             <option value="excluded">Not allowed</option>
+          </select>
+        </label>
+        <label className="muted">
+          Site suitability{" "}
+          <select value={suitability} onChange={(e) => setSuitability(e.target.value)}>
+            <option value="">Any site</option>
+            <option value="vacant">Vacant land</option>
+            <option value="underutilized">Underutilized</option>
+            <option value="vacant_or_underutilized">Vacant or underutilized</option>
           </select>
         </label>
         <label className="muted" style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
@@ -219,7 +256,9 @@ export default function ParcelsPage() {
         <p className="muted result-meta">
           Loaded <strong>{rows.length}</strong> parcel{rows.length === 1 ? "" : "s"}
           {qualifiedOnly && qualifiedFloor != null ? ` (entitlement ≥ ${qualifiedFloor})` : ""}
-          {zoningTier ? " · zoning tier filters apply to Baltimore zoning codes only" : ""}
+          {zoningTier === "prospect" || zoningTier === "provisional"
+            ? " · prospect filters use curated rules + WAZA commercial/mixed/industrial class"
+            : ""}
         </p>
       ) : null}
 

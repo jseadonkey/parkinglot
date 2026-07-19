@@ -63,6 +63,7 @@ class ScoringWeights(BaseModel):
     corner_lot: int = 10
     near_demand_generator_m: int = 30
     near_paid_parking_comps: int = 0
+    vacant_or_underutilized: int = 0
 
 
 class ParkingRateCompObservation(BaseModel):

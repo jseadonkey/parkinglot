@@ -44,3 +44,11 @@ data/operator-agent/.auto-commit.lock
 data/benton/
 # Pierce / county Phase B overlay build output (large; built on Droplet workers)
 data/pierce/
+# All county GIS overlay caches — rebuildable from source layers; some exceed
+# GitHub's 100 MB limit and were the reason every push from the Droplet failed.
+data/king/
+data/snohomish/
+data/kitsap/
+data/thurston/
+data/wa/
+data/**/*.geojson

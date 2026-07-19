@@ -78,6 +78,7 @@ scoring:
     corner_lot: 13
     near_demand_generator_m: 35
     near_paid_parking_comps: 12
+    vacant_or_underutilized: 10
   demand_generator_buffer_m: 500
   parking_rate_comp_radius_m: 2500
   parking_rate_comp_min_for_full_credit: 2

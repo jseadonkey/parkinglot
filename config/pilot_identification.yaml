@@ -71,31 +71,33 @@ compliance:
 
 scoring:
   min_lot_sqft: 5000
-  # Prescreen floor for queueing Atlas. Set above the non-zoned max
-  # (lot + corner + demand = 55) so weak/no-zoning parcels do not consume pipeline.
-  qualified_min_score: 60
+  # Prescreen floor for queueing Atlas / human shortlists. Target stacks:
+  # - vacant 15 + lot 25 + demand 20 = 60 (near county-seat demand)
+  # - vacant 15 + lot 25 + WAZA provisional PV 15 = 55 (commercial class, even rural)
+  # Counsel still gates owner outreach; this only ranks candidates.
+  qualified_min_score: 50
   weights:
     zoning_permitted_surface_parking: 45
-    zoning_conditional_surface_parking: 12
+    zoning_conditional_surface_parking: 15
     lot_size: 25
     corner_lot: 10
     near_demand_generator_m: 20
-  demand_generator_buffer_m: 450
+    # Vacant land / low-improvement teardown candidates (assessor value fields).
+    vacant_or_underutilized: 15
+  # Wider than Atlas — county-seat POIs should cover small-city commercial rings.
+  demand_generator_buffer_m: 1500
+  demand_generators_paths:
+    - demand_generators_baltimore.yaml
+    - demand_generators_baltimore_tier_b.yaml
+    - demand_generators_wa_county_seats.yaml
+    - demand_generators_wa_cities.yaml
   demand_generators:
-    # South King / Kent anchor — replace with your submarket POIs.
-    - name: "Kent core / Station corridor (illustrative)"
-      lat: 47.384
-      lon: -122.233
-    # Benton County / Tri-Cities — used when scoring 53005 parcels after ingest.
-    - name: "Kennewick Columbia Center corridor (illustrative)"
-      lat: 46.212
-      lon: -119.159
-    - name: "Richland Parkway / George Washington Way (illustrative)"
-      lat: 46.285
-      lon: -119.275
-    - name: "Pasco downtown / Lewis Street (illustrative)"
-      lat: 46.239
-      lon: -119.101
+    - name: "Seattle downtown retail core"
+      lat: 47.6062
+      lon: -122.3321
+    - name: "Bellevue downtown"
+      lat: 47.6101
+      lon: -122.2015
 
 data_sources:
   parcel_vendor: "TBD — see docs/washington-data.md"

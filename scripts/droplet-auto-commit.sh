@@ -48,6 +48,12 @@ unstage_forbidden() {
     terraform.tfstate.* \
     data/benton \
     data/pierce \
+    data/king \
+    data/snohomish \
+    data/kitsap \
+    data/thurston \
+    data/wa \
+    'data/**/*.geojson' \
     data/operator-agent/*.json \
     data/operator-agent/*.log \
     data/operator-agent/.auto-commit.lock \

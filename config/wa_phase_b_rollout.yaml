@@ -132,3 +132,175 @@ counties:
     overlay_path: "/app/data/benton/benton_county_zoning_overlay.geojson"
     cache_dir: "/app/data/benton"
     max_merge_pipeline: 100
+
+  # --- WAZA statewide zoning (WA Dept. of Commerce). COUNTYFP is 3-digit.
+  "53021": # Franklin
+    auto_build_overlay: true
+    overlay_path: "/app/data/wa/53021/franklin_waza_zoning_overlay.geojson"
+    cache_dir: "/app/data/wa/53021"
+    max_merge_pipeline: 100
+    min_overlay_coverage_pct_of_parcels: 0
+    zoning_sources:
+      - source_id: "waza_53021"
+        label: "WAZA Franklin (Commerce statewide)"
+        layer_url: "https://services6.arcgis.com/tboeqGwETr5ppr5Q/arcgis/rest/services/WAZA_Prototype_Layers/FeatureServer/0"
+        zoning_field: "ZoneID"
+        zoning_jurisdiction: "franklin_waza"
+        jurisdiction_field: "Jurisdiction"
+        jurisdiction_style: "waza"
+        where: "COUNTYFP='021'"
+        out_fields: "ZoneID,ZoneName,Jurisdiction,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+        extra_fields: "ZoneName,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+  "53055": # San Juan
+    auto_build_overlay: true
+    overlay_path: "/app/data/wa/53055/san_juan_waza_zoning_overlay.geojson"
+    cache_dir: "/app/data/wa/53055"
+    max_merge_pipeline: 100
+    min_overlay_coverage_pct_of_parcels: 0
+    zoning_sources:
+      - source_id: "waza_53055"
+        label: "WAZA San Juan (Commerce statewide)"
+        layer_url: "https://services6.arcgis.com/tboeqGwETr5ppr5Q/arcgis/rest/services/WAZA_Prototype_Layers/FeatureServer/0"
+        zoning_field: "ZoneID"
+        zoning_jurisdiction: "san_juan_waza"
+        jurisdiction_field: "Jurisdiction"
+        jurisdiction_style: "waza"
+        where: "COUNTYFP='055'"
+        out_fields: "ZoneID,ZoneName,Jurisdiction,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+        extra_fields: "ZoneName,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+  "53075": # Whitman
+    auto_build_overlay: true
+    overlay_path: "/app/data/wa/53075/whitman_waza_zoning_overlay.geojson"
+    cache_dir: "/app/data/wa/53075"
+    max_merge_pipeline: 100
+    min_overlay_coverage_pct_of_parcels: 0
+    zoning_sources:
+      - source_id: "waza_53075"
+        label: "WAZA Whitman (Commerce statewide)"
+        layer_url: "https://services6.arcgis.com/tboeqGwETr5ppr5Q/arcgis/rest/services/WAZA_Prototype_Layers/FeatureServer/0"
+        zoning_field: "ZoneID"
+        zoning_jurisdiction: "whitman_waza"
+        jurisdiction_field: "Jurisdiction"
+        jurisdiction_style: "waza"
+        where: "COUNTYFP='075'"
+        out_fields: "ZoneID,ZoneName,Jurisdiction,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+        extra_fields: "ZoneName,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+  "53047": # Okanogan
+    auto_build_overlay: true
+    overlay_path: "/app/data/wa/53047/okanogan_waza_zoning_overlay.geojson"
+    cache_dir: "/app/data/wa/53047"
+    max_merge_pipeline: 100
+    min_overlay_coverage_pct_of_parcels: 0
+    zoning_sources:
+      - source_id: "waza_53047"
+        label: "WAZA Okanogan (Commerce statewide)"
+        layer_url: "https://services6.arcgis.com/tboeqGwETr5ppr5Q/arcgis/rest/services/WAZA_Prototype_Layers/FeatureServer/0"
+        zoning_field: "ZoneID"
+        zoning_jurisdiction: "okanogan_waza"
+        jurisdiction_field: "Jurisdiction"
+        jurisdiction_style: "waza"
+        where: "COUNTYFP='047'"
+        out_fields: "ZoneID,ZoneName,Jurisdiction,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+        extra_fields: "ZoneName,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+  "53025": # Grant
+    auto_build_overlay: true
+    overlay_path: "/app/data/wa/53025/grant_waza_zoning_overlay.geojson"
+    cache_dir: "/app/data/wa/53025"
+    max_merge_pipeline: 100
+    min_overlay_coverage_pct_of_parcels: 0
+    zoning_sources:
+      - source_id: "waza_53025"
+        label: "WAZA Grant (Commerce statewide)"
+        layer_url: "https://services6.arcgis.com/tboeqGwETr5ppr5Q/arcgis/rest/services/WAZA_Prototype_Layers/FeatureServer/0"
+        zoning_field: "ZoneID"
+        zoning_jurisdiction: "grant_waza"
+        jurisdiction_field: "Jurisdiction"
+        jurisdiction_style: "waza"
+        where: "COUNTYFP='025'"
+        out_fields: "ZoneID,ZoneName,Jurisdiction,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+        extra_fields: "ZoneName,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+  "53003": # Asotin
+    auto_build_overlay: true
+    overlay_path: "/app/data/wa/53003/asotin_waza_zoning_overlay.geojson"
+    cache_dir: "/app/data/wa/53003"
+    max_merge_pipeline: 100
+    min_overlay_coverage_pct_of_parcels: 0
+    zoning_sources:
+      - source_id: "waza_53003"
+        label: "WAZA Asotin (Commerce statewide)"
+        layer_url: "https://services6.arcgis.com/tboeqGwETr5ppr5Q/arcgis/rest/services/WAZA_Prototype_Layers/FeatureServer/0"
+        zoning_field: "ZoneID"
+        zoning_jurisdiction: "asotin_waza"
+        jurisdiction_field: "Jurisdiction"
+        jurisdiction_style: "waza"
+        where: "COUNTYFP='003'"
+        out_fields: "ZoneID,ZoneName,Jurisdiction,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+        extra_fields: "ZoneName,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+  "53051": # Pend Oreille
+    auto_build_overlay: true
+    overlay_path: "/app/data/wa/53051/pend_oreille_waza_zoning_overlay.geojson"
+    cache_dir: "/app/data/wa/53051"
+    max_merge_pipeline: 100
+    min_overlay_coverage_pct_of_parcels: 0
+    zoning_sources:
+      - source_id: "waza_53051"
+        label: "WAZA Pend Oreille (Commerce statewide)"
+        layer_url: "https://services6.arcgis.com/tboeqGwETr5ppr5Q/arcgis/rest/services/WAZA_Prototype_Layers/FeatureServer/0"
+        zoning_field: "ZoneID"
+        zoning_jurisdiction: "pend_oreille_waza"
+        jurisdiction_field: "Jurisdiction"
+        jurisdiction_style: "waza"
+        where: "COUNTYFP='051'"
+        out_fields: "ZoneID,ZoneName,Jurisdiction,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+        extra_fields: "ZoneName,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+  "53009": # Clallam
+    auto_build_overlay: true
+    overlay_path: "/app/data/wa/53009/clallam_waza_zoning_overlay.geojson"
+    cache_dir: "/app/data/wa/53009"
+    max_merge_pipeline: 100
+    min_overlay_coverage_pct_of_parcels: 0
+    zoning_sources:
+      - source_id: "waza_53009"
+        label: "WAZA Clallam (Commerce statewide)"
+        layer_url: "https://services6.arcgis.com/tboeqGwETr5ppr5Q/arcgis/rest/services/WAZA_Prototype_Layers/FeatureServer/0"
+        zoning_field: "ZoneID"
+        zoning_jurisdiction: "clallam_waza"
+        jurisdiction_field: "Jurisdiction"
+        jurisdiction_style: "waza"
+        where: "COUNTYFP='009'"
+        out_fields: "ZoneID,ZoneName,Jurisdiction,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+        extra_fields: "ZoneName,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+  "53001": # Adams
+    auto_build_overlay: true
+    overlay_path: "/app/data/wa/53001/adams_waza_zoning_overlay.geojson"
+    cache_dir: "/app/data/wa/53001"
+    max_merge_pipeline: 100
+    min_overlay_coverage_pct_of_parcels: 0
+    zoning_sources:
+      - source_id: "waza_53001"
+        label: "WAZA Adams (Commerce statewide)"
+        layer_url: "https://services6.arcgis.com/tboeqGwETr5ppr5Q/arcgis/rest/services/WAZA_Prototype_Layers/FeatureServer/0"
+        zoning_field: "ZoneID"
+        zoning_jurisdiction: "adams_waza"
+        jurisdiction_field: "Jurisdiction"
+        jurisdiction_style: "waza"
+        where: "COUNTYFP='001'"
+        out_fields: "ZoneID,ZoneName,Jurisdiction,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+        extra_fields: "ZoneName,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+  "53043": # Lincoln
+    auto_build_overlay: true
+    overlay_path: "/app/data/wa/53043/lincoln_waza_zoning_overlay.geojson"
+    cache_dir: "/app/data/wa/53043"
+    max_merge_pipeline: 100
+    min_overlay_coverage_pct_of_parcels: 0
+    zoning_sources:
+      - source_id: "waza_53043"
+        label: "WAZA Lincoln (Commerce statewide)"
+        layer_url: "https://services6.arcgis.com/tboeqGwETr5ppr5Q/arcgis/rest/services/WAZA_Prototype_Layers/FeatureServer/0"
+        zoning_field: "ZoneID"
+        zoning_jurisdiction: "lincoln_waza"
+        jurisdiction_field: "Jurisdiction"
+        jurisdiction_style: "waza"
+        where: "COUNTYFP='043'"
+        out_fields: "ZoneID,ZoneName,Jurisdiction,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"
+        extra_fields: "ZoneName,WAZAZoneGeneral,WAZAZoneSpecific,UseRetail,UseOffice,UseManufacturing,UseHeavyIndustrial,UseWarehouse"

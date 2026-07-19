@@ -13,7 +13,7 @@ x-logging: &default-logging
     max-file: "5"
 
 x-worker-parking-cmd: &worker-parking-cmd
-  ["celery", "-A", "app.celery_app", "worker", "-l", "INFO", "-Q", "parking", "--concurrency=2", "-n", "parking@%h"]
+  ["celery", "-A", "app.celery_app", "worker", "-l", "INFO", "-Q", "parking", "--concurrency=3", "-n", "parking@%h"]
 
 x-worker-slack-cmd: &worker-slack-cmd
   ["celery", "-A", "app.celery_app", "worker", "-l", "INFO", "-Q", "slack", "--concurrency=1", "-n", "slack@%h"]

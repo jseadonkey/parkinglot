@@ -77,6 +77,8 @@ scoring:
     corner_lot: 8
     near_demand_generator_m: 24
     near_paid_parking_comps: 15
+    # Vacant land / low-improvement teardown candidates (assessor value fields).
+    vacant_or_underutilized: 12
   demand_generator_buffer_m: 400
   parking_rate_comp_radius_m: 2500
   parking_rate_comp_expanded_radius_m: 7500
@@ -116,10 +118,12 @@ scoring:
     footprint_sqft_cap_ratio: 1.15
     land_rent_pct_of_gross: 0.15
     operator_margin_pct_of_gross: 0.25
-  # Demand POIs — tier A/B Baltimore YAML + Seattle inline; OSM POI density for smaller retail.
+  # Demand POIs — Baltimore tiers + WA county seats + Seattle inline; OSM POI density when backfilled.
   demand_generators_paths:
     - demand_generators_baltimore.yaml
     - demand_generators_baltimore_tier_b.yaml
+    - demand_generators_wa_county_seats.yaml
+    - demand_generators_wa_cities.yaml
   demand_generators:
     - name: "Seattle downtown retail core"
       lat: 47.6062

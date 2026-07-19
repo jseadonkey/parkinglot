@@ -4,12 +4,19 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 BENTON_COUNTY_FIPS = "53005"
+
+# Washington State Zoning Atlas (Dept. of Commerce) — standardized statewide zoning.
+WAZA_ZONES_LAYER_URL = (
+    "https://services6.arcgis.com/tboeqGwETr5ppr5Q/arcgis/rest/services/"
+    "WAZA_Prototype_Layers/FeatureServer/0"
+)
 
 DEFAULT_ARCGIS_ZONING_SOURCES: dict[str, list[dict[str, str]]] = {
     "53033": [
@@ -63,6 +70,23 @@ DEFAULT_ARCGIS_ZONING_SOURCES: dict[str, list[dict[str, str]]] = {
         },
     ],
 }
+
+
+def normalize_waza_jurisdiction(name: str) -> str:
+    """Map a WAZA ``Jurisdiction`` name to a stable jurisdiction key.
+
+    "Unincorporated Franklin County" -> "franklin_unincorporated"
+    "Pasco" -> "pasco_city"
+    """
+    low = str(name or "").strip().lower()
+    if not low:
+        return ""
+    if low.startswith("unincorporated") and low.endswith("county"):
+        mid = low.replace("unincorporated", "").replace("county", "").strip()
+        mid = re.sub(r"[^a-z0-9]+", "_", mid).strip("_")
+        return f"{mid}_unincorporated" if mid else "unincorporated"
+    slug = re.sub(r"[^a-z0-9]+", "_", low).strip("_")
+    return f"{slug}_city" if slug else ""
 
 
 def build_county_zoning_overlay_geojson(
@@ -144,6 +168,15 @@ def _build_arcgis_spatial_overlay(
         zoning_field = str(source.get("zoning_field") or "").strip()
         jurisdiction = str(source.get("zoning_jurisdiction") or "").strip()
         label = str(source.get("label") or source.get("source_id") or layer_url).strip()
+        jurisdiction_field = str(source.get("jurisdiction_field") or "").strip() or None
+        normalizer = normalize_waza_jurisdiction if source.get("jurisdiction_style") == "waza" else None
+        extra_raw = source.get("extra_fields")
+        if isinstance(extra_raw, str):
+            extra_fields = [f.strip() for f in extra_raw.split(",") if f.strip()]
+        elif isinstance(extra_raw, list):
+            extra_fields = [str(f).strip() for f in extra_raw if str(f).strip()]
+        else:
+            extra_fields = None
         if not layer_url or not zoning_field or not jurisdiction:
             raise ValueError(f"incomplete zoning source for county {county_fips}: {source!r}")
 
@@ -166,6 +199,9 @@ def _build_arcgis_spatial_overlay(
             county_fips=county_fips,
             zoning_field=zoning_field,
             zoning_jurisdiction=jurisdiction,
+            jurisdiction_field=jurisdiction_field,
+            jurisdiction_normalizer=normalizer,
+            extra_fields=extra_fields,
         )
 
         matched_now: set[str] = set()

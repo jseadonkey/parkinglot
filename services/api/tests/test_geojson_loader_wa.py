@@ -62,3 +62,30 @@ def test_loader_tri_state_missing_zoning_allow_uses_rules_default() -> None:
     }
     attrs, _ = list(iter_parcels_from_geojson_dict(fc))[0]
     assert attrs["zoning_allows_surface_parking"] is False
+
+
+def test_loader_skips_null_and_invalid_geometry() -> None:
+    """WaTech pages sometimes include features with geometry: null — skip, don't crash."""
+    fc = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": None,
+                "properties": {"APN": "bad-null", "COUNTY_FIPS": "53075"},
+            },
+            {
+                "type": "Feature",
+                "geometry": {},
+                "properties": {"APN": "bad-empty", "COUNTY_FIPS": "53075"},
+            },
+            {
+                "type": "Feature",
+                "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]},
+                "properties": {"APN": "good", "COUNTY_FIPS": "53075", "LOT_SQFT": 1000.0},
+            },
+        ],
+    }
+    rows = list(iter_parcels_from_geojson_dict(fc))
+    assert len(rows) == 1
+    assert rows[0][0]["apn"] == "good"

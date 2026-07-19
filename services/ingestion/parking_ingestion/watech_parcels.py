@@ -15,7 +15,11 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# Prefer Current_Parcels (Parcels_2026). Previous_Parcels is the prior annual snapshot.
 WATECH_STATEWIDE_PARCELS_LAYER = (
+    "https://services.arcgis.com/jsIt88o09Q0r1j8h/arcgis/rest/services/Current_Parcels/FeatureServer/0"
+)
+WATECH_PREVIOUS_PARCELS_LAYER = (
     "https://services.arcgis.com/jsIt88o09Q0r1j8h/arcgis/rest/services/Previous_Parcels/FeatureServer/0"
 )
 

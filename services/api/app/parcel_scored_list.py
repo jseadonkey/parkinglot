@@ -7,21 +7,84 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
 
-from sqlalchemy import case, desc, func, inspect, literal, nulls_last, select
+from sqlalchemy import Float, and_, case, cast, desc, func, inspect, literal, nulls_last, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore
 from app.scoring_profiles import ENTITLEMENT, IDENTIFICATION, STRATEGIC
 from app.zoning_entitlement import (
-    baltimore_zone_codes_for_tier,
+    curated_zone_codes_for_tier,
     effective_zoning_code,
     parcel_zoning_symbol,
     parcel_zoning_tier,
 )
+from parking_core.suitability import (
+    UNDERUTILIZED_MAX_IMPROVEMENT_RATIO,
+    compute_parcel_suitability,
+)
+from parking_core.waza_provisional import PROVISIONAL_WAZA_GENERAL
+
+SuitabilityFilter = Literal["vacant", "underutilized", "vacant_or_underutilized"]
+
+_NUMERIC_RE = r"^[0-9]+(\.[0-9]+)?$"
+
+
+def _json_num(key: str) -> Any:
+    """Safe numeric read of ``raw_properties[key]`` (NULL when non-numeric)."""
+    txt = func.nullif(func.replace(Parcel.raw_properties[key].astext, ",", ""), "")
+    return case((txt.op("~")(_NUMERIC_RE), cast(txt, Float)), else_=None)
+
+
+def _suitability_where(suitability: str) -> Any | None:
+    """SQL predicate over ``raw_properties`` assessor value fields (best with a county filter)."""
+    s = (suitability or "").strip().lower()
+    if s not in ("vacant", "underutilized", "vacant_or_underutilized"):
+        return None
+    bldg = _json_num("VALUE_BLDG")
+    land = _json_num("VALUE_LAND")
+    use_txt = func.upper(func.coalesce(Parcel.raw_properties["LANDUSE_CD"].astext, ""))
+    vacant = or_(
+        and_(bldg.isnot(None), bldg <= 0, land.isnot(None), land > 0),
+        use_txt.like("%VACANT%"),
+    )
+    underutil = and_(
+        bldg.isnot(None),
+        bldg > 0,
+        land.isnot(None),
+        land > 0,
+        (bldg / (bldg + land)) <= UNDERUTILIZED_MAX_IMPROVEMENT_RATIO,
+    )
+    if s == "vacant":
+        return vacant
+    if s == "underutilized":
+        return underutil
+    return or_(vacant, underutil)
 
 ParcelSortProfile = Literal["combined", "entitlement", "strategic", "identification"]
-ZoningTierFilter = Literal["permitted", "conditional", "council", "excluded"]
+ZoningTierFilter = Literal["permitted", "conditional", "provisional", "council", "excluded"]
 COMBINED: str = "combined"
+
+
+def _zoning_tier_where(zoning_tier: str) -> Any | None:
+    """SQL predicate for curated zone codes or WAZA provisional COM/MXU/IND."""
+    tier = (zoning_tier or "").strip().lower()
+    if tier == "provisional":
+        zg = func.upper(func.coalesce(Parcel.raw_properties["WAZAZoneGeneral"].astext, ""))
+        return zg.in_(sorted(PROVISIONAL_WAZA_GENERAL))
+    if tier in ("permitted", "conditional", "council", "excluded"):
+        codes = curated_zone_codes_for_tier(tier)
+        if not codes:
+            return None
+        return func.upper(Parcel.zoning_code).in_(sorted(codes))
+    if tier in ("prospect", "prospects"):
+        # Human shortlist: curated P/CB/M or WAZA commercial-class provisional.
+        codes = curated_zone_codes_for_tier("permitted") | curated_zone_codes_for_tier("conditional")
+        zg = func.upper(func.coalesce(Parcel.raw_properties["WAZAZoneGeneral"].astext, ""))
+        parts: list[Any] = [zg.in_(sorted(PROVISIONAL_WAZA_GENERAL))]
+        if codes:
+            parts.append(func.upper(Parcel.zoning_code).in_(sorted(codes)))
+        return or_(*parts)
+    return None
 
 
 def _parcel_column_exists(db: Session, column: str) -> bool:
@@ -48,6 +111,9 @@ class ParcelScoredRowData:
     created_at: datetime
     situs_address: str | None = None
     mailing_address: str | None = None
+    suitability: str | None = None
+    is_vacant_land: bool | None = None
+    improvement_ratio: float | None = None
 
 
 def _combined_score_value(
@@ -167,12 +233,21 @@ def _parcel_scope_subq(
         scope = scope.where(Parcel.county_fips == county_fips)
     elif state_fips:
         scope = scope.where(Parcel.county_fips.startswith(state_fips))
-    if zoning_tier in ("permitted", "conditional", "council", "excluded"):
-        codes = baltimore_zone_codes_for_tier(zoning_tier)
-        if not codes:
+    tier_where = _zoning_tier_where(zoning_tier)
+    if zoning_tier and tier_where is None and zoning_tier.strip().lower() not in ("",):
+        # Explicit tier with no matching codes → empty result.
+        if zoning_tier.strip().lower() in (
+            "permitted",
+            "conditional",
+            "provisional",
+            "council",
+            "excluded",
+            "prospect",
+            "prospects",
+        ):
             return None
-        # Baltimore-only filter until WA rules carry principal_use_symbol entries.
-        scope = scope.where(Parcel.county_fips == "24510", func.upper(Parcel.zoning_code).in_(sorted(codes)))
+    if tier_where is not None:
+        scope = scope.where(tier_where)
     return scope.subquery()
 
 
@@ -214,6 +289,7 @@ def query_parcels_scored_list(
     county_fips: str | None = None,
     state_fips: str | None = None,
     zoning_tier: str | None = None,
+    suitability: str | None = None,
     min_entitlement_score: float | None = None,
 ) -> list[ParcelScoredRowData]:
     """All parcels with latest score per profile, ordered by ``sort`` (null scores last)."""
@@ -262,14 +338,24 @@ def query_parcels_scored_list(
         stmt = stmt.where(Parcel.county_fips == cf)
     elif st:
         stmt = stmt.where(Parcel.county_fips.startswith(st))
-    if tier in ("permitted", "conditional", "council", "excluded"):
-        codes = baltimore_zone_codes_for_tier(tier)
-        if codes:
-            stmt = stmt.where(Parcel.county_fips == "24510", func.upper(Parcel.zoning_code).in_(sorted(codes)))
-        else:
-            return []
+    tier_where = _zoning_tier_where(tier)
+    if tier and tier_where is None and tier in (
+        "permitted",
+        "conditional",
+        "provisional",
+        "council",
+        "excluded",
+        "prospect",
+        "prospects",
+    ):
+        return []
+    if tier_where is not None:
+        stmt = stmt.where(tier_where)
     if min_entitlement_score is not None:
         stmt = stmt.where(ent_sub.isnot(None), ent_sub >= float(min_entitlement_score))
+    suit_where = _suitability_where(suitability or "")
+    if suit_where is not None:
+        stmt = stmt.where(suit_where)
     stmt = stmt.order_by(nulls_last(desc(sort_col)), desc(Parcel.created_at)).limit(cap)
     out: list[ParcelScoredRowData] = []
     for r in db.execute(stmt).all():
@@ -282,6 +368,7 @@ def query_parcels_scored_list(
         z_code = effective_zoning_code(zoning, raw_dict)
         symbol = parcel_zoning_symbol(county_fips=cfips, zoning_code=z_code, raw_properties=raw_dict)
         ent_tier = parcel_zoning_tier(county_fips=cfips, zoning_code=z_code, raw_properties=raw_dict)
+        suit = compute_parcel_suitability(raw_dict)
         out.append(
             ParcelScoredRowData(
                 parcel_id=pid,
@@ -298,6 +385,9 @@ def query_parcels_scored_list(
                 identification_score=id_f,
                 combined_score=_combined_score_value(ent_f, str_f, id_f),
                 created_at=created,
+                suitability=suit["suitability"],
+                is_vacant_land=suit["is_vacant_land"],
+                improvement_ratio=suit["improvement_ratio"],
             ),
         )
     return out

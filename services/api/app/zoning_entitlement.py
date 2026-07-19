@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from parking_core.waza_provisional import provisional_symbol_from_raw
 from parking_ingestion.zoning_rules import (
+    all_zone_codes_for_tier,
     infer_zoning_jurisdiction,
     load_effective_zoning_rules,
     resolve_principal_use_symbol,
@@ -10,7 +12,7 @@ from parking_ingestion.zoning_rules import (
     zoning_entitlement_tier,
 )
 
-ZoningTierFilter = str  # permitted | conditional | council | excluded
+ZoningTierFilter = str  # permitted | conditional | provisional | council | excluded
 
 ZONING_CODE_KEYS: tuple[str, ...] = (
     "ZONING",
@@ -48,16 +50,26 @@ def parcel_zoning_symbol(
     zoning_code: str | None,
     raw_properties: dict | None,
 ) -> str | None:
+    """Resolve principal-use parking symbol from curated rules, else WAZA provisional.
+
+    Stale ``zoning_principal_use_symbol`` caches (e.g. ``NOT_LISTED`` written before
+    a jurisdiction had YAML entries) must not become UI \"Not allowed\" when the
+    zone is still unmapped — that should stay ``unknown`` until counsel curates it.
+
+    When no curated entry exists, WAZA ``COM`` / ``MXU`` / ``IND`` yields ``PV``
+    (provisional prospect signal — not ``allows_surface_parking``).
+    """
     raw = raw_properties or {}
-    cached = raw.get("zoning_principal_use_symbol")
-    if cached is not None and str(cached).strip():
-        return str(cached).strip().upper()
     z_code = effective_zoning_code(zoning_code, raw)
-    if not z_code:
-        return None
     rules = load_effective_zoning_rules()
-    juris = infer_zoning_jurisdiction(county_fips, raw.get("ZONING_JURISDICTION") or raw.get("zoning_jurisdiction"))
-    return resolve_principal_use_symbol(z_code, juris, rules)
+    juris = infer_zoning_jurisdiction(
+        county_fips, raw.get("ZONING_JURISDICTION") or raw.get("zoning_jurisdiction")
+    )
+    if z_code:
+        resolved = resolve_principal_use_symbol(z_code, juris, rules)
+        if resolved is not None:
+            return resolved
+    return provisional_symbol_from_raw(raw)
 
 
 def parcel_zoning_tier(
@@ -66,13 +78,9 @@ def parcel_zoning_tier(
     zoning_code: str | None,
     raw_properties: dict | None,
 ) -> str:
+    """Operator-facing entitlement bucket; always derived from live symbol resolution."""
     raw = raw_properties or {}
     z_code = effective_zoning_code(zoning_code, raw)
-    cached = raw.get("zoning_entitlement_tier")
-    if cached is not None and str(cached).strip():
-        cached_s = str(cached).strip().lower()
-        if cached_s != "unknown" or not z_code:
-            return cached_s
     sym = parcel_zoning_symbol(
         county_fips=county_fips,
         zoning_code=z_code,
@@ -84,3 +92,9 @@ def parcel_zoning_tier(
 def baltimore_zone_codes_for_tier(tier: ZoningTierFilter) -> set[str]:
     rules = load_effective_zoning_rules()
     return zone_codes_for_tier("baltimore_city", tier, rules)
+
+
+def curated_zone_codes_for_tier(tier: ZoningTierFilter) -> set[str]:
+    """Zone codes matching ``tier`` across all curated jurisdiction YAML files."""
+    rules = load_effective_zoning_rules()
+    return all_zone_codes_for_tier(tier, rules)
