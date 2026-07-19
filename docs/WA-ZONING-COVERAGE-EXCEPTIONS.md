@@ -17,12 +17,15 @@ These still have many missing `zoning_code` values after two WAZA recovery
 passes. WAZA polygons exist for the county but do not cover most of the
 missing parcels (verified with spatial probes):
 
-- Whitman (`53075`) — WAZA covers city jurisdictions only (Pullman, etc.)
-- Okanogan (`53047`) — WAZA covers a few towns + some unincorporated zones; most missing parcels fall outside those polygons
-- Asotin (`53003`), Lincoln (`53043`), Grant (`53025`), Pend Oreille (`53051`), Adams (`53001`) — same pattern: city/UGA coverage, rural gaps
+- Whitman (`53075`) — WAZA covers city jurisdictions only (Pullman, etc.); no county GIS published
+- Okanogan (`53047`) — official unincorporated layer wired in Phase B; city holes (Omak, etc.) are PDF-only
+- Grant (`53025`) — official unincorporated layer wired; Soap Lake / Electric City / Hartline are PDF-only
+- Clallam (`53009`) — **Port Angeles city GIS** wired (`gis.cityofpa.us` MapServer/4)
+- Asotin (`53003`), Lincoln (`53043`), Pend Oreille (`53051`), Adams (`53001`) — city centers are PDF/manual; county layers exclude incorporated areas
 
-Next source for these is each county’s official zoning GIS layer (Phase B
-`zoning_sources` / county source agent), not another WAZA pass.
+Live source research (2026-07-19): only Port Angeles among ~35 gap cities has a
+queryable municipal zoning Feature/MapServer. Remaining high-parcel PDF cities
+(Clarkston, Omak, Colfax, Newport, Soap Lake, …) need digitization or clerk outreach.
 
 ## What the recovery did recover
 
