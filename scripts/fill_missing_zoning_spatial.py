@@ -97,7 +97,7 @@ UPDATE_MISSING = text(
           || m.extra
           || jsonb_build_object(
               'ZONING_JURISDICTION', m.zoning_jurisdiction,
-              'ZONING_MATCH_METHOD', :match_method
+              'ZONING_MATCH_METHOD', CAST(:match_method AS text)
           )
     FROM matches m
     WHERE p.id = m.id

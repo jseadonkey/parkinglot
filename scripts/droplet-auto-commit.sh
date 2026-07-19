@@ -118,8 +118,34 @@ if ! git_cfg pull --rebase origin "$BRANCH" >>"$LOG" 2>&1; then
   exit 1
 fi
 
+# Fallback backup: main history contains >100 MB GIS blobs that GitHub rejects,
+# so pushing HEAD:main can fail forever. Push a clean tree-only snapshot branch
+# (chained fast-forward) so an off-Droplet copy always exists.
+push_snapshot_backup() {
+  local snap_branch="droplet-snapshot"
+  git fetch origin "$snap_branch" --quiet 2>>"$LOG" || true
+  local parent
+  parent="$(git rev-parse --verify --quiet "origin/${snap_branch}" \
+    || git rev-parse --verify --quiet "origin/${BRANCH}")" || return 1
+  local tree snap
+  tree="$(git rev-parse "HEAD^{tree}")"
+  if [[ "$(git rev-parse --verify --quiet "${parent}^{tree}")" == "$tree" ]]; then
+    return 0  # nothing new to back up
+  fi
+  snap="$(git_cfg commit-tree "$tree" -p "$parent" \
+    -m "droplet snapshot $(date -u +%Y-%m-%dT%H:%M:%SZ) (tree of ${sha})")" || return 1
+  if git_cfg push origin "${snap}:refs/heads/${snap_branch}" >>"$LOG" 2>&1; then
+    log "pushed snapshot ${snap:0:9} (tree of ${sha}) to origin/${snap_branch}"
+    return 0
+  fi
+  return 1
+}
+
 if ! git_cfg push origin "HEAD:${BRANCH}" >>"$LOG" 2>&1; then
-  log "error: git push failed for ${sha}"
+  log "error: git push failed for ${sha}; trying snapshot backup"
+  if ! push_snapshot_backup; then
+    log "error: snapshot backup push also failed for ${sha}"
+  fi
   exit 1
 fi
 
