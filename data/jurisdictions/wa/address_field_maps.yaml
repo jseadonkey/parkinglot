@@ -1,84 +1,77 @@
+# County/city situs + mailing field maps for ingest normalization.
+# See docs/JURISDICTION-ZONING-COMPLETENESS-PLAN.md §5.6 and parking_ingestion/address_normalize.py.
+
 default_wa_watech:
   address_source: watech_statewide
   situs_street:
-  - SITUS_ADDRESS
-  - situs_address
-  - SITUS_ADDR
-  - situs_addr
-  - ADDR_FULL
-  - addr_full
-  - FULLADDR
-  - fulladdr
-  - PROPERTY_ADDRESS
-  - property_address
-  - LOC_STREET
-  - loc_street
-  - SITE_ADDR
-  - site_addr
-  - SUB_ADDRESS
-  - sub_address
+    - SITUS_ADDRESS
+    - situs_address
+    - SITUS_ADDR
+    - situs_addr
+    - ADDR_FULL
+    - addr_full
+    - FULLADDR
+    - fulladdr
+    - PROPERTY_ADDRESS
+    - property_address
+    - LOC_STREET
+    - loc_street
+    - SITE_ADDR
+    - site_addr
+    - SUB_ADDRESS
+    - sub_address
   situs_city:
-  - SITUS_CITY_NM
-  - SITUS_CITY
-  - situs_city
-  - LOC_CITY
-  - loc_city
-  - CITY
-  - city
+    - SITUS_CITY_NM
+    - SITUS_CITY
+    - situs_city
+    - LOC_CITY
+    - loc_city
+    - CITY
+    - city
   situs_state:
-  - SITUS_STATE
-  - situs_state
-  - STATE
-  - state
+    - SITUS_STATE
+    - situs_state
+    - STATE
+    - state
   situs_zip:
-  - SITUS_ZIP_NR
-  - SITUS_ZIP
-  - situs_zip
-  - ZIP5
-  - zip
-  - POSTAL_CODE
+    - SITUS_ZIP_NR
+    - SITUS_ZIP
+    - situs_zip
+    - ZIP5
+    - zip
+    - POSTAL_CODE
   mailing:
-  - MAILING_ADDRESS
-  - mailing_address
-  - MAIL_ADDR
-  - mail_addr
-  - MAILTOADD
-  - mailtoadd
-  - FULL_MAILING
-  - full_mailing
+    - MAILING_ADDRESS
+    - mailing_address
+    - MAIL_ADDR
+    - mail_addr
+    - MAILTOADD
+    - mailtoadd
+    - FULL_MAILING
+    - full_mailing
   owner:
-  - OWNER_NAME
-  - owner_name
-  - TAXPAYER_NAME
-  - taxpayer_name
+    - OWNER_NAME
+    - owner_name
+    - TAXPAYER_NAME
+    - taxpayer_name
+
 counties:
-  '53033':
+  "53033":
     inherit: default_wa_watech
     address_source: watech_king
-    notes: "King \u2014 WaTech statewide layer; assessor roll merge planned (King\
-      \ County GIS)."
-  '53053':
+    notes: "King — WaTech statewide layer; assessor roll merge planned (King County GIS)."
+  "53053":
     inherit: default_wa_watech
-    address_source: pierce_assessor_roll
-    rotated_at: '2026-07-19'
-  '53061':
+    address_source: watech_pierce
+  "53061":
     inherit: default_wa_watech
     address_source: watech_snohomish
-  '53035':
+  "53035":
     inherit: default_wa_watech
-    address_source: wa_county_assessor_roll
-    situs_street:
-    - SITUS_ADDRESS
-    - ADDR_FULL
-    rotated_at: '2026-07-19'
-  '53067':
+    address_source: watech_kitsap
+  "53067":
     inherit: default_wa_watech
-    address_source: wa_county_assessor_roll
-    situs_street:
-    - SITUS_ADDRESS
-    - ADDR_FULL
-    rotated_at: '2026-07-19'
-  '24510':
+    address_source: watech_thurston
+  "24510":
     address_source: baltimore_realproperty
-    notes: "Baltimore City \u2014 normalized in baltimore_parcels.py / address backfill\
-      \ batch."
+    notes: "Baltimore City — normalized in baltimore_parcels.py / address backfill batch."
