@@ -36,6 +36,7 @@ chains:
       - watech_statewide_parcels
       - pierce_assessor_roll
       - nominatim_centroid_fallback
+      - pierce_tax_parcels
 
   snohomish_county:
     jurisdiction_id: snohomish_county
@@ -44,9 +45,30 @@ chains:
       - watech_statewide_parcels
       - snohomish_assessor_roll
       - nominatim_centroid_fallback
+      - snohomish_current_parcels
+
+  kitsap_county:
+    jurisdiction_id: kitsap_county
+    county_fips: "53035"
+    sources:
+      - watech_statewide_parcels
+      - kitsap_county_parcels
+      - nominatim_centroid_fallback
+      - kitsap_county_parcels_retry
+
+  thurston_county:
+    jurisdiction_id: thurston_county
+    county_fips: "53067"
+    sources:
+      - watech_statewide_parcels
+      - thurston_county_parcels
+      - nominatim_centroid_fallback
+      - thurston_county_parcels_retry
 
 county_overrides:
   "24510": baltimore_city
   "53033": king_county
   "53053": pierce_county
   "53061": snohomish_county
+  "53035": kitsap_county
+  "53067": thurston_county
