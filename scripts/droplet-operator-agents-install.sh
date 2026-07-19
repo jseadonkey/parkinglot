@@ -20,7 +20,13 @@ LOG="${ROOT}/data/operator-agent/address-health-cron.log"
 # Backup to Celery Beat + GitHub Actions (every 12h at :10 UTC).
 CRON_LINE="10 */12 * * * cd ${ROOT} && bash scripts/run-address-health-agent-droplet.sh --json >> ${LOG} 2>&1"
 
-( crontab -l 2>/dev/null | grep -v 'address-health-agent/address_health_agent.py' || true
+# Filter must match the installed line (run-address-health-agent-droplet.sh);
+# the old address_health_agent.py filter never matched, so every deploy
+# appended a duplicate (28 copies accumulated by 2026-07-19).
+( crontab -l 2>/dev/null \
+    | grep -v 'run-address-health-agent-droplet.sh' \
+    | grep -v 'address-health-agent/address_health_agent.py' \
+    | awk '!seen[$0]++' || true
   echo "$CRON_LINE"
 ) | crontab -
 

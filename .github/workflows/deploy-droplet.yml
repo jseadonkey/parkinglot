@@ -159,7 +159,10 @@ jobs:
       - name: Rsync application
         run: |
           REMOTE_PATH="${DEPLOY_REMOTE_PATH:-/opt/workspaces/parkinglot}"
-          rsync -az --delete \
+          # No --delete: mirror-deleting erased Droplet-only runtime files (GIS
+          # caches, agent logs, hot-patched migrations) on 2026-07-19. Stale
+          # files are removed explicitly, never by blind mirroring.
+          rsync -az \
             --exclude .git \
             --exclude node_modules \
             --exclude .venv \
@@ -168,6 +171,7 @@ jobs:
             --exclude '*.pyc' \
             --exclude .env \
             --exclude deploy/.env \
+            --exclude 'data/' \
             ./ "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}:$REMOTE_PATH/"
 
       # bash <<EOF requires closing EOF at column 0; YAML-indented EOF breaks the heredoc.
