@@ -2558,35 +2558,51 @@ def _address_health_agent_tick_body() -> dict[str, Any]:
 def refresh_identification_scores_batch(
     limit: int = 2000,
     county_fips: str | None = None,
+    process_all: bool = False,
 ) -> dict[str, Any]:
-    """Upsert ``identification`` scores for parcels that have no identification ``parcel_scores`` row."""
-    lim = min(max(limit, 1), 5000)
+    """Upsert ``identification`` scores (missing-only by default; all parcels when process_all)."""
+    chunk = min(max(limit, 1), 5000)
+    cf = (county_fips or "").strip()
     db = _session()
     n = 0
+    last_id: uuid.UUID | None = None
     try:
-        miss_ident = ~exists(
-            select(1).where(
-                ParcelScore.parcel_id == Parcel.id,
-                ParcelScore.score_profile == IDENTIFICATION,
-            )
-        )
-        stmt = select(Parcel).where(miss_ident)
-        cf = (county_fips or "").strip()
-        if cf:
-            stmt = stmt.where(Parcel.county_fips == cf)
-        stmt = stmt.order_by(Parcel.created_at.desc()).limit(lim)
-        for parcel in db.scalars(stmt):
-            _upsert_identification_score(db, parcel)
-            n += 1
-            if n % 200 == 0:
-                db.commit()
-        db.commit()
+        while True:
+            stmt = select(Parcel)
+            if cf:
+                stmt = stmt.where(Parcel.county_fips == cf)
+            if not process_all:
+                miss_ident = ~exists(
+                    select(1).where(
+                        ParcelScore.parcel_id == Parcel.id,
+                        ParcelScore.score_profile == IDENTIFICATION,
+                    )
+                )
+                stmt = stmt.where(miss_ident)
+            if last_id is not None:
+                stmt = stmt.where(Parcel.id > last_id)
+            stmt = stmt.order_by(Parcel.id.asc()).limit(chunk)
+            batch = list(db.scalars(stmt))
+            if not batch:
+                break
+            for parcel in batch:
+                _upsert_identification_score(db, parcel)
+                n += 1
+                last_id = parcel.id
+            db.commit()
+            if not process_all or len(batch) < chunk:
+                break
         post_agent_event_to_slack(
             get_settings(),
             agent="Cartographer (identification refresh)",
             detail=f"Upserted identification score for *{n}* parcel(s)" + (f" in `{cf}`." if cf else "."),
         )
-        return {"updated": n, "county_fips": cf or None, "limit": lim}
+        return {
+            "updated": n,
+            "county_fips": cf or None,
+            "limit": chunk,
+            "process_all": process_all,
+        }
     finally:
         db.close()
 

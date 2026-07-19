@@ -85,10 +85,19 @@ UPDATE_MISSING = text(
         FROM parcels p
         JOIN tmp_waza_zones z
           ON z.geom && p.footprint
-         AND ST_Intersects(z.geom, ST_PointOnSurface(p.footprint))
+         AND (
+              ST_Intersects(z.geom, ST_PointOnSurface(p.footprint))
+              OR ST_Intersects(z.geom, p.footprint)
+         )
         WHERE p.county_fips = :cf
           AND (p.zoning_code IS NULL OR btrim(p.zoning_code) = '')
-        ORDER BY p.id
+        ORDER BY
+            p.id,
+            CASE
+              WHEN ST_Intersects(z.geom, ST_PointOnSurface(p.footprint)) THEN 0
+              ELSE 1
+            END,
+            ST_Area(ST_Intersection(z.geom, p.footprint)) DESC
     )
     UPDATE parcels p
     SET
