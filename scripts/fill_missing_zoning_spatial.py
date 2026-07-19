@@ -69,7 +69,7 @@ INSERT_ZONE = text(
         :zone_code,
         :zoning_jurisdiction,
         CAST(:extra AS jsonb),
-        ST_SetSRID(ST_GeomFromText(:wkt), 4326)
+        ST_MakeValid(ST_SetSRID(ST_GeomFromText(:wkt), 4326))
     )
     """
 )
@@ -97,7 +97,7 @@ UPDATE_MISSING = text(
               WHEN ST_Intersects(z.geom, ST_PointOnSurface(p.footprint)) THEN 0
               ELSE 1
             END,
-            ST_Area(ST_Intersection(z.geom, p.footprint)) DESC
+            ST_Area(z.geom) ASC
     )
     UPDATE parcels p
     SET
