@@ -71,7 +71,10 @@ counties:
     rotated_at: '2026-07-20'
   '53067':
     inherit: default_wa_watech
-    address_source: watech_thurston
+    address_source: nominatim_centroid_fallback
+    situs_street:
+    - SITUS_ADDRESS
+    rotated_at: '2026-07-20'
   '24510':
     address_source: baltimore_realproperty
     notes: "Baltimore City \u2014 normalized in baltimore_parcels.py / address backfill\
