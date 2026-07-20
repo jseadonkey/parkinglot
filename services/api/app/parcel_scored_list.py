@@ -519,15 +519,8 @@ def _top_parcel_ids_by_score(
     vacant_clause = ""
     if suit == "vacant":
         vacant_clause = f" AND ({_vacant_sql_predicate('p')})"
-    paved_order = ""
-    if prefer_paved:
-        paved_order = """
-              CASE
-                WHEN NULLIF(BTRIM(p.raw_properties->>'LANDUSE_CD'), '') IN ('309', '316') THEN 0
-                WHEN NULLIF(BTRIM(p.raw_properties->>'LANDUSE_CD'), '') IN ('300', '301', '299') THEN 2
-                ELSE 1
-              END,
-        """
+    # Keep ORDER BY on score only — a CASE on JSON land-use defeats the profile/score
+    # index and pushes WA vacant+prefer_paved past the operator-console bridge timeout.
     if exact:
         sql = text(
             f"""
@@ -537,7 +530,7 @@ def _top_parcel_ids_by_score(
             WHERE ps.score_profile = :profile
               AND p.county_fips = :exact_county
               {vacant_clause}
-            ORDER BY {paved_order} ps.total_score DESC NULLS LAST, ps.created_at DESC
+            ORDER BY ps.total_score DESC NULLS LAST, ps.created_at DESC
             LIMIT :lim
             """
         )
@@ -551,7 +544,7 @@ def _top_parcel_ids_by_score(
             WHERE ps.score_profile = :profile
               AND p.county_fips LIKE :state_prefix
               {vacant_clause}
-            ORDER BY {paved_order} ps.total_score DESC NULLS LAST, ps.created_at DESC
+            ORDER BY ps.total_score DESC NULLS LAST, ps.created_at DESC
             LIMIT :lim
             """
         )
@@ -736,9 +729,8 @@ def query_parcels_scored_list(
     # Keep overfetch modest — large LIMIT+JOIN walks on parcel_scores time out for WA.
     # Vacant is applied in the score walk SQL so we do not overfetch improved buildings.
     if cf or st:
-        if suit == "vacant" and want_paved:
-            overfetch = min(cap * 8, 400)
-        elif suit == "vacant":
+        if suit == "vacant":
+            # prefer_paved re-ranks in Python after hydrate — same overfetch as vacant.
             overfetch = min(cap * 4, 200)
         elif suit in ("not_existing_parking", "existing_parking"):
             # Parking-coded lots are sparse among top scores.

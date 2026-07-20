@@ -82,10 +82,10 @@ export function bridgeTimeoutMs(subpath: string): number {
     return 90_000;
   }
   if (subpath.startsWith("internal/parcels/") || subpath.startsWith("internal/owners/")) {
-    return 90_000;
+    return 120_000;
   }
   if (subpath.startsWith("parcels/")) {
-    return 90_000;
+    return 120_000;
   }
   return 45_000;
 }
