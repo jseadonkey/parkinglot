@@ -70,10 +70,13 @@ export default function ParcelsPage() {
   const [qualifiedOnly, setQualifiedOnly] = useState(false);
   const [counties, setCounties] = useState<PilotCounty[]>([]);
   const [rows, setRows] = useState<ParcelRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [rowCount, setRowCount] = useState<number | null>(null);
   const [qualifiedFloor, setQualifiedFloor] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  // Require an explicit state/county — all-states scans millions of rows and times out under load.
+  const hasGeography = Boolean(stateFips || countyFips);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,6 +98,14 @@ export default function ParcelsPage() {
   const countyOptions = counties.filter((c) => !stateFips || c.county_fips.startsWith(stateFips));
 
   const load = useCallback(async () => {
+    if (!stateFips && !countyFips) {
+      setRows([]);
+      setRowCount(null);
+      setQualifiedFloor(null);
+      setErr(null);
+      setLoading(false);
+      return;
+    }
     setErr(null);
     setLoading(true);
     try {
@@ -128,6 +139,9 @@ export default function ParcelsPage() {
 
   const emptyHint = (() => {
     if (loading || rows.length > 0) return null;
+    if (!hasGeography) {
+      return "Select a state (or county) to load parcels.";
+    }
     if (qualifiedOnly && qualifiedFloor != null) {
       return `No parcels score at or above entitlement ${qualifiedFloor} with these filters. Uncheck “High scores only” to see all ingested parcels (including unscored or lower scores).`;
     }
@@ -144,6 +158,8 @@ export default function ParcelsPage() {
   })();
 
   const applyProspectShortlist = () => {
+    // Default to Washington when no geography is chosen so the shortlist can load.
+    if (!stateFips && !countyFips) setStateFips("53");
     setZoningTier("prospect");
     setSuitability("vacant_or_underutilized");
     setSort("identification");
@@ -155,8 +171,8 @@ export default function ParcelsPage() {
     <div className="page-content">
       <p className="muted" style={{ marginTop: 0 }}>
         Ranked prospects for every county: zoning (curated or WAZA provisional), vacant/underutilized sites, and
-        demand proximity. Humans review before any owner outreach. Use <strong>Prospect shortlist</strong> per county,
-        or browse all inventory with filters below.
+        demand proximity. Choose a <strong>state</strong> to load parcels (nothing loads until then). Humans review
+        before any owner outreach. Use <strong>Prospect shortlist</strong> after picking a state or county.
       </p>
       <div className="panel" style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
         <button type="button" className="primary" onClick={applyProspectShortlist}>
@@ -171,7 +187,7 @@ export default function ParcelsPage() {
               setCountyFips("");
             }}
           >
-            <option value="">All states</option>
+            <option value="">Select a state</option>
             <option value="24">{STATE_NAMES["24"]} (MD)</option>
             <option value="53">{STATE_NAMES["53"]} (WA)</option>
           </select>
@@ -247,7 +263,12 @@ export default function ParcelsPage() {
             ))}
           </select>
         </label>
-        <button type="button" className="primary" onClick={() => void load()} disabled={loading}>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => void load()}
+          disabled={loading || !hasGeography}
+        >
           {loading ? "Loading…" : "Refresh"}
         </button>
       </div>
