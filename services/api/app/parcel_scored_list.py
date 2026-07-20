@@ -25,6 +25,29 @@ from parking_core.suitability import (
 )
 from parking_core.waza_provisional import PROVISIONAL_WAZA_GENERAL
 
+# King Present Use codes that are not buildable lots (must stay in sync with
+# parking_core.suitability._KING_NON_DEVELOPABLE_PRESENT_USE).
+_NON_DEVELOPABLE_LANDUSE_CDS = (
+    "149",
+    "150",
+    "266",
+    "267",
+    "323",
+    "324",
+    "325",
+    "326",
+    "327",
+    "328",
+    "330",
+    "331",
+    "332",
+    "333",
+    "334",
+    "335",
+    "336",
+    "337",
+)
+
 SuitabilityFilter = Literal["vacant", "underutilized", "vacant_or_underutilized"]
 
 _NUMERIC_RE = r"^[0-9]+(\.[0-9]+)?$"
@@ -63,8 +86,20 @@ def _suitability_where(suitability: str) -> Any | None:
         use_txt.like("%COMMERCIAL PARKING%"),
         use_txt.like("%PARKING GARAGE%"),
     )
+    non_developable = or_(
+        dor.in_(_NON_DEVELOPABLE_LANDUSE_CDS),
+        orig.op("~")(r"(^|-)(" + "|".join(_NON_DEVELOPABLE_LANDUSE_CDS) + r")$"),
+        use_txt.like("%RIGHT OF WAY%"),
+        use_txt.like("%RIGHT-OF-WAY%"),
+        use_txt.like("%EASEMENT%"),
+        use_txt.like("%TIDELAND%"),
+        use_txt.like("%WATER BODY%"),
+        use_txt.like("%OPEN SPACE%"),
+        use_txt.like("%FOREST LAND%"),
+    )
     vacant = and_(
         ~existing_parking,
+        ~non_developable,
         or_(
             and_(bldg.isnot(None), bldg <= 0, land.isnot(None), land > 0),
             use_txt.like("%VACANT%"),
@@ -388,6 +423,43 @@ def _geography_prefix(county_fips: str, state_fips: str) -> tuple[str | None, st
     return None, None
 
 
+def _vacant_sql_predicate(alias: str = "p") -> str:
+    """Raw SQL fragment: assessor-vacant and not parking / ROW / park / utility."""
+    cds = ", ".join(f"'{c}'" for c in _NON_DEVELOPABLE_LANDUSE_CDS)
+    return f"""
+      NOT (
+        NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') = '46'
+        OR NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') IN ('159', '180', '182')
+        OR COALESCE({alias}.raw_properties->>'ORIG_LANDUSE_CD', '') ~ '(^|-)(159|180|182)$'
+        OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%AUTOMOBILE PARKING%'
+        OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%PARKING LOT%'
+        OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%COMMERCIAL PARKING%'
+        OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%PARKING GARAGE%'
+      )
+      AND NOT (
+        NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') IN ({cds})
+        OR COALESCE({alias}.raw_properties->>'ORIG_LANDUSE_CD', '')
+             ~ '(^|-)({"|".join(_NON_DEVELOPABLE_LANDUSE_CDS)})$'
+        OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%RIGHT OF WAY%'
+        OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%RIGHT-OF-WAY%'
+        OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%EASEMENT%'
+        OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%TIDELAND%'
+        OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%WATER BODY%'
+        OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%OPEN SPACE%'
+        OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%FOREST LAND%'
+      )
+      AND (
+        (
+          NULLIF(REPLACE({alias}.raw_properties->>'VALUE_BLDG', ',', ''), '') ~ '^[0-9]+(\\.[0-9]+)?$'
+          AND NULLIF(REPLACE({alias}.raw_properties->>'VALUE_BLDG', ',', ''), '')::float <= 0
+          AND NULLIF(REPLACE({alias}.raw_properties->>'VALUE_LAND', ',', ''), '') ~ '^[0-9]+(\\.[0-9]+)?$'
+          AND NULLIF(REPLACE({alias}.raw_properties->>'VALUE_LAND', ',', ''), '')::float > 0
+        )
+        OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%VACANT%'
+      )
+    """
+
+
 def _top_parcel_ids_by_score(
     db: Session,
     *,
@@ -396,22 +468,30 @@ def _top_parcel_ids_by_score(
     county_fips: str,
     state_fips: str,
     overfetch: int | None = None,
+    suitability: str | None = None,
 ) -> list[uuid.UUID]:
     """Walk ``ix_parcel_scores_profile_total_score`` and keep parcels in geography.
 
     Avoids pivoting every score row in the state (which timed out at 90s+ for WA).
+    When ``suitability='vacant'``, filters in SQL so the top page is bare lots
+    (not improved buildings that happen to score high).
     """
     cap = min(max(limit, 1), 2000)
     fetch_n = min(max(overfetch or cap, cap), 5000)
     exact, prefix = _geography_prefix(county_fips, state_fips)
+    suit = (suitability or "").strip().lower()
+    vacant_clause = ""
+    if suit == "vacant":
+        vacant_clause = f" AND ({_vacant_sql_predicate('p')})"
     if exact:
         sql = text(
-            """
+            f"""
             SELECT ps.parcel_id
             FROM parcel_scores ps
             JOIN parcels p ON p.id = ps.parcel_id
             WHERE ps.score_profile = :profile
               AND p.county_fips = :exact_county
+              {vacant_clause}
             ORDER BY ps.total_score DESC NULLS LAST, ps.created_at DESC
             LIMIT :lim
             """
@@ -419,12 +499,13 @@ def _top_parcel_ids_by_score(
         params: dict[str, Any] = {"profile": profile, "exact_county": exact, "lim": fetch_n}
     elif prefix:
         sql = text(
-            """
+            f"""
             SELECT ps.parcel_id
             FROM parcel_scores ps
             JOIN parcels p ON p.id = ps.parcel_id
             WHERE ps.score_profile = :profile
               AND p.county_fips LIKE :state_prefix
+              {vacant_clause}
             ORDER BY ps.total_score DESC NULLS LAST, ps.created_at DESC
             LIMIT :lim
             """
@@ -592,8 +673,11 @@ def query_parcels_scored_list(
 
     # Fast path: geography selected, suitability/tier applied after hydrate.
     # Keep overfetch modest — large LIMIT+JOIN walks on parcel_scores time out for WA.
+    # Vacant is applied in the score walk SQL so we do not overfetch improved buildings.
     if cf or st:
-        if suit in ("not_existing_parking", "existing_parking"):
+        if suit == "vacant":
+            overfetch = min(cap * 4, 200)
+        elif suit in ("not_existing_parking", "existing_parking"):
             # Parking-coded lots are sparse among top scores.
             overfetch = min(cap * 8, 400)
         elif suit or tier or min_entitlement_score is not None:
@@ -608,6 +692,7 @@ def query_parcels_scored_list(
             county_fips=cf,
             state_fips=st,
             overfetch=overfetch,
+            suitability=suit if suit == "vacant" else None,
         )
         rows = _hydrate_scored_rows(db, ids, sort=sort)
         if tier in ("prospect", "prospects"):

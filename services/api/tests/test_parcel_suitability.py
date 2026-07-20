@@ -51,6 +51,19 @@ def test_vacant_not_parking_when_dor_not_46() -> None:
     assert s["is_existing_parking"] is False
 
 
+def test_row_utility_not_vacant_even_with_zero_building() -> None:
+    # King Present Use 332 = Right Of Way / Utility / Road.
+    s = compute_parcel_suitability({"LANDUSE_CD": "332", "VALUE_BLDG": "0", "VALUE_LAND": "3186300"})
+    assert s["suitability"] == "unknown"
+    assert s["is_vacant_land"] is False
+
+
+def test_vacant_commercial_king_309_still_vacant() -> None:
+    s = compute_parcel_suitability({"LANDUSE_CD": "309", "VALUE_BLDG": "0", "VALUE_LAND": "1040300"})
+    assert s["suitability"] == "vacant"
+    assert s["is_vacant_land"] is True
+
+
 def test_vacant_when_land_use_text_says_vacant() -> None:
     s = compute_parcel_suitability({"LANDUSE_CD": "VACANT COMMERCIAL"})
     assert s["is_vacant_land"] is True

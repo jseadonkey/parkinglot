@@ -71,7 +71,7 @@ export default function ParcelsPage() {
   const [stateFips, setStateFips] = useState("");
   const [countyFips, setCountyFips] = useState("");
   const [zoningTier, setZoningTier] = useState("");
-  const [suitability, setSuitability] = useState("not_existing_parking");
+  const [suitability, setSuitability] = useState("vacant");
   const [qualifiedOnly, setQualifiedOnly] = useState(false);
   const [counties, setCounties] = useState<PilotCounty[]>([]);
   const [rows, setRows] = useState<ParcelRow[]>([]);
@@ -166,7 +166,7 @@ export default function ParcelsPage() {
     // Default to Washington when no geography is chosen so the shortlist can load.
     if (!stateFips && !countyFips) setStateFips("53");
     setZoningTier("prospect");
-    setSuitability("vacant_or_underutilized");
+    setSuitability("vacant");
     setSort("identification");
     setQualifiedOnly(false);
     setLimit(100);
@@ -235,12 +235,12 @@ export default function ParcelsPage() {
         <label className="muted">
           Site suitability{" "}
           <select value={suitability} onChange={(e) => setSuitability(e.target.value)}>
-            <option value="">Any site</option>
-            <option value="not_existing_parking">Hide already-parking</option>
             <option value="vacant">Vacant land</option>
-            <option value="underutilized">Underutilized</option>
             <option value="vacant_or_underutilized">Vacant or underutilized</option>
+            <option value="underutilized">Underutilized</option>
+            <option value="not_existing_parking">Hide already-parking</option>
             <option value="existing_parking">Already parking only</option>
+            <option value="">Any site</option>
           </select>
         </label>
         <label className="muted" style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>

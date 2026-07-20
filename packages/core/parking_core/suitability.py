@@ -65,6 +65,39 @@ _VACANT_USE_TOKENS: tuple[str, ...] = ("VACANT", "UNIMPROVED", "UNDEVELOPED")
 _WA_DOR_PARKING = {"46"}
 # King County Present Use codes commonly seen as ORIG_LANDUSE_CD tails (e.g. 33-180).
 _KING_PARKING_PRESENT_USE = {"159", "180", "182"}
+# King Present Use codes that are not developable surface-lot sites even when
+# VALUE_BLDG is $0 (ROW, water, parks, utilities, forest/open-space tax classes).
+_KING_NON_DEVELOPABLE_PRESENT_USE = {
+    "149",  # Park, Public
+    "150",  # Park, Private
+    "266",  # Utility, Public
+    "267",  # Utility, Private
+    "323",  # Reforestation
+    "324",  # Forest Land (class)
+    "325",  # Forest Land (desig)
+    "326",  # Open Space (curr use)
+    "327",  # Open Space (agric)
+    "328",  # Open Space timber/greenbelt
+    "330",  # Easement
+    "331",  # Reserve/Wilderness
+    "332",  # Right Of Way / Utility / Road
+    "333",  # River/Creek/Stream
+    "334",  # Tideland 1st
+    "335",  # Tideland 2nd
+    "336",  # Transferable Dev Rights
+    "337",  # Water Body, Fresh
+}
+_NON_DEVELOPABLE_USE_TOKENS: tuple[str, ...] = (
+    "RIGHT OF WAY",
+    "RIGHT-OF-WAY",
+    "EASEMENT",
+    "TIDELAND",
+    "WATER BODY",
+    "RESERVE/WILDERNESS",
+    "REFORESTATION",
+    "FOREST LAND",
+    "OPEN SPACE",
+)
 # Text tokens (assessor descriptions / Baltimore use strings).
 _PARKING_USE_TOKENS: tuple[str, ...] = (
     "AUTOMOBILE PARKING",
@@ -111,21 +144,9 @@ def _present_use_tail(code: str) -> str:
     return text
 
 
-def is_existing_parking_use(raw_properties: dict[str, Any] | None) -> bool:
-    """True when assessor land-use already says this parcel is parking."""
-    props = raw_properties or {}
-    for key in ("LANDUSE_CD", "landuse_cd", "ORIG_LANDUSE_CD", "orig_landuse_cd"):
-        raw = _text(props, (key,))
-        if raw is None:
-            continue
-        code = raw.strip()
-        if code in _WA_DOR_PARKING:
-            return True
-        # King often stores Present Use directly in LANDUSE_CD (159/180/182).
-        if code in _KING_PARKING_PRESENT_USE or _present_use_tail(code) in _KING_PARKING_PRESENT_USE:
-            return True
-    # Broader text scan across common use fields (includes Baltimore USEGROUP / SDAT).
-    blob_parts: list[str] = []
+def _use_blob(props: dict[str, Any]) -> str:
+    """Uppercased concat of common land-use / present-use fields."""
+    parts: list[str] = []
     for key in (
         *_LANDUSE_KEYS,
         "USEGROUP",
@@ -139,9 +160,40 @@ def is_existing_parking_use(raw_properties: dict[str, Any] | None) -> bool:
     ):
         val = props.get(key)
         if val is not None and str(val).strip():
-            blob_parts.append(str(val))
-    blob = " ".join(blob_parts).upper()
+            parts.append(str(val))
+    return " ".join(parts).upper()
+
+
+def is_existing_parking_use(raw_properties: dict[str, Any] | None) -> bool:
+    """True when assessor land-use already says this parcel is parking."""
+    props = raw_properties or {}
+    for key in ("LANDUSE_CD", "landuse_cd", "ORIG_LANDUSE_CD", "orig_landuse_cd"):
+        raw = _text(props, (key,))
+        if raw is None:
+            continue
+        code = raw.strip()
+        if code in _WA_DOR_PARKING:
+            return True
+        # King often stores Present Use directly in LANDUSE_CD (159/180/182).
+        if code in _KING_PARKING_PRESENT_USE or _present_use_tail(code) in _KING_PARKING_PRESENT_USE:
+            return True
+    blob = _use_blob(props)
     return any(tok in blob for tok in _PARKING_USE_TOKENS)
+
+
+def is_non_developable_use(raw_properties: dict[str, Any] | None) -> bool:
+    """True for ROW, water, parks, utilities, forest/open-space — not a buildable lot."""
+    props = raw_properties or {}
+    for key in ("LANDUSE_CD", "landuse_cd", "ORIG_LANDUSE_CD", "orig_landuse_cd"):
+        raw = _text(props, (key,))
+        if raw is None:
+            continue
+        code = raw.strip()
+        tail = _present_use_tail(code)
+        if code in _KING_NON_DEVELOPABLE_PRESENT_USE or tail in _KING_NON_DEVELOPABLE_PRESENT_USE:
+            return True
+    blob = _use_blob(props)
+    return any(tok in blob for tok in _NON_DEVELOPABLE_USE_TOKENS)
 
 
 def compute_parcel_suitability(raw_properties: dict[str, Any] | None) -> dict[str, Any]:
@@ -157,6 +209,7 @@ def compute_parcel_suitability(raw_properties: dict[str, Any] | None) -> dict[st
     use = _text(props, _LANDUSE_KEYS)
     use_upper = (use or "").upper()
     existing_parking = is_existing_parking_use(props)
+    non_developable = is_non_developable_use(props)
 
     improvement_ratio: float | None = None
     if bldg is not None and land is not None:
@@ -166,13 +219,16 @@ def compute_parcel_suitability(raw_properties: dict[str, Any] | None) -> dict[st
 
     vacant_by_value = bldg is not None and bldg <= 0 and (land or 0) > 0
     vacant_by_use = any(tok in use_upper for tok in _VACANT_USE_TOKENS)
-    is_vacant = bool(vacant_by_value or vacant_by_use)
+    # ROW / water / park / utility with $0 building is not a vacant lot to convert.
+    is_vacant = bool((vacant_by_value or vacant_by_use) and not non_developable)
 
     # Existing parking wins even when building value is $0 (common for open lots).
     if existing_parking:
         category = EXISTING_PARKING
     elif is_vacant:
         category = VACANT
+    elif non_developable:
+        category = UNKNOWN
     elif improvement_ratio is not None and improvement_ratio <= UNDERUTILIZED_MAX_IMPROVEMENT_RATIO:
         category = UNDERUTILIZED
     elif improvement_ratio is not None:
