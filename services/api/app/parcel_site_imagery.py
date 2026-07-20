@@ -26,7 +26,7 @@ _USER_AGENT = "parkinglot-operator-console/1.0 (parcel site imagery)"
 # Lot outline styling (high contrast on aerial imagery).
 _OUTLINE_RGBA = (255, 214, 32, 255)
 _FILL_RGBA = (255, 214, 32, 55)
-_OUTLINE_WIDTH = 3
+_OUTLINE_WIDTH = 4
 
 
 @dataclass(frozen=True)
