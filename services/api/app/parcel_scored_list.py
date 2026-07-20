@@ -47,6 +47,23 @@ _NON_DEVELOPABLE_LANDUSE_CDS = (
     "336",
     "337",
 )
+# True vacant King Present Use codes (sync with parking_core._KING_VACANT_PRESENT_USE).
+_VACANT_LANDUSE_CDS = ("299", "300", "301", "309", "316")
+# King Present Use codebook — when LANDUSE_CD is one of these, require vacant codes
+# (sync with parking_core._KING_PRESENT_USE_CODES).
+_KING_PRESENT_USE_CDS = (
+    "2", "3", "4", "5", "6", "7", "8", "9", "11", "16", "17", "18", "20", "25", "29",
+    "38", "48", "49", "51", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64",
+    "96", "101", "104", "105", "106", "118", "122", "126", "130", "137", "138", "140",
+    "141", "142", "143", "145", "146", "147", "149", "150", "152", "153", "156", "157",
+    "159", "160", "161", "162", "163", "165", "166", "167", "168", "171", "172", "173",
+    "179", "180", "182", "183", "184", "185", "186", "188", "189", "190", "191", "193",
+    "194", "195", "202", "210", "216", "223", "245", "246", "247", "252", "261", "262",
+    "263", "264", "266", "267", "271", "272", "273", "274", "275", "276", "277", "278",
+    "279", "280", "299", "300", "301", "309", "316", "323", "324", "325", "326", "327",
+    "328", "330", "331", "332", "333", "334", "335", "336", "337", "339", "340", "341",
+    "342",
+)
 
 SuitabilityFilter = Literal["vacant", "underutilized", "vacant_or_underutilized"]
 
@@ -97,12 +114,17 @@ def _suitability_where(suitability: str) -> Any | None:
         use_txt.like("%OPEN SPACE%"),
         use_txt.like("%FOREST LAND%"),
     )
+    value_vacant = and_(bldg.isnot(None), bldg <= 0, land.isnot(None), land > 0)
+    # King Present Use in LANDUSE_CD: only vacant codes (or VACANT text) count.
+    # Other counties / non-King numeric DOR codes still use the value heuristic.
+    king_coded = dor.in_(_KING_PRESENT_USE_CDS)
     vacant = and_(
         ~existing_parking,
         ~non_developable,
         or_(
-            and_(bldg.isnot(None), bldg <= 0, land.isnot(None), land > 0),
+            dor.in_(_VACANT_LANDUSE_CDS),
             use_txt.like("%VACANT%"),
+            and_(value_vacant, ~king_coded),
         ),
     )
     underutil = and_(
@@ -426,6 +448,9 @@ def _geography_prefix(county_fips: str, state_fips: str) -> tuple[str | None, st
 def _vacant_sql_predicate(alias: str = "p") -> str:
     """Raw SQL fragment: assessor-vacant and not parking / ROW / park / utility."""
     cds = ", ".join(f"'{c}'" for c in _NON_DEVELOPABLE_LANDUSE_CDS)
+    vac = ", ".join(f"'{c}'" for c in _VACANT_LANDUSE_CDS)
+    king = ", ".join(f"'{c}'" for c in _KING_PRESENT_USE_CDS)
+    non_dev_re = "|".join(_NON_DEVELOPABLE_LANDUSE_CDS)
     return f"""
       NOT (
         NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') = '46'
@@ -439,7 +464,7 @@ def _vacant_sql_predicate(alias: str = "p") -> str:
       AND NOT (
         NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') IN ({cds})
         OR COALESCE({alias}.raw_properties->>'ORIG_LANDUSE_CD', '')
-             ~ '(^|-)({"|".join(_NON_DEVELOPABLE_LANDUSE_CDS)})$'
+             ~ '(^|-)({non_dev_re})$'
         OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%RIGHT OF WAY%'
         OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%RIGHT-OF-WAY%'
         OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%EASEMENT%'
@@ -449,13 +474,18 @@ def _vacant_sql_predicate(alias: str = "p") -> str:
         OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%FOREST LAND%'
       )
       AND (
-        (
+        NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') IN ({vac})
+        OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%VACANT%'
+        OR (
           NULLIF(REPLACE({alias}.raw_properties->>'VALUE_BLDG', ',', ''), '') ~ '^[0-9]+(\\.[0-9]+)?$'
           AND NULLIF(REPLACE({alias}.raw_properties->>'VALUE_BLDG', ',', ''), '')::float <= 0
           AND NULLIF(REPLACE({alias}.raw_properties->>'VALUE_LAND', ',', ''), '') ~ '^[0-9]+(\\.[0-9]+)?$'
           AND NULLIF(REPLACE({alias}.raw_properties->>'VALUE_LAND', ',', ''), '')::float > 0
+          AND (
+            NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') IS NULL
+            OR NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') NOT IN ({king})
+          )
         )
-        OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%VACANT%'
       )
     """
 

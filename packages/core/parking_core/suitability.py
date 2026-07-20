@@ -67,6 +67,23 @@ _WA_DOR_PARKING = {"46"}
 _KING_PARKING_PRESENT_USE = {"159", "180", "182"}
 # King County Present Use codes that mean undeveloped land (true vacant lots).
 _KING_VACANT_PRESENT_USE = {"299", "300", "301", "309", "316"}
+# Full King Present Use codebook (kca102). When LANDUSE_CD matches one of these,
+# $0 building value alone is not enough — only the vacant codes above count.
+_KING_PRESENT_USE_CODES = frozenset(
+    {
+        "2", "3", "4", "5", "6", "7", "8", "9", "11", "16", "17", "18", "20", "25", "29",
+        "38", "48", "49", "51", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64",
+        "96", "101", "104", "105", "106", "118", "122", "126", "130", "137", "138", "140",
+        "141", "142", "143", "145", "146", "147", "149", "150", "152", "153", "156", "157",
+        "159", "160", "161", "162", "163", "165", "166", "167", "168", "171", "172", "173",
+        "179", "180", "182", "183", "184", "185", "186", "188", "189", "190", "191", "193",
+        "194", "195", "202", "210", "216", "223", "245", "246", "247", "252", "261", "262",
+        "263", "264", "266", "267", "271", "272", "273", "274", "275", "276", "277", "278",
+        "279", "280", "299", "300", "301", "309", "316", "323", "324", "325", "326", "327",
+        "328", "330", "331", "332", "333", "334", "335", "336", "337", "339", "340", "341",
+        "342",
+    }
+)
 # King Present Use codes that are not developable surface-lot sites even when
 # VALUE_BLDG is $0 (ROW, water, parks, utilities, forest/open-space tax classes).
 _KING_NON_DEVELOPABLE_PRESENT_USE = {
@@ -235,7 +252,7 @@ def compute_parcel_suitability(raw_properties: dict[str, Any] | None) -> dict[st
     vacant_by_value = bldg is not None and bldg <= 0 and (land or 0) > 0
     vacant_by_use = any(tok in use_upper for tok in _VACANT_USE_TOKENS)
     king_use = _king_present_use_code(props)
-    if king_use is not None:
+    if king_use is not None and king_use in _KING_PRESENT_USE_CODES:
         # King stores Present Use in LANDUSE_CD. $0 building on a coded office /
         # government / residential use is not a bare lot — require vacant codes.
         if king_use in _KING_VACANT_PRESENT_USE:
@@ -252,7 +269,12 @@ def compute_parcel_suitability(raw_properties: dict[str, Any] | None) -> dict[st
         category = VACANT
     elif non_developable:
         category = UNKNOWN
-    elif improvement_ratio is not None and improvement_ratio <= UNDERUTILIZED_MAX_IMPROVEMENT_RATIO:
+    elif (
+        bldg is not None
+        and bldg > 0
+        and improvement_ratio is not None
+        and improvement_ratio <= UNDERUTILIZED_MAX_IMPROVEMENT_RATIO
+    ):
         category = UNDERUTILIZED
     elif improvement_ratio is not None:
         category = IMPROVED

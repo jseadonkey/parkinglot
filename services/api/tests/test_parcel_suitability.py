@@ -58,6 +58,13 @@ def test_row_utility_not_vacant_even_with_zero_building() -> None:
     assert s["is_vacant_land"] is False
 
 
+def test_governmental_zero_building_not_vacant() -> None:
+    # King 172 = Governmental Service — not a bare lot just because VALUE_BLDG is $0.
+    s = compute_parcel_suitability({"LANDUSE_CD": "172", "VALUE_BLDG": "0", "VALUE_LAND": "2000000"})
+    assert s["is_vacant_land"] is False
+    assert s["suitability"] == "improved"
+
+
 def test_vacant_commercial_king_309_still_vacant() -> None:
     s = compute_parcel_suitability({"LANDUSE_CD": "309", "VALUE_BLDG": "0", "VALUE_LAND": "1040300"})
     assert s["suitability"] == "vacant"
