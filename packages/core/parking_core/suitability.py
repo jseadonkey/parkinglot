@@ -65,6 +65,8 @@ _VACANT_USE_TOKENS: tuple[str, ...] = ("VACANT", "UNIMPROVED", "UNDEVELOPED")
 _WA_DOR_PARKING = {"46"}
 # King County Present Use codes commonly seen as ORIG_LANDUSE_CD tails (e.g. 33-180).
 _KING_PARKING_PRESENT_USE = {"159", "180", "182"}
+# King County Present Use codes that mean undeveloped land (true vacant lots).
+_KING_VACANT_PRESENT_USE = {"299", "300", "301", "309", "316"}
 # King Present Use codes that are not developable surface-lot sites even when
 # VALUE_BLDG is $0 (ROW, water, parks, utilities, forest/open-space tax classes).
 _KING_NON_DEVELOPABLE_PRESENT_USE = {
@@ -164,6 +166,19 @@ def _use_blob(props: dict[str, Any]) -> str:
     return " ".join(parts).upper()
 
 
+def _king_present_use_code(raw_properties: dict[str, Any] | None) -> str | None:
+    """Return King-style Present Use code when LANDUSE_CD / ORIG looks numeric."""
+    props = raw_properties or {}
+    for key in ("LANDUSE_CD", "landuse_cd", "ORIG_LANDUSE_CD", "orig_landuse_cd"):
+        raw = _text(props, (key,))
+        if raw is None:
+            continue
+        tail = _present_use_tail(raw)
+        if tail.isdigit():
+            return tail
+    return None
+
+
 def is_existing_parking_use(raw_properties: dict[str, Any] | None) -> bool:
     """True when assessor land-use already says this parcel is parking."""
     props = raw_properties or {}
@@ -219,6 +234,14 @@ def compute_parcel_suitability(raw_properties: dict[str, Any] | None) -> dict[st
 
     vacant_by_value = bldg is not None and bldg <= 0 and (land or 0) > 0
     vacant_by_use = any(tok in use_upper for tok in _VACANT_USE_TOKENS)
+    king_use = _king_present_use_code(props)
+    if king_use is not None:
+        # King stores Present Use in LANDUSE_CD. $0 building on a coded office /
+        # government / residential use is not a bare lot — require vacant codes.
+        if king_use in _KING_VACANT_PRESENT_USE:
+            vacant_by_use = True
+        elif king_use not in _KING_PARKING_PRESENT_USE and king_use not in _KING_NON_DEVELOPABLE_PRESENT_USE:
+            vacant_by_value = False
     # ROW / water / park / utility with $0 building is not a vacant lot to convert.
     is_vacant = bool((vacant_by_value or vacant_by_use) and not non_developable)
 
