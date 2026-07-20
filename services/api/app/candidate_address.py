@@ -40,8 +40,47 @@ def _latest_score(profile: str):
 
 
 def _missing_address_sql() -> str:
-    present = " OR ".join(f"(raw_properties ? '{key}')" for key in (*ADDRESS_KEYS, *FALLBACK_ADDRESS_KEYS))
-    return f"(raw_properties is null or not ({present}))"
+    """True when no usable street address is present (empty/ZIP-only keys count as missing).
+
+    Older logic used ``raw_properties ? 'SITUS_ADDRESS'`` (key exists). Assessor rows often
+    store a null/blank ``SITUS_ADDRESS`` key, so those parcels were never backfilled and the
+    operator list kept showing "No property address on file".
+    """
+    usable_bits: list[str] = []
+    for key in (*ADDRESS_KEYS, *FALLBACK_ADDRESS_KEYS, "SITUS_LINE1", "situs_line1", "LOC_STREET"):
+        val = f"btrim(coalesce(raw_properties->>'{key}', ''))"
+        usable_bits.append(
+            f"""(
+              nullif({val}, '') is not null
+              AND {val} !~ '^[0-9]{{5}}(-[0-9]{{4}})?$'
+              AND (
+                {val} ~ '[0-9]'
+                OR {val} ~* '\\m(ST|STREET|AVE|AVENUE|DR|DRIVE|RD|ROAD|BLVD|WAY|LN|LANE|CT|COURT|PL|PLACE|HWY)\\M'
+              )
+            )"""
+        )
+    # Composed line1 + city (same rule as has_usable_situs).
+    line1 = (
+        "btrim(coalesce(raw_properties->>'SITUS_LINE1', "
+        "raw_properties->>'situs_line1', raw_properties->>'LOC_STREET', ''))"
+    )
+    city = (
+        "btrim(coalesce(raw_properties->>'SITUS_CITY', "
+        "raw_properties->>'situs_city', raw_properties->>'SITUS_CITY_NM', ''))"
+    )
+    street_type = (
+        r"\m(ST|STREET|AVE|AVENUE|DR|DRIVE|RD|ROAD|BLVD|WAY|LN|LANE|CT|COURT|PL|PLACE|HWY)\M"
+    )
+    usable_bits.append(
+        f"""(
+          nullif({line1}, '') is not null
+          AND nullif({city}, '') is not null
+          AND {line1} !~ '^[0-9]{{5}}(-[0-9]{{4}})?$'
+          AND ({line1} ~ '[0-9]' OR {line1} ~* '{street_type}')
+        )"""
+    )
+    has_usable = " OR ".join(usable_bits)
+    return f"NOT ({has_usable})"
 
 
 def _target_candidate_score_filters():
