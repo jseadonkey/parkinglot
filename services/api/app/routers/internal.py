@@ -627,6 +627,7 @@ def parcels_scored_list(
             surface_kind=r.surface_kind,
             surface_paved_fraction=r.surface_paved_fraction,
             surface_source=r.surface_source,
+            looks_like_parking=r.looks_like_parking,
             revenue=(
                 _revenue_summary_read(revenue_by_parcel[str(r.parcel_id)])
                 if str(r.parcel_id) in revenue_by_parcel

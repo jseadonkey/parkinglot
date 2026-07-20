@@ -35,6 +35,7 @@ type ParcelRow = {
   surface_kind?: string | null;
   surface_paved_fraction?: number | null;
   surface_source?: string | null;
+  looks_like_parking?: boolean | null;
   revenue: ParcelRevenueSummary | null;
 };
 
@@ -271,7 +272,7 @@ export default function ParcelsPage() {
             checked={preferPaved}
             onChange={(e) => setPreferPaved(e.target.checked)}
           />
-          Prefer paved (asphalt / commercial vacant first)
+          Prefer paved vacant (hide grass; drop lots that look like parking)
         </label>
         <label className="muted">
           Surface{" "}
@@ -388,7 +389,9 @@ export default function ParcelsPage() {
                 <td>{countyLine(countyLabel, p.county_fips)}</td>
                 <td>{p.zoning_code ?? "—"}</td>
                 <td>
-                  {p.suitability ? (
+                  {p.looks_like_parking || p.suitability === "existing_parking" ? (
+                    <span className="badge badge-err">Already parking</span>
+                  ) : p.suitability ? (
                     <span className={suitabilityBadgeClass(p.suitability)}>
                       {SUITABILITY_LABEL[p.suitability] ?? p.suitability}
                     </span>

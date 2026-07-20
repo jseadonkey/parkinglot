@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Any, Literal
 
@@ -203,6 +203,7 @@ class ParcelScoredRowData:
     surface_kind: str | None = None
     surface_paved_fraction: float | None = None
     surface_source: str | None = None
+    looks_like_parking: bool = False
 
 
 def _combined_score_value(
@@ -692,6 +693,63 @@ def _hydrate_scored_rows(
     return ordered
 
 
+def _enrich_rows_aerial_surface(db: Session, rows: list[ParcelScoredRowData]) -> list[ParcelScoredRowData]:
+    """Fetch aerial tiles and refine paved / active-parking labels (vacant shortlist)."""
+    if not rows:
+        return rows
+    from geoalchemy2.shape import to_shape
+
+    from app.parcel_deal_context import parcel_centroid_lat_lon
+    from app.parcel_surface import enrich_surfaces_from_aerial
+
+    ids = [r.parcel_id for r in rows]
+    parcels = list(db.scalars(select(Parcel).where(Parcel.id.in_(ids))).all())
+    by_pid = {p.id: p for p in parcels}
+    jobs: list[tuple[uuid.UUID, float, float, Any]] = []
+    for r in rows:
+        p = by_pid.get(r.parcel_id)
+        if p is None or p.footprint is None:
+            continue
+        centroid = parcel_centroid_lat_lon(p)
+        if centroid is None:
+            continue
+        try:
+            fp = to_shape(p.footprint)
+        except Exception:
+            continue
+        if fp is None or fp.is_empty:
+            continue
+        jobs.append((r.parcel_id, centroid[0], centroid[1], fp))
+    aerial = enrich_surfaces_from_aerial(jobs, max_workers=10, deadline_s=18.0)
+    out: list[ParcelScoredRowData] = []
+    for r in rows:
+        surf = aerial.get(r.parcel_id)
+        if surf is None:
+            out.append(r)
+            continue
+        kind = surf.kind
+        # Assessor prior still useful when aerial is inconclusive.
+        if kind == "unknown" and r.surface_kind:
+            kind = r.surface_kind
+        suit = r.suitability
+        vacant = r.is_vacant_land
+        if surf.looks_like_active_parking:
+            suit = "existing_parking"
+            vacant = False
+        out.append(
+            replace(
+                r,
+                surface_kind=kind,
+                surface_paved_fraction=surf.paved_fraction,
+                surface_source=surf.source,
+                looks_like_parking=bool(surf.looks_like_active_parking),
+                suitability=suit,
+                is_vacant_land=vacant,
+            )
+        )
+    return out
+
+
 def query_parcels_scored_list(
     db: Session,
     *,
@@ -723,15 +781,15 @@ def query_parcels_scored_list(
     tier = (zoning_tier or "").strip().lower()
     suit = (suitability or "").strip().lower()
     surf_filter = (surface or "").strip().lower()
-    want_paved = bool(prefer_paved) or surf_filter == "paved"
+    want_paved = bool(prefer_paved) or surf_filter in ("paved", "mostly_paved")
 
     # Fast path: geography selected, suitability/tier applied after hydrate.
     # Keep overfetch modest — large LIMIT+JOIN walks on parcel_scores time out for WA.
     # Vacant is applied in the score walk SQL so we do not overfetch improved buildings.
     if cf or st:
         if suit == "vacant":
-            # prefer_paved re-ranks in Python after hydrate — same overfetch as vacant.
-            overfetch = min(cap * 4, 200)
+            # Extra headroom: aerial may reclassify some vacant rows as already-parking.
+            overfetch = min(cap * 6, 300)
         elif suit in ("not_existing_parking", "existing_parking"):
             # Parking-coded lots are sparse among top scores.
             overfetch = min(cap * 8, 400)
@@ -751,6 +809,8 @@ def query_parcels_scored_list(
             prefer_paved=want_paved,
         )
         rows = _hydrate_scored_rows(db, ids, sort=sort)
+        if suit == "vacant":
+            rows = _enrich_rows_aerial_surface(db, rows)
         if tier in ("prospect", "prospects"):
             rows = [
                 r
@@ -767,21 +827,45 @@ def query_parcels_scored_list(
             "not_existing_parking",
         ):
             if suit == "vacant":
-                rows = [r for r in rows if r.suitability == "vacant"]
+                rows = [
+                    r
+                    for r in rows
+                    if r.suitability == "vacant" and not r.looks_like_parking
+                ]
             elif suit == "underutilized":
                 rows = [r for r in rows if r.suitability == "underutilized"]
             elif suit == "vacant_or_underutilized":
                 rows = [r for r in rows if r.suitability in ("vacant", "underutilized")]
             elif suit == "existing_parking":
-                rows = [r for r in rows if r.suitability == "existing_parking"]
+                rows = [
+                    r
+                    for r in rows
+                    if r.suitability == "existing_parking" or r.looks_like_parking
+                ]
             else:
-                rows = [r for r in rows if r.suitability != "existing_parking"]
-        if surf_filter in ("paved", "vegetated", "mixed", "unknown"):
+                rows = [
+                    r
+                    for r in rows
+                    if r.suitability != "existing_parking" and not r.looks_like_parking
+                ]
+        if surf_filter in ("paved", "mostly_paved"):
+            rows = [
+                r
+                for r in rows
+                if r.surface_kind == "paved"
+                or (
+                    r.surface_kind == "mixed"
+                    and (r.surface_paved_fraction or 0) >= 0.32
+                )
+            ]
+        elif surf_filter in ("vegetated", "mixed", "unknown"):
             rows = [r for r in rows if (r.surface_kind or "unknown") == surf_filter]
+        if want_paved and surf_filter not in ("paved", "mostly_paved"):
+            rows = [r for r in rows if (r.surface_kind or "unknown") != "vegetated"]
         if min_entitlement_score is not None:
             floor = float(min_entitlement_score)
             rows = [r for r in rows if r.entitlement_score is not None and r.entitlement_score >= floor]
-        if want_paved and surf_filter != "paved":
+        if want_paved:
             # Keep score order within paved / mixed / unknown / vegetated bands.
             def _band_key(row: ParcelScoredRowData) -> tuple[int, float, float]:
                 if sort == ENTITLEMENT:
@@ -792,8 +876,11 @@ def query_parcels_scored_list(
                     primary = row.identification_score
                 else:
                     primary = row.combined_score
+                mostly = row.surface_kind == "paved" or (
+                    row.surface_kind == "mixed" and (row.surface_paved_fraction or 0) >= 0.32
+                )
                 return (
-                    surface_sort_rank(row.surface_kind),
+                    surface_sort_rank(row.surface_kind, mostly_paved=mostly),
                     -(primary if primary is not None else float("-inf")),
                     -(row.created_at.timestamp() if row.created_at else 0.0),
                 )
