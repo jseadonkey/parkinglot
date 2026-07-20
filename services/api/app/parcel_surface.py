@@ -159,7 +159,7 @@ def classify_lot_surface_pixels(
                             draw.polygon(pts, fill=255)
                     mask = mask_img
             px = rgb.load()
-            paved = veg = veh = other = 0
+            paved = veg = veh = other = bright = 0
             step = 2 if w * h > 80_000 else 1
             for y in range(0, h, step):
                 for x in range(0, w, step):
@@ -168,6 +168,9 @@ def classify_lot_surface_pixels(
                     r, g, b = px[x, y]
                     if r + g + b < 40:
                         continue
+                    mx = max(r, g, b)
+                    if mx >= 165:
+                        bright += 1
                     if _is_vegetation(r, g, b):
                         veg += 1
                     elif _is_pavement(r, g, b):
@@ -182,6 +185,7 @@ def classify_lot_surface_pixels(
             pf = paved / total
             vf = veg / total
             veh_f = veh / total
+            bright_f = bright / total
             if pf >= 0.38 and pf >= vf + 0.05:
                 kind: SurfaceKind = "paved"
             elif vf >= 0.38 and vf >= pf + 0.05:
@@ -193,7 +197,10 @@ def classify_lot_surface_pixels(
             else:
                 kind = "vegetated" if vf >= 0.25 else "mixed"
             # Cars on asphalt → already an operating parking lot (poor prospect).
-            active = pf >= _ACTIVE_PARKING_MIN_PAVED and veh_f >= _ACTIVE_PARKING_MIN_VEHICLE
+            # Esri often renders car roofs as near-white / light gray (bright_f).
+            active = (pf >= _ACTIVE_PARKING_MIN_PAVED and veh_f >= _ACTIVE_PARKING_MIN_VEHICLE) or (
+                pf >= _ACTIVE_PARKING_BRIGHT_PAVED and bright_f >= _ACTIVE_PARKING_MIN_BRIGHT
+            )
             return LotSurface(
                 kind=kind,
                 paved_fraction=round(pf, 3),
@@ -242,7 +249,7 @@ def classify_parcel_aerial_surface(
         return LotSurface(kind="unknown", source="unknown")
     minx, miny, maxx, maxy = footprint.bounds
     bbox = _padded_bbox(minx, miny, maxx, maxy, pad_frac=0.08, min_pad_m=6.0, min_span_m=36.0)
-    # Keep geographic aspect; small canvas for speed.
+    # Keep geographic aspect; medium canvas so car roofs stay visible.
     mid_lat = (bbox[1] + bbox[3]) / 2.0
     import math
 
@@ -252,11 +259,11 @@ def classify_parcel_aerial_surface(
     geo_h_m = max((bbox[3] - bbox[1]) * m_per_deg_lat, 1.0)
     geo_aspect = geo_w_m / geo_h_m
     if geo_aspect >= 1.0:
-        fetch_w = 220
-        fetch_h = max(64, int(round(220 / geo_aspect)))
+        fetch_w = 400
+        fetch_h = max(80, int(round(400 / geo_aspect)))
     else:
-        fetch_h = 220
-        fetch_w = max(64, int(round(220 * geo_aspect)))
+        fetch_h = 400
+        fetch_w = max(80, int(round(400 * geo_aspect)))
     params = urllib.parse.urlencode(
         {
             "bbox": f"{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]}",
