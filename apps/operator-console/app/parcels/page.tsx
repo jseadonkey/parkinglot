@@ -114,7 +114,7 @@ export default function ParcelsPage() {
       else if (stateFips) params.set("state_fips", stateFips);
       if (zoningTier) params.set("zoning_tier", zoningTier);
       if (suitability) params.set("suitability", suitability);
-      params.set("include_revenue", "true");
+      params.set("include_revenue", "false");
       if (qualifiedOnly) params.set("qualified_only", "true");
       const res = await fetch(bridgeUrl(`internal/parcels/scored-list?${params}`), { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

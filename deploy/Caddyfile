@@ -24,5 +24,11 @@
 
 {$API_HOST} {
 	encode gzip
-	reverse_proxy api:8000
+	reverse_proxy api:8000 {
+		transport http {
+			response_header_timeout 120s
+			read_timeout 120s
+			write_timeout 120s
+		}
+	}
 }
