@@ -83,16 +83,27 @@ def _padded_bbox(
     maxx: float,
     maxy: float,
     *,
-    pad_frac: float = 0.28,
-    min_pad_m: float = 18.0,
+    pad_frac: float = 0.22,
+    min_pad_m: float = 12.0,
+    min_span_m: float = 52.0,
 ) -> tuple[float, float, float, float]:
-    """Expand footprint bbox with fractional + minimum meter padding."""
+    """Expand footprint bbox with padding and a minimum ground span (readable thumbs)."""
     mid_lat = (miny + maxy) / 2.0
     m_per_deg_lat = 110_540.0
     m_per_deg_lon = 111_320.0 * max(0.2, math.cos(math.radians(mid_lat)))
     pad_x = max((maxx - minx) * pad_frac, min_pad_m / m_per_deg_lon)
     pad_y = max((maxy - miny) * pad_frac, min_pad_m / m_per_deg_lat)
-    return minx - pad_x, miny - pad_y, maxx + pad_x, maxy + pad_y
+    minx, miny, maxx, maxy = minx - pad_x, miny - pad_y, maxx + pad_x, maxy + pad_y
+    # Skinny slivers need a floor span so the lot isn't a 1px hairline after letterbox.
+    need_x = min_span_m / m_per_deg_lon
+    need_y = min_span_m / m_per_deg_lat
+    if (maxx - minx) < need_x:
+        cx = (minx + maxx) / 2.0
+        minx, maxx = cx - need_x / 2.0, cx + need_x / 2.0
+    if (maxy - miny) < need_y:
+        cy = (miny + maxy) / 2.0
+        miny, maxy = cy - need_y / 2.0, cy + need_y / 2.0
+    return minx, miny, maxx, maxy
 
 
 def _match_aspect(
@@ -217,6 +228,16 @@ def fetch_satellite_image(
         else:
             fetch_h = height
             fetch_w = max(32, int(round(height * geo_aspect)))
+        # Never fetch a tiny strip — upscale pixel size then letterbox (keeps outline readable).
+        min_px = 96
+        if fetch_w < min_px:
+            scale = min_px / max(fetch_w, 1)
+            fetch_w = min_px
+            fetch_h = min(height, max(min_px, int(round(fetch_h * scale))))
+        if fetch_h < min_px:
+            scale = min_px / max(fetch_h, 1)
+            fetch_h = min_px
+            fetch_w = min(width, max(min_px, int(round(fetch_w * scale))))
         letterbox = fetch_w != width or fetch_h != height
     else:
         half = max(0.00035, min(0.0012, 0.00055 / max(0.35, math.cos(math.radians(lat)))))
