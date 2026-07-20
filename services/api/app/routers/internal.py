@@ -549,6 +549,14 @@ def parcels_scored_list(
             "existing_parking, not_existing_parking"
         ),
     ),
+    prefer_paved: bool = Query(
+        default=False,
+        description="When true, rank paved/commercial vacant above grassy residential vacant",
+    ),
+    surface: str | None = Query(
+        default=None,
+        description="Filter by surface kind: paved, vegetated, mixed, unknown",
+    ),
     qualified_only: bool = Query(
         default=False,
         description="Only parcels with latest entitlement ≥ pilot qualified floor",
@@ -587,6 +595,8 @@ def parcels_scored_list(
         zoning_tier=zoning_tier,
         suitability=suitability,
         min_entitlement_score=floor if qualified_only else None,
+        prefer_paved=prefer_paved,
+        surface=surface,
     )
     revenue_ids: list[uuid.UUID] = []
     if include_revenue and revenue_max_rows > 0:
@@ -614,6 +624,9 @@ def parcels_scored_list(
             identification_score=r.identification_score,
             combined_score=r.combined_score,
             created_at=r.created_at,
+            surface_kind=r.surface_kind,
+            surface_paved_fraction=r.surface_paved_fraction,
+            surface_source=r.surface_source,
             revenue=(
                 _revenue_summary_read(revenue_by_parcel[str(r.parcel_id)])
                 if str(r.parcel_id) in revenue_by_parcel

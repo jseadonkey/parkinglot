@@ -668,6 +668,9 @@ class ParcelScoredListRow(BaseModel):
     combined_score: float | None
     created_at: datetime
     revenue: ParcelRevenueSummaryRead | None = None
+    surface_kind: str | None = None
+    surface_paved_fraction: float | None = None
+    surface_source: str | None = None
 
 
 class ParcelScoredListResponse(BaseModel):

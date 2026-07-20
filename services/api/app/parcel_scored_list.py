@@ -200,6 +200,9 @@ class ParcelScoredRowData:
     is_vacant_land: bool | None = None
     improvement_ratio: float | None = None
     situs_address_approximate: bool = False
+    surface_kind: str | None = None
+    surface_paved_fraction: float | None = None
+    surface_source: str | None = None
 
 
 def _combined_score_value(
@@ -499,12 +502,15 @@ def _top_parcel_ids_by_score(
     state_fips: str,
     overfetch: int | None = None,
     suitability: str | None = None,
+    prefer_paved: bool = False,
 ) -> list[uuid.UUID]:
     """Walk ``ix_parcel_scores_profile_total_score`` and keep parcels in geography.
 
     Avoids pivoting every score row in the state (which timed out at 90s+ for WA).
     When ``suitability='vacant'``, filters in SQL so the top page is bare lots
     (not improved buildings that happen to score high).
+    When ``prefer_paved``, commercial/industrial vacant (often asphalt) ranks above
+    residential vacant (often grass) before score.
     """
     cap = min(max(limit, 1), 2000)
     fetch_n = min(max(overfetch or cap, cap), 5000)
@@ -513,6 +519,15 @@ def _top_parcel_ids_by_score(
     vacant_clause = ""
     if suit == "vacant":
         vacant_clause = f" AND ({_vacant_sql_predicate('p')})"
+    paved_order = ""
+    if prefer_paved:
+        paved_order = """
+              CASE
+                WHEN NULLIF(BTRIM(p.raw_properties->>'LANDUSE_CD'), '') IN ('309', '316') THEN 0
+                WHEN NULLIF(BTRIM(p.raw_properties->>'LANDUSE_CD'), '') IN ('300', '301', '299') THEN 2
+                ELSE 1
+              END,
+        """
     if exact:
         sql = text(
             f"""
@@ -522,7 +537,7 @@ def _top_parcel_ids_by_score(
             WHERE ps.score_profile = :profile
               AND p.county_fips = :exact_county
               {vacant_clause}
-            ORDER BY ps.total_score DESC NULLS LAST, ps.created_at DESC
+            ORDER BY {paved_order} ps.total_score DESC NULLS LAST, ps.created_at DESC
             LIMIT :lim
             """
         )
@@ -536,7 +551,7 @@ def _top_parcel_ids_by_score(
             WHERE ps.score_profile = :profile
               AND p.county_fips LIKE :state_prefix
               {vacant_clause}
-            ORDER BY ps.total_score DESC NULLS LAST, ps.created_at DESC
+            ORDER BY {paved_order} ps.total_score DESC NULLS LAST, ps.created_at DESC
             LIMIT :lim
             """
         )
@@ -638,6 +653,9 @@ def _hydrate_scored_rows(
         ent_tier = parcel_zoning_tier(county_fips=cfips, zoning_code=z_code, raw_properties=raw_dict)
         suit = compute_parcel_suitability(raw_dict)
         situs = _situs_address(raw_dict, brief_dict)
+        from app.parcel_surface import assessor_surface_hint
+
+        surf = assessor_surface_hint(raw_dict)
         by_id[pid] = ParcelScoredRowData(
             parcel_id=pid,
             apn=apn,
@@ -657,6 +675,9 @@ def _hydrate_scored_rows(
             is_vacant_land=suit["is_vacant_land"],
             improvement_ratio=suit["improvement_ratio"],
             situs_address_approximate=situs_address_approximate(raw_dict, situs_address=situs),
+            surface_kind=surf.kind,
+            surface_paved_fraction=surf.paved_fraction,
+            surface_source=surf.source,
         )
 
     def sort_key(row: ParcelScoredRowData) -> tuple[float, float]:
@@ -688,24 +709,36 @@ def query_parcels_scored_list(
     zoning_tier: str | None = None,
     suitability: str | None = None,
     min_entitlement_score: float | None = None,
+    prefer_paved: bool = False,
+    surface: str | None = None,
 ) -> list[ParcelScoredRowData]:
     """Parcels with latest scores, ordered by ``sort`` (null scores last).
 
     When a state/county is set (normal operator-console path), uses an index walk on
     ``parcel_scores (score_profile, total_score)`` so statewide lists finish in seconds
     instead of scanning every WA score row.
+
+    ``prefer_paved`` floats commercial/industrial vacant (often asphalt) above grassy
+    residential vacant while keeping the chosen score sort within each band.
+    ``surface`` filters to paved | vegetated | mixed when set.
     """
+    from app.parcel_surface import surface_sort_rank
+
     cap = min(max(limit, 1), 2000)
     cf = (county_fips or "").strip()
     st = (state_fips or "").strip()
     tier = (zoning_tier or "").strip().lower()
     suit = (suitability or "").strip().lower()
+    surf_filter = (surface or "").strip().lower()
+    want_paved = bool(prefer_paved) or surf_filter == "paved"
 
     # Fast path: geography selected, suitability/tier applied after hydrate.
     # Keep overfetch modest — large LIMIT+JOIN walks on parcel_scores time out for WA.
     # Vacant is applied in the score walk SQL so we do not overfetch improved buildings.
     if cf or st:
-        if suit == "vacant":
+        if suit == "vacant" and want_paved:
+            overfetch = min(cap * 8, 400)
+        elif suit == "vacant":
             overfetch = min(cap * 4, 200)
         elif suit in ("not_existing_parking", "existing_parking"):
             # Parking-coded lots are sparse among top scores.
@@ -723,6 +756,7 @@ def query_parcels_scored_list(
             state_fips=st,
             overfetch=overfetch,
             suitability=suit if suit == "vacant" else None,
+            prefer_paved=want_paved,
         )
         rows = _hydrate_scored_rows(db, ids, sort=sort)
         if tier in ("prospect", "prospects"):
@@ -750,9 +784,29 @@ def query_parcels_scored_list(
                 rows = [r for r in rows if r.suitability == "existing_parking"]
             else:
                 rows = [r for r in rows if r.suitability != "existing_parking"]
+        if surf_filter in ("paved", "vegetated", "mixed", "unknown"):
+            rows = [r for r in rows if (r.surface_kind or "unknown") == surf_filter]
         if min_entitlement_score is not None:
             floor = float(min_entitlement_score)
             rows = [r for r in rows if r.entitlement_score is not None and r.entitlement_score >= floor]
+        if want_paved and surf_filter != "paved":
+            # Keep score order within paved / mixed / unknown / vegetated bands.
+            def _band_key(row: ParcelScoredRowData) -> tuple[int, float, float]:
+                if sort == ENTITLEMENT:
+                    primary = row.entitlement_score
+                elif sort == STRATEGIC:
+                    primary = row.strategic_score
+                elif sort == IDENTIFICATION:
+                    primary = row.identification_score
+                else:
+                    primary = row.combined_score
+                return (
+                    surface_sort_rank(row.surface_kind),
+                    -(primary if primary is not None else float("-inf")),
+                    -(row.created_at.timestamp() if row.created_at else 0.0),
+                )
+
+            rows = sorted(rows, key=_band_key)
         return rows[:cap]
 
     # Legacy full-scan path (no geography) — kept for API callers; UI requires a state.
@@ -829,6 +883,9 @@ def query_parcels_scored_list(
         ent_tier = parcel_zoning_tier(county_fips=cfips, zoning_code=z_code, raw_properties=raw_dict)
         suit_info = compute_parcel_suitability(raw_dict)
         situs = _situs_address(raw_dict, brief_dict)
+        from app.parcel_surface import assessor_surface_hint
+
+        surf = assessor_surface_hint(raw_dict)
         out.append(
             ParcelScoredRowData(
                 parcel_id=pid,
@@ -849,6 +906,9 @@ def query_parcels_scored_list(
                 is_vacant_land=suit_info["is_vacant_land"],
                 improvement_ratio=suit_info["improvement_ratio"],
                 situs_address_approximate=situs_address_approximate(raw_dict, situs_address=situs),
+                surface_kind=surf.kind,
+                surface_paved_fraction=surf.paved_fraction,
+                surface_source=surf.source,
             ),
         )
     return out

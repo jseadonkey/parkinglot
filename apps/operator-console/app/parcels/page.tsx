@@ -32,6 +32,9 @@ type ParcelRow = {
   suitability: string | null;
   is_vacant_land: boolean | null;
   improvement_ratio: number | null;
+  surface_kind?: string | null;
+  surface_paved_fraction?: number | null;
+  surface_source?: string | null;
   revenue: ParcelRevenueSummary | null;
 };
 
@@ -43,10 +46,23 @@ const SUITABILITY_LABEL: Record<string, string> = {
   unknown: "Unknown",
 };
 
+const SURFACE_LABEL: Record<string, string> = {
+  paved: "Paved",
+  vegetated: "Grass / dirt",
+  mixed: "Mixed surface",
+  unknown: "Surface ?",
+};
+
 function suitabilityBadgeClass(s: string | null): string {
   if (s === "vacant") return "badge badge-ok";
   if (s === "underutilized") return "badge badge-warn";
   if (s === "existing_parking") return "badge badge-err";
+  return "badge";
+}
+
+function surfaceBadgeClass(s: string | null | undefined): string {
+  if (s === "paved") return "badge badge-ok";
+  if (s === "vegetated") return "badge badge-warn";
   return "badge";
 }
 
@@ -72,6 +88,8 @@ export default function ParcelsPage() {
   const [countyFips, setCountyFips] = useState("");
   const [zoningTier, setZoningTier] = useState("");
   const [suitability, setSuitability] = useState("vacant");
+  const [preferPaved, setPreferPaved] = useState(true);
+  const [surfaceOnly, setSurfaceOnly] = useState("");
   const [qualifiedOnly, setQualifiedOnly] = useState(false);
   const [counties, setCounties] = useState<PilotCounty[]>([]);
   const [rows, setRows] = useState<ParcelRow[]>([]);
@@ -119,6 +137,8 @@ export default function ParcelsPage() {
       else if (stateFips) params.set("state_fips", stateFips);
       if (zoningTier) params.set("zoning_tier", zoningTier);
       if (suitability) params.set("suitability", suitability);
+      if (preferPaved) params.set("prefer_paved", "true");
+      if (surfaceOnly) params.set("surface", surfaceOnly);
       params.set("include_revenue", "false");
       if (qualifiedOnly) params.set("qualified_only", "true");
       const res = await fetch(bridgeUrl(`internal/parcels/scored-list?${params}`), { cache: "no-store" });
@@ -134,7 +154,7 @@ export default function ParcelsPage() {
     } finally {
       setLoading(false);
     }
-  }, [limit, sort, stateFips, countyFips, zoningTier, suitability, qualifiedOnly]);
+  }, [limit, sort, stateFips, countyFips, zoningTier, suitability, preferPaved, surfaceOnly, qualifiedOnly]);
 
   useEffect(() => {
     void load();
@@ -167,6 +187,8 @@ export default function ParcelsPage() {
     if (!stateFips && !countyFips) setStateFips("53");
     setZoningTier("prospect");
     setSuitability("vacant");
+    setPreferPaved(true);
+    setSurfaceOnly("paved");
     setSort("identification");
     setQualifiedOnly(false);
     setLimit(100);
@@ -246,6 +268,23 @@ export default function ParcelsPage() {
         <label className="muted" style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
           <input
             type="checkbox"
+            checked={preferPaved}
+            onChange={(e) => setPreferPaved(e.target.checked)}
+          />
+          Prefer paved (asphalt / commercial vacant first)
+        </label>
+        <label className="muted">
+          Surface{" "}
+          <select value={surfaceOnly} onChange={(e) => setSurfaceOnly(e.target.value)}>
+            <option value="">Any surface</option>
+            <option value="paved">Paved only</option>
+            <option value="vegetated">Grass / dirt only</option>
+            <option value="mixed">Mixed only</option>
+          </select>
+        </label>
+        <label className="muted" style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+          <input
+            type="checkbox"
             checked={qualifiedOnly}
             onChange={(e) => setQualifiedOnly(e.target.checked)}
           />
@@ -307,6 +346,7 @@ export default function ParcelsPage() {
               <th>County</th>
               <th>Zoning</th>
               <th>Site</th>
+              <th>Surface</th>
               <th>Zoning tier</th>
               <th>Est. stalls</th>
               <th>Est. gross/mo</th>
@@ -351,6 +391,15 @@ export default function ParcelsPage() {
                   {p.suitability ? (
                     <span className={suitabilityBadgeClass(p.suitability)}>
                       {SUITABILITY_LABEL[p.suitability] ?? p.suitability}
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td>
+                  {p.surface_kind ? (
+                    <span className={surfaceBadgeClass(p.surface_kind)} title={p.surface_source ?? undefined}>
+                      {SURFACE_LABEL[p.surface_kind] ?? p.surface_kind}
                     </span>
                   ) : (
                     "—"
