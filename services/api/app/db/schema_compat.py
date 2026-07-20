@@ -6,7 +6,7 @@ from sqlalchemy import inspect
 from sqlalchemy.orm import Session, load_only
 
 from app.db.models import Parcel
-from app.parcel_scored_list import _mailing_address, _situs_address
+from app.parcel_scored_list import _mailing_address, _situs_address, situs_address_approximate
 from app.schemas import ParcelRead
 from app.zoning_entitlement import effective_zoning_code, parcel_zoning_symbol, parcel_zoning_tier
 
@@ -67,12 +67,14 @@ def parcel_to_read(db: Session, row: Parcel) -> ParcelRead:
         zoning_code=zoning_code,
         raw_properties=raw_dict,
     )
+    situs = _situs_address(raw_dict, brief_dict)
     return ParcelRead(
         id=row.id,
         apn=row.apn,
         county_fips=row.county_fips,
-        situs_address=_situs_address(raw_dict, brief_dict),
+        situs_address=situs,
         mailing_address=_mailing_address(raw_dict, brief_dict),
+        situs_address_approximate=situs_address_approximate(raw_dict, situs_address=situs),
         lot_sqft=row.lot_sqft,
         zoning_code=zoning_code,
         zoning_allows_surface_parking=row.zoning_allows_surface_parking,

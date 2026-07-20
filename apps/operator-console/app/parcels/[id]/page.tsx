@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { ParcelSitePhoto } from "../../../components/ParcelSitePhoto";
+import { SitusAddressDisplay } from "../../../components/SitusAddressDisplay";
 import { bridgeUrl } from "../../../lib/paths";
 import {
   outcomeBadgeClass,
@@ -23,6 +24,7 @@ type Parcel = {
   apn: string;
   county_fips: string;
   situs_address: string | null;
+  situs_address_approximate?: boolean | null;
   mailing_address: string | null;
   lot_sqft: number | null;
   zoning_code: string | null;
@@ -345,7 +347,10 @@ export default function ParcelDetailPage() {
               <span>
                 {parcel.situs_address ? (
                   <>
-                    {parcel.situs_address}
+                    <SitusAddressDisplay
+                      address={parcel.situs_address}
+                      approximate={parcel.situs_address_approximate}
+                    />
                     {parcel.mailing_address ? (
                       <span className="muted"> · Mailing: {parcel.mailing_address}</span>
                     ) : null}

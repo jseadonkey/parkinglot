@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -18,6 +19,7 @@ from parking_enrichment.batchdata_skip_trace_client import property_address_for_
 FALLBACK_SOURCE = "nominatim_centroid_fallback"
 STATUS_KEY = "WA_ADDRESS_BACKFILL_STATUS"
 ATTEMPTED_AT_KEY = "WA_ADDRESS_BACKFILL_ATTEMPTED_AT"
+_HOUSE_NUMBER_PREFIX = re.compile(r"^\d+[A-Za-z]?(?:-\d+[A-Za-z]?)?\s+")
 
 
 def _latest_identification_score():
@@ -106,6 +108,8 @@ def backfill_wa_centroid_addresses(
             props["SITUS_ZIP"] = zip_code
         props[STATUS_KEY] = "fallback_address_found"
         props["ADDRESS_BACKFILL_SOURCE"] = FALLBACK_SOURCE
+        # No leading house number → nearby-street estimate for the operator UI.
+        props["SITUS_ADDRESS_APPROXIMATE"] = not bool(_HOUSE_NUMBER_PREFIX.match((street or "").strip()))
         found += 1
         if not dry_run:
             parcel.raw_properties = props

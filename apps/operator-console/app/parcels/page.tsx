@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { ParcelSitePhoto } from "../../components/ParcelSitePhoto";
+import { SitusAddressDisplay } from "../../components/SitusAddressDisplay";
 import { STATE_NAMES } from "../../lib/marketScope";
 import { bridgeUrl } from "../../lib/paths";
 import { formatMonthlyGross, formatStallRange, type ParcelRevenueSummary } from "../../lib/revenueDisplay";
@@ -17,6 +18,7 @@ type ParcelRow = {
   apn: string;
   county_fips: string;
   situs_address: string | null;
+  situs_address_approximate?: boolean | null;
   mailing_address: string | null;
   zoning_code: string | null;
   zoning_principal_use_symbol: string | null;
@@ -324,7 +326,10 @@ export default function ParcelsPage() {
               <td>
                 {p.situs_address ? (
                   <>
-                    <span>{p.situs_address}</span>
+                    <SitusAddressDisplay
+                      address={p.situs_address}
+                      approximate={p.situs_address_approximate}
+                    />
                     {p.mailing_address ? (
                       <div className="muted" style={{ marginTop: "0.2rem", fontSize: "0.8rem" }}>
                         Mailing: {p.mailing_address}

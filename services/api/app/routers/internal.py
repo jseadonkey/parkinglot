@@ -600,6 +600,7 @@ def parcels_scored_list(
             county_fips=r.county_fips,
             situs_address=r.situs_address,
             mailing_address=r.mailing_address,
+            situs_address_approximate=r.situs_address_approximate,
             zoning_code=r.zoning_code,
             lot_sqft=r.lot_sqft,
             zoning_principal_use_symbol=r.zoning_principal_use_symbol,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -114,6 +115,7 @@ class ParcelScoredRowData:
     suitability: str | None = None
     is_vacant_land: bool | None = None
     improvement_ratio: float | None = None
+    situs_address_approximate: bool = False
 
 
 def _combined_score_value(
@@ -213,6 +215,41 @@ def _situs_address(raw_properties: dict[str, Any] | None, brief: dict[str, Any] 
     if brief_val and looks_like_street(brief_val):
         return brief_val
     return None
+
+
+_HOUSE_NUMBER_PREFIX = re.compile(r"^\d+[A-Za-z]?(?:-\d+[A-Za-z]?)?\s+")
+
+
+def _street_line_for_house_check(address: str) -> str:
+    """Use the street portion before city/state when the value is a full line."""
+    text = address.strip()
+    if "," in text:
+        return text.split(",", 1)[0].strip()
+    return text
+
+
+def situs_address_approximate(
+    raw_properties: dict[str, Any] | None,
+    *,
+    situs_address: str | None = None,
+) -> bool:
+    """True when the shown situs is a nearby-street fallback (no house number).
+
+    Centroid Nominatim fills often return only a road name (e.g. ``Ramsay Way``) when the
+    assessor site address is blank — common for vacant commercial lots.
+    """
+    props = raw_properties or {}
+    flag = props.get("SITUS_ADDRESS_APPROXIMATE")
+    if flag is True or str(flag).strip().lower() in {"1", "true", "yes", "y"}:
+        return True
+    source = str(props.get("ADDRESS_BACKFILL_SOURCE") or "").strip().lower()
+    if "nominatim" not in source and "centroid" not in source:
+        return False
+    line = situs_address or _situs_address(props, None)
+    if not line:
+        return False
+    street = _street_line_for_house_check(line)
+    return not bool(_HOUSE_NUMBER_PREFIX.match(street))
 
 
 def _mailing_address(raw_properties: dict[str, Any] | None, brief: dict[str, Any] | None) -> str | None:
@@ -462,11 +499,12 @@ def _hydrate_scored_rows(
         symbol = parcel_zoning_symbol(county_fips=cfips, zoning_code=z_code, raw_properties=raw_dict)
         ent_tier = parcel_zoning_tier(county_fips=cfips, zoning_code=z_code, raw_properties=raw_dict)
         suit = compute_parcel_suitability(raw_dict)
+        situs = _situs_address(raw_dict, brief_dict)
         by_id[pid] = ParcelScoredRowData(
             parcel_id=pid,
             apn=apn,
             county_fips=cfips,
-            situs_address=_situs_address(raw_dict, brief_dict),
+            situs_address=situs,
             mailing_address=_mailing_address(raw_dict, brief_dict),
             zoning_code=z_code,
             lot_sqft=float(sqft) if sqft is not None else None,
@@ -480,6 +518,7 @@ def _hydrate_scored_rows(
             suitability=suit["suitability"],
             is_vacant_land=suit["is_vacant_land"],
             improvement_ratio=suit["improvement_ratio"],
+            situs_address_approximate=situs_address_approximate(raw_dict, situs_address=situs),
         )
 
     def sort_key(row: ParcelScoredRowData) -> tuple[float, float]:
@@ -632,12 +671,13 @@ def query_parcels_scored_list(
         symbol = parcel_zoning_symbol(county_fips=cfips, zoning_code=z_code, raw_properties=raw_dict)
         ent_tier = parcel_zoning_tier(county_fips=cfips, zoning_code=z_code, raw_properties=raw_dict)
         suit_info = compute_parcel_suitability(raw_dict)
+        situs = _situs_address(raw_dict, brief_dict)
         out.append(
             ParcelScoredRowData(
                 parcel_id=pid,
                 apn=apn,
                 county_fips=cfips,
-                situs_address=_situs_address(raw_dict, brief_dict),
+                situs_address=situs,
                 mailing_address=_mailing_address(raw_dict, brief_dict),
                 zoning_code=z_code,
                 lot_sqft=float(sqft) if sqft is not None else None,
@@ -651,6 +691,7 @@ def query_parcels_scored_list(
                 suitability=suit_info["suitability"],
                 is_vacant_land=suit_info["is_vacant_land"],
                 improvement_ratio=suit_info["improvement_ratio"],
+                situs_address_approximate=situs_address_approximate(raw_dict, situs_address=situs),
             ),
         )
     return out
