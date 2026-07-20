@@ -540,7 +540,11 @@ def parcels_scored_list(
     state_fips: str | None = Query(default=None, min_length=2, max_length=2),
     zoning_tier: str | None = Query(
         default=None,
-        description="Filter by entitlement tier: permitted, conditional, council, excluded",
+        description="Filter by entitlement tier: permitted, conditional, provisional, council, excluded, prospect",
+    ),
+    suitability: str | None = Query(
+        default=None,
+        description="Site suitability: vacant, underutilized, vacant_or_underutilized",
     ),
     qualified_only: bool = Query(
         default=False,
@@ -578,6 +582,7 @@ def parcels_scored_list(
         county_fips=county_fips,
         state_fips=state_fips,
         zoning_tier=zoning_tier,
+        suitability=suitability,
         min_entitlement_score=floor if qualified_only else None,
     )
     revenue_ids: list[uuid.UUID] = []

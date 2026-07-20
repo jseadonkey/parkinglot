@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
 
-from sqlalchemy import Float, and_, case, cast, desc, func, inspect, literal, nulls_last, or_, select
+from sqlalchemy import Float, and_, case, cast, desc, func, inspect, literal, nulls_last, or_, select, text
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore
@@ -281,6 +281,203 @@ def _latest_scores_pivot_subq(parcel_scope: Any) -> Any:
     )
 
 
+def _sort_driver_profile(sort: str) -> str:
+    """Profile whose ``total_score`` index we walk for top-N candidate selection."""
+    if sort == STRATEGIC:
+        return STRATEGIC
+    if sort == IDENTIFICATION:
+        return IDENTIFICATION
+    return ENTITLEMENT
+
+
+def _geography_prefix(county_fips: str, state_fips: str) -> tuple[str | None, str | None]:
+    """Return (exact_county, state_prefix) for SQL filters."""
+    cf = (county_fips or "").strip()
+    st = (state_fips or "").strip()
+    if cf:
+        return cf, None
+    if st:
+        return None, f"{st}%"
+    return None, None
+
+
+def _top_parcel_ids_by_score(
+    db: Session,
+    *,
+    profile: str,
+    limit: int,
+    county_fips: str,
+    state_fips: str,
+    overfetch: int | None = None,
+) -> list[uuid.UUID]:
+    """Walk ``ix_parcel_scores_profile_total_score`` and keep parcels in geography.
+
+    Avoids pivoting every score row in the state (which timed out at 90s+ for WA).
+    """
+    cap = min(max(limit, 1), 2000)
+    fetch_n = min(max(overfetch or cap, cap), 5000)
+    exact, prefix = _geography_prefix(county_fips, state_fips)
+    if exact:
+        sql = text(
+            """
+            SELECT ps.parcel_id
+            FROM parcel_scores ps
+            JOIN parcels p ON p.id = ps.parcel_id
+            WHERE ps.score_profile = :profile
+              AND p.county_fips = :exact_county
+            ORDER BY ps.total_score DESC NULLS LAST, ps.created_at DESC
+            LIMIT :lim
+            """
+        )
+        params: dict[str, Any] = {"profile": profile, "exact_county": exact, "lim": fetch_n}
+    elif prefix:
+        sql = text(
+            """
+            SELECT ps.parcel_id
+            FROM parcel_scores ps
+            JOIN parcels p ON p.id = ps.parcel_id
+            WHERE ps.score_profile = :profile
+              AND p.county_fips LIKE :state_prefix
+            ORDER BY ps.total_score DESC NULLS LAST, ps.created_at DESC
+            LIMIT :lim
+            """
+        )
+        params = {"profile": profile, "state_prefix": prefix, "lim": fetch_n}
+    else:
+        sql = text(
+            """
+            SELECT ps.parcel_id
+            FROM parcel_scores ps
+            WHERE ps.score_profile = :profile
+            ORDER BY ps.total_score DESC NULLS LAST, ps.created_at DESC
+            LIMIT :lim
+            """
+        )
+        params = {"profile": profile, "lim": fetch_n}
+    rows = db.execute(sql, params).all()
+    seen: set[uuid.UUID] = set()
+    out: list[uuid.UUID] = []
+    for (pid,) in rows:
+        if pid in seen:
+            continue
+        seen.add(pid)
+        out.append(pid)
+        if len(out) >= cap:
+            break
+    return out
+
+
+def _hydrate_scored_rows(
+    db: Session,
+    parcel_ids: list[uuid.UUID],
+    *,
+    sort: str,
+) -> list[ParcelScoredRowData]:
+    """Load parcel columns + latest three profile scores for a small id list."""
+    if not parcel_ids:
+        return []
+    has_owner_brief_col = _parcel_column_exists(db, "owner_outreach_brief")
+    brief_col = (
+        Parcel.owner_outreach_brief
+        if has_owner_brief_col
+        else literal(None).label("owner_outreach_brief")
+    )
+    # Latest score per profile for these parcels only.
+    ranked = (
+        select(
+            ParcelScore.parcel_id.label("parcel_id"),
+            ParcelScore.score_profile.label("score_profile"),
+            ParcelScore.total_score.label("total_score"),
+            func.row_number()
+            .over(
+                partition_by=(ParcelScore.parcel_id, ParcelScore.score_profile),
+                order_by=ParcelScore.created_at.desc(),
+            )
+            .label("rn"),
+        )
+        .where(ParcelScore.parcel_id.in_(parcel_ids))
+        .where(ParcelScore.score_profile.in_((ENTITLEMENT, STRATEGIC, IDENTIFICATION)))
+        .subquery()
+    )
+    pivot = (
+        select(
+            ranked.c.parcel_id,
+            func.max(ranked.c.total_score).filter(ranked.c.score_profile == ENTITLEMENT).label("ent_score"),
+            func.max(ranked.c.total_score).filter(ranked.c.score_profile == STRATEGIC).label("str_score"),
+            func.max(ranked.c.total_score).filter(ranked.c.score_profile == IDENTIFICATION).label("id_score"),
+        )
+        .where(ranked.c.rn == 1)
+        .group_by(ranked.c.parcel_id)
+        .subquery()
+    )
+    stmt = (
+        select(
+            Parcel.id,
+            Parcel.apn,
+            Parcel.county_fips,
+            Parcel.zoning_code,
+            Parcel.raw_properties,
+            brief_col,
+            Parcel.lot_sqft,
+            Parcel.created_at,
+            pivot.c.ent_score,
+            pivot.c.str_score,
+            pivot.c.id_score,
+        )
+        .outerjoin(pivot, Parcel.id == pivot.c.parcel_id)
+        .where(Parcel.id.in_(parcel_ids))
+    )
+    by_id: dict[uuid.UUID, ParcelScoredRowData] = {}
+    for r in db.execute(stmt).all():
+        pid, apn, cfips, zoning, raw_props, brief, sqft, created, ent_f, str_f, id_f = r
+        ent_f = float(ent_f) if ent_f is not None else None
+        str_f = float(str_f) if str_f is not None else None
+        id_f = float(id_f) if id_f is not None else None
+        raw_dict = raw_props if isinstance(raw_props, dict) else None
+        brief_dict = brief if isinstance(brief, dict) else None
+        z_code = effective_zoning_code(zoning, raw_dict)
+        symbol = parcel_zoning_symbol(county_fips=cfips, zoning_code=z_code, raw_properties=raw_dict)
+        ent_tier = parcel_zoning_tier(county_fips=cfips, zoning_code=z_code, raw_properties=raw_dict)
+        suit = compute_parcel_suitability(raw_dict)
+        by_id[pid] = ParcelScoredRowData(
+            parcel_id=pid,
+            apn=apn,
+            county_fips=cfips,
+            situs_address=_situs_address(raw_dict, brief_dict),
+            mailing_address=_mailing_address(raw_dict, brief_dict),
+            zoning_code=z_code,
+            lot_sqft=float(sqft) if sqft is not None else None,
+            zoning_principal_use_symbol=symbol,
+            zoning_entitlement_tier=ent_tier,
+            entitlement_score=ent_f,
+            strategic_score=str_f,
+            identification_score=id_f,
+            combined_score=_combined_score_value(ent_f, str_f, id_f),
+            created_at=created,
+            suitability=suit["suitability"],
+            is_vacant_land=suit["is_vacant_land"],
+            improvement_ratio=suit["improvement_ratio"],
+        )
+
+    def sort_key(row: ParcelScoredRowData) -> tuple[float, float]:
+        if sort == ENTITLEMENT:
+            primary = row.entitlement_score
+        elif sort == STRATEGIC:
+            primary = row.strategic_score
+        elif sort == IDENTIFICATION:
+            primary = row.identification_score
+        else:
+            primary = row.combined_score
+        return (
+            primary if primary is not None else float("-inf"),
+            row.created_at.timestamp() if row.created_at else 0.0,
+        )
+
+    ordered = [by_id[pid] for pid in parcel_ids if pid in by_id]
+    ordered.sort(key=sort_key, reverse=True)
+    return ordered
+
+
 def query_parcels_scored_list(
     db: Session,
     *,
@@ -292,11 +489,54 @@ def query_parcels_scored_list(
     suitability: str | None = None,
     min_entitlement_score: float | None = None,
 ) -> list[ParcelScoredRowData]:
-    """All parcels with latest score per profile, ordered by ``sort`` (null scores last)."""
+    """Parcels with latest scores, ordered by ``sort`` (null scores last).
+
+    When a state/county is set (normal operator-console path), uses an index walk on
+    ``parcel_scores (score_profile, total_score)`` so statewide lists finish in seconds
+    instead of scanning every WA score row.
+    """
     cap = min(max(limit, 1), 2000)
     cf = (county_fips or "").strip()
     st = (state_fips or "").strip()
     tier = (zoning_tier or "").strip().lower()
+    suit = (suitability or "").strip().lower()
+
+    # Fast path: geography selected, no SQL suitability predicate (applied after hydrate).
+    # Zoning-tier / qualified filters over-fetch then filter in Python.
+    if cf or st:
+        needs_filter = bool(tier or suit or min_entitlement_score is not None)
+        overfetch = cap * 40 if needs_filter else cap * 4
+        driver = _sort_driver_profile(sort)
+        ids = _top_parcel_ids_by_score(
+            db,
+            profile=driver,
+            limit=overfetch,
+            county_fips=cf,
+            state_fips=st,
+            overfetch=overfetch,
+        )
+        rows = _hydrate_scored_rows(db, ids, sort=sort)
+        if tier in ("prospect", "prospects"):
+            rows = [
+                r
+                for r in rows
+                if (r.zoning_entitlement_tier or "") in ("permitted", "conditional", "provisional")
+            ]
+        elif tier:
+            rows = [r for r in rows if (r.zoning_entitlement_tier or "") == tier]
+        if suit in ("vacant", "underutilized", "vacant_or_underutilized"):
+            if suit == "vacant":
+                rows = [r for r in rows if r.suitability == "vacant"]
+            elif suit == "underutilized":
+                rows = [r for r in rows if r.suitability == "underutilized"]
+            else:
+                rows = [r for r in rows if r.suitability in ("vacant", "underutilized")]
+        if min_entitlement_score is not None:
+            floor = float(min_entitlement_score)
+            rows = [r for r in rows if r.entitlement_score is not None and r.entitlement_score >= floor]
+        return rows[:cap]
+
+    # Legacy full-scan path (no geography) — kept for API callers; UI requires a state.
     parcel_scope = _parcel_scope_subq(county_fips=cf, state_fips=st, zoning_tier=tier)
     if parcel_scope is None:
         return []
@@ -368,7 +608,7 @@ def query_parcels_scored_list(
         z_code = effective_zoning_code(zoning, raw_dict)
         symbol = parcel_zoning_symbol(county_fips=cfips, zoning_code=z_code, raw_properties=raw_dict)
         ent_tier = parcel_zoning_tier(county_fips=cfips, zoning_code=z_code, raw_properties=raw_dict)
-        suit = compute_parcel_suitability(raw_dict)
+        suit_info = compute_parcel_suitability(raw_dict)
         out.append(
             ParcelScoredRowData(
                 parcel_id=pid,
@@ -385,9 +625,9 @@ def query_parcels_scored_list(
                 identification_score=id_f,
                 combined_score=_combined_score_value(ent_f, str_f, id_f),
                 created_at=created,
-                suitability=suit["suitability"],
-                is_vacant_land=suit["is_vacant_land"],
-                improvement_ratio=suit["improvement_ratio"],
+                suitability=suit_info["suitability"],
+                is_vacant_land=suit_info["is_vacant_land"],
+                improvement_ratio=suit_info["improvement_ratio"],
             ),
         )
     return out
