@@ -44,6 +44,10 @@ _STREET_HINT = re.compile(
     r"\b(ST|STREET|AVE|AVENUE|DR|DRIVE|RD|ROAD|BLVD|WAY|LN|LANE|CT|COURT|PL|PLACE|HWY)\b",
     re.I,
 )
+_NON_SITUS_ROAD = re.compile(
+    r"\b(trail|freeway|railway|railroad|interurban|bike\s*path)\b",
+    re.I,
+)
 
 ADDRESS_KEYS = (
     "PROPERTY_ADDRESS",
@@ -70,6 +74,8 @@ def _strip_str(val: Any) -> str | None:
 def looks_like_street(value: str | None) -> bool:
     text = (value or "").strip()
     if not text or _ZIP_ONLY.match(text):
+        return False
+    if _NON_SITUS_ROAD.search(text):
         return False
     if re.search(r"\d", text):
         return True

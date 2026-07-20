@@ -188,7 +188,7 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     }
   }
 
-  const headers: Record<string, string> = { Accept: "application/json" };
+  const headers: Record<string, string> = { Accept: "*/*" };
   if (isInternalPath(subpath) && internalKey) {
     headers["X-Internal-Key"] = internalKey;
   }
@@ -218,6 +218,25 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   } finally {
     clearTimeout(timeout);
   }
+
+  const upstreamType = res.headers.get("Content-Type") || "application/json";
+  const isBinary =
+    upstreamType.startsWith("image/") ||
+    upstreamType.startsWith("application/octet-stream") ||
+    upstreamType.startsWith("application/pdf");
+
+  if (isBinary) {
+    const buf = await res.arrayBuffer();
+    const outHeaders: Record<string, string> = {
+      "Content-Type": upstreamType,
+    };
+    const cacheControl = res.headers.get("Cache-Control");
+    if (cacheControl) outHeaders["Cache-Control"] = cacheControl;
+    const imageSource = res.headers.get("X-Parcel-Image-Source");
+    if (imageSource) outHeaders["X-Parcel-Image-Source"] = imageSource;
+    return new NextResponse(buf, { status: res.status, headers: outHeaders });
+  }
+
   const body = await res.text();
   if (subpath === "internal/stats/backlog-eta" && !res.ok) {
     return backlogEtaFallback(res.status);
@@ -228,7 +247,7 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   return new NextResponse(body, {
     status: res.status,
     headers: {
-      "Content-Type": res.headers.get("Content-Type") || "application/json",
+      "Content-Type": upstreamType,
       ...(statsCacheKey ? { "X-Bridge-Cache": "MISS" } : {}),
     },
   });

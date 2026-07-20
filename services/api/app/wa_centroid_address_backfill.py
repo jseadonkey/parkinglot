@@ -116,10 +116,11 @@ def backfill_wa_centroid_addresses(
         db.commit()
         write_audit(
             db,
+            actor="system",
             action="wa_centroid_address_backfill",
             entity_type="county",
             entity_id=county_fips or "53",
-            detail={
+            meta={
                 "limit": limit,
                 "selected": len(rows),
                 "found": found,

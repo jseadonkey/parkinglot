@@ -563,6 +563,11 @@ class Settings(BaseSettings):
     )
 
     lob_api_key: str = Field(default="", validation_alias=AliasChoices("LOB_API_KEY", "lob_api_key"))
+    # Optional — enables Google Street View Static thumbs on parcel pages (billing required).
+    google_maps_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("GOOGLE_MAPS_API_KEY", "google_maps_api_key"),
+    )
     lob_from_name: str = Field(default="", validation_alias=AliasChoices("LOB_FROM_NAME", "lob_from_name"))
     lob_from_address_line1: str = Field(
         default="",

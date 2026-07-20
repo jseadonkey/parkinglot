@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import { ParcelSitePhoto } from "../../../components/ParcelSitePhoto";
 import { bridgeUrl } from "../../../lib/paths";
 import {
   outcomeBadgeClass,
@@ -328,6 +329,7 @@ export default function ParcelDetailPage() {
 
       {parcel ? (
         <>
+          <ParcelSitePhoto parcelId={parcel.id} variant="hero" />
           <div className="panel">
             <div className="row">
               <div>

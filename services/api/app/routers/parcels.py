@@ -1,21 +1,29 @@
 from __future__ import annotations
 
 import uuid
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Parcel, ParcelScore, WorkflowRun
 from app.db.schema_compat import parcel_load_only, parcel_to_read
 from app.db.session import get_db
-from app.parcel_deal_context import build_parcel_deal_context
+from app.parcel_deal_context import build_parcel_deal_context, parcel_centroid_lat_lon
+from app.parcel_site_imagery import (
+    fetch_site_image,
+    satellite_map_url,
+    street_view_url,
+)
 from app.pipeline_funnel import identification_prescreen_floor, parcel_prescreen_qualified
 from app.schemas import (
     ParcelDealContextResponse,
     ParcelPipelineTaskResponse,
     ParcelRead,
     ParcelScoreRead,
+    ParcelSiteImageMeta,
     WorkflowRunRead,
 )
 from app.scoring_profiles import ENTITLEMENT, ScoreProfile
@@ -68,6 +76,57 @@ def get_parcel(parcel_id: uuid.UUID, db: Session = Depends(get_db)) -> ParcelRea
     if row is None:
         raise HTTPException(status_code=404, detail="parcel not found")
     return parcel_to_read(db, row)
+
+
+@router.get("/{parcel_id}/site-image-meta", response_model=ParcelSiteImageMeta)
+def get_parcel_site_image_meta(parcel_id: uuid.UUID, db: Session = Depends(get_db)) -> ParcelSiteImageMeta:
+    """Lat/lon + map deep links for the parcel footprint centroid."""
+    full = db.get(Parcel, parcel_id)
+    if full is None:
+        raise HTTPException(status_code=404, detail="parcel not found")
+    centroid = parcel_centroid_lat_lon(full)
+    if centroid is None:
+        return ParcelSiteImageMeta(parcel_id=str(parcel_id), available=False)
+    lat, lon = centroid
+    return ParcelSiteImageMeta(
+        parcel_id=str(parcel_id),
+        available=True,
+        lat=lat,
+        lon=lon,
+        street_view_url=street_view_url(lat, lon),
+        satellite_map_url=satellite_map_url(lat, lon),
+    )
+
+
+@router.get("/{parcel_id}/site-image")
+def get_parcel_site_image(
+    parcel_id: uuid.UUID,
+    source: Literal["auto", "street", "satellite"] = Query(default="auto"),
+    width: int = Query(default=480, ge=120, le=1280),
+    height: int = Query(default=360, ge=90, le=960),
+    db: Session = Depends(get_db),
+) -> Response:
+    """Property photo: Street View when GOOGLE_MAPS_API_KEY is set, else aerial satellite."""
+    full = db.get(Parcel, parcel_id)
+    if full is None:
+        raise HTTPException(status_code=404, detail="parcel not found")
+    centroid = parcel_centroid_lat_lon(full)
+    if centroid is None:
+        raise HTTPException(status_code=404, detail="parcel has no footprint for imagery")
+    lat, lon = centroid
+    image = fetch_site_image(lat, lon, source=source, width=width, height=height)
+    if image is None:
+        raise HTTPException(status_code=404, detail="no site imagery available")
+    return Response(
+        content=image.body,
+        media_type=image.content_type,
+        headers={
+            "Cache-Control": "public, max-age=86400",
+            "X-Parcel-Image-Source": image.source,
+            "X-Parcel-Image-Lat": f"{lat:.6f}",
+            "X-Parcel-Image-Lon": f"{lon:.6f}",
+        },
+    )
 
 
 @router.get("/{parcel_id}/workflow-runs", response_model=list[WorkflowRunRead])

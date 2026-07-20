@@ -27,6 +27,17 @@ class ParcelRead(BaseModel):
     created_at: datetime
 
 
+class ParcelSiteImageMeta(BaseModel):
+    """Map deep links for a parcel footprint centroid (operator site photo panel)."""
+
+    parcel_id: str
+    available: bool = False
+    lat: float | None = None
+    lon: float | None = None
+    street_view_url: str | None = None
+    satellite_map_url: str | None = None
+
+
 class RateCompRead(BaseModel):
     name: str
     lat: float

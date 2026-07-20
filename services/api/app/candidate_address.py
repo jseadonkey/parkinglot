@@ -46,6 +46,9 @@ def _missing_address_sql() -> str:
     store a null/blank ``SITUS_ADDRESS`` key, so those parcels were never backfilled and the
     operator list kept showing "No property address on file".
     """
+    street_type = (
+        r"\m(ST|STREET|AVE|AVENUE|DR|DRIVE|RD|ROAD|BLVD|WAY|LN|LANE|CT|COURT|PL|PLACE|HWY)\M"
+    )
     usable_bits: list[str] = []
     for key in (*ADDRESS_KEYS, *FALLBACK_ADDRESS_KEYS, "SITUS_LINE1", "situs_line1", "LOC_STREET"):
         val = f"btrim(coalesce(raw_properties->>'{key}', ''))"
@@ -53,10 +56,7 @@ def _missing_address_sql() -> str:
             f"""(
               nullif({val}, '') is not null
               AND {val} !~ '^[0-9]{{5}}(-[0-9]{{4}})?$'
-              AND (
-                {val} ~ '[0-9]'
-                OR {val} ~* '\\m(ST|STREET|AVE|AVENUE|DR|DRIVE|RD|ROAD|BLVD|WAY|LN|LANE|CT|COURT|PL|PLACE|HWY)\\M'
-              )
+              AND ({val} ~ '[0-9]' OR {val} ~* '{street_type}')
             )"""
         )
     # Composed line1 + city (same rule as has_usable_situs).
@@ -67,9 +67,6 @@ def _missing_address_sql() -> str:
     city = (
         "btrim(coalesce(raw_properties->>'SITUS_CITY', "
         "raw_properties->>'situs_city', raw_properties->>'SITUS_CITY_NM', ''))"
-    )
-    street_type = (
-        r"\m(ST|STREET|AVE|AVENUE|DR|DRIVE|RD|ROAD|BLVD|WAY|LN|LANE|CT|COURT|PL|PLACE|HWY)\M"
     )
     usable_bits.append(
         f"""(

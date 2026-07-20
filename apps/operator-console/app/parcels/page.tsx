@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { ParcelSitePhoto } from "../../components/ParcelSitePhoto";
 import { STATE_NAMES } from "../../lib/marketScope";
 import { bridgeUrl } from "../../lib/paths";
 import { formatMonthlyGross, formatStallRange, type ParcelRevenueSummary } from "../../lib/revenueDisplay";
@@ -290,6 +291,7 @@ export default function ParcelsPage() {
         <table className="data">
           <thead>
             <tr>
+              <th>Photo</th>
               <th>Combined</th>
               <th>Entitlement</th>
               <th>Strategic</th>
@@ -309,6 +311,9 @@ export default function ParcelsPage() {
           <tbody>
             {rows.map((p) => (
               <tr key={p.parcel_id}>
+                <td>
+                  <ParcelSitePhoto parcelId={p.parcel_id} variant="thumb" />
+                </td>
                 <td>
                   <strong>{fmtScore(p.combined_score)}</strong>
                 </td>

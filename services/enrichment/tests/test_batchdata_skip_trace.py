@@ -68,7 +68,23 @@ def test_situs_from_props_joins_wa_parts():
     assert out == ["555 W SMITH ST, KENT, WA, 98032"]
 
 
-def test_property_address_geocode_requires_assessor_city_zip(monkeypatch):
+def test_property_address_geocode_fills_from_nominatim_when_zip_only(monkeypatch):
+    monkeypatch.setattr(
+        "parking_enrichment.batchdata_skip_trace_client.reverse_geocode_street",
+        lambda *_a, **_k: {"street": "100 Main St", "city": "Kent", "state": "WA", "zip": "98032"},
+    )
+    props = {"SITUS_ZIP_NR": "98032"}  # ZIP only — common WaTech shape
+    addr = property_address_for_skip_trace(props, centroid_lat_lon=(47.38, -122.23))
+    assert addr == {"street": "100 Main St", "city": "Kent", "state": "WA", "zip": "98032"}
+    # Still refuse totally blank props (no assessor + geocode returned incomplete).
+    monkeypatch.setattr(
+        "parking_enrichment.batchdata_skip_trace_client.reverse_geocode_street",
+        lambda *_a, **_k: None,
+    )
+    assert property_address_for_skip_trace({}, centroid_lat_lon=(47.38, -122.23)) is None
+
+
+def test_property_address_geocode_prefers_assessor_city_zip(monkeypatch):
     monkeypatch.setattr(
         "parking_enrichment.batchdata_skip_trace_client.reverse_geocode_street",
         lambda *_a, **_k: {"street": "100 Main St", "city": "OSM", "state": "WA", "zip": "98032"},
@@ -76,8 +92,6 @@ def test_property_address_geocode_requires_assessor_city_zip(monkeypatch):
     props = {"SITUS_CITY_NM": "KENT", "SITUS_ZIP_NR": "98032"}
     addr = property_address_for_skip_trace(props, centroid_lat_lon=(47.38, -122.23))
     assert addr == {"street": "100 Main St", "city": "KENT", "state": "WA", "zip": "98032"}
-    assert property_address_for_skip_trace({}, centroid_lat_lon=(47.38, -122.23)) is None
-
 
 def test_should_skip_skip_trace_when_roll_has_phone_and_email():
     assert should_skip_skip_trace({"OWNER_PHONE": "2065550100", "OWNER_EMAIL": "a@b.com"}) is not None

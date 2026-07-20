@@ -34,7 +34,16 @@ _CITY_STATE_ZIP_TAIL = re.compile(
     r"^(?P<street>.+?)\s+(?P<city>[A-Z][A-Za-z .'-]+)\s+(?P<state>[A-Z]{2})\s+(?P<zip>\d{5})(?:-\d{4})?$"
 )
 _ZIP_ONLY = re.compile(r"^\d{5}(?:-\d{4})?$")
-_STREET_HINT = re.compile(r"\b(ST|STREET|AVE|AVENUE|DR|DRIVE|RD|ROAD|BLVD|WAY|LN|LANE|CT|COURT|PL|PLACE|HWY)\b", re.I)
+_STREET_HINT = re.compile(
+    r"\b(ST|STREET|AVE|AVENUE|DR|DRIVE|RD|ROAD|BLVD|WAY|LN|LANE|CT|COURT|PL|PLACE|HWY)\b",
+    re.I,
+)
+# OSM often returns trails/freeways for vacant downtown footprints — not property situs.
+_NON_SITUS_ROAD = re.compile(
+    r"\b(trail|freeway|railway|railroad|interurban|bike\s*path|footway)\b",
+    re.I,
+)
+_REVERSE_ZOOMS = (18, 17, 16, 15)
 
 
 def _strip_str(val: Any) -> str | None:
@@ -47,6 +56,8 @@ def _strip_str(val: Any) -> str | None:
 def _looks_like_street(value: str | None) -> bool:
     text = (value or "").strip()
     if not text or _ZIP_ONLY.match(text):
+        return False
+    if _NON_SITUS_ROAD.search(text):
         return False
     if re.search(r"\d", text):
         return True
@@ -175,61 +186,74 @@ def reverse_geocode_street(
     *,
     timeout_s: float = 12.0,
 ) -> dict[str, str] | None:
-    """Best-effort street line from parcel centroid (Nominatim; rate-limited)."""
-    _wait_for_nominatim_slot()
-    params = urllib.parse.urlencode(
-        {
-            "lat": f"{lat:.6f}",
-            "lon": f"{lon:.6f}",
-            "format": "json",
-            "addressdetails": "1",
-            "zoom": "18",
-        }
-    )
-    url = f"{NOMINATIM_REVERSE_URL}?{params}"
-    try:
-        req = urllib.request.Request(
-            url,
-            headers={"User-Agent": "parkinglot-skip-trace/1.0 (property situs backfill)"},
-            method="GET",
+    """Best-effort street line from parcel centroid (Nominatim; rate-limited).
+
+    Tries several zoom levels because vacant / park-adjacent footprints often reverse
+    to trails at zoom 18 but to a nearby named street at 16–17.
+    """
+    for zoom in _REVERSE_ZOOMS:
+        _wait_for_nominatim_slot()
+        params = urllib.parse.urlencode(
+            {
+                "lat": f"{lat:.6f}",
+                "lon": f"{lon:.6f}",
+                "format": "json",
+                "addressdetails": "1",
+                "zoom": str(zoom),
+            }
         )
-        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
-            data = json.loads(resp.read().decode("utf-8", errors="replace"))
-    except Exception:
-        return None
+        url = f"{NOMINATIM_REVERSE_URL}?{params}"
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "parkinglot-skip-trace/1.0 (property situs backfill)"},
+                method="GET",
+            )
+            with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+                data = json.loads(resp.read().decode("utf-8", errors="replace"))
+        except Exception:
+            continue
 
-    address = data.get("address") if isinstance(data, dict) else None
-    if not isinstance(address, dict):
-        return None
+        address = data.get("address") if isinstance(data, dict) else None
+        if not isinstance(address, dict):
+            continue
 
-    street = _strip_str(
-        address.get("house_number"),
-    )
-    road = _strip_str(address.get("road") or address.get("pedestrian") or address.get("footway"))
-    if street and road:
-        street_line = f"{street} {road}"
-    else:
-        street_line = road or street
-    if not _looks_like_street(street_line):
-        return None
+        house = _strip_str(address.get("house_number"))
+        road = _strip_str(
+            address.get("road")
+            or address.get("pedestrian")
+            or address.get("residential")
+            or address.get("footway")
+        )
+        if house and road:
+            street_line = f"{house} {road}"
+        else:
+            street_line = road or house
+        if not _looks_like_street(street_line):
+            continue
 
-    city = _strip_str(
-        address.get("city")
-        or address.get("town")
-        or address.get("village")
-        or address.get("hamlet")
-        or address.get("county")
-    )
-    state = _strip_str(address.get("state_code") or address.get("state")) or _DEFAULT_STATE
-    zip_code = _strip_str(address.get("postcode"))
-    if not city or not zip_code:
-        return None
-    return {
-        "street": street_line,
-        "city": city,
-        "state": state.upper()[:2],
-        "zip": zip_code[:5],
-    }
+        city = _strip_str(
+            address.get("city")
+            or address.get("town")
+            or address.get("village")
+            or address.get("hamlet")
+            or address.get("municipality")
+            or address.get("county")
+        )
+        state = _strip_str(address.get("state_code") or address.get("state")) or _DEFAULT_STATE
+        if state and len(state) > 2:
+            # Nominatim may return "Washington" — map common case.
+            state = "WA" if state.lower() == "washington" else state[:2]
+        zip_code = _strip_str(address.get("postcode"))
+        if not city or not zip_code:
+            continue
+        return {
+            "street": street_line,
+            "city": city,
+            "state": state.upper()[:2],
+            "zip": zip_code[:5],
+        }
+    return None
 
 
 def has_assessor_property_address(raw_properties: dict[str, Any] | None) -> bool:
@@ -252,17 +276,21 @@ def property_address_for_skip_trace(
     if not allow_centroid_geocode or centroid_lat_lon is None:
         return None
 
-    city, zip_code, state = _wa_city_zip(raw)
-    if not city or not zip_code:
-        # Need assessor city+zip anchor before centroid backfill — avoids blind geocoding.
-        return None
-
+    assessor_city, assessor_zip, assessor_state = _wa_city_zip(raw)
     lat, lon = centroid_lat_lon
     geocoded = reverse_geocode_street(lat, lon)
-    street = _strip_str(geocoded.get("street") if geocoded else None)
+    if not geocoded:
+        return None
+    street = _strip_str(geocoded.get("street"))
     if not street:
         return None
-    return {"street": street, "city": city, "state": state, "zip": zip_code}
+    # Prefer assessor city/ZIP when present; otherwise use Nominatim (ZIP-only rolls).
+    city = assessor_city or _strip_str(geocoded.get("city"))
+    zip_code = assessor_zip or _strip_str(geocoded.get("zip"))
+    state = (assessor_state or _strip_str(geocoded.get("state")) or _DEFAULT_STATE).upper()[:2]
+    if not city or not zip_code:
+        return None
+    return {"street": street, "city": city, "state": state, "zip": zip_code[:5]}
 
 
 def _norm_name(val: str) -> str:
