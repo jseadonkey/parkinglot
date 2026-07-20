@@ -41,19 +41,20 @@ def test_fetch_satellite_uses_footprint_bbox_and_outline() -> None:
     geom = box(-122.236, 47.383, -122.2355, 47.384)
     bbox = footprint_image_bbox(geom, width=320, height=240)
     assert bbox is not None
-    # Padded bbox should be larger than the raw footprint.
+    # Padded fitted helper still expands for callers that need aspect-matched frames.
     assert bbox[0] < -122.236
     assert bbox[2] > -122.2355
 
-    fake = (_tiny_jpeg(320, 240), "image/jpeg")
+    fake = (_tiny_jpeg(80, 240), "image/jpeg")  # skinny tile before letterbox
     with patch("app.parcel_site_imagery._http_get_bytes", return_value=fake) as http:
         img = fetch_satellite_image(47.38, -122.23, width=320, height=240, footprint=geom)
     assert img is not None
     assert img.source == "satellite"
-    # Request should include the fitted bbox, not a huge fixed window.
     called_url = http.call_args[0][0]
     assert "bbox=" in called_url
-    assert len(img.body) > 500
+    # Final canvas is the requested UI size (letterboxed if needed).
+    with Image.open(BytesIO(img.body)) as out:
+        assert out.size == (320, 240)
 
 
 def test_overlay_lot_outline_draws_without_error() -> None:

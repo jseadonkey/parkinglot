@@ -27,7 +27,7 @@ export function ParcelSitePhoto({ parcelId, variant = "thumb", className }: Prop
   const w = variant === "hero" ? 720 : 160;
   const h = variant === "hero" ? 420 : 120;
   const imgUrl = bridgeUrl(
-    `parcels/${parcelId}/site-image?width=${w}&height=${h}&source=satellite&v=lotline1`,
+    `parcels/${parcelId}/site-image?width=${w}&height=${h}&source=satellite&v=lotline2`,
   );
 
   useEffect(() => {
@@ -99,7 +99,7 @@ export function ParcelSitePhoto({ parcelId, variant = "thumb", className }: Prop
       <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "baseline" }}>
         <h2 style={{ margin: 0, fontSize: "1rem" }}>Property view</h2>
         <span className="muted" style={{ fontSize: "0.8rem" }}>
-          Aerial photo · Street View link below
+          Aerial with lot outline · Street View link below
         </span>
       </div>
       {!imgFailed ? (

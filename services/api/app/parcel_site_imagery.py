@@ -188,16 +188,37 @@ def fetch_satellite_image(
     footprint: Any | None = None,
 ) -> SiteImage | None:
     """Esri World Imagery centered on the lot (tight bbox + outline when footprint given)."""
+    from PIL import Image
+
     bbox: tuple[float, float, float, float]
+    fetch_w, fetch_h = width, height
+    letterbox = False
     if footprint is not None and not getattr(footprint, "is_empty", True):
         fitted = footprint_image_bbox(footprint, width=width, height=height)
         if fitted is None:
             return None
-        bbox = fitted
+        # Geographic bbox stays tight to the lot (no aspect stretch). Request a
+        # matching pixel size, then letterbox onto the UI canvas so skinny lots
+        # don't get drowned in side context.
+        minx, miny, maxx, maxy = footprint.bounds
+        bbox = _padded_bbox(minx, miny, maxx, maxy)
         lat = (bbox[1] + bbox[3]) / 2.0
         lon = (bbox[0] + bbox[2]) / 2.0
+        mid_lat = lat
+        m_per_deg_lat = 110_540.0
+        m_per_deg_lon = 111_320.0 * max(0.2, math.cos(math.radians(mid_lat)))
+        geo_w_m = max((bbox[2] - bbox[0]) * m_per_deg_lon, 1.0)
+        geo_h_m = max((bbox[3] - bbox[1]) * m_per_deg_lat, 1.0)
+        geo_aspect = geo_w_m / geo_h_m
+        canvas_aspect = width / max(height, 1)
+        if geo_aspect >= canvas_aspect:
+            fetch_w = width
+            fetch_h = max(32, int(round(width / geo_aspect)))
+        else:
+            fetch_h = height
+            fetch_w = max(32, int(round(height * geo_aspect)))
+        letterbox = fetch_w != width or fetch_h != height
     else:
-        # Fallback when no footprint: still tighter than the old ~250m window.
         half = max(0.00035, min(0.0012, 0.00055 / max(0.35, math.cos(math.radians(lat)))))
         bbox = (lon - half, lat - half, lon + half, lat + half)
         bbox = _match_aspect(*bbox, width=width, height=height)
@@ -207,7 +228,7 @@ def fetch_satellite_image(
             "bbox": f"{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]}",
             "bboxSR": "4326",
             "imageSR": "4326",
-            "size": f"{width},{height}",
+            "size": f"{fetch_w},{fetch_h}",
             "format": "jpg",
             "f": "image",
         }
@@ -218,10 +239,26 @@ def fetch_satellite_image(
     body, ctype = got
     if footprint is not None and not getattr(footprint, "is_empty", True):
         try:
-            body = overlay_lot_outline(body, footprint, bbox, width=width, height=height)
+            body = overlay_lot_outline(body, footprint, bbox, width=fetch_w, height=fetch_h)
             ctype = "image/jpeg"
         except Exception as exc:
             logger.info("lot outline overlay failed: %s", exc)
+    if letterbox:
+        try:
+            with Image.open(io.BytesIO(body)) as tile:
+                canvas = Image.new("RGB", (width, height), color=(12, 16, 22))
+                tile_rgb = tile.convert("RGB")
+                if tile_rgb.size != (fetch_w, fetch_h):
+                    tile_rgb = tile_rgb.resize((fetch_w, fetch_h), Image.Resampling.BILINEAR)
+                ox = (width - fetch_w) // 2
+                oy = (height - fetch_h) // 2
+                canvas.paste(tile_rgb, (ox, oy))
+                out = io.BytesIO()
+                canvas.save(out, format="JPEG", quality=86, optimize=True)
+                body = out.getvalue()
+                ctype = "image/jpeg"
+        except Exception as exc:
+            logger.info("letterbox compose failed: %s", exc)
     if "image" not in (ctype or ""):
         ctype = "image/jpeg"
     return SiteImage(body=body, content_type=ctype, source="satellite", lat=lat, lon=lon)
