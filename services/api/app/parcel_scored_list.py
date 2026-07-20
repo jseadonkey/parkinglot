@@ -590,11 +590,16 @@ def query_parcels_scored_list(
     tier = (zoning_tier or "").strip().lower()
     suit = (suitability or "").strip().lower()
 
-    # Fast path: geography selected, no SQL suitability predicate (applied after hydrate).
-    # Zoning-tier / qualified filters over-fetch then filter in Python.
+    # Fast path: geography selected, suitability/tier applied after hydrate.
+    # Keep overfetch modest — large LIMIT+JOIN walks on parcel_scores time out for WA.
     if cf or st:
-        needs_filter = bool(tier or suit or min_entitlement_score is not None)
-        overfetch = cap * 40 if needs_filter else cap * 4
+        if suit in ("not_existing_parking", "existing_parking"):
+            # Parking-coded lots are sparse among top scores.
+            overfetch = min(cap * 8, 400)
+        elif suit or tier or min_entitlement_score is not None:
+            overfetch = min(cap * 20, 800)
+        else:
+            overfetch = min(cap * 4, 200)
         driver = _sort_driver_profile(sort)
         ids = _top_parcel_ids_by_score(
             db,
