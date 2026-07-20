@@ -175,21 +175,44 @@ def _first_brief_contact(brief: dict[str, Any] | None, kind: str) -> str | None:
 
 
 def _situs_address(raw_properties: dict[str, Any] | None, brief: dict[str, Any] | None) -> str | None:
-    return _first_prop(
-        raw_properties,
-        (
-            "PROPERTY_ADDRESS",
-            "property_address",
-            "SITUS_ADDRESS",
-            "situs_address",
-            "SITUS_ADDR",
-            "situs_addr",
-            "ADDR_FULL",
-            "addr_full",
-            "FULLADDR",
-            "fulladdr",
-        ),
-    ) or _first_brief_contact(brief, "situs_address")
+    """Best property/situs line for list views — never treat ZIP-only as an address."""
+    from parking_ingestion.address_normalize import looks_like_street
+
+    props = raw_properties or {}
+    for key in (
+        "PROPERTY_ADDRESS",
+        "property_address",
+        "VISIT_ADDRESS",
+        "visit_address",
+        "MAP_ADDRESS",
+        "map_address",
+        "SITUS_ADDRESS",
+        "situs_address",
+        "SITUS_ADDR",
+        "situs_addr",
+        "ADDR_FULL",
+        "addr_full",
+        "FULLADDR",
+        "fulladdr",
+        "SITUS_LINE1",
+        "situs_line1",
+        "LOC_STREET",
+    ):
+        value = _clean_text(props.get(key))
+        if value and looks_like_street(value):
+            return value
+
+    line1 = _clean_text(props.get("SITUS_LINE1") or props.get("situs_line1") or props.get("LOC_STREET"))
+    city = _clean_text(
+        props.get("SITUS_CITY") or props.get("situs_city") or props.get("SITUS_CITY_NM")
+    )
+    if line1 and looks_like_street(line1):
+        return f"{line1}, {city}" if city else line1
+
+    brief_val = _first_brief_contact(brief, "situs_address")
+    if brief_val and looks_like_street(brief_val):
+        return brief_val
+    return None
 
 
 def _mailing_address(raw_properties: dict[str, Any] | None, brief: dict[str, Any] | None) -> str | None:
