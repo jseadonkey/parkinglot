@@ -544,7 +544,10 @@ def parcels_scored_list(
     ),
     suitability: str | None = Query(
         default=None,
-        description="Site suitability: vacant, underutilized, vacant_or_underutilized",
+        description=(
+            "Site suitability: vacant, underutilized, vacant_or_underutilized, "
+            "existing_parking, not_existing_parking"
+        ),
     ),
     qualified_only: bool = Query(
         default=False,
@@ -605,6 +608,7 @@ def parcels_scored_list(
             lot_sqft=r.lot_sqft,
             zoning_principal_use_symbol=r.zoning_principal_use_symbol,
             zoning_entitlement_tier=r.zoning_entitlement_tier,
+            suitability=r.suitability,
             entitlement_score=r.entitlement_score,
             strategic_score=r.strategic_score,
             identification_score=r.identification_score,

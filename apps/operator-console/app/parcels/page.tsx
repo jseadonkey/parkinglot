@@ -39,12 +39,14 @@ const SUITABILITY_LABEL: Record<string, string> = {
   vacant: "Vacant lot",
   underutilized: "Underutilized",
   improved: "Improved",
+  existing_parking: "Already parking",
   unknown: "Unknown",
 };
 
 function suitabilityBadgeClass(s: string | null): string {
   if (s === "vacant") return "badge badge-ok";
   if (s === "underutilized") return "badge badge-warn";
+  if (s === "existing_parking") return "badge badge-err";
   return "badge";
 }
 
@@ -69,7 +71,7 @@ export default function ParcelsPage() {
   const [stateFips, setStateFips] = useState("");
   const [countyFips, setCountyFips] = useState("");
   const [zoningTier, setZoningTier] = useState("");
-  const [suitability, setSuitability] = useState("");
+  const [suitability, setSuitability] = useState("not_existing_parking");
   const [qualifiedOnly, setQualifiedOnly] = useState(false);
   const [counties, setCounties] = useState<PilotCounty[]>([]);
   const [rows, setRows] = useState<ParcelRow[]>([]);
@@ -234,9 +236,11 @@ export default function ParcelsPage() {
           Site suitability{" "}
           <select value={suitability} onChange={(e) => setSuitability(e.target.value)}>
             <option value="">Any site</option>
+            <option value="not_existing_parking">Hide already-parking</option>
             <option value="vacant">Vacant land</option>
             <option value="underutilized">Underutilized</option>
             <option value="vacant_or_underutilized">Vacant or underutilized</option>
+            <option value="existing_parking">Already parking only</option>
           </select>
         </label>
         <label className="muted" style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
@@ -302,6 +306,7 @@ export default function ParcelsPage() {
               <th>Property address</th>
               <th>County</th>
               <th>Zoning</th>
+              <th>Site</th>
               <th>Zoning tier</th>
               <th>Est. stalls</th>
               <th>Est. gross/mo</th>
@@ -342,6 +347,15 @@ export default function ParcelsPage() {
               </td>
                 <td>{countyLine(countyLabel, p.county_fips)}</td>
                 <td>{p.zoning_code ?? "—"}</td>
+                <td>
+                  {p.suitability ? (
+                    <span className={suitabilityBadgeClass(p.suitability)}>
+                      {SUITABILITY_LABEL[p.suitability] ?? p.suitability}
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td>
                   {p.zoning_entitlement_tier ? (
                     <span className={tierBadgeClass(p.zoning_entitlement_tier)}>{tierLabel(p.zoning_entitlement_tier)}</span>

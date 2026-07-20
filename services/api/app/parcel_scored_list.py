@@ -39,22 +39,49 @@ def _json_num(key: str) -> Any:
 def _suitability_where(suitability: str) -> Any | None:
     """SQL predicate over ``raw_properties`` assessor value fields (best with a county filter)."""
     s = (suitability or "").strip().lower()
-    if s not in ("vacant", "underutilized", "vacant_or_underutilized"):
+    if s not in (
+        "vacant",
+        "underutilized",
+        "vacant_or_underutilized",
+        "existing_parking",
+        "not_existing_parking",
+    ):
         return None
     bldg = _json_num("VALUE_BLDG")
     land = _json_num("VALUE_LAND")
+    dor = func.nullif(func.btrim(Parcel.raw_properties["LANDUSE_CD"].astext), "")
+    orig = func.coalesce(Parcel.raw_properties["ORIG_LANDUSE_CD"].astext, "")
     use_txt = func.upper(func.coalesce(Parcel.raw_properties["LANDUSE_CD"].astext, ""))
-    vacant = or_(
-        and_(bldg.isnot(None), bldg <= 0, land.isnot(None), land > 0),
-        use_txt.like("%VACANT%"),
+    # WA DOR 46; King Present Use 159/180/182 (often stored directly in LANDUSE_CD);
+    # plus common parking phrases.
+    existing_parking = or_(
+        dor == "46",
+        dor.in_(("159", "180", "182")),
+        orig.op("~")(r"(^|-)(159|180|182)$"),
+        use_txt.like("%AUTOMOBILE PARKING%"),
+        use_txt.like("%PARKING LOT%"),
+        use_txt.like("%COMMERCIAL PARKING%"),
+        use_txt.like("%PARKING GARAGE%"),
+    )
+    vacant = and_(
+        ~existing_parking,
+        or_(
+            and_(bldg.isnot(None), bldg <= 0, land.isnot(None), land > 0),
+            use_txt.like("%VACANT%"),
+        ),
     )
     underutil = and_(
+        ~existing_parking,
         bldg.isnot(None),
         bldg > 0,
         land.isnot(None),
         land > 0,
         (bldg / (bldg + land)) <= UNDERUTILIZED_MAX_IMPROVEMENT_RATIO,
     )
+    if s == "existing_parking":
+        return existing_parking
+    if s == "not_existing_parking":
+        return ~existing_parking
     if s == "vacant":
         return vacant
     if s == "underutilized":
@@ -586,13 +613,23 @@ def query_parcels_scored_list(
             ]
         elif tier:
             rows = [r for r in rows if (r.zoning_entitlement_tier or "") == tier]
-        if suit in ("vacant", "underutilized", "vacant_or_underutilized"):
+        if suit in (
+            "vacant",
+            "underutilized",
+            "vacant_or_underutilized",
+            "existing_parking",
+            "not_existing_parking",
+        ):
             if suit == "vacant":
                 rows = [r for r in rows if r.suitability == "vacant"]
             elif suit == "underutilized":
                 rows = [r for r in rows if r.suitability == "underutilized"]
-            else:
+            elif suit == "vacant_or_underutilized":
                 rows = [r for r in rows if r.suitability in ("vacant", "underutilized")]
+            elif suit == "existing_parking":
+                rows = [r for r in rows if r.suitability == "existing_parking"]
+            else:
+                rows = [r for r in rows if r.suitability != "existing_parking"]
         if min_entitlement_score is not None:
             floor = float(min_entitlement_score)
             rows = [r for r in rows if r.entitlement_score is not None and r.entitlement_score >= floor]

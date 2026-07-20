@@ -12,11 +12,43 @@ from parking_scoring.engine import score_parcel
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
+def test_existing_parking_wa_dor_46() -> None:
+    s = compute_parcel_suitability(
+        {"LANDUSE_CD": "46", "VALUE_BLDG": "0", "VALUE_LAND": "500000"}
+    )
+    assert s["is_existing_parking"] is True
+    assert s["suitability"] == "existing_parking"
+    assert s["is_vacant_land"] is False
+
+
 def test_vacant_when_building_value_zero_and_land_positive() -> None:
     s = compute_parcel_suitability({"VALUE_BLDG": "0", "VALUE_LAND": "125000"})
     assert s["is_vacant_land"] is True
     assert s["suitability"] == "vacant"
     assert s["improvement_ratio"] == 0.0
+
+
+def test_existing_parking_king_present_use_180() -> None:
+    s = compute_parcel_suitability({"ORIG_LANDUSE_CD": "33-180", "VALUE_BLDG": "0", "VALUE_LAND": "200000"})
+    assert s["suitability"] == "existing_parking"
+
+
+def test_existing_parking_king_landuse_cd_direct() -> None:
+    # King WaTech often puts Present Use in LANDUSE_CD (not DOR 46).
+    s = compute_parcel_suitability({"LANDUSE_CD": "180", "VALUE_BLDG": "0", "VALUE_LAND": "400000"})
+    assert s["suitability"] == "existing_parking"
+
+
+def test_existing_parking_text_token() -> None:
+    s = compute_parcel_suitability({"LANDUSE": "Commercial Parking Lot"})
+    assert s["suitability"] == "existing_parking"
+
+
+def test_vacant_not_parking_when_dor_not_46() -> None:
+    s = compute_parcel_suitability({"LANDUSE_CD": "91", "VALUE_BLDG": "0", "VALUE_LAND": "125000"})
+    # Numeric 91 alone is not a vacant text token; value heuristic still marks vacant.
+    assert s["suitability"] == "vacant"
+    assert s["is_existing_parking"] is False
 
 
 def test_vacant_when_land_use_text_says_vacant() -> None:

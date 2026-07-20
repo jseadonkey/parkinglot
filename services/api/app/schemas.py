@@ -661,6 +661,7 @@ class ParcelScoredListRow(BaseModel):
     lot_sqft: float | None
     zoning_principal_use_symbol: str | None = None
     zoning_entitlement_tier: str | None = None
+    suitability: str | None = None
     entitlement_score: float | None
     strategic_score: float | None
     identification_score: float | None

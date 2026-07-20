@@ -88,7 +88,15 @@ def score_parcel(
     category = suit["suitability"]
     suit_pts = 0.0
     if suit_weight > 0:
-        if category == "vacant":
+        if category == "existing_parking":
+            suit_pts = 0.0
+            use_code = suit.get("land_use_code")
+            code_txt = f" (land use {use_code})" if use_code else ""
+            notes.append(
+                f"Assessor already classifies site as parking{code_txt} — "
+                "poor fit for a new surface-lot conversion."
+            )
+        elif category == "vacant":
             suit_pts = suit_weight
             notes.append("Vacant land (no building value) — strong surface-parking candidate.")
         elif category == "underutilized":

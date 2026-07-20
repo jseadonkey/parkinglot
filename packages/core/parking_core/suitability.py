@@ -1,9 +1,11 @@
-"""Site suitability from assessor value fields (vacant / underutilized detection).
+"""Site suitability from assessor value fields (vacant / underutilized / existing parking).
 
 WaTech (and most county assessor) parcel exports carry building and land market
 values plus a land-use code. We use those to flag parcels that are physically
 promising for a surface lot *before* zoning entitlement is curated:
 
+- ``existing_parking`` — assessor already classifies the site as parking (poor
+  fit if we are hunting bare / teardown pads rather than operating lots).
 - ``vacant``        — no building value (or a vacant land-use code): a bare lot.
 - ``underutilized`` — small building value relative to land (teardown candidate).
 - ``improved``      — meaningful structure present.
@@ -59,9 +61,26 @@ _LANDUSE_KEYS: tuple[str, ...] = (
 # Land-use description tokens that indicate a bare / undeveloped lot.
 _VACANT_USE_TOKENS: tuple[str, ...] = ("VACANT", "UNIMPROVED", "UNDEVELOPED")
 
+# Washington DOR property class (WAC 458-53-030): 46 = Automobile parking.
+_WA_DOR_PARKING = {"46"}
+# King County Present Use codes commonly seen as ORIG_LANDUSE_CD tails (e.g. 33-180).
+_KING_PARKING_PRESENT_USE = {"159", "180", "182"}
+# Text tokens (assessor descriptions / Baltimore use strings).
+_PARKING_USE_TOKENS: tuple[str, ...] = (
+    "AUTOMOBILE PARKING",
+    "PARKING LOT",
+    "COMMERCIAL PARKING",
+    "PARKING (COMMERCIAL",
+    "PARKING (ASSOC",
+    "PARKING GARAGE",
+    "PARKING STRUCTURE",
+    "SURFACE PARKING",
+)
+
 VACANT = "vacant"
 UNDERUTILIZED = "underutilized"
 IMPROVED = "improved"
+EXISTING_PARKING = "existing_parking"
 UNKNOWN = "unknown"
 
 
@@ -84,18 +103,60 @@ def _text(props: dict[str, Any], keys: tuple[str, ...]) -> str | None:
     return None
 
 
-def compute_parcel_suitability(raw_properties: dict[str, Any] | None) -> dict[str, Any]:
-    """Derive vacancy / underutilization signals from assessor value fields.
+def _present_use_tail(code: str) -> str:
+    """``33-180`` → ``180``; bare ``180`` stays ``180``."""
+    text = code.strip()
+    if "-" in text:
+        return text.rsplit("-", 1)[-1].strip()
+    return text
 
-    Returns a dict with ``suitability`` (vacant | underutilized | improved | unknown),
-    ``is_vacant_land`` (bool), ``improvement_ratio`` (bldg / (bldg + land)), and the
-    raw ``land_value`` / ``improvement_value`` / ``land_use_code`` used to derive it.
+
+def is_existing_parking_use(raw_properties: dict[str, Any] | None) -> bool:
+    """True when assessor land-use already says this parcel is parking."""
+    props = raw_properties or {}
+    for key in ("LANDUSE_CD", "landuse_cd", "ORIG_LANDUSE_CD", "orig_landuse_cd"):
+        raw = _text(props, (key,))
+        if raw is None:
+            continue
+        code = raw.strip()
+        if code in _WA_DOR_PARKING:
+            return True
+        # King often stores Present Use directly in LANDUSE_CD (159/180/182).
+        if code in _KING_PARKING_PRESENT_USE or _present_use_tail(code) in _KING_PARKING_PRESENT_USE:
+            return True
+    # Broader text scan across common use fields (includes Baltimore USEGROUP / SDAT).
+    blob_parts: list[str] = []
+    for key in (
+        *_LANDUSE_KEYS,
+        "USEGROUP",
+        "SDATCODE",
+        "DHCDUSE1",
+        "DHCDUSE2",
+        "DHCDUSE3",
+        "DHCDUSE4",
+        "PRESENT_USE",
+        "PresentUse",
+    ):
+        val = props.get(key)
+        if val is not None and str(val).strip():
+            blob_parts.append(str(val))
+    blob = " ".join(blob_parts).upper()
+    return any(tok in blob for tok in _PARKING_USE_TOKENS)
+
+
+def compute_parcel_suitability(raw_properties: dict[str, Any] | None) -> dict[str, Any]:
+    """Derive vacancy / underutilization / existing-parking signals from assessor fields.
+
+    Returns a dict with ``suitability`` (existing_parking | vacant | underutilized |
+    improved | unknown), ``is_vacant_land``, ``is_existing_parking``,
+    ``improvement_ratio``, and the raw value / land-use fields used.
     """
     props = raw_properties or {}
     bldg = _num(props, _BLDG_VALUE_KEYS)
     land = _num(props, _LAND_VALUE_KEYS)
     use = _text(props, _LANDUSE_KEYS)
     use_upper = (use or "").upper()
+    existing_parking = is_existing_parking_use(props)
 
     improvement_ratio: float | None = None
     if bldg is not None and land is not None:
@@ -107,7 +168,10 @@ def compute_parcel_suitability(raw_properties: dict[str, Any] | None) -> dict[st
     vacant_by_use = any(tok in use_upper for tok in _VACANT_USE_TOKENS)
     is_vacant = bool(vacant_by_value or vacant_by_use)
 
-    if is_vacant:
+    # Existing parking wins even when building value is $0 (common for open lots).
+    if existing_parking:
+        category = EXISTING_PARKING
+    elif is_vacant:
         category = VACANT
     elif improvement_ratio is not None and improvement_ratio <= UNDERUTILIZED_MAX_IMPROVEMENT_RATIO:
         category = UNDERUTILIZED
@@ -121,11 +185,12 @@ def compute_parcel_suitability(raw_properties: dict[str, Any] | None) -> dict[st
         "improvement_value": bldg,
         "improvement_ratio": improvement_ratio,
         "land_use_code": use,
-        "is_vacant_land": is_vacant,
+        "is_vacant_land": is_vacant and not existing_parking,
+        "is_existing_parking": existing_parking,
         "suitability": category,
     }
 
 
 def suitability_category(raw_properties: dict[str, Any] | None) -> str:
-    """Convenience: just the vacant/underutilized/improved/unknown bucket."""
+    """Convenience: just the vacant/underutilized/improved/existing_parking/unknown bucket."""
     return str(compute_parcel_suitability(raw_properties)["suitability"])
