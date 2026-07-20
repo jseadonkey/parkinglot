@@ -26,7 +26,9 @@ export function ParcelSitePhoto({ parcelId, variant = "thumb", className }: Prop
 
   const w = variant === "hero" ? 720 : 160;
   const h = variant === "hero" ? 420 : 120;
-  const imgUrl = bridgeUrl(`parcels/${parcelId}/site-image?width=${w}&height=${h}&source=auto`);
+  const imgUrl = bridgeUrl(
+    `parcels/${parcelId}/site-image?width=${w}&height=${h}&source=satellite&v=lotline1`,
+  );
 
   useEffect(() => {
     if (variant !== "hero") return;

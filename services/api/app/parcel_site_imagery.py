@@ -1,14 +1,16 @@
-"""Parcel site imagery: Street View when configured, else aerial satellite."""
+"""Parcel site imagery: Street View when configured, else aerial with lot outline."""
 
 from __future__ import annotations
 
+import io
+import json
 import logging
 import math
 import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 from app.config import get_settings
 
@@ -20,6 +22,11 @@ _ESRI_EXPORT = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Image
 _STREET_VIEW_META = "https://maps.googleapis.com/maps/api/streetview/metadata"
 _STREET_VIEW_STATIC = "https://maps.googleapis.com/maps/api/streetview"
 _USER_AGENT = "parkinglot-operator-console/1.0 (parcel site imagery)"
+
+# Lot outline styling (high contrast on aerial imagery).
+_OUTLINE_RGBA = (255, 214, 32, 255)
+_FILL_RGBA = (255, 214, 32, 55)
+_OUTLINE_WIDTH = 3
 
 
 @dataclass(frozen=True)
@@ -36,7 +43,7 @@ def street_view_url(lat: float, lon: float) -> str:
     return f"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={lat:.6f},{lon:.6f}"
 
 
-def satellite_map_url(lat: float, lon: float, *, zoom: int = 18) -> str:
+def satellite_map_url(lat: float, lon: float, *, zoom: int = 19) -> str:
     return f"https://www.google.com/maps/@{lat:.6f},{lon:.6f},{zoom}z/data=!3m1!1e3"
 
 
@@ -51,8 +58,125 @@ def _http_get_bytes(url: str, *, timeout_s: float = 20.0) -> tuple[bytes, str] |
         return None
 
 
-def _bbox_for_parcel(lat: float, lon: float, *, half_span_deg: float) -> str:
-    return f"{lon - half_span_deg},{lat - half_span_deg},{lon + half_span_deg},{lat + half_span_deg}"
+def _google_maps_api_key() -> str:
+    return (get_settings().google_maps_api_key or "").strip()
+
+
+def _rings_lonlat(geom: Any) -> list[list[tuple[float, float]]]:
+    """Exterior rings as (lon, lat) lists from a Shapely geometry."""
+    if geom is None or geom.is_empty:
+        return []
+    rings: list[list[tuple[float, float]]] = []
+    geoms = list(geom.geoms) if geom.geom_type == "MultiPolygon" else [geom]
+    for g in geoms:
+        if g.geom_type != "Polygon" or g.exterior is None:
+            continue
+        coords = [(float(x), float(y)) for x, y in g.exterior.coords]
+        if len(coords) >= 3:
+            rings.append(coords)
+    return rings
+
+
+def _padded_bbox(
+    minx: float,
+    miny: float,
+    maxx: float,
+    maxy: float,
+    *,
+    pad_frac: float = 0.28,
+    min_pad_m: float = 18.0,
+) -> tuple[float, float, float, float]:
+    """Expand footprint bbox with fractional + minimum meter padding."""
+    mid_lat = (miny + maxy) / 2.0
+    m_per_deg_lat = 110_540.0
+    m_per_deg_lon = 111_320.0 * max(0.2, math.cos(math.radians(mid_lat)))
+    pad_x = max((maxx - minx) * pad_frac, min_pad_m / m_per_deg_lon)
+    pad_y = max((maxy - miny) * pad_frac, min_pad_m / m_per_deg_lat)
+    return minx - pad_x, miny - pad_y, maxx + pad_x, maxy + pad_y
+
+
+def _match_aspect(
+    minx: float,
+    miny: float,
+    maxx: float,
+    maxy: float,
+    *,
+    width: int,
+    height: int,
+) -> tuple[float, float, float, float]:
+    """Grow bbox so geographic aspect matches the image (avoids stretch distortion)."""
+    bw = max(maxx - minx, 1e-9)
+    bh = max(maxy - miny, 1e-9)
+    target = width / max(height, 1)
+    current = bw / bh
+    cx = (minx + maxx) / 2.0
+    cy = (miny + maxy) / 2.0
+    if current < target:
+        # too tall — widen
+        bw = bh * target
+    else:
+        # too wide — heighten
+        bh = bw / target
+    return cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2
+
+
+def footprint_image_bbox(
+    geom: Any,
+    *,
+    width: int,
+    height: int,
+) -> tuple[float, float, float, float] | None:
+    """Return (min_lon, min_lat, max_lon, max_lat) fitted to the lot + padding."""
+    if geom is None or geom.is_empty:
+        return None
+    minx, miny, maxx, maxy = geom.bounds
+    padded = _padded_bbox(minx, miny, maxx, maxy)
+    return _match_aspect(*padded, width=width, height=height)
+
+
+def _lonlat_to_px(
+    lon: float,
+    lat: float,
+    bbox: tuple[float, float, float, float],
+    width: int,
+    height: int,
+) -> tuple[float, float]:
+    minx, miny, maxx, maxy = bbox
+    x = (lon - minx) / max(maxx - minx, 1e-12) * (width - 1)
+    y = (maxy - lat) / max(maxy - miny, 1e-12) * (height - 1)
+    return x, y
+
+
+def overlay_lot_outline(
+    image_bytes: bytes,
+    geom: Any,
+    bbox: tuple[float, float, float, float],
+    *,
+    width: int,
+    height: int,
+) -> bytes:
+    """Draw the parcel footprint on an aerial JPEG (requires Pillow)."""
+    from PIL import Image, ImageDraw
+
+    rings = _rings_lonlat(geom)
+    if not rings:
+        return image_bytes
+    with Image.open(io.BytesIO(image_bytes)) as base:
+        img = base.convert("RGBA")
+        if img.size != (width, height):
+            img = img.resize((width, height), Image.Resampling.BILINEAR)
+        overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay, "RGBA")
+        for ring in rings:
+            pts = [_lonlat_to_px(lon, lat, bbox, width, height) for lon, lat in ring]
+            if len(pts) < 3:
+                continue
+            draw.polygon(pts, fill=_FILL_RGBA)
+            draw.line(pts + [pts[0]], fill=_OUTLINE_RGBA, width=_OUTLINE_WIDTH, joint="curve")
+        composed = Image.alpha_composite(img, overlay).convert("RGB")
+        out = io.BytesIO()
+        composed.save(out, format="JPEG", quality=86, optimize=True)
+        return out.getvalue()
 
 
 def fetch_satellite_image(
@@ -61,13 +185,26 @@ def fetch_satellite_image(
     *,
     width: int = 480,
     height: int = 360,
+    footprint: Any | None = None,
 ) -> SiteImage | None:
-    """Esri World Imagery export centered on the parcel centroid (no API key)."""
-    # ~120–180m half-span at mid-latitudes — lot-level context for parking screening.
-    half = max(0.0006, min(0.0025, 0.0012 / max(0.35, math.cos(math.radians(lat)))))
+    """Esri World Imagery centered on the lot (tight bbox + outline when footprint given)."""
+    bbox: tuple[float, float, float, float]
+    if footprint is not None and not getattr(footprint, "is_empty", True):
+        fitted = footprint_image_bbox(footprint, width=width, height=height)
+        if fitted is None:
+            return None
+        bbox = fitted
+        lat = (bbox[1] + bbox[3]) / 2.0
+        lon = (bbox[0] + bbox[2]) / 2.0
+    else:
+        # Fallback when no footprint: still tighter than the old ~250m window.
+        half = max(0.00035, min(0.0012, 0.00055 / max(0.35, math.cos(math.radians(lat)))))
+        bbox = (lon - half, lat - half, lon + half, lat + half)
+        bbox = _match_aspect(*bbox, width=width, height=height)
+
     params = urllib.parse.urlencode(
         {
-            "bbox": _bbox_for_parcel(lat, lon, half_span_deg=half),
+            "bbox": f"{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]}",
             "bboxSR": "4326",
             "imageSR": "4326",
             "size": f"{width},{height}",
@@ -79,13 +216,15 @@ def fetch_satellite_image(
     if not got or len(got[0]) < 500:
         return None
     body, ctype = got
-    if "image" not in ctype:
+    if footprint is not None and not getattr(footprint, "is_empty", True):
+        try:
+            body = overlay_lot_outline(body, footprint, bbox, width=width, height=height)
+            ctype = "image/jpeg"
+        except Exception as exc:
+            logger.info("lot outline overlay failed: %s", exc)
+    if "image" not in (ctype or ""):
         ctype = "image/jpeg"
     return SiteImage(body=body, content_type=ctype, source="satellite", lat=lat, lon=lon)
-
-
-def _google_maps_api_key() -> str:
-    return (get_settings().google_maps_api_key or "").strip()
 
 
 def fetch_street_view_image(
@@ -104,8 +243,6 @@ def fetch_street_view_image(
     if not meta:
         return None
     try:
-        import json
-
         status = str(json.loads(meta[0].decode("utf-8", errors="replace")).get("status") or "")
     except Exception:
         return None
@@ -137,13 +274,21 @@ def fetch_site_image(
     source: ImagerySource = "auto",
     width: int = 480,
     height: int = 360,
+    footprint: Any | None = None,
 ) -> SiteImage | None:
     width = max(120, min(int(width), 1280))
     height = max(90, min(int(height), 960))
+    # Prefer aerial+lot outline when we have a footprint — Street View can't show lot lines.
+    if footprint is not None and source in ("auto", "satellite"):
+        sat = fetch_satellite_image(lat, lon, width=width, height=height, footprint=footprint)
+        if sat is not None:
+            return sat
+        if source == "satellite":
+            return None
     if source in ("street", "auto"):
         street = fetch_street_view_image(lat, lon, width=width, height=height)
         if street is not None:
             return street
         if source == "street":
             return None
-    return fetch_satellite_image(lat, lon, width=width, height=height)
+    return fetch_satellite_image(lat, lon, width=width, height=height, footprint=footprint)

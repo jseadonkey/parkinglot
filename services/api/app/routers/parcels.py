@@ -106,7 +106,9 @@ def get_parcel_site_image(
     height: int = Query(default=360, ge=90, le=960),
     db: Session = Depends(get_db),
 ) -> Response:
-    """Property photo: Street View when GOOGLE_MAPS_API_KEY is set, else aerial satellite."""
+    """Aerial zoomed to the lot with outline (Street View only if no footprint / forced)."""
+    from geoalchemy2.shape import to_shape
+
     full = db.get(Parcel, parcel_id)
     if full is None:
         raise HTTPException(status_code=404, detail="parcel not found")
@@ -114,14 +116,27 @@ def get_parcel_site_image(
     if centroid is None:
         raise HTTPException(status_code=404, detail="parcel has no footprint for imagery")
     lat, lon = centroid
-    image = fetch_site_image(lat, lon, source=source, width=width, height=height)
+    footprint = None
+    if full.footprint is not None:
+        try:
+            footprint = to_shape(full.footprint)
+        except Exception:
+            footprint = None
+    image = fetch_site_image(
+        lat,
+        lon,
+        source=source,
+        width=width,
+        height=height,
+        footprint=footprint,
+    )
     if image is None:
         raise HTTPException(status_code=404, detail="no site imagery available")
     return Response(
         content=image.body,
         media_type=image.content_type,
         headers={
-            "Cache-Control": "public, max-age=86400",
+            "Cache-Control": "public, max-age=3600",
             "X-Parcel-Image-Source": image.source,
             "X-Parcel-Image-Lat": f"{lat:.6f}",
             "X-Parcel-Image-Lon": f"{lon:.6f}",
