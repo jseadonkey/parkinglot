@@ -41,6 +41,11 @@ def test_distance_orders_parcels_within_same_demand_band() -> None:
     assert demand_sort_rank(150, 0) < demand_sort_rank(450, 0)
 
 
+def test_downtown_poi_density_beats_small_town_proximity() -> None:
+    """A dense downtown lot outranks a rural lot hugging its town's lone generator."""
+    assert demand_sort_rank(73, 131) < demand_sort_rank(11, None)
+
+
 def test_graduated_demand_decay_in_scorer() -> None:
     """Full credit inside buffer, partial just outside, zero when remote."""
     pilot = load_pilot_config(REPO_ROOT / "config" / "pilot.yaml")
