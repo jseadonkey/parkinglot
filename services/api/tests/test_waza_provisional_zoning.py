@@ -71,6 +71,7 @@ def test_provisional_gets_conditional_score_credit() -> None:
 
 
 def test_poi_density_can_earn_demand_credit() -> None:
+    """Dense core (intensity above market gate) earns demand credit far from named generators."""
     ident = load_pilot_config(REPO_ROOT / "config" / "pilot_identification.yaml")
     feat = ParcelFeature(
         apn="poi-1",
@@ -79,8 +80,12 @@ def test_poi_density_can_earn_demand_credit() -> None:
         zoning_allows_surface_parking=False,
         is_corner_lot=False,
         distance_to_nearest_demand_m=50_000,
-        poi_commercial_count_400m=8,
+        poi_commercial_count_400m=20,
+        poi_demand_intensity=30.0,
+        poi_heavy_anchor_count=0,
         raw_properties={"VALUE_BLDG": "0", "VALUE_LAND": "100000"},
     )
     result = score_parcel(feat, ident)
+    # Full demand weight (20 in identification profile) at saturation intensity 30.
     assert result.breakdown.demand_proximity_component == 20.0
+    assert result.pilot_snapshot.get("market_gate_failed") is False
