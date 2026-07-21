@@ -21,6 +21,10 @@ class ParcelFeature(BaseModel):
     distance_to_nearest_demand_m: float | None = None
     # OSM commercial POI count within ~400m (optional demand proxy when far from named POIs).
     poi_commercial_count_400m: int | None = None
+    # Weighted demand pull: hospitals/universities/stadiums count for much more
+    # than small shops (magnitude of demand, not business count).
+    poi_demand_intensity: float | None = None
+    poi_heavy_anchor_count: int | None = None
     raw_properties: dict[str, Any] | None = None
 
 
