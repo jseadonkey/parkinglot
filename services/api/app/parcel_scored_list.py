@@ -626,16 +626,23 @@ def _top_parcel_ids_by_score(
     if prefer_paved and suit == "vacant" and (exact or prefix):
         poi_seed = min(80, max(20, cap // 2))
         vacant_sql = _vacant_sql_predicate("p")
+        # Prefer weighted intensity when populated; fall back to POI count for
+        # parcels not yet backfilled with the magnitude signal.
         if exact:
             seed_sql = text(
                 f"""
                 SELECT p.id
                 FROM parcels p
                 WHERE p.county_fips = :exact_county
-                  AND p.poi_commercial_count_400m >= 6
                   AND p.footprint IS NOT NULL
                   AND ({vacant_sql})
-                ORDER BY p.poi_commercial_count_400m DESC NULLS LAST
+                  AND (
+                    COALESCE(p.poi_demand_intensity, 0) >= 25
+                    OR COALESCE(p.poi_heavy_anchor_count, 0) >= 1
+                    OR COALESCE(p.poi_commercial_count_400m, 0) >= 6
+                  )
+                ORDER BY COALESCE(p.poi_demand_intensity, p.poi_commercial_count_400m::float, 0)
+                         DESC NULLS LAST
                 LIMIT :lim
                 """
             )
@@ -646,10 +653,15 @@ def _top_parcel_ids_by_score(
                 SELECT p.id
                 FROM parcels p
                 WHERE p.county_fips LIKE :state_prefix
-                  AND p.poi_commercial_count_400m >= 6
                   AND p.footprint IS NOT NULL
                   AND ({vacant_sql})
-                ORDER BY p.poi_commercial_count_400m DESC NULLS LAST
+                  AND (
+                    COALESCE(p.poi_demand_intensity, 0) >= 25
+                    OR COALESCE(p.poi_heavy_anchor_count, 0) >= 1
+                    OR COALESCE(p.poi_commercial_count_400m, 0) >= 6
+                  )
+                ORDER BY COALESCE(p.poi_demand_intensity, p.poi_commercial_count_400m::float, 0)
+                         DESC NULLS LAST
                 LIMIT :lim
                 """
             )
@@ -1052,6 +1064,8 @@ def query_parcels_scored_list(
         Parcel.created_at,
         Parcel.distance_to_nearest_demand_m,
         Parcel.poi_commercial_count_400m,
+        Parcel.poi_demand_intensity,
+        Parcel.poi_heavy_anchor_count,
         ent_sub.label("ent_score"),
         str_sub.label("str_score"),
         id_sub.label("id_score"),
@@ -1092,6 +1106,8 @@ def query_parcels_scored_list(
             created,
             demand_m,
             poi_count,
+            poi_intensity,
+            poi_heavy,
             ent_f,
             str_f,
             id_f,
@@ -1134,6 +1150,8 @@ def query_parcels_scored_list(
                 surface_source=surf.source,
                 distance_to_nearest_demand_m=float(demand_m) if demand_m is not None else None,
                 poi_commercial_count_400m=int(poi_count) if poi_count is not None else None,
+                poi_demand_intensity=float(poi_intensity) if poi_intensity is not None else None,
+                poi_heavy_anchor_count=int(poi_heavy) if poi_heavy is not None else None,
             ),
         )
     return out
