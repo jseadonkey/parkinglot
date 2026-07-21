@@ -262,8 +262,9 @@ def classify_parcel_aerial_surface(
     footprint: Any | None,
 ) -> LotSurface:
     """Fetch a tight Esri tile (no outline/letterbox) and classify the lot interior."""
-    from app.parcel_site_imagery import _padded_bbox, _http_get_bytes, _ESRI_EXPORT
     import urllib.parse
+
+    from app.parcel_site_imagery import _ESRI_EXPORT, _http_get_bytes, _padded_bbox
 
     if footprint is None or getattr(footprint, "is_empty", True):
         return LotSurface(kind="unknown", source="unknown")
