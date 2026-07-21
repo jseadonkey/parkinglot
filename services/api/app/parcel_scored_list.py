@@ -118,13 +118,18 @@ def _suitability_where(suitability: str) -> Any | None:
     # King Present Use in LANDUSE_CD: only vacant codes (or VACANT text) count.
     # Other counties / non-King numeric DOR codes still use the value heuristic.
     king_coded = dor.in_(_KING_PRESENT_USE_CDS)
+    # SLUCM developed-use major categories 2-7 (2-digit): $0 building there means
+    # tax-exempt / unassessed public site, not a bare lot (sync with
+    # parking_core.suitability._SLUCM_DEVELOPED_MAJOR).
+    slucm_developed = dor.op("~")(r"^[2-7][0-9]$")
     vacant = and_(
         ~existing_parking,
         ~non_developable,
         or_(
             dor.in_(_VACANT_LANDUSE_CDS),
+            dor == "91",  # SLUCM Undeveloped Land
             use_txt.like("%VACANT%"),
-            and_(value_vacant, ~king_coded),
+            and_(value_vacant, ~king_coded, ~slucm_developed),
         ),
     )
     underutil = and_(

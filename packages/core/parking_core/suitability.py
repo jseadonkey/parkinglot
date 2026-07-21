@@ -61,6 +61,19 @@ _LANDUSE_KEYS: tuple[str, ...] = (
 # Land-use description tokens that indicate a bare / undeveloped lot.
 _VACANT_USE_TOKENS: tuple[str, ...] = ("VACANT", "UNIMPROVED", "UNDEVELOPED")
 
+# SLUCM (Standard Land Use Coding Manual) 2-digit codes, used by the WA
+# statewide parcel export for most counties (this is why DOR class 46 =
+# automobile parking works). Major category 9 = undeveloped land / water, where
+# ``91`` is developable bare land. Major categories 2-7 (manufacturing,
+# transportation/communication/utilities, trade, services, cultural/recreation)
+# are *developed* uses that carry a real structure when in use — so a $0
+# building value there means the parcel is tax-exempt / unassessed (government,
+# church, school, utility, tribal), NOT an available bare pad. Counties that
+# kept their own non-SLUCM code schemes (e.g. Clark's 3-digit codes) do not
+# match and are left to the aerial rooftop backstop.
+_SLUCM_UNDEVELOPED_VACANT: frozenset[str] = frozenset({"91"})
+_SLUCM_DEVELOPED_MAJOR: frozenset[str] = frozenset({"2", "3", "4", "5", "6", "7"})
+
 # Washington DOR property class (WAC 458-53-030): 46 = Automobile parking.
 _WA_DOR_PARKING = {"46"}
 # King County Present Use codes commonly seen as ORIG_LANDUSE_CD tails (e.g. 33-180).
@@ -196,6 +209,19 @@ def _king_present_use_code(raw_properties: dict[str, Any] | None) -> str | None:
     return None
 
 
+def _slucm_two_digit_code(raw_properties: dict[str, Any] | None) -> str | None:
+    """Return a 2-digit SLUCM land-use code when present (e.g. ``91``, ``53``)."""
+    props = raw_properties or {}
+    for key in ("LANDUSE_CD", "landuse_cd", "ORIG_LANDUSE_CD", "orig_landuse_cd"):
+        raw = _text(props, (key,))
+        if raw is None:
+            continue
+        tail = _present_use_tail(raw)
+        if tail.isdigit() and len(tail) == 2:
+            return tail
+    return None
+
+
 def is_existing_parking_use(raw_properties: dict[str, Any] | None) -> bool:
     """True when assessor land-use already says this parcel is parking."""
     props = raw_properties or {}
@@ -259,6 +285,16 @@ def compute_parcel_suitability(raw_properties: dict[str, Any] | None) -> dict[st
             vacant_by_use = True
         elif king_use not in _KING_PARKING_PRESENT_USE and king_use not in _KING_NON_DEVELOPABLE_PRESENT_USE:
             vacant_by_value = False
+    else:
+        # Statewide SLUCM counties: trust the undeveloped-land code, but do not
+        # let a $0 building value alone mark a developed-use parcel as vacant —
+        # that pattern is dominated by tax-exempt / unassessed public sites.
+        slucm = _slucm_two_digit_code(props)
+        if slucm is not None:
+            if slucm in _SLUCM_UNDEVELOPED_VACANT:
+                vacant_by_use = True
+            elif slucm[0] in _SLUCM_DEVELOPED_MAJOR:
+                vacant_by_value = False
     # ROW / water / park / utility with $0 building is not a vacant lot to convert.
     is_vacant = bool((vacant_by_value or vacant_by_use) and not non_developable)
 

@@ -77,6 +77,31 @@ def test_vacant_when_land_use_text_says_vacant() -> None:
     assert s["suitability"] == "vacant"
 
 
+def test_slucm_undeveloped_91_is_vacant() -> None:
+    # SLUCM 91 = Undeveloped Land — genuine bare lot even with $0 building.
+    s = compute_parcel_suitability({"LANDUSE_CD": "91", "VALUE_BLDG": "0", "VALUE_LAND": "150000"})
+    assert s["is_vacant_land"] is True
+    assert s["suitability"] == "vacant"
+
+
+def test_slucm_developed_use_zero_building_not_vacant() -> None:
+    # SLUCM 53 (trade) / 65 (services) with $0 building = tax-exempt / unassessed
+    # public site, not an available bare pad.
+    for code in ("53", "65", "46", "71"):
+        s = compute_parcel_suitability(
+            {"LANDUSE_CD": code, "VALUE_BLDG": "0", "VALUE_LAND": "500000"}
+        )
+        assert s["is_vacant_land"] is False, code
+        assert s["suitability"] != "vacant", code
+
+
+def test_non_slucm_county_code_falls_through_to_value() -> None:
+    # Clark's 3-digit 702 is not SLUCM; assessor stays permissive and the aerial
+    # rooftop detector is relied on to catch built parcels.
+    s = compute_parcel_suitability({"LANDUSE_CD": "702", "VALUE_BLDG": "0", "VALUE_LAND": "2200000"})
+    assert s["suitability"] == "vacant"
+
+
 def test_underutilized_low_improvement_ratio() -> None:
     # $10k building on $190k land → ratio 0.05 → teardown candidate.
     s = compute_parcel_suitability({"VALUE_BLDG": "10000", "VALUE_LAND": "190000"})
