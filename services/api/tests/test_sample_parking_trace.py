@@ -60,7 +60,9 @@ def test_sample_geojson_scores_and_qualification(pilot) -> None:
 
     assert by_apn["WA-KING-SAMPLE-001"] == 85.0
     assert qualified["WA-KING-SAMPLE-001"] is True
-    assert by_apn["WA-KING-SAMPLE-002"] == 0.0
+    # 1,200 m from demand: graduated decay earns a few partial demand points
+    # (no longer a hard cliff), but the parcel stays far below the floor.
+    assert 0.0 < by_apn["WA-KING-SAMPLE-002"] < 10.0
     assert qualified["WA-KING-SAMPLE-002"] is False
 
 

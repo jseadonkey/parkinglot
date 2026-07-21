@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from parking_core.models import ParcelFeature, ScoreBreakdown, ScoreResult
 from parking_core.pilot import ParkingRateCompObservation, PilotConfig
-from parking_core.rate_comps import parking_market_component
+from parking_core.rate_comps import distance_comp_weight, parking_market_component
 from parking_core.suitability import compute_parcel_suitability
 
 
@@ -76,8 +76,19 @@ def score_parcel(
         demand_pts = 0.0
         notes.append("No demand generator distance; scoring demand proximity as zero.")
     else:
-        demand_pts = 0.0
-        notes.append("Parcel outside configured demand-generator buffer.")
+        # Graduated decay past the buffer instead of a hard cliff: ~50% credit at
+        # ~1.25x buffer beyond the edge, fading to zero for genuinely remote sites.
+        # Keeps near-miss urban parcels competitive while rural lots earn ~nothing.
+        decay = distance_comp_weight(dist - buffer_m, scale_m=buffer_m * 1.25)
+        demand_pts = round(demand_weight * decay, 2)
+        if demand_pts >= 0.5:
+            notes.append(
+                f"~{dist:.0f} m from nearest demand generator — partial demand credit "
+                f"({demand_pts:.1f} of {demand_weight:.0f})."
+            )
+        else:
+            demand_pts = 0.0
+            notes.append("Parcel far outside configured demand-generator buffer.")
 
     comps = nearby_rate_comps or []
     parking_pts, parking_notes = parking_market_component(comps, pilot)

@@ -428,6 +428,7 @@ def _parcel_feature(parcel: Parcel) -> ParcelFeature:
         zoning_entitlement_tier=tier,
         is_corner_lot=parcel.is_corner_lot,
         distance_to_nearest_demand_m=parcel.distance_to_nearest_demand_m,
+        poi_commercial_count_400m=getattr(parcel, "poi_commercial_count_400m", None),
         raw_properties=raw_dict,
     )
 
