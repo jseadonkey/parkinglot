@@ -1005,6 +1005,8 @@ def query_parcels_scored_list(
                     *demand_sort_rank(
                         row.distance_to_nearest_demand_m,
                         row.poi_commercial_count_400m,
+                        row.poi_demand_intensity,
+                        row.poi_heavy_anchor_count,
                     ),
                     surface_sort_rank(row.surface_kind, mostly_paved=mostly),
                     -(primary if primary is not None else float("-inf")),
