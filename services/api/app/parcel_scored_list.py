@@ -210,6 +210,30 @@ class ParcelScoredRowData:
     surface_source: str | None = None
     looks_like_parking: bool = False
     looks_like_building: bool = False
+    distance_to_nearest_demand_m: float | None = None
+    poi_commercial_count_400m: int | None = None
+
+
+def demand_sort_rank(
+    distance_m: float | None,
+    poi_count: int | None,
+) -> tuple[int, float, int]:
+    """Lower ranks first: strong local demand before remote/rural parcels."""
+    poi = max(0, int(poi_count or 0))
+    distance = max(0.0, float(distance_m)) if distance_m is not None else float("inf")
+    if poi >= 6 or distance <= 500:
+        band = 0
+    elif poi >= 2 or distance <= 1_500:
+        band = 1
+    elif distance <= 5_000:
+        band = 2
+    elif distance <= 20_000:
+        band = 3
+    elif distance < float("inf"):
+        band = 4
+    else:
+        band = 5
+    return (band, distance, -poi)
 
 
 def _combined_score_value(
@@ -633,6 +657,8 @@ def _hydrate_scored_rows(
             brief_col,
             Parcel.lot_sqft,
             Parcel.created_at,
+            Parcel.distance_to_nearest_demand_m,
+            Parcel.poi_commercial_count_400m,
             pivot.c.ent_score,
             pivot.c.str_score,
             pivot.c.id_score,
@@ -642,7 +668,21 @@ def _hydrate_scored_rows(
     )
     by_id: dict[uuid.UUID, ParcelScoredRowData] = {}
     for r in db.execute(stmt).all():
-        pid, apn, cfips, zoning, raw_props, brief, sqft, created, ent_f, str_f, id_f = r
+        (
+            pid,
+            apn,
+            cfips,
+            zoning,
+            raw_props,
+            brief,
+            sqft,
+            created,
+            demand_m,
+            poi_count,
+            ent_f,
+            str_f,
+            id_f,
+        ) = r
         ent_f = float(ent_f) if ent_f is not None else None
         str_f = float(str_f) if str_f is not None else None
         id_f = float(id_f) if id_f is not None else None
@@ -678,6 +718,8 @@ def _hydrate_scored_rows(
             surface_kind=surf.kind,
             surface_paved_fraction=surf.paved_fraction,
             surface_source=surf.source,
+            distance_to_nearest_demand_m=float(demand_m) if demand_m is not None else None,
+            poi_commercial_count_400m=int(poi_count) if poi_count is not None else None,
         )
 
     def sort_key(row: ParcelScoredRowData) -> tuple[float, float]:
@@ -883,7 +925,7 @@ def query_parcels_scored_list(
             rows = [r for r in rows if r.entitlement_score is not None and r.entitlement_score >= floor]
         if want_paved:
             # Keep score order within paved / mixed / unknown / vegetated bands.
-            def _band_key(row: ParcelScoredRowData) -> tuple[int, float, float]:
+            def _band_key(row: ParcelScoredRowData) -> tuple[int, float, int, int, float, float]:
                 if sort == ENTITLEMENT:
                     primary = row.entitlement_score
                 elif sort == STRATEGIC:
@@ -896,6 +938,10 @@ def query_parcels_scored_list(
                     row.surface_kind == "mixed" and (row.surface_paved_fraction or 0) >= 0.32
                 )
                 return (
+                    *demand_sort_rank(
+                        row.distance_to_nearest_demand_m,
+                        row.poi_commercial_count_400m,
+                    ),
                     surface_sort_rank(row.surface_kind, mostly_paved=mostly),
                     -(primary if primary is not None else float("-inf")),
                     -(row.created_at.timestamp() if row.created_at else 0.0),
@@ -938,6 +984,8 @@ def query_parcels_scored_list(
         brief_col,
         Parcel.lot_sqft,
         Parcel.created_at,
+        Parcel.distance_to_nearest_demand_m,
+        Parcel.poi_commercial_count_400m,
         ent_sub.label("ent_score"),
         str_sub.label("str_score"),
         id_sub.label("id_score"),
@@ -967,7 +1015,21 @@ def query_parcels_scored_list(
     stmt = stmt.order_by(nulls_last(desc(sort_col)), desc(Parcel.created_at)).limit(cap)
     out: list[ParcelScoredRowData] = []
     for r in db.execute(stmt).all():
-        pid, apn, cfips, zoning, raw_props, brief, sqft, created, ent_f, str_f, id_f = r
+        (
+            pid,
+            apn,
+            cfips,
+            zoning,
+            raw_props,
+            brief,
+            sqft,
+            created,
+            demand_m,
+            poi_count,
+            ent_f,
+            str_f,
+            id_f,
+        ) = r
         ent_f = float(ent_f) if ent_f is not None else None
         str_f = float(str_f) if str_f is not None else None
         id_f = float(id_f) if id_f is not None else None
@@ -1004,6 +1066,8 @@ def query_parcels_scored_list(
                 surface_kind=surf.kind,
                 surface_paved_fraction=surf.paved_fraction,
                 surface_source=surf.source,
+                distance_to_nearest_demand_m=float(demand_m) if demand_m is not None else None,
+                poi_commercial_count_400m=int(poi_count) if poi_count is not None else None,
             ),
         )
     return out
