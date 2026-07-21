@@ -212,35 +212,46 @@ class ParcelScoredRowData:
     looks_like_building: bool = False
     distance_to_nearest_demand_m: float | None = None
     poi_commercial_count_400m: int | None = None
+    poi_demand_intensity: float | None = None
+    poi_heavy_anchor_count: int | None = None
 
 
 def demand_sort_rank(
     distance_m: float | None,
     poi_count: int | None,
-) -> tuple[int, int, float]:
+    intensity: float | None = None,
+    heavy_anchors: int | None = None,
+) -> tuple[int, float, float]:
     """Lower ranks first: strong local demand before remote/rural parcels.
 
-    Dense commercial POI (band 0) beats distance-only proximity. WA demand
-    generators are sparse — a small-town lot a few metres from its lone
-    generator must not outrank a downtown lot with dozens of shops.
+    Demand magnitude beats proximity and business count. Weighted intensity
+    (hospitals/stadiums/universities count for many shops) is the primary
+    signal; heavy anchors guarantee a strong band. A small-town lot a few
+    metres from its lone town centroid must not outrank a downtown lot.
     """
     poi = max(0, int(poi_count or 0))
+    heavy = max(0, int(heavy_anchors or 0))
+    inten = max(0.0, float(intensity)) if intensity is not None else None
     distance = max(0.0, float(distance_m)) if distance_m is not None else float("inf")
-    if poi >= 6:
+    # Magnitude proxy for tie-breaking: prefer intensity, fall back to POI count.
+    magnitude = inten if inten is not None else float(poi)
+    if (inten is not None and inten >= 25) or heavy >= 1:
         band = 0
-    elif poi >= 2 or distance <= 500:
+    elif (inten is not None and inten >= 10) or (inten is None and poi >= 6):
         band = 1
-    elif distance <= 1_500:
+    elif poi >= 2 or distance <= 500:
         band = 2
-    elif distance <= 5_000:
+    elif distance <= 1_500:
         band = 3
-    elif distance <= 20_000:
+    elif distance <= 5_000:
         band = 4
-    elif distance < float("inf"):
+    elif distance <= 20_000:
         band = 5
-    else:
+    elif distance < float("inf"):
         band = 6
-    return (band, -poi, distance)
+    else:
+        band = 7
+    return (band, -magnitude, distance)
 
 
 def _combined_score_value(
@@ -706,6 +717,8 @@ def _hydrate_scored_rows(
             Parcel.created_at,
             Parcel.distance_to_nearest_demand_m,
             Parcel.poi_commercial_count_400m,
+            Parcel.poi_demand_intensity,
+            Parcel.poi_heavy_anchor_count,
             pivot.c.ent_score,
             pivot.c.str_score,
             pivot.c.id_score,
@@ -726,6 +739,8 @@ def _hydrate_scored_rows(
             created,
             demand_m,
             poi_count,
+            poi_intensity,
+            poi_heavy,
             ent_f,
             str_f,
             id_f,
@@ -767,6 +782,8 @@ def _hydrate_scored_rows(
             surface_source=surf.source,
             distance_to_nearest_demand_m=float(demand_m) if demand_m is not None else None,
             poi_commercial_count_400m=int(poi_count) if poi_count is not None else None,
+            poi_demand_intensity=float(poi_intensity) if poi_intensity is not None else None,
+            poi_heavy_anchor_count=int(poi_heavy) if poi_heavy is not None else None,
         )
 
     def sort_key(row: ParcelScoredRowData) -> tuple[float, float]:
