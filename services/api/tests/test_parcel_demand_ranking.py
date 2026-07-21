@@ -46,6 +46,11 @@ def test_downtown_poi_density_beats_small_town_proximity() -> None:
     assert demand_sort_rank(73, 131) < demand_sort_rank(11, None)
 
 
+def test_dense_poi_outranks_distance_only_proximity() -> None:
+    """Band 0 requires commercial density — distance alone is not enough."""
+    assert demand_sort_rank(5_000, 40) < demand_sort_rank(50, None)
+
+
 def test_graduated_demand_decay_in_scorer() -> None:
     """Full credit inside buffer, partial just outside, zero when remote."""
     pilot = load_pilot_config(REPO_ROOT / "config" / "pilot.yaml")

@@ -220,24 +220,26 @@ def demand_sort_rank(
 ) -> tuple[int, int, float]:
     """Lower ranks first: strong local demand before remote/rural parcels.
 
-    Within a band, commercial POI density outranks raw distance: a downtown
-    parcel with 100+ POIs should beat a small-town parcel that merely sits a
-    few metres from its town's single demand generator.
+    Dense commercial POI (band 0) beats distance-only proximity. WA demand
+    generators are sparse — a small-town lot a few metres from its lone
+    generator must not outrank a downtown lot with dozens of shops.
     """
     poi = max(0, int(poi_count or 0))
     distance = max(0.0, float(distance_m)) if distance_m is not None else float("inf")
-    if poi >= 6 or distance <= 500:
+    if poi >= 6:
         band = 0
-    elif poi >= 2 or distance <= 1_500:
+    elif poi >= 2 or distance <= 500:
         band = 1
-    elif distance <= 5_000:
+    elif distance <= 1_500:
         band = 2
-    elif distance <= 20_000:
+    elif distance <= 5_000:
         band = 3
-    elif distance < float("inf"):
+    elif distance <= 20_000:
         band = 4
-    else:
+    elif distance < float("inf"):
         band = 5
+    else:
+        band = 6
     return (band, -poi, distance)
 
 
@@ -606,6 +608,46 @@ def _top_parcel_ids_by_score(
         out.append(pid)
         if len(out) >= cap:
             break
+
+    # Seed high-POI vacant lots into the candidate pool. Score-only walks
+    # over-index small towns that hug a single demand generator; downtown
+    # parcels with real commercial density can sit below the fetch cutoff.
+    if prefer_paved and suit == "vacant" and (exact or prefix):
+        poi_seed = min(80, max(20, cap // 2))
+        vacant_sql = _vacant_sql_predicate("p")
+        if exact:
+            seed_sql = text(
+                f"""
+                SELECT p.id
+                FROM parcels p
+                WHERE p.county_fips = :exact_county
+                  AND p.poi_commercial_count_400m >= 6
+                  AND p.footprint IS NOT NULL
+                  AND ({vacant_sql})
+                ORDER BY p.poi_commercial_count_400m DESC NULLS LAST
+                LIMIT :lim
+                """
+            )
+            seed_params: dict[str, Any] = {"exact_county": exact, "lim": poi_seed}
+        else:
+            seed_sql = text(
+                f"""
+                SELECT p.id
+                FROM parcels p
+                WHERE p.county_fips LIKE :state_prefix
+                  AND p.poi_commercial_count_400m >= 6
+                  AND p.footprint IS NOT NULL
+                  AND ({vacant_sql})
+                ORDER BY p.poi_commercial_count_400m DESC NULLS LAST
+                LIMIT :lim
+                """
+            )
+            seed_params = {"state_prefix": prefix, "lim": poi_seed}
+        for (pid,) in db.execute(seed_sql, seed_params).all():
+            if pid in seen:
+                continue
+            seen.add(pid)
+            out.append(pid)
     return out
 
 
