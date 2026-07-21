@@ -32,6 +32,13 @@ _ACTIVE_PARKING_BRIGHT_PAVED = 0.55
 # "Mostly paved" for operator preference (includes mixed with enough asphalt).
 _MOSTLY_PAVED_MIN = 0.32
 
+# Large bright roof (white membrane / metal) covering the lot → a building, not
+# an empty pad. Commercial/industrial/exempt sites often carry $0 assessed
+# building value, so aerial roof coverage is the reliable "already built" signal.
+# Empty pads and car-filled lots stay well under this (~0.01-0.06 bright roof);
+# a big rooftop measures ~0.30-0.60 of the parcel interior.
+_BUILDING_MIN_ROOF_FRACTION = 0.22
+
 
 @dataclass(frozen=True)
 class LotSurface:
@@ -39,7 +46,9 @@ class LotSurface:
     paved_fraction: float | None = None
     vegetated_fraction: float | None = None
     vehicle_fraction: float | None = None
+    roof_fraction: float | None = None
     looks_like_active_parking: bool = False
+    looks_like_building: bool = False
     source: Literal["assessor", "aerial", "unknown"] = "unknown"
 
     @property
@@ -159,7 +168,7 @@ def classify_lot_surface_pixels(
                             draw.polygon(pts, fill=255)
                     mask = mask_img
             px = rgb.load()
-            paved = veg = veh = other = bright = 0
+            paved = veg = veh = other = bright = roof = 0
             step = 2 if w * h > 80_000 else 1
             for y in range(0, h, step):
                 for x in range(0, w, step):
@@ -169,8 +178,13 @@ def classify_lot_surface_pixels(
                     if r + g + b < 40:
                         continue
                     mx = max(r, g, b)
+                    mn = min(r, g, b)
+                    sat = 0.0 if mx == 0 else (mx - mn) / mx
                     if mx >= 165:
                         bright += 1
+                    # Bright, low-saturation rooftop (white/metal/light membrane).
+                    if mx >= 185 and sat <= 0.28:
+                        roof += 1
                     if _is_vegetation(r, g, b):
                         veg += 1
                     elif _is_pavement(r, g, b):
@@ -186,6 +200,7 @@ def classify_lot_surface_pixels(
             vf = veg / total
             veh_f = veh / total
             bright_f = bright / total
+            roof_f = roof / total
             if pf >= 0.38 and pf >= vf + 0.05:
                 kind: SurfaceKind = "paved"
             elif vf >= 0.38 and vf >= pf + 0.05:
@@ -196,17 +211,22 @@ def classify_lot_surface_pixels(
                 kind = "paved" if pf >= 0.25 else "mixed"
             else:
                 kind = "vegetated" if vf >= 0.25 else "mixed"
+            # A large bright rooftop covering the lot → an existing building.
+            building = roof_f >= _BUILDING_MIN_ROOF_FRACTION
             # Cars on asphalt → already an operating parking lot (poor prospect).
             # Esri often renders car roofs as near-white / light gray (bright_f).
-            active = (pf >= _ACTIVE_PARKING_MIN_PAVED and veh_f >= _ACTIVE_PARKING_MIN_VEHICLE) or (
-                pf >= _ACTIVE_PARKING_BRIGHT_PAVED and bright_f >= _ACTIVE_PARKING_MIN_BRIGHT
+            active = not building and (
+                (pf >= _ACTIVE_PARKING_MIN_PAVED and veh_f >= _ACTIVE_PARKING_MIN_VEHICLE)
+                or (pf >= _ACTIVE_PARKING_BRIGHT_PAVED and bright_f >= _ACTIVE_PARKING_MIN_BRIGHT)
             )
             return LotSurface(
                 kind=kind,
                 paved_fraction=round(pf, 3),
                 vegetated_fraction=round(vf, 3),
                 vehicle_fraction=round(veh_f, 3),
+                roof_fraction=round(roof_f, 3),
                 looks_like_active_parking=active,
+                looks_like_building=building,
                 source="aerial",
             )
     except Exception as exc:

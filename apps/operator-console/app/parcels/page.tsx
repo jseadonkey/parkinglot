@@ -36,6 +36,7 @@ type ParcelRow = {
   surface_paved_fraction?: number | null;
   surface_source?: string | null;
   looks_like_parking?: boolean | null;
+  looks_like_building?: boolean | null;
   revenue: ParcelRevenueSummary | null;
 };
 
@@ -389,7 +390,11 @@ export default function ParcelsPage() {
                 <td>{countyLine(countyLabel, p.county_fips)}</td>
                 <td>{p.zoning_code ?? "—"}</td>
                 <td>
-                  {p.looks_like_parking || p.suitability === "existing_parking" ? (
+                  {p.looks_like_building ? (
+                    <span className="badge badge-err" title="Aerial shows a building covering the parcel">
+                      Has building
+                    </span>
+                  ) : p.looks_like_parking || p.suitability === "existing_parking" ? (
                     <span className="badge badge-err">Already parking</span>
                   ) : p.suitability ? (
                     <span className={suitabilityBadgeClass(p.suitability)}>

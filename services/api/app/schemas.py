@@ -672,6 +672,7 @@ class ParcelScoredListRow(BaseModel):
     surface_paved_fraction: float | None = None
     surface_source: str | None = None
     looks_like_parking: bool = False
+    looks_like_building: bool = False
 
 
 class ParcelScoredListResponse(BaseModel):

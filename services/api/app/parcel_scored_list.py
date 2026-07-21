@@ -204,6 +204,7 @@ class ParcelScoredRowData:
     surface_paved_fraction: float | None = None
     surface_source: str | None = None
     looks_like_parking: bool = False
+    looks_like_building: bool = False
 
 
 def _combined_score_value(
@@ -733,7 +734,14 @@ def _enrich_rows_aerial_surface(db: Session, rows: list[ParcelScoredRowData]) ->
             kind = r.surface_kind
         suit = r.suitability
         vacant = r.is_vacant_land
-        if surf.looks_like_active_parking:
+        # A large rooftop covering the lot means the parcel is already built on,
+        # even when the assessor carries $0 building value (common for exempt /
+        # government / recently-transferred sites). Treat as improved so it drops
+        # out of the vacant shortlist and scores lower.
+        if surf.looks_like_building:
+            suit = "improved"
+            vacant = False
+        elif surf.looks_like_active_parking:
             suit = "existing_parking"
             vacant = False
         out.append(
@@ -743,6 +751,7 @@ def _enrich_rows_aerial_surface(db: Session, rows: list[ParcelScoredRowData]) ->
                 surface_paved_fraction=surf.paved_fraction,
                 surface_source=surf.source,
                 looks_like_parking=bool(surf.looks_like_active_parking),
+                looks_like_building=bool(surf.looks_like_building),
                 suitability=suit,
                 is_vacant_land=vacant,
             )
@@ -830,7 +839,9 @@ def query_parcels_scored_list(
                 rows = [
                     r
                     for r in rows
-                    if r.suitability == "vacant" and not r.looks_like_parking
+                    if r.suitability == "vacant"
+                    and not r.looks_like_parking
+                    and not r.looks_like_building
                 ]
             elif suit == "underutilized":
                 rows = [r for r in rows if r.suitability == "underutilized"]
