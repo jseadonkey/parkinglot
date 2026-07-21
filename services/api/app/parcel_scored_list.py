@@ -217,8 +217,13 @@ class ParcelScoredRowData:
 def demand_sort_rank(
     distance_m: float | None,
     poi_count: int | None,
-) -> tuple[int, float, int]:
-    """Lower ranks first: strong local demand before remote/rural parcels."""
+) -> tuple[int, int, float]:
+    """Lower ranks first: strong local demand before remote/rural parcels.
+
+    Within a band, commercial POI density outranks raw distance: a downtown
+    parcel with 100+ POIs should beat a small-town parcel that merely sits a
+    few metres from its town's single demand generator.
+    """
     poi = max(0, int(poi_count or 0))
     distance = max(0.0, float(distance_m)) if distance_m is not None else float("inf")
     if poi >= 6 or distance <= 500:
@@ -233,7 +238,7 @@ def demand_sort_rank(
         band = 4
     else:
         band = 5
-    return (band, distance, -poi)
+    return (band, -poi, distance)
 
 
 def _combined_score_value(
