@@ -182,6 +182,9 @@ def score_parcel(
         "buffer_m": pilot.scoring.demand_generator_buffer_m,
         "suitability": category,
         "improvement_ratio": suit.get("improvement_ratio"),
+        "demand_intensity": intensity,
+        "heavy_anchor_count": heavy_anchors or None,
+        "market_gate_failed": market_gate_failed,
     }
     if comps:
         max_used = int(getattr(pilot.scoring, "parking_rate_comp_max_used", 8) or 8)
