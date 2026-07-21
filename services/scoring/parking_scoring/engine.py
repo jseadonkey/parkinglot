@@ -5,6 +5,15 @@ from parking_core.pilot import ParkingRateCompObservation, PilotConfig
 from parking_core.rate_comps import distance_comp_weight, parking_market_component
 from parking_core.suitability import compute_parcel_suitability
 
+# Weighted demand intensity where full demand credit is earned (downtown-core level).
+DEMAND_INTENSITY_SATURATION = 30.0
+# Market gate thresholds: below these (with no comps and no heavy anchor) a
+# location likely has free street parking and no paid-parking opportunity.
+MARKET_GATE_MIN_INTENSITY = 25.0
+MARKET_GATE_MIN_POI_COUNT = 12
+# Total score ceiling for gate failures — keeps them out of every qualified list.
+MARKET_GATE_SCORE_CAP = 40.0
+
 
 def score_parcel(
     feature: ParcelFeature,
@@ -60,8 +69,20 @@ def score_parcel(
                 poi_count = int(raw_poi)
             except (TypeError, ValueError):
                 poi_count = None
-    if dist is not None and dist <= buffer_m:
-        demand_pts = demand_weight
+    intensity = feature.poi_demand_intensity
+    heavy_anchors = feature.poi_heavy_anchor_count or 0
+
+    if intensity is not None:
+        # Magnitude-based demand: weighted anchor pull (a hospital or stadium is
+        # worth many small shops). Saturates at DEMAND_INTENSITY_SATURATION so a
+        # true downtown core earns full credit while a lone strip mall does not.
+        frac = min(1.0, max(0.0, float(intensity)) / DEMAND_INTENSITY_SATURATION)
+        demand_pts = round(demand_weight * frac, 2)
+        anchor_txt = f", {heavy_anchors} heavy anchor(s)" if heavy_anchors else ""
+        notes.append(
+            f"Weighted demand intensity {intensity:.0f}{anchor_txt} — "
+            f"{demand_pts:.1f} of {demand_weight:.0f} demand credit."
+        )
     elif poi_count is not None and poi_count >= 6:
         demand_pts = demand_weight
         notes.append(
@@ -72,6 +93,8 @@ def score_parcel(
         notes.append(
             f"Modest OSM commercial POI density ({poi_count} within ~400 m) — half demand credit."
         )
+    elif dist is not None and dist <= buffer_m:
+        demand_pts = demand_weight
     elif dist is None:
         demand_pts = 0.0
         notes.append("No demand generator distance; scoring demand proximity as zero.")
@@ -93,6 +116,25 @@ def score_parcel(
     comps = nearby_rate_comps or []
     parking_pts, parking_notes = parking_market_component(comps, pilot)
     notes.extend(parking_notes)
+
+    # Paid-parking market gate: where demand is low, drivers park free on the
+    # street and there is no opportunity — regardless of a town centroid nearby.
+    # Evidence of a real market: paid comps, a heavy demand anchor, or a dense core.
+    market_gate_failed = False
+    demand_data_known = intensity is not None or poi_count is not None
+    if demand_data_known:
+        has_comps = len(comps) > 0
+        has_heavy_anchor = heavy_anchors >= 1
+        dense_core = (intensity is not None and intensity >= MARKET_GATE_MIN_INTENSITY) or (
+            intensity is None and poi_count is not None and poi_count >= MARKET_GATE_MIN_POI_COUNT
+        )
+        if not (has_comps or has_heavy_anchor or dense_core):
+            market_gate_failed = True
+            demand_pts = 0.0
+            notes.append(
+                "No paid-parking market evidence (no rate comps, no heavy demand anchor, "
+                "low commercial density) — likely free street parking; scored as no opportunity."
+            )
 
     suit = compute_parcel_suitability(feature.raw_properties)
     suit_weight = float(getattr(w, "vacant_or_underutilized", 0) or 0)
@@ -123,6 +165,8 @@ def score_parcel(
             notes.append("No assessor building/land value on file; site suitability unknown.")
 
     total = min(100.0, zoning_pts + lot_pts + corner_pts + demand_pts + parking_pts + suit_pts)
+    if market_gate_failed:
+        total = min(total, MARKET_GATE_SCORE_CAP)
     breakdown = ScoreBreakdown(
         zoning_component=zoning_pts,
         lot_size_component=lot_pts,
