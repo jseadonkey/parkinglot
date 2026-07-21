@@ -62,7 +62,8 @@ counties:
     address_source: watech_pierce
   '53061':
     inherit: default_wa_watech
-    address_source: watech_snohomish
+    address_source: snohomish_assessor_roll
+    rotated_at: '2026-07-21'
   '53035':
     inherit: default_wa_watech
     address_source: nominatim_centroid_fallback
