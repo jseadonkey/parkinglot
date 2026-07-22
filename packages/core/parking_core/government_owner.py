@@ -13,6 +13,7 @@ from typing import Any
 _GOV_FLAG_KEYS = ("OWNER_GOVERNMENT", "owner_government", "IS_GOVERNMENT_OWNER")
 
 # Taxpayer / owner display-name patterns (case-insensitive substring match).
+# Hyphens/punctuation are normalized to spaces before matching.
 _GOVERNMENT_NAME_MARKERS: tuple[str, ...] = (
     "CITY OF",
     "TOWN OF",
@@ -97,7 +98,8 @@ def is_government_owner_name(owner_name: str | None) -> bool:
         return False
     # Pad so edge markers like "USA " / " US " match cleanly.
     upper = f" {owner_name.upper()} "
-    upper = upper.replace(",", " ").replace(".", " ")
+    for ch in (",", ".", "-", "/", "\\", "_", "(", ")", "[", "]", "'", '"'):
+        upper = upper.replace(ch, " ")
     while "  " in upper:
         upper = upper.replace("  ", " ")
     return any(marker in upper for marker in _GOVERNMENT_NAME_MARKERS)
@@ -108,16 +110,17 @@ def government_owner_from_properties(
 ) -> tuple[bool, str | None]:
     """Return ``(is_government, owner_name)`` from parcel ``raw_properties``.
 
-    Honors an explicit ``OWNER_GOVERNMENT`` flag when present, otherwise
-    classifies from the owner / taxpayer name.
+    An explicit ``OWNER_GOVERNMENT=true`` forces a positive match. A stored
+    ``false`` does **not** override name patterns (scrapers sometimes stamp
+    false before classifying).
     """
     props = raw_properties or {}
     owner = owner_name_from_properties(props)
 
     for key in _GOV_FLAG_KEYS:
         raw = props.get(key)
-        if isinstance(raw, bool):
-            return raw, owner
+        if isinstance(raw, bool) and raw:
+            return True, owner
         if isinstance(raw, str) and raw.strip().lower() in ("true", "1", "yes", "y"):
             return True, owner
         if isinstance(raw, int | float) and int(raw) == 1:

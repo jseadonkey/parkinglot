@@ -33,6 +33,20 @@ def test_explicit_owner_government_flag() -> None:
     assert name == "Some Trust"
 
 
+def test_false_government_flag_does_not_override_name() -> None:
+    """Scrapers may stamp OWNER_GOVERNMENT=false; name patterns still win."""
+    is_gov, name = government_owner_from_properties(
+        {"OWNER_NAME": "KING COUNTY-FMD FACILITIES", "OWNER_GOVERNMENT": False}
+    )
+    assert is_gov is True
+    assert "KING COUNTY" in (name or "")
+
+
+def test_hyphenated_county_fmd_name() -> None:
+    assert is_government_owner_name("KING COUNTY-FMD FACILITIES")
+
+
+
 def test_enrichment_marks_public_agency() -> None:
     owners = enrich_from_parcel_row({"OWNER_NAME": "KENT CITY OF"})
     assert owners[0].kind == OwnerKind.public
