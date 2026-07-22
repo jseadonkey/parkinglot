@@ -18,6 +18,7 @@ for _env_name, _rel in (
     ("PILOT_STRATEGIC_CONFIG_PATH", "config/pilot_strategic.yaml"),
     ("PILOT_IDENTIFICATION_CONFIG_PATH", "config/pilot_identification.yaml"),
     ("GEO_MARKETS_CONFIG_PATH", "config/geo_markets.yaml"),
+    ("GEO_SCOPE_CONFIG_PATH", "config/geo_scope.yaml"),
 ):
     _path = _REPO_ROOT / _rel
     if _path.is_file():

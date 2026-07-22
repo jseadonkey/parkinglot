@@ -1,0 +1,29 @@
+---
+description: Global vs state/county/source geo scope — do not hard-code FIPS for list perf
+alwaysApply: true
+---
+
+# Geographic scope (parkinglot)
+
+Read **`config/geo_scope.yaml`** before adding geo-branched logic.
+
+## Global (all markets)
+
+- Scoring math, market gate, gov-owner cap, demand intensity
+- Operator scored-list: require geography, score walk, hydrate, filters
+- List performance budgets (timeouts, overfetch, aerial row caps) via `app.geo_scope`
+- Vacancy **process**: prefer assessor vacant flags, then value/land-use heuristics
+- Page-load patterns (nothing loads until state/county chosen)
+
+## Stay local
+
+- **State:** WaTech/WAZA, rollout pacing, state agency outreach (WA SoS)
+- **County:** zoning ordinance curation (`data/zoning/`), priority counties (`geo_markets.yaml`)
+- **Source:** ingest URLs, APN prefixes, assessor codebooks (King Present Use, Baltimore VACIND)
+
+## Anti-patterns
+
+- `if state_fips == "24"` / `"53"` for timeouts, overfetch, aerial budgets, or POI-seed skips
+- Putting zone codes or vendor field maps into the scoring engine as hard-coded FIPS branches
+
+Use `app.geo_scope.list_performance` / `should_skip_poi_seed` / flag-aware vacant SQL instead.

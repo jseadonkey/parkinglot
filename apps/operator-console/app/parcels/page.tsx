@@ -7,6 +7,7 @@ import { ParcelSitePhoto } from "../../components/ParcelSitePhoto";
 import { SitusAddressDisplay } from "../../components/SitusAddressDisplay";
 import { STATE_NAMES } from "../../lib/marketScope";
 import { bridgeUrl } from "../../lib/paths";
+import { PILOT_SCOPE_DEFAULTS } from "../../lib/pilotScopeDefaults";
 import { formatMonthlyGross, formatStallRange, type ParcelRevenueSummary } from "../../lib/revenueDisplay";
 import { tierBadgeClass, tierLabel } from "../../lib/zoningEntitlement";
 import { countyLine, useCountyNames } from "../../lib/useCountyNames";
@@ -162,7 +163,13 @@ export default function ParcelsPage() {
     void load();
   }, [load]);
 
-  const mdParcelCount = counties.filter((c) => c.county_fips.startsWith("24")).reduce((n, c) => n + (c.parcels_in_db ?? 0), 0);
+  const scopedParcelCount = counties
+    .filter((c) => {
+      if (countyFips) return c.county_fips === countyFips;
+      if (stateFips) return c.county_fips.startsWith(stateFips);
+      return false;
+    })
+    .reduce((n, c) => n + (c.parcels_in_db ?? 0), 0);
 
   const emptyHint = (() => {
     if (loading || rows.length > 0) return null;
@@ -172,21 +179,18 @@ export default function ParcelsPage() {
     if (qualifiedOnly && qualifiedFloor != null) {
       return `No parcels score at or above entitlement ${qualifiedFloor} with these filters. Uncheck “High scores only” to see all ingested parcels (including unscored or lower scores).`;
     }
-    if (stateFips === "24" || countyFips === "24510") {
-      if (mdParcelCount > 0) {
-        return `Maryland has ${mdParcelCount.toLocaleString()} parcels in the database but none match these filters. Try “All tiers” and turn off “High scores only”.`;
-      }
-      return "No Baltimore parcels in the database yet. Run Droplet resources → baltimore_ingest_now or baltimore_zoning_overlay, then refresh.";
+    if (scopedParcelCount > 0) {
+      return `This area has ${scopedParcelCount.toLocaleString()} parcels in the database but none match these filters. Try “All tiers”, clear suitability, or turn off “High scores only”.`;
     }
     if (stateFips || countyFips || zoningTier || suitability) {
-      return "No parcels match these filters. Try “Prospect shortlist”, clear the zoning tier, or pick another county.";
+      return "No parcels match these filters (or none are ingested for this area yet). Try “Prospect shortlist”, clear the zoning tier, or pick another county.";
     }
-    return "No scored parcels in the database yet. Run county ingest on the Droplet (Baltimore or Washington), then refresh.";
+    return "No scored parcels in the database yet. Run county ingest on the Droplet, then refresh.";
   })();
 
   const applyProspectShortlist = () => {
-    // Default to Washington when no geography is chosen so the shortlist can load.
-    if (!stateFips && !countyFips) setStateFips("53");
+    // Default to the primary market state when no geography is chosen.
+    if (!stateFips && !countyFips) setStateFips(PILOT_SCOPE_DEFAULTS.primary_market_state_fips);
     setZoningTier("prospect");
     setSuitability("vacant");
     setPreferPaved(true);

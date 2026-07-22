@@ -277,10 +277,13 @@ def compute_parcel_suitability(raw_properties: dict[str, Any] | None) -> dict[st
 
     vacant_by_value = bldg is not None and bldg <= 0 and (land or 0) > 0
     vacant_by_use = any(tok in use_upper for tok in _VACANT_USE_TOKENS)
-    # Baltimore RealProperty flags (merged at ingest when PIN matches).
-    vacind = str(props.get("VACIND") or "").strip().upper()
-    no_imprv = str(props.get("NO_IMPRV") or "").strip().upper()
-    if vacind == "Y" or no_imprv in ("Y", "1", "TRUE"):
+    # Assessor vacant flags (any source that publishes them — e.g. Baltimore VACIND /
+    # NO_IMPRV). Kept generic so new markets plug in without FIPS branches.
+    vacind = str(props.get("VACIND") or props.get("vacind") or props.get("IS_VACANT") or "").strip().upper()
+    no_imprv = str(
+        props.get("NO_IMPRV") or props.get("no_imprv") or props.get("NO_IMPROVEMENT") or ""
+    ).strip().upper()
+    if vacind in ("Y", "1", "TRUE", "YES") or no_imprv in ("Y", "1", "TRUE", "YES"):
         vacant_by_use = True
     king_use = _king_present_use_code(props)
     if king_use is not None and king_use in _KING_PRESENT_USE_CODES:

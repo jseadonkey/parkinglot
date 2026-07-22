@@ -45,6 +45,18 @@ Status interpretation:
 - `trusted` — registered jurisdictions are `qa_passed` / `curated` or
   `not_applicable`.
 
+## Geographic scope (global vs local)
+
+Zoning is local (this doc). Broader product rules live in:
+
+- `config/geo_scope.yaml` — what research/processes are **global** vs state/county/source,
+  plus operator list performance budgets (timeouts, overfetch, aerial caps).
+- `config/geo_markets.yaml` — which markets are primary / priority counties.
+
+Do **not** hard-code `state_fips == "24"` (or `"53"`) for list timeouts or vacancy SQL.
+Assessor field adapters (King Present Use, Baltimore `VACIND`) stay source-specific;
+the *process* that consumes them is global.
+
 ## Scoring policy
 
 - **Permitted / full credit:** only local by-right symbols (Baltimore `P`).

@@ -1,5 +1,10 @@
 # Geographic priorities — Baltimore first; Washington statewide ingest stays slow/secondary.
 # Loaded by app.geo_markets (see GEO_MARKETS_CONFIG_PATH).
+#
+# What belongs here vs elsewhere:
+# - HERE: which markets are primary / priority counties / WA pacing knobs.
+# - config/geo_scope.yaml: GLOBAL vs STATE/COUNTY/SOURCE principles + list budgets.
+# - data/zoning/: local ordinance entitlement (never globalize zone codes).
 
 primary_market:
   name: "Baltimore, Maryland"

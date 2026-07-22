@@ -505,8 +505,8 @@ def _geography_prefix(county_fips: str, state_fips: str) -> tuple[str | None, st
     return None, None
 
 
-def _baltimore_vacant_sql_predicate(alias: str = "p") -> str:
-    """Cheap vacant filter for Baltimore RealProperty flags (no VALUE_BLDG scan)."""
+def _assessor_vacancy_flag_sql(alias: str = "p") -> str:
+    """Cheap vacant flags from any assessor source (Baltimore VACIND/NO_IMPRV, …)."""
     return f"""
       (
         UPPER(COALESCE({alias}.raw_properties->>'VACIND', '')) = 'Y'
@@ -515,17 +515,20 @@ def _baltimore_vacant_sql_predicate(alias: str = "p") -> str:
     """
 
 
-def _vacant_sql_predicate(alias: str = "p") -> str:
+def _vacant_sql_predicate(alias: str = "p", *, flags_only: bool = False) -> str:
     """Raw SQL fragment: assessor-vacant and not parking / ROW / park / utility.
 
-    Includes Baltimore RealProperty flags (``VACIND``, ``NO_IMPRV``) — without
-    those, MD statewide vacant walks match nothing and scan the full score index
-    until the operator bridge returns 504.
+    Prefer assessor vacant FLAGS first (any market that publishes them). The
+    VALUE_BLDG JSON walk is reserved for markets without flags — combining both
+    in one OR made large-market score walks time out (operator 504).
     """
+    if flags_only:
+        return _assessor_vacancy_flag_sql(alias)
     cds = ", ".join(f"'{c}'" for c in _NON_DEVELOPABLE_LANDUSE_CDS)
     vac = ", ".join(f"'{c}'" for c in _VACANT_LANDUSE_CDS)
     king = ", ".join(f"'{c}'" for c in _KING_PRESENT_USE_CDS)
     non_dev_re = "|".join(_NON_DEVELOPABLE_LANDUSE_CDS)
+    flags = _assessor_vacancy_flag_sql(alias)
     return f"""
       NOT (
         NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') = '46'
@@ -549,13 +552,15 @@ def _vacant_sql_predicate(alias: str = "p") -> str:
         OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%FOREST LAND%'
       )
       AND (
-        NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') IN ({vac})
+        {flags}
+        OR NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') IN ({vac})
         OR NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') = '91'
         OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%VACANT%'
-        OR UPPER(COALESCE({alias}.raw_properties->>'VACIND', '')) = 'Y'
-        OR UPPER(COALESCE({alias}.raw_properties->>'NO_IMPRV', '')) IN ('Y', '1', 'TRUE')
         OR (
-          NULLIF(REPLACE({alias}.raw_properties->>'VALUE_BLDG', ',', ''), '') ~ '^[0-9]+(\\.[0-9]+)?$'
+          -- Value heuristic only when no vacant flag is present on the parcel.
+          COALESCE(NULLIF(BTRIM({alias}.raw_properties->>'VACIND'), ''), '') = ''
+          AND COALESCE(NULLIF(BTRIM({alias}.raw_properties->>'NO_IMPRV'), ''), '') = ''
+          AND NULLIF(REPLACE({alias}.raw_properties->>'VALUE_BLDG', ',', ''), '') ~ '^[0-9]+(\\.[0-9]+)?$'
           AND NULLIF(REPLACE({alias}.raw_properties->>'VALUE_BLDG', ',', ''), '')::float <= 0
           AND NULLIF(REPLACE({alias}.raw_properties->>'VALUE_LAND', ',', ''), '') ~ '^[0-9]+(\\.[0-9]+)?$'
           AND NULLIF(REPLACE({alias}.raw_properties->>'VALUE_LAND', ',', ''), '')::float > 0
@@ -569,6 +574,63 @@ def _vacant_sql_predicate(alias: str = "p") -> str:
         )
       )
     """
+
+
+def _geo_has_assessor_vacancy_flags(
+    db: Session,
+    *,
+    exact_county: str | None,
+    state_prefix: str | None,
+) -> bool:
+    """True when this geography has at least one parcel with assessor vacant flags."""
+    if exact_county:
+        sql = text(
+            f"""
+            SELECT 1 FROM parcels p
+            WHERE p.county_fips = :exact_county
+              AND ({_assessor_vacancy_flag_sql("p")})
+            LIMIT 1
+            """
+        )
+        params: dict[str, Any] = {"exact_county": exact_county}
+    elif state_prefix:
+        sql = text(
+            f"""
+            SELECT 1 FROM parcels p
+            WHERE p.county_fips LIKE :state_prefix
+              AND ({_assessor_vacancy_flag_sql("p")})
+            LIMIT 1
+            """
+        )
+        params = {"state_prefix": state_prefix}
+    else:
+        return False
+    return db.execute(sql, params).first() is not None
+
+
+def _geography_parcel_count(
+    db: Session,
+    *,
+    exact_county: str | None,
+    state_prefix: str | None,
+) -> int | None:
+    """Best-effort parcel count for list-performance decisions (GLOBAL budgets)."""
+    if exact_county:
+        n = db.execute(
+            text("SELECT COUNT(*) FROM parcels WHERE county_fips = :c"),
+            {"c": exact_county},
+        ).scalar()
+    elif state_prefix:
+        n = db.execute(
+            text("SELECT COUNT(*) FROM parcels WHERE county_fips LIKE :p"),
+            {"p": state_prefix},
+        ).scalar()
+    else:
+        return None
+    try:
+        return int(n or 0)
+    except (TypeError, ValueError):
+        return None
 
 
 def _top_parcel_ids_by_score(
@@ -590,23 +652,25 @@ def _top_parcel_ids_by_score(
     When ``prefer_paved``, commercial/industrial vacant (often asphalt) ranks above
     residential vacant (often grass) before score.
     """
+    from app.geo_scope import list_performance, should_skip_poi_seed
+
     cap = min(max(limit, 1), 2000)
     fetch_n = min(max(overfetch or cap, cap), 5000)
     exact, prefix = _geography_prefix(county_fips, state_fips)
     suit = (suitability or "").strip().lower()
-    # Maryland / Baltimore: RealProperty VACIND + NO_IMPRV are the vacancy signal.
-    # The WA VALUE_BLDG JSON walk matches nothing here and times out (operator 504).
-    md_geo = (exact == "24510") or (prefix is not None and prefix.startswith("24"))
     vacant_clause = ""
     if suit == "vacant":
-        vac_pred = (
-            _baltimore_vacant_sql_predicate("p")
-            if md_geo
-            else _vacant_sql_predicate("p")
+        # Markets with assessor vacant flags (any state) use the cheap predicate so
+        # the score walk does not evaluate VALUE_BLDG JSON on every row.
+        flags_only = _geo_has_assessor_vacancy_flags(
+            db, exact_county=exact, state_prefix=prefix
         )
+        vac_pred = _vacant_sql_predicate("p", flags_only=flags_only)
         vacant_clause = f" AND ({vac_pred})"
+    perf = list_performance()
+    walk_timeout_ms = int(perf["score_walk_timeout_ms"])
     # Keep ORDER BY on score only — a CASE on JSON land-use defeats the profile/score
-    # index and pushes WA vacant+prefer_paved past the operator-console bridge timeout.
+    # index and pushes vacant+prefer_paved past the operator-console bridge timeout.
     if exact:
         sql = text(
             f"""
@@ -646,7 +710,7 @@ def _top_parcel_ids_by_score(
             """
         )
         params = {"profile": profile, "lim": fetch_n}
-    db.execute(text("SET LOCAL statement_timeout = '45000'"))
+    db.execute(text(f"SET LOCAL statement_timeout = '{walk_timeout_ms}'"))
     try:
         rows = db.execute(sql, params).all()
     except Exception as exc:
@@ -674,12 +738,17 @@ def _top_parcel_ids_by_score(
     # Seed high-POI vacant lots into the candidate pool. Score-only walks
     # over-index small towns that hug a single demand generator; downtown
     # parcels with real commercial density can sit below the fetch cutoff.
-    # Skip for Maryland — Baltimore vacancy is VACIND-flagged and a statewide
-    # POI seed over ~220k parcels is what made /parcels return 504.
-    md_geo = (exact == "24510") or (prefix is not None and prefix.startswith("24"))
-    if prefer_paved and suit == "vacant" and (exact or prefix) and not md_geo:
+    # Skip for whole-state / very large geographies (see config/geo_scope.yaml).
+    geo_count = None
+    if prefer_paved and suit == "vacant" and exact and not prefix:
+        geo_count = _geography_parcel_count(db, exact_county=exact, state_prefix=None)
+    skip_seed = should_skip_poi_seed(
+        state_scope=bool(prefix),
+        geography_parcel_count=geo_count,
+    )
+    if prefer_paved and suit == "vacant" and (exact or prefix) and not skip_seed:
         poi_seed = min(80, max(20, cap // 2))
-        vacant_sql = _vacant_sql_predicate("p")
+        vacant_sql = _vacant_sql_predicate("p", flags_only=False)
         # Prefer weighted intensity when populated; fall back to POI count for
         # parcels not yet backfilled with the magnitude signal.
         if exact:
@@ -720,7 +789,8 @@ def _top_parcel_ids_by_score(
                 """
             )
             seed_params = {"state_prefix": prefix, "lim": poi_seed}
-        db.execute(text("SET LOCAL statement_timeout = '20000'"))
+        seed_timeout_ms = int(perf["poi_seed_timeout_ms"])
+        db.execute(text(f"SET LOCAL statement_timeout = '{seed_timeout_ms}'"))
         try:
             seed_rows = db.execute(seed_sql, seed_params).all()
         except Exception as exc:
@@ -977,6 +1047,7 @@ def query_parcels_scored_list(
     residential vacant while keeping the chosen score sort within each band.
     ``surface`` filters to paved | vegetated | mixed when set.
     """
+    from app.geo_scope import aerial_enrich_max_rows, list_performance, vacant_overfetch
     from app.parcel_surface import surface_sort_rank
 
     cap = min(max(limit, 1), 2000)
@@ -986,21 +1057,25 @@ def query_parcels_scored_list(
     suit = (suitability or "").strip().lower()
     surf_filter = (surface or "").strip().lower()
     want_paved = bool(prefer_paved) or surf_filter in ("paved", "mostly_paved")
+    perf = list_performance()
 
     # Fast path: geography selected, suitability/tier applied after hydrate.
-    # Keep overfetch modest — large LIMIT+JOIN walks on parcel_scores time out for WA.
+    # Keep overfetch modest — large LIMIT+JOIN walks on parcel_scores time out.
     # Vacant is applied in the score walk SQL so we do not overfetch improved buildings.
+    # Budgets come from config/geo_scope.yaml (GLOBAL — not per-state hard-codes).
     if cf or st:
         if suit == "vacant":
             # Extra headroom: aerial may reclassify some vacant rows as already-parking.
-            overfetch = min(cap * 6, 300)
+            overfetch = vacant_overfetch(cap)
         elif suit in ("not_existing_parking", "existing_parking"):
             # Parking-coded lots are sparse among top scores.
             overfetch = min(cap * 8, 400)
         elif suit or tier or min_entitlement_score is not None:
             overfetch = min(cap * 20, 800)
         else:
-            overfetch = min(cap * 4, 200)
+            bare_mult = int(perf["bare_overfetch_multiplier"])
+            bare_cap = int(perf["bare_overfetch_cap"])
+            overfetch = min(cap * bare_mult, bare_cap)
         driver = _sort_driver_profile(sort)
         ids = _top_parcel_ids_by_score(
             db,
@@ -1014,7 +1089,11 @@ def query_parcels_scored_list(
         )
         rows = _hydrate_scored_rows(db, ids, sort=sort)
         if suit == "vacant":
-            rows = _enrich_rows_aerial_surface(db, rows)
+            aerial_n = aerial_enrich_max_rows()
+            if len(rows) > aerial_n:
+                rows = _enrich_rows_aerial_surface(db, rows[:aerial_n]) + rows[aerial_n:]
+            else:
+                rows = _enrich_rows_aerial_surface(db, rows)
         if tier in ("prospect", "prospects"):
             rows = [
                 r

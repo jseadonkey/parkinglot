@@ -340,6 +340,13 @@ class Settings(BaseSettings):
             "geo_markets_config_path",
         ),
     )
+    geo_scope_config_path: str = Field(
+        default="/app/config/geo_scope.yaml",
+        validation_alias=AliasChoices(
+            "GEO_SCOPE_CONFIG_PATH",
+            "geo_scope_config_path",
+        ),
+    )
     wa_statewide_rollout_crontab_hour: str = Field(
         default="*",
         validation_alias=AliasChoices(

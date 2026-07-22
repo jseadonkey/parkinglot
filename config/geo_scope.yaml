@@ -1,0 +1,65 @@
+# Geographic scope principles — what is GLOBAL vs STATE / COUNTY / SOURCE.
+#
+# Use this file when adding research, scoring, list/API behavior, or ingest.
+# Loaded by app.geo_scope (GEO_SCOPE_CONFIG_PATH). Priority markets live in
+# config/geo_markets.yaml; zoning ordinance trust lives in data/zoning/.
+#
+# Anti-pattern: ``if state_fips == "24"`` (or ``"53"``) for timeouts, overfetch,
+# aerial budgets, or vacancy SQL. Those are GLOBAL list-performance concerns.
+# Assessor field *meanings* (King Present Use codes, Baltimore VACIND) stay
+# SOURCE-specific adapters that plug into global processes.
+
+# ---------------------------------------------------------------------------
+# Principles (human + agent contract)
+# ---------------------------------------------------------------------------
+principles:
+  global:
+    - "Scoring engine math (weights, market gate, demand intensity, gov-owner cap)"
+    - "Operator list/API shape: require geography, score-index walk, hydrate, filter"
+    - "List performance budgets (statement timeouts, overfetch caps, aerial row budget)"
+    - "Vacancy process: read assessor vacant FLAGS first, then value/land-use heuristics"
+    - "Shortlist quality filters (drop existing parking, rooftops, government owners)"
+    - "Page-load patterns (nothing loads until state/county chosen; bridge timeouts)"
+    - "OSM POI / demand intensity measurement methodology"
+  state:
+    - "Statewide data layers (WA WaTech parcels, WAZA provisional COM/MXU/IND)"
+    - "State agency outreach paths (e.g. WA Secretary of State entity lookup)"
+    - "Rollout pacing and statewide ingest campaigns"
+    - "Primary market label / default state in geo_markets.yaml"
+  county:
+    - "Zoning entitlement curation (P / CB / CO) — ordinance is local"
+    - "Priority counties for pipeline enqueue and operator defaults"
+    - "Demand-generator seeds and parking rate-comp seeds for a metro"
+  source:
+    - "Ingest URLs, field lists, APN prefixes (Baltimore EGIS, WaTech ArcGIS, …)"
+    - "Assessor codebooks mapped into shared vacancy/parking signals"
+    - "Join keys (PIN, BLOCKLOT, FIPS_NR) for attribute overlays"
+
+# ---------------------------------------------------------------------------
+# Assessor vacancy adapters (SOURCE → GLOBAL signal)
+# Any market may emit these; the list walker prefers cheap flags over VALUE_BLDG.
+# ---------------------------------------------------------------------------
+assessor_vacancy_flags:
+  # Boolean / Y-N style vacant indicators (Baltimore RealProperty VACIND, …)
+  true_values: ["Y", "1", "TRUE", "YES"]
+  vacant_indicator_keys: ["VACIND", "vacind", "IS_VACANT", "VACANT_IND"]
+  # No-improvement / bare-lot flags (Baltimore NO_IMPRV, …)
+  no_improvement_keys: ["NO_IMPRV", "no_imprv", "NO_IMPROVEMENT", "UNIMPROVED"]
+
+# ---------------------------------------------------------------------------
+# Operator scored-list performance (GLOBAL — all geos)
+# Tuned so large markets (200k+ parcels) never 504 the operator bridge.
+# ---------------------------------------------------------------------------
+list_performance:
+  score_walk_timeout_ms: 45000
+  poi_seed_timeout_ms: 20000
+  # POI seed scans parcels by density; skip for whole-state lists (too wide).
+  poi_seed_skip_for_state_scope: true
+  # Also skip POI seed when the geography has this many parcels or more.
+  poi_seed_max_geography_parcels: 80000
+  vacant_overfetch_multiplier: 3
+  vacant_overfetch_cap: 75
+  # Aerial surface enrich is expensive; cap candidates then keep remainder as-is.
+  aerial_enrich_max_rows: 40
+  bare_overfetch_multiplier: 4
+  bare_overfetch_cap: 200
