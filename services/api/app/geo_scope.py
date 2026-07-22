@@ -28,8 +28,8 @@ _DEFAULT_LIST_PERF: dict[str, Any] = {
 
 _DEFAULT_VACANCY_FLAGS: dict[str, Any] = {
     "true_values": ["Y", "1", "TRUE", "YES"],
-    "vacant_indicator_keys": ["VACIND", "vacind", "IS_VACANT", "VACANT_IND"],
     "no_improvement_keys": ["NO_IMPRV", "no_imprv", "NO_IMPROVEMENT", "UNIMPROVED"],
+    "vacant_building_keys": ["VACIND", "vacind", "IS_VACANT", "VACANT_IND"],
 }
 
 

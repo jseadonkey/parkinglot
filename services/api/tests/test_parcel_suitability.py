@@ -77,10 +77,13 @@ def test_vacant_when_land_use_text_says_vacant() -> None:
     assert s["suitability"] == "vacant"
 
 
-def test_baltimore_vacind_is_vacant() -> None:
-    s = compute_parcel_suitability({"VACIND": "Y", "OWNER_NAME": "Example LLC"})
-    assert s["suitability"] == "vacant"
-    assert s["is_vacant_land"] is True
+def test_baltimore_vacind_is_not_vacant_land() -> None:
+    """VACIND marks vacant buildings (often with dwelling units), not bare lots."""
+    s = compute_parcel_suitability(
+        {"VACIND": "Y", "DWELUNIT": "1", "USEGROUP": "R ", "OWNER_NAME": "Example LLC"}
+    )
+    assert s["suitability"] != "vacant"
+    assert s["is_vacant_land"] is False
 
 
 def test_baltimore_no_imprv_is_vacant() -> None:

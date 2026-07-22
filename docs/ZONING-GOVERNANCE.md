@@ -54,8 +54,9 @@ Zoning is local (this doc). Broader product rules live in:
 - `config/geo_markets.yaml` — which markets are primary / priority counties.
 
 Do **not** hard-code `state_fips == "24"` (or `"53"`) for list timeouts or vacancy SQL.
-Assessor field adapters (King Present Use, Baltimore `VACIND`) stay source-specific;
-the *process* that consumes them is global.
+Assessor field adapters (King Present Use, Baltimore ``NO_IMPRV`` bare-lot flag)
+stay source-specific; the *process* that consumes them is global. Do not treat
+Baltimore ``VACIND`` (vacant-building notice) as vacant land.
 
 ## Scoring policy
 

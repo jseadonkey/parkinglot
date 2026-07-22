@@ -123,10 +123,11 @@ def _suitability_where(suitability: str) -> Any | None:
     # tax-exempt / unassessed public site, not a bare lot (sync with
     # parking_core.suitability._SLUCM_DEVELOPED_MAJOR).
     slucm_developed = dor.op("~")(r"^[2-7][0-9]$")
-    # Baltimore City RealProperty: vacant indicator / no-improvement flags.
-    vacind = func.upper(func.coalesce(Parcel.raw_properties["VACIND"].astext, ""))
+    # Baltimore RealProperty flags:
+    # - NO_IMPRV = bare lot / no taxable structure → vacant land (parking fit).
+    # - VACIND = vacant-building notice → often a row house still standing; not bare land.
     no_imprv = func.upper(func.coalesce(Parcel.raw_properties["NO_IMPRV"].astext, ""))
-    baltimore_vacant = or_(vacind == "Y", no_imprv.in_(("Y", "1", "TRUE")))
+    baltimore_bare_lot = no_imprv.in_(("Y", "1", "TRUE"))
     vacant = and_(
         ~existing_parking,
         ~non_developable,
@@ -134,7 +135,7 @@ def _suitability_where(suitability: str) -> Any | None:
             dor.in_(_VACANT_LANDUSE_CDS),
             dor == "91",  # SLUCM Undeveloped Land
             use_txt.like("%VACANT%"),
-            baltimore_vacant,
+            baltimore_bare_lot,
             and_(value_vacant, ~king_coded, ~slucm_developed),
         ),
     )
@@ -506,11 +507,14 @@ def _geography_prefix(county_fips: str, state_fips: str) -> tuple[str | None, st
 
 
 def _assessor_vacancy_flag_sql(alias: str = "p") -> str:
-    """Cheap vacant flags from any assessor source (Baltimore VACIND/NO_IMPRV, …)."""
+    """Cheap bare-lot flags (no structure) — not vacant-building notices.
+
+    Baltimore ``NO_IMPRV=Y`` = unimproved land. ``VACIND=Y`` is a vacant
+    *building* notice and must not enter the vacant-lot shortlist.
+    """
     return f"""
       (
-        UPPER(COALESCE({alias}.raw_properties->>'VACIND', '')) = 'Y'
-        OR UPPER(COALESCE({alias}.raw_properties->>'NO_IMPRV', '')) IN ('Y', '1', 'TRUE')
+        UPPER(COALESCE({alias}.raw_properties->>'NO_IMPRV', '')) IN ('Y', '1', 'TRUE')
       )
     """
 
@@ -518,9 +522,9 @@ def _assessor_vacancy_flag_sql(alias: str = "p") -> str:
 def _vacant_sql_predicate(alias: str = "p", *, flags_only: bool = False) -> str:
     """Raw SQL fragment: assessor-vacant and not parking / ROW / park / utility.
 
-    Prefer assessor vacant FLAGS first (any market that publishes them). The
-    VALUE_BLDG JSON walk is reserved for markets without flags — combining both
-    in one OR made large-market score walks time out (operator 504).
+    Prefer bare-lot FLAGS first (any market that publishes them). The VALUE_BLDG
+    JSON walk is for markets without flags — combining expensive JSON with a
+    wrong vacant-building flag made MD shortlists fill with row houses.
     """
     if flags_only:
         return _assessor_vacancy_flag_sql(alias)
@@ -557,9 +561,8 @@ def _vacant_sql_predicate(alias: str = "p", *, flags_only: bool = False) -> str:
         OR NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') = '91'
         OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%VACANT%'
         OR (
-          -- Value heuristic only when no vacant flag is present on the parcel.
-          COALESCE(NULLIF(BTRIM({alias}.raw_properties->>'VACIND'), ''), '') = ''
-          AND COALESCE(NULLIF(BTRIM({alias}.raw_properties->>'NO_IMPRV'), ''), '') = ''
+          -- Value heuristic when no bare-lot flag is present.
+          COALESCE(NULLIF(BTRIM({alias}.raw_properties->>'NO_IMPRV'), ''), '') = ''
           AND NULLIF(REPLACE({alias}.raw_properties->>'VALUE_BLDG', ',', ''), '') ~ '^[0-9]+(\\.[0-9]+)?$'
           AND NULLIF(REPLACE({alias}.raw_properties->>'VALUE_BLDG', ',', ''), '')::float <= 0
           AND NULLIF(REPLACE({alias}.raw_properties->>'VALUE_LAND', ',', ''), '') ~ '^[0-9]+(\\.[0-9]+)?$'

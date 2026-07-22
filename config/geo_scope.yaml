@@ -37,14 +37,15 @@ principles:
 
 # ---------------------------------------------------------------------------
 # Assessor vacancy adapters (SOURCE → GLOBAL signal)
-# Any market may emit these; the list walker prefers cheap flags over VALUE_BLDG.
-# ---------------------------------------------------------------------------
+# - no_improvement_keys → bare lot / no structure (true vacant land for parking).
+# - vacant_indicator_keys → often "vacant building" notices (Baltimore VACIND),
+#   NOT bare land — do not treat as vacant-lot for the surface-parking shortlist.
 assessor_vacancy_flags:
-  # Boolean / Y-N style vacant indicators (Baltimore RealProperty VACIND, …)
   true_values: ["Y", "1", "TRUE", "YES"]
-  vacant_indicator_keys: ["VACIND", "vacind", "IS_VACANT", "VACANT_IND"]
-  # No-improvement / bare-lot flags (Baltimore NO_IMPRV, …)
+  # Bare-lot / unimproved land (use these for suitability=vacant).
   no_improvement_keys: ["NO_IMPRV", "no_imprv", "NO_IMPROVEMENT", "UNIMPROVED"]
+  # Occupancy/vacant-building notices — improved structures that happen to be empty.
+  vacant_building_keys: ["VACIND", "vacind", "IS_VACANT", "VACANT_IND"]
 
 # ---------------------------------------------------------------------------
 # Operator scored-list performance (GLOBAL — all geos)
