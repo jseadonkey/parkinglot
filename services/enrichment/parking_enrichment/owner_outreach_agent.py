@@ -269,6 +269,16 @@ def build_manual_research_checklist(
     if primary is None or primary.kind == OwnerKind.unknown:
         lines.append("Resolve owner from full assessor roll export or title-grade vendor before outreach.")
         return lines
+    if primary.kind == OwnerKind.public:
+        lines.extend(
+            [
+                "Public-agency owner: treat as non-dealable for private ground lease "
+                "unless counsel confirms otherwise.",
+                "Do not run SOS / skip-trace outreach — confirm exemption status and "
+                "surplus-property process instead.",
+            ]
+        )
+        return lines
     if primary.kind == OwnerKind.entity:
         lines.extend(
             [

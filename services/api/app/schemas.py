@@ -673,6 +673,8 @@ class ParcelScoredListRow(BaseModel):
     surface_source: str | None = None
     looks_like_parking: bool = False
     looks_like_building: bool = False
+    owner_name: str | None = None
+    government_owned: bool = False
 
 
 class ParcelScoredListResponse(BaseModel):

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from parking_core.government_owner import government_owner_from_properties
 from parking_core.models import OwnerCandidate, OwnerKind
 
 
@@ -11,7 +12,7 @@ def enrich_from_parcel_row(raw_properties: dict[str, Any] | None) -> list[OwnerC
     Replace with SOS / vendor enrichment in production.
     """
     props = raw_properties or {}
-    owner = props.get("OWNER_NAME") or props.get("owner_name")
+    is_gov, owner = government_owner_from_properties(props)
     if not owner:
         return [
             OwnerCandidate(
@@ -20,6 +21,17 @@ def enrich_from_parcel_row(raw_properties: dict[str, Any] | None) -> list[OwnerC
                 confidence=0.0,
                 source="assessor_stub",
                 raw={"reason": "no_owner_field"},
+            )
+        ]
+
+    if is_gov:
+        return [
+            OwnerCandidate(
+                display_name=str(owner),
+                kind=OwnerKind.public,
+                confidence=0.9,
+                source="assessor_roll",
+                raw={"field": "OWNER_NAME", "government_owned": True},
             )
         ]
 

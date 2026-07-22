@@ -47,6 +47,7 @@ class ScoreResult(BaseModel):
 class OwnerKind(StrEnum):
     individual = "individual"
     entity = "entity"
+    public = "public"
     unknown = "unknown"
 
 

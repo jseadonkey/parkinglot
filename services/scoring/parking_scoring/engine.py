@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from parking_core.government_owner import government_owner_from_properties
 from parking_core.models import ParcelFeature, ScoreBreakdown, ScoreResult
 from parking_core.pilot import ParkingRateCompObservation, PilotConfig
 from parking_core.rate_comps import distance_comp_weight, parking_market_component
@@ -13,6 +14,8 @@ MARKET_GATE_MIN_INTENSITY = 25.0
 MARKET_GATE_MIN_POI_COUNT = 12
 # Total score ceiling for gate failures — keeps them out of every qualified list.
 MARKET_GATE_SCORE_CAP = 40.0
+# City / county / state / port / school / transit land is not a private deal.
+GOVERNMENT_OWNER_SCORE_CAP = 25.0
 
 
 def score_parcel(
@@ -167,6 +170,16 @@ def score_parcel(
     total = min(100.0, zoning_pts + lot_pts + corner_pts + demand_pts + parking_pts + suit_pts)
     if market_gate_failed:
         total = min(total, MARKET_GATE_SCORE_CAP)
+
+    government_owned, owner_name = government_owner_from_properties(feature.raw_properties)
+    if government_owned:
+        total = min(total, GOVERNMENT_OWNER_SCORE_CAP)
+        owner_txt = f" ({owner_name})" if owner_name else ""
+        notes.append(
+            f"Recorded owner looks like a public agency{owner_txt} — "
+            "poor fit for a private ground-lease / parking conversion; scored as no opportunity."
+        )
+
     breakdown = ScoreBreakdown(
         zoning_component=zoning_pts,
         lot_size_component=lot_pts,
@@ -185,6 +198,8 @@ def score_parcel(
         "demand_intensity": intensity,
         "heavy_anchor_count": heavy_anchors or None,
         "market_gate_failed": market_gate_failed,
+        "government_owned": government_owned,
+        "owner_name": owner_name,
     }
     if comps:
         max_used = int(getattr(pilot.scoring, "parking_rate_comp_max_used", 8) or 8)

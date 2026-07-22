@@ -19,6 +19,7 @@ from app.zoning_entitlement import (
     parcel_zoning_symbol,
     parcel_zoning_tier,
 )
+from parking_core.government_owner import government_owner_from_properties
 from parking_core.suitability import (
     UNDERUTILIZED_MAX_IMPROVEMENT_RATIO,
     compute_parcel_suitability,
@@ -214,6 +215,8 @@ class ParcelScoredRowData:
     poi_commercial_count_400m: int | None = None
     poi_demand_intensity: float | None = None
     poi_heavy_anchor_count: int | None = None
+    owner_name: str | None = None
+    government_owned: bool = False
 
 
 def demand_sort_rank(
@@ -770,6 +773,7 @@ def _hydrate_scored_rows(
         from app.parcel_surface import assessor_surface_hint
 
         surf = assessor_surface_hint(raw_dict)
+        gov_owned, owner_nm = government_owner_from_properties(raw_dict)
         by_id[pid] = ParcelScoredRowData(
             parcel_id=pid,
             apn=apn,
@@ -796,6 +800,8 @@ def _hydrate_scored_rows(
             poi_commercial_count_400m=int(poi_count) if poi_count is not None else None,
             poi_demand_intensity=float(poi_intensity) if poi_intensity is not None else None,
             poi_heavy_anchor_count=int(poi_heavy) if poi_heavy is not None else None,
+            owner_name=owner_nm,
+            government_owned=gov_owned,
         )
 
     def sort_key(row: ParcelScoredRowData) -> tuple[float, float]:
@@ -965,6 +971,7 @@ def query_parcels_scored_list(
                     if r.suitability == "vacant"
                     and not r.looks_like_parking
                     and not r.looks_like_building
+                    and not r.government_owned
                 ]
             elif suit == "underutilized":
                 rows = [r for r in rows if r.suitability == "underutilized"]
@@ -1001,7 +1008,7 @@ def query_parcels_scored_list(
             rows = [r for r in rows if r.entitlement_score is not None and r.entitlement_score >= floor]
         if want_paved:
             # Keep score order within paved / mixed / unknown / vegetated bands.
-            def _band_key(row: ParcelScoredRowData) -> tuple[int, float, int, int, float, float]:
+            def _band_key(row: ParcelScoredRowData) -> tuple[int, int, float, float, int, float, float]:
                 if sort == ENTITLEMENT:
                     primary = row.entitlement_score
                 elif sort == STRATEGIC:
@@ -1014,6 +1021,8 @@ def query_parcels_scored_list(
                     row.surface_kind == "mixed" and (row.surface_paved_fraction or 0) >= 0.32
                 )
                 return (
+                    # Known public-agency owners sink to the bottom of the shortlist.
+                    1 if row.government_owned else 0,
                     *demand_sort_rank(
                         row.distance_to_nearest_demand_m,
                         row.poi_commercial_count_400m,
@@ -1125,6 +1134,7 @@ def query_parcels_scored_list(
         from app.parcel_surface import assessor_surface_hint
 
         surf = assessor_surface_hint(raw_dict)
+        gov_owned, owner_nm = government_owner_from_properties(raw_dict)
         out.append(
             ParcelScoredRowData(
                 parcel_id=pid,
@@ -1152,6 +1162,8 @@ def query_parcels_scored_list(
                 poi_commercial_count_400m=int(poi_count) if poi_count is not None else None,
                 poi_demand_intensity=float(poi_intensity) if poi_intensity is not None else None,
                 poi_heavy_anchor_count=int(poi_heavy) if poi_heavy is not None else None,
+                owner_name=owner_nm,
+                government_owned=gov_owned,
             ),
         )
     return out
