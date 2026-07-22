@@ -277,6 +277,11 @@ def compute_parcel_suitability(raw_properties: dict[str, Any] | None) -> dict[st
 
     vacant_by_value = bldg is not None and bldg <= 0 and (land or 0) > 0
     vacant_by_use = any(tok in use_upper for tok in _VACANT_USE_TOKENS)
+    # Baltimore RealProperty flags (merged at ingest when PIN matches).
+    vacind = str(props.get("VACIND") or "").strip().upper()
+    no_imprv = str(props.get("NO_IMPRV") or "").strip().upper()
+    if vacind == "Y" or no_imprv in ("Y", "1", "TRUE"):
+        vacant_by_use = True
     king_use = _king_present_use_code(props)
     if king_use is not None and king_use in _KING_PRESENT_USE_CODES:
         # King stores Present Use in LANDUSE_CD. $0 building on a coded office /

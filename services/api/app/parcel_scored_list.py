@@ -123,6 +123,10 @@ def _suitability_where(suitability: str) -> Any | None:
     # tax-exempt / unassessed public site, not a bare lot (sync with
     # parking_core.suitability._SLUCM_DEVELOPED_MAJOR).
     slucm_developed = dor.op("~")(r"^[2-7][0-9]$")
+    # Baltimore City RealProperty: vacant indicator / no-improvement flags.
+    vacind = func.upper(func.coalesce(Parcel.raw_properties["VACIND"].astext, ""))
+    no_imprv = func.upper(func.coalesce(Parcel.raw_properties["NO_IMPRV"].astext, ""))
+    baltimore_vacant = or_(vacind == "Y", no_imprv.in_(("Y", "1", "TRUE")))
     vacant = and_(
         ~existing_parking,
         ~non_developable,
@@ -130,6 +134,7 @@ def _suitability_where(suitability: str) -> Any | None:
             dor.in_(_VACANT_LANDUSE_CDS),
             dor == "91",  # SLUCM Undeveloped Land
             use_txt.like("%VACANT%"),
+            baltimore_vacant,
             and_(value_vacant, ~king_coded, ~slucm_developed),
         ),
     )
@@ -500,8 +505,23 @@ def _geography_prefix(county_fips: str, state_fips: str) -> tuple[str | None, st
     return None, None
 
 
+def _baltimore_vacant_sql_predicate(alias: str = "p") -> str:
+    """Cheap vacant filter for Baltimore RealProperty flags (no VALUE_BLDG scan)."""
+    return f"""
+      (
+        UPPER(COALESCE({alias}.raw_properties->>'VACIND', '')) = 'Y'
+        OR UPPER(COALESCE({alias}.raw_properties->>'NO_IMPRV', '')) IN ('Y', '1', 'TRUE')
+      )
+    """
+
+
 def _vacant_sql_predicate(alias: str = "p") -> str:
-    """Raw SQL fragment: assessor-vacant and not parking / ROW / park / utility."""
+    """Raw SQL fragment: assessor-vacant and not parking / ROW / park / utility.
+
+    Includes Baltimore RealProperty flags (``VACIND``, ``NO_IMPRV``) — without
+    those, MD statewide vacant walks match nothing and scan the full score index
+    until the operator bridge returns 504.
+    """
     cds = ", ".join(f"'{c}'" for c in _NON_DEVELOPABLE_LANDUSE_CDS)
     vac = ", ".join(f"'{c}'" for c in _VACANT_LANDUSE_CDS)
     king = ", ".join(f"'{c}'" for c in _KING_PRESENT_USE_CDS)
@@ -530,7 +550,10 @@ def _vacant_sql_predicate(alias: str = "p") -> str:
       )
       AND (
         NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') IN ({vac})
+        OR NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') = '91'
         OR UPPER(COALESCE({alias}.raw_properties->>'LANDUSE_CD', '')) LIKE '%VACANT%'
+        OR UPPER(COALESCE({alias}.raw_properties->>'VACIND', '')) = 'Y'
+        OR UPPER(COALESCE({alias}.raw_properties->>'NO_IMPRV', '')) IN ('Y', '1', 'TRUE')
         OR (
           NULLIF(REPLACE({alias}.raw_properties->>'VALUE_BLDG', ',', ''), '') ~ '^[0-9]+(\\.[0-9]+)?$'
           AND NULLIF(REPLACE({alias}.raw_properties->>'VALUE_BLDG', ',', ''), '')::float <= 0
@@ -538,7 +561,10 @@ def _vacant_sql_predicate(alias: str = "p") -> str:
           AND NULLIF(REPLACE({alias}.raw_properties->>'VALUE_LAND', ',', ''), '')::float > 0
           AND (
             NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') IS NULL
-            OR NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') NOT IN ({king})
+            OR (
+              NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') NOT IN ({king})
+              AND NULLIF(BTRIM({alias}.raw_properties->>'LANDUSE_CD'), '') !~ '^[2-7][0-9]$'
+            )
           )
         )
       )
@@ -568,9 +594,17 @@ def _top_parcel_ids_by_score(
     fetch_n = min(max(overfetch or cap, cap), 5000)
     exact, prefix = _geography_prefix(county_fips, state_fips)
     suit = (suitability or "").strip().lower()
+    # Maryland / Baltimore: RealProperty VACIND + NO_IMPRV are the vacancy signal.
+    # The WA VALUE_BLDG JSON walk matches nothing here and times out (operator 504).
+    md_geo = (exact == "24510") or (prefix is not None and prefix.startswith("24"))
     vacant_clause = ""
     if suit == "vacant":
-        vacant_clause = f" AND ({_vacant_sql_predicate('p')})"
+        vac_pred = (
+            _baltimore_vacant_sql_predicate("p")
+            if md_geo
+            else _vacant_sql_predicate("p")
+        )
+        vacant_clause = f" AND ({vac_pred})"
     # Keep ORDER BY on score only — a CASE on JSON land-use defeats the profile/score
     # index and pushes WA vacant+prefer_paved past the operator-console bridge timeout.
     if exact:
@@ -612,7 +646,21 @@ def _top_parcel_ids_by_score(
             """
         )
         params = {"profile": profile, "lim": fetch_n}
-    rows = db.execute(sql, params).all()
+    db.execute(text("SET LOCAL statement_timeout = '45000'"))
+    try:
+        rows = db.execute(sql, params).all()
+    except Exception as exc:
+        msg = str(getattr(exc, "orig", exc)).lower()
+        if "statement timeout" in msg or "querycanceled" in msg.replace(" ", ""):
+            db.rollback()
+            rows = []
+        else:
+            raise
+    finally:
+        try:
+            db.execute(text("SET LOCAL statement_timeout = '0'"))
+        except Exception:
+            db.rollback()
     seen: set[uuid.UUID] = set()
     out: list[uuid.UUID] = []
     for (pid,) in rows:
@@ -626,7 +674,10 @@ def _top_parcel_ids_by_score(
     # Seed high-POI vacant lots into the candidate pool. Score-only walks
     # over-index small towns that hug a single demand generator; downtown
     # parcels with real commercial density can sit below the fetch cutoff.
-    if prefer_paved and suit == "vacant" and (exact or prefix):
+    # Skip for Maryland — Baltimore vacancy is VACIND-flagged and a statewide
+    # POI seed over ~220k parcels is what made /parcels return 504.
+    md_geo = (exact == "24510") or (prefix is not None and prefix.startswith("24"))
+    if prefer_paved and suit == "vacant" and (exact or prefix) and not md_geo:
         poi_seed = min(80, max(20, cap // 2))
         vacant_sql = _vacant_sql_predicate("p")
         # Prefer weighted intensity when populated; fall back to POI count for
@@ -669,7 +720,22 @@ def _top_parcel_ids_by_score(
                 """
             )
             seed_params = {"state_prefix": prefix, "lim": poi_seed}
-        for (pid,) in db.execute(seed_sql, seed_params).all():
+        db.execute(text("SET LOCAL statement_timeout = '20000'"))
+        try:
+            seed_rows = db.execute(seed_sql, seed_params).all()
+        except Exception as exc:
+            msg = str(getattr(exc, "orig", exc)).lower()
+            if "statement timeout" in msg or "querycanceled" in msg.replace(" ", ""):
+                db.rollback()
+                seed_rows = []
+            else:
+                raise
+        finally:
+            try:
+                db.execute(text("SET LOCAL statement_timeout = '0'"))
+            except Exception:
+                db.rollback()
+        for (pid,) in seed_rows:
             if pid in seen:
                 continue
             seen.add(pid)

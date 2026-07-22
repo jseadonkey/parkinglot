@@ -77,6 +77,17 @@ def test_vacant_when_land_use_text_says_vacant() -> None:
     assert s["suitability"] == "vacant"
 
 
+def test_baltimore_vacind_is_vacant() -> None:
+    s = compute_parcel_suitability({"VACIND": "Y", "OWNER_NAME": "Example LLC"})
+    assert s["suitability"] == "vacant"
+    assert s["is_vacant_land"] is True
+
+
+def test_baltimore_no_imprv_is_vacant() -> None:
+    s = compute_parcel_suitability({"NO_IMPRV": "Y", "USEGROUP": "C "})
+    assert s["suitability"] == "vacant"
+
+
 def test_slucm_undeveloped_91_is_vacant() -> None:
     # SLUCM 91 = Undeveloped Land — genuine bare lot even with $0 building.
     s = compute_parcel_suitability({"LANDUSE_CD": "91", "VALUE_BLDG": "0", "VALUE_LAND": "150000"})
