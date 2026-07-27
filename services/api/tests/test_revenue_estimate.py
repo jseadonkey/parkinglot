@@ -167,8 +167,39 @@ def test_poi_density_raises_revenue_with_fallback_rate() -> None:
         distance_to_nearest_demand_m=5000.0,
         poi_commercial_count=25,
     )
+    assert sparse["available"] and dense["available"]
+    assert float(dense["occupancy_effective"]) > float(sparse["occupancy_effective"])
     assert float(dense["monthly_gross_usd"]) > float(sparse["monthly_gross_usd"])
     assert float(dense["poi_density_occupancy_factor"]) > float(sparse["poi_density_occupancy_factor"])
+
+
+def test_demand_intensity_outranks_raw_poi_count_in_revenue() -> None:
+    """Heavy anchors + intensity should lift occupancy above a weak shop count."""
+    shops = estimate_parking_revenue(
+        lot_sqft=12_000,
+        comps=[],
+        fallback_hourly_usd=10.0,
+        fallback_source="test",
+        distance_to_nearest_demand_m=300.0,
+        poi_commercial_count=4,
+        poi_demand_intensity=6.0,
+        poi_heavy_anchor_count=0,
+    )
+    hospital = estimate_parking_revenue(
+        lot_sqft=12_000,
+        comps=[],
+        fallback_hourly_usd=10.0,
+        fallback_source="test",
+        distance_to_nearest_demand_m=300.0,
+        poi_commercial_count=4,
+        poi_demand_intensity=42.0,
+        poi_heavy_anchor_count=2,
+    )
+    assert shops["available"] and hospital["available"]
+    assert float(hospital["demand_occupancy_factor"]) > float(shops["demand_occupancy_factor"])
+    assert float(hospital["monthly_gross_usd"]) > float(shops["monthly_gross_usd"])
+    assert hospital.get("poi_heavy_anchor_count") == 2
+    assert hospital.get("intensity_occupancy_factor") is not None
 
 
 def test_demand_occupancy_factor() -> None:

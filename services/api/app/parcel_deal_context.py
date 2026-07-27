@@ -77,7 +77,7 @@ def rate_comps_for_parcel(
 def _revenue_estimate_kwargs(
     pilot: PilotConfig,
     parcel: Parcel,
-) -> dict[str, float | str | None]:
+) -> dict[str, float | str | int | None]:
     fb = lookup_parking_rate_fallback(pilot, parcel.county_fips)
     rev = _revenue_assumptions(pilot)
     kwargs: dict[str, float | str | int | None] = {
@@ -88,6 +88,9 @@ def _revenue_estimate_kwargs(
         "demand_buffer_m": float(pilot.scoring.demand_generator_buffer_m or 400.0),
         "poi_commercial_count": parcel.poi_commercial_count_400m,
         "poi_saturation_count": 12.0,
+        "poi_demand_intensity": getattr(parcel, "poi_demand_intensity", None),
+        "poi_heavy_anchor_count": getattr(parcel, "poi_heavy_anchor_count", None),
+        "intensity_saturation": 25.0,
         "footprint_sqft": parcel_footprint_sqft(parcel),
         "footprint_sqft_cap_ratio": float(rev.footprint_sqft_cap_ratio),
         "hours_per_day": float(rev.hours_per_day),
@@ -199,11 +202,11 @@ def revenue_summary_for_parcel(
     parcel: Parcel,
     *,
     pilot: PilotConfig | None = None,
-) -> dict[str, float | bool | int | str | None]:
+) -> dict[str, Any]:
     """Compact revenue + stall + comp summary for list/board views (any pilot region)."""
     settings = get_settings()
     cfg = pilot or load_pilot_config(settings.pilot_config_path)
-    empty: dict[str, float | bool | int | str | None] = {
+    empty: dict[str, Any] = {
         "revenue_available": False,
         "monthly_gross_usd": None,
         "monthly_gross_low_usd": None,
@@ -221,6 +224,12 @@ def revenue_summary_for_parcel(
         "strong_comp_count": None,
         "monthly_gross_raw_usd": None,
         "market_evidence_notes": None,
+        "demand_occupancy_factor": None,
+        "occupancy_effective": None,
+        "distance_to_nearest_demand_m": None,
+        "poi_demand_intensity": None,
+        "poi_heavy_anchor_count": None,
+        "poi_commercial_count": None,
     }
     centroid = parcel_centroid_lat_lon(parcel)
     if centroid is None:
@@ -271,6 +280,26 @@ def revenue_summary_for_parcel(
             float(est["monthly_gross_raw_usd"]) if est.get("monthly_gross_raw_usd") is not None else None
         ),
         "market_evidence_notes": list(est.get("market_evidence_notes") or []),
+        "demand_occupancy_factor": (
+            float(est["demand_occupancy_factor"]) if est.get("demand_occupancy_factor") is not None else None
+        ),
+        "occupancy_effective": (
+            float(est["occupancy_effective"]) if est.get("occupancy_effective") is not None else None
+        ),
+        "distance_to_nearest_demand_m": (
+            float(est["distance_to_nearest_demand_m"])
+            if est.get("distance_to_nearest_demand_m") is not None
+            else None
+        ),
+        "poi_demand_intensity": (
+            float(est["poi_demand_intensity"]) if est.get("poi_demand_intensity") is not None else None
+        ),
+        "poi_heavy_anchor_count": (
+            int(est["poi_heavy_anchor_count"]) if est.get("poi_heavy_anchor_count") is not None else None
+        ),
+        "poi_commercial_count": (
+            int(est["poi_commercial_count"]) if est.get("poi_commercial_count") is not None else None
+        ),
     }
 
 
@@ -293,12 +322,12 @@ def attach_revenue_summaries(
     *,
     parcel_ids: list[uuid.UUID],
     pilot: PilotConfig,
-) -> dict[str, dict[str, float | bool | int | str | None]]:
+) -> dict[str, dict[str, Any]]:
     """Batch revenue summaries keyed by parcel id string."""
     if not parcel_ids:
         return {}
-    rows = db.scalars(select(Parcel).where(Parcel.id.in_(parcel_ids))).all()
-    out: dict[str, dict[str, float | bool | int | str | None]] = {}
+    rows = list(db.scalars(select(Parcel).where(Parcel.id.in_(parcel_ids))).all())
+    out: dict[str, dict[str, Any]] = {}
     for parcel in rows:
         out[str(parcel.id)] = revenue_summary_for_parcel(db, parcel, pilot=pilot)
     return out

@@ -579,6 +579,12 @@ class ParcelRevenueSummaryRead(BaseModel):
     strong_comp_count: int | None = None
     monthly_gross_raw_usd: float | None = None
     market_evidence_notes: list[str] | None = None
+    demand_occupancy_factor: float | None = None
+    occupancy_effective: float | None = None
+    distance_to_nearest_demand_m: float | None = None
+    poi_demand_intensity: float | None = None
+    poi_heavy_anchor_count: int | None = None
+    poi_commercial_count: int | None = None
 
 
 class OutreachPipelineRow(BaseModel):

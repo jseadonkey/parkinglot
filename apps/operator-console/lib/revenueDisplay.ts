@@ -21,6 +21,12 @@ export type ParcelRevenueSummary = {
   market_confidence_tier?: string | null;
   monthly_gross_raw_usd?: number | null;
   market_evidence_notes?: string[] | null;
+  demand_occupancy_factor?: number | null;
+  occupancy_effective?: number | null;
+  distance_to_nearest_demand_m?: number | null;
+  poi_demand_intensity?: number | null;
+  poi_heavy_anchor_count?: number | null;
+  poi_commercial_count?: number | null;
 };
 
 const TIER_LABELS: Record<string, string> = {
@@ -28,6 +34,7 @@ const TIER_LABELS: Record<string, string> = {
   moderate: "Moderate confidence",
   low: "Low confidence",
   very_low: "Very low confidence",
+  fallback: "Indicative (no local comps)",
 };
 
 export function marketConfidenceLabel(tier: string | null | undefined): string {
@@ -51,4 +58,37 @@ export function formatRevenueCell(rev: ParcelRevenueSummary | null | undefined):
     return `${mid}`;
   }
   return mid;
+}
+
+/** Compact demand line for list tables: nearness + relative size. */
+export function formatDemandSignal(rev: ParcelRevenueSummary | null | undefined): string {
+  if (!rev) return "—";
+  const parts: string[] = [];
+  const dist = rev.distance_to_nearest_demand_m;
+  if (dist != null) {
+    if (dist < 1000) parts.push(`${Math.round(dist)} m`);
+    else parts.push(`${(dist / 1000).toFixed(1)} km`);
+  }
+  const heavy = rev.poi_heavy_anchor_count ?? 0;
+  const inten = rev.poi_demand_intensity;
+  if (heavy >= 1) {
+    parts.push(heavy === 1 ? "1 heavy anchor" : `${heavy} heavy anchors`);
+  } else if (inten != null) {
+    if (inten >= 25) parts.push(`intensity ${Math.round(inten)} · strong`);
+    else if (inten >= 10) parts.push(`intensity ${Math.round(inten)}`);
+    else if (inten > 0) parts.push(`intensity ${Math.round(inten)} · weak`);
+    else parts.push("no intensity");
+  } else if (rev.poi_commercial_count != null) {
+    parts.push(`${rev.poi_commercial_count} POIs`);
+  }
+  if (rev.demand_occupancy_factor != null) {
+    parts.push(`${Math.round(rev.demand_occupancy_factor * 100)}% occ.`);
+  }
+  return parts.length ? parts.join(" · ") : "—";
+}
+
+export function demandSignalTitle(rev: ParcelRevenueSummary | null | undefined): string | undefined {
+  const notes = rev?.market_evidence_notes?.filter(Boolean);
+  if (!notes?.length) return undefined;
+  return notes.slice(0, 4).join(" ");
 }

@@ -8,7 +8,7 @@ import { SitusAddressDisplay } from "../../components/SitusAddressDisplay";
 import { STATE_NAMES } from "../../lib/marketScope";
 import { bridgeUrl } from "../../lib/paths";
 import { PILOT_SCOPE_DEFAULTS } from "../../lib/pilotScopeDefaults";
-import { formatMonthlyGross, formatStallRange, type ParcelRevenueSummary } from "../../lib/revenueDisplay";
+import { formatMonthlyGross, formatStallRange, formatDemandSignal, demandSignalTitle, marketConfidenceLabel, type ParcelRevenueSummary } from "../../lib/revenueDisplay";
 import { tierBadgeClass, tierLabel } from "../../lib/zoningEntitlement";
 import { countyLine, useCountyNames } from "../../lib/useCountyNames";
 
@@ -142,7 +142,8 @@ export default function ParcelsPage() {
       if (suitability) params.set("suitability", suitability);
       if (preferPaved) params.set("prefer_paved", "true");
       if (surfaceOnly) params.set("surface", surfaceOnly);
-      params.set("include_revenue", "false");
+      params.set("include_revenue", "true");
+      params.set("revenue_max_rows", String(limit));
       if (qualifiedOnly) params.set("qualified_only", "true");
       const res = await fetch(bridgeUrl(`internal/parcels/scored-list?${params}`), { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -204,8 +205,9 @@ export default function ParcelsPage() {
     <div className="page-content">
       <p className="muted" style={{ marginTop: 0 }}>
         Ranked prospects for every county: zoning (curated or WAZA provisional), vacant/underutilized sites, and
-        demand proximity. Choose a <strong>state</strong> to load parcels (nothing loads until then). Humans review
-        before any owner outreach. Use <strong>Prospect shortlist</strong> after picking a state or county.
+        demand proximity. Gross revenue uses nearby rate comps scaled by demand nearness and intensity (hospitals,
+        stadiums, universities count more than strip shops). Choose a <strong>state</strong> to load parcels
+        (nothing loads until then). Humans review before any owner outreach.
       </p>
       <div className="panel" style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
         <button type="button" className="primary" onClick={applyProspectShortlist}>
@@ -354,6 +356,7 @@ export default function ParcelsPage() {
               <th>Site</th>
               <th>Surface</th>
               <th>Zoning tier</th>
+              <th>Demand</th>
               <th>Est. stalls</th>
               <th>Est. gross/mo</th>
               <th>$/hr (weighted)</th>
@@ -424,6 +427,9 @@ export default function ParcelsPage() {
                     "—"
                   )}
                 </td>
+                <td title={demandSignalTitle(p.revenue)}>
+                  {formatDemandSignal(p.revenue)}
+                </td>
                 <td>{formatStallRange(p.revenue)}</td>
                 <td>
                   {p.revenue?.revenue_available ? (
@@ -433,6 +439,14 @@ export default function ParcelsPage() {
                         <span className="muted" style={{ display: "block", fontSize: "0.85em" }}>
                           {formatMonthlyGross(p.revenue.monthly_gross_low_usd)}–
                           {formatMonthlyGross(p.revenue.monthly_gross_high_usd)}
+                        </span>
+                      ) : null}
+                      {p.revenue.market_confidence_tier ? (
+                        <span className="muted" style={{ display: "block", fontSize: "0.8em" }}>
+                          {marketConfidenceLabel(p.revenue.market_confidence_tier)}
+                          {p.revenue.occupancy_effective != null
+                            ? ` · ${Math.round(p.revenue.occupancy_effective * 100)}% occ.`
+                            : null}
                         </span>
                       ) : null}
                     </>

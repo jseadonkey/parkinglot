@@ -399,6 +399,12 @@ def _revenue_summary_read(raw: dict[str, float | bool | int | str | None]) -> Pa
         strong_comp_count=raw.get("strong_comp_count"),  # type: ignore[arg-type]
         monthly_gross_raw_usd=raw.get("monthly_gross_raw_usd"),  # type: ignore[arg-type]
         market_evidence_notes=raw.get("market_evidence_notes"),  # type: ignore[arg-type]
+        demand_occupancy_factor=raw.get("demand_occupancy_factor"),  # type: ignore[arg-type]
+        occupancy_effective=raw.get("occupancy_effective"),  # type: ignore[arg-type]
+        distance_to_nearest_demand_m=raw.get("distance_to_nearest_demand_m"),  # type: ignore[arg-type]
+        poi_demand_intensity=raw.get("poi_demand_intensity"),  # type: ignore[arg-type]
+        poi_heavy_anchor_count=raw.get("poi_heavy_anchor_count"),  # type: ignore[arg-type]
+        poi_commercial_count=raw.get("poi_commercial_count"),  # type: ignore[arg-type]
     )
 
 
@@ -603,9 +609,10 @@ def parcels_scored_list(
     )
     revenue_ids: list[uuid.UUID] = []
     if include_revenue and revenue_max_rows > 0:
+        # Attach for the visible list (already score-sorted), not only entitlement≥floor.
+        # Keeps estimates useful while browsing sub-floor WA prospects; cap stays small.
         for r in raw:
-            if r.entitlement_score is not None and r.entitlement_score >= floor:
-                revenue_ids.append(r.parcel_id)
+            revenue_ids.append(r.parcel_id)
             if len(revenue_ids) >= revenue_max_rows:
                 break
     revenue_by_parcel = attach_revenue_summaries(db, parcel_ids=revenue_ids, pilot=pilot)

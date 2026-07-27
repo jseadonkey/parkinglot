@@ -64,40 +64,116 @@ def poi_density_occupancy_factor(
     return round(factor, 3), [note]
 
 
+def intensity_occupancy_factor(
+    intensity: float | None,
+    *,
+    heavy_anchors: int | None = None,
+    saturation_intensity: float = 25.0,
+    min_factor: float = 0.40,
+    max_factor: float = 1.12,
+) -> tuple[float, list[str]]:
+    """Scale occupancy from weighted demand intensity (hospitals/stadiums count more than shops).
+
+    Intensity is the OSM pull weight used for scoring and shortlist ranking. Saturation
+    aligns with the strong-demand band (~25) so large anchors drive near-peak occupancy.
+    """
+    if intensity is None and heavy_anchors is None:
+        return min_factor, ["Demand intensity not computed — run POI density refresh."]
+
+    inten = max(0.0, float(intensity or 0.0))
+    heavy = max(0, int(heavy_anchors or 0))
+    scale = max(1.0, float(saturation_intensity))
+    t = 1.0 - math.exp(-inten / scale)
+    factor = min_factor + t * (max_factor - min_factor)
+    if heavy >= 1:
+        # One hospital/stadium/university nearby should not look like a quiet strip mall.
+        factor = max(factor, min(max_factor, 0.98 + 0.04 * min(heavy, 3)))
+
+    if heavy >= 1 and inten >= 25:
+        note = (
+            f"Heavy demand anchors ({heavy}) with intensity {inten:.0f} — "
+            "peak parking occupancy assumed."
+        )
+    elif heavy >= 1:
+        note = f"{heavy} heavy demand anchor(s) nearby (intensity {inten:.0f}) — strong occupancy."
+    elif inten >= 25:
+        note = f"High demand intensity ({inten:.0f}) — strong local parking pull."
+    elif inten >= 10:
+        note = f"Moderate demand intensity ({inten:.0f}) — solid occupancy support."
+    elif inten > 0:
+        note = f"Low demand intensity ({inten:.0f}) — occupancy tempered."
+    else:
+        note = "No weighted demand intensity nearby — low occupancy assumed."
+
+    return round(min(max_factor, factor), 3), [note]
+
+
 def combined_demand_occupancy_factor(
     *,
     distance_to_nearest_demand_m: float | None,
     poi_commercial_count: int | None,
     demand_buffer_m: float = 400.0,
     poi_saturation_count: float = 12.0,
+    poi_demand_intensity: float | None = None,
+    poi_heavy_anchor_count: int | None = None,
+    intensity_saturation: float = 25.0,
 ) -> tuple[float, list[str], dict[str, Any]]:
-    """Blend generator proximity and OSM POI density into one occupancy multiplier."""
+    """Blend generator proximity with intensity (preferred) or raw POI count."""
     gen_f, gen_notes = demand_occupancy_factor(
         distance_to_nearest_demand_m,
         buffer_m=demand_buffer_m,
     )
-    poi_f, poi_notes = poi_density_occupancy_factor(
-        poi_commercial_count,
-        saturation_count=poi_saturation_count,
-    )
 
     has_gen = distance_to_nearest_demand_m is not None
+    has_intensity = poi_demand_intensity is not None or poi_heavy_anchor_count is not None
     has_poi = poi_commercial_count is not None
 
-    if has_gen and has_poi:
-        combined = max(0.35, min(1.08, math.sqrt(gen_f * poi_f) * 1.03))
-        notes = gen_notes + poi_notes + [
-            f"Combined demand signal: generator × POI density → occupancy factor {combined:.2f}.",
-        ]
+    intensity_f: float | None = None
+    poi_f: float | None = None
+    size_notes: list[str] = []
+
+    if has_intensity:
+        intensity_f, size_notes = intensity_occupancy_factor(
+            poi_demand_intensity,
+            heavy_anchors=poi_heavy_anchor_count,
+            saturation_intensity=intensity_saturation,
+        )
+        size_f = intensity_f
     elif has_poi:
-        combined = poi_f
-        notes = poi_notes
+        poi_f, size_notes = poi_density_occupancy_factor(
+            poi_commercial_count,
+            saturation_count=poi_saturation_count,
+        )
+        size_f = poi_f
+    else:
+        size_f = None
+
+    if has_gen and size_f is not None:
+        # Intensity can peak higher than raw POI (1.12); keep blend in a sane band.
+        combined = max(0.35, min(1.15, math.sqrt(gen_f * size_f) * 1.03))
+        label = "intensity" if has_intensity else "POI density"
+        notes = gen_notes + size_notes + [
+            f"Combined demand signal: generator × {label} → occupancy factor {combined:.2f}.",
+        ]
+    elif size_f is not None:
+        combined = size_f
+        notes = size_notes
     else:
         combined = gen_f
         notes = gen_notes
 
+    if not has_intensity and has_poi:
+        poi_f = size_f
+
     return round(combined, 3), notes, {
         "generator_occupancy_factor": gen_f,
-        "poi_density_occupancy_factor": poi_f if has_poi else None,
+        "poi_density_occupancy_factor": poi_f,
+        "intensity_occupancy_factor": intensity_f,
         "poi_commercial_count": poi_commercial_count,
+        "poi_demand_intensity": (
+            round(float(poi_demand_intensity), 1) if poi_demand_intensity is not None else None
+        ),
+        "poi_heavy_anchor_count": (
+            int(poi_heavy_anchor_count) if poi_heavy_anchor_count is not None else None
+        ),
     }

@@ -273,6 +273,9 @@ def estimate_parking_revenue(
     demand_buffer_m: float | None = None,
     poi_commercial_count: int | None = None,
     poi_saturation_count: float = 12.0,
+    poi_demand_intensity: float | None = None,
+    poi_heavy_anchor_count: int | None = None,
+    intensity_saturation: float = 25.0,
     land_rent_pct_of_gross: float | None = None,
     operator_margin_pct_of_gross: float | None = None,
 ) -> dict[str, Any]:
@@ -282,8 +285,8 @@ def estimate_parking_revenue(
     using the indicative county/metro rate (tier ``fallback``). When comps are weak,
     blends comp-derived rate with the fallback.
 
-    When ``distance_to_nearest_demand_m`` is set, adjusts ``occupancy`` by proximity
-    to pilot ``demand_generators`` (hospitals, downtown, stadiums, etc.).
+    Occupancy is scaled by demand-generator nearness plus weighted POI intensity
+    (hospitals/stadiums/universities) when available, else raw commercial POI count.
     """
     if lot_sqft is None or lot_sqft <= 0:
         return {
@@ -366,18 +369,33 @@ def estimate_parking_revenue(
         poi_commercial_count=poi_commercial_count,
         demand_buffer_m=demand_buffer_m if demand_buffer_m is not None else 400.0,
         poi_saturation_count=poi_saturation_count,
+        poi_demand_intensity=poi_demand_intensity,
+        poi_heavy_anchor_count=poi_heavy_anchor_count,
+        intensity_saturation=intensity_saturation,
     )
     occupancy_effective = occupancy * demand_occ_factor
 
     monthly_raw = _monthly(stalls_mid, hourly_used, occupancy_effective)
 
+    heavy_n = int(poi_heavy_anchor_count or 0)
+    inten_v = float(poi_demand_intensity) if poi_demand_intensity is not None else 0.0
+    strong_demand = demand_occ_factor >= 0.85 or heavy_n >= 1 or inten_v >= 25.0
+
     if comps:
         conf_f = float(confidence["factor"])
-    elif confidence.get("tier") == "fallback" and demand_occ_factor >= 0.85:
-        conf_f = min(0.68, conf_f + 0.10)
+        if strong_demand and conf_f < 0.75:
+            conf_f = min(0.82, conf_f + 0.08)
+            confidence["factor"] = round(conf_f, 3)
+            confidence["notes"] = list(confidence.get("notes") or [])
+            confidence["notes"].append(
+                "Strong local demand intensity supports rate evidence — modest confidence uplift.",
+            )
+    elif confidence.get("tier") == "fallback" and strong_demand:
+        conf_f = min(0.72, conf_f + 0.12)
+        confidence["factor"] = round(conf_f, 3)
         confidence["notes"] = list(confidence.get("notes") or [])
         confidence["notes"].append(
-            "Strong demand proximity offsets missing rate comps — modest confidence uplift.",
+            "Strong demand nearness/size offsets missing rate comps — modest confidence uplift.",
         )
 
     spread = 1.35 if confidence["tier"] in ("very_low", "low", "fallback") else 1.12
@@ -452,7 +470,10 @@ def estimate_parking_revenue(
         "demand_occupancy_factor": demand_occ_factor,
         "generator_occupancy_factor": demand_detail.get("generator_occupancy_factor"),
         "poi_density_occupancy_factor": demand_detail.get("poi_density_occupancy_factor"),
+        "intensity_occupancy_factor": demand_detail.get("intensity_occupancy_factor"),
         "poi_commercial_count": demand_detail.get("poi_commercial_count"),
+        "poi_demand_intensity": demand_detail.get("poi_demand_intensity"),
+        "poi_heavy_anchor_count": demand_detail.get("poi_heavy_anchor_count"),
         "occupancy_base": occupancy,
         "occupancy_effective": round(occupancy_effective, 3),
         "assumptions": {
@@ -473,5 +494,7 @@ def estimate_parking_revenue(
             "rate_source": rate_source,
             "land_rent_pct_of_gross": rent_pct if rent_pct > 0 else None,
             "operator_margin_pct_of_gross": op_pct if op_pct > 0 else None,
+            "poi_demand_intensity": demand_detail.get("poi_demand_intensity"),
+            "poi_heavy_anchor_count": demand_detail.get("poi_heavy_anchor_count"),
         },
     }
