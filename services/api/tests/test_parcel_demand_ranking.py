@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
+from uuid import uuid4
 
-from app.parcel_scored_list import demand_sort_rank
+from app.parcel_scored_list import ParcelScoredRowData, demand_sort_rank, prefer_paved_sort_key
 from parking_core.models import ParcelFeature
 from parking_core.pilot import load_pilot_config
 from parking_scoring.engine import (
@@ -13,6 +15,39 @@ from parking_scoring.engine import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _row(
+    *,
+    combined: float,
+    surface: str = "mixed",
+    demand_m: float | None = 50_000,
+    poi: int | None = 0,
+    intensity: float | None = 0.0,
+    gov: bool = False,
+) -> ParcelScoredRowData:
+    return ParcelScoredRowData(
+        parcel_id=uuid4(),
+        apn="T",
+        county_fips="53009",
+        situs_address=None,
+        mailing_address=None,
+        zoning_code=None,
+        lot_sqft=10_000,
+        zoning_principal_use_symbol=None,
+        zoning_entitlement_tier=None,
+        entitlement_score=combined,
+        strategic_score=None,
+        identification_score=combined,
+        combined_score=combined,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        surface_kind=surface,
+        surface_paved_fraction=0.9 if surface == "paved" else 0.4,
+        distance_to_nearest_demand_m=demand_m,
+        poi_commercial_count_400m=poi,
+        poi_demand_intensity=intensity,
+        government_owned=gov,
+    )
 
 
 def _feature(
@@ -34,6 +69,32 @@ def _feature(
         poi_heavy_anchor_count=heavy,
         raw_properties={"VALUE_BLDG": "0", "VALUE_LAND": "200000"},
     )
+
+
+def test_prefer_paved_sort_keeps_higher_combined_ahead_of_nearer_demand() -> None:
+    """Sort by Combined must win over demand proximity (the Parcels page bug)."""
+    high_remote = _row(combined=74.3, surface="paved", demand_m=80_000, poi=0, intensity=0.0)
+    low_near = _row(combined=64.3, surface="mixed", demand_m=200, poi=8, intensity=20.0)
+    ordered = sorted([low_near, high_remote], key=lambda r: prefer_paved_sort_key(r, sort="combined"))
+    assert ordered[0].combined_score == 74.3
+    assert ordered[1].combined_score == 64.3
+
+
+def test_prefer_paved_sort_uses_surface_then_demand_as_tiebreakers() -> None:
+    paved = _row(combined=64.3, surface="paved", demand_m=5_000, poi=1)
+    # Keep paved_fraction below the mostly-paved threshold so surface ranks differ.
+    unknown_near = _row(combined=64.3, surface="unknown", demand_m=100, poi=10, intensity=30.0)
+    ordered = sorted([unknown_near, paved], key=lambda r: prefer_paved_sort_key(r, sort="combined"))
+    assert ordered[0].surface_kind == "paved"
+    assert ordered[1].surface_kind == "unknown"
+
+
+def test_prefer_paved_sort_sinks_government_owned() -> None:
+    private = _row(combined=60.0, surface="paved")
+    gov = _row(combined=90.0, surface="paved", gov=True)
+    ordered = sorted([gov, private], key=lambda r: prefer_paved_sort_key(r, sort="combined"))
+    assert ordered[0].government_owned is False
+    assert ordered[1].government_owned is True
 
 
 def test_nearby_demand_ranks_before_remote_rural_parcel() -> None:

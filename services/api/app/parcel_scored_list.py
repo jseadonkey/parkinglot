@@ -263,6 +263,45 @@ def demand_sort_rank(
     return (band, -magnitude, distance)
 
 
+def prefer_paved_sort_key(
+    row: ParcelScoredRowData,
+    *,
+    sort: ParcelSortProfile = COMBINED,
+) -> tuple[Any, ...]:
+    """Order for the paved-vacant shortlist after grass is filtered out.
+
+    The operator **Sort by** control is primary (higher scores first). Surface and
+    demand are tiebreakers only — demand must not bury a higher Combined/Atlas/
+    Beacon/Cartographer score under a nearer low-score lot.
+    """
+    from app.parcel_surface import surface_sort_rank
+
+    if sort == ENTITLEMENT:
+        primary = row.entitlement_score
+    elif sort == STRATEGIC:
+        primary = row.strategic_score
+    elif sort == IDENTIFICATION:
+        primary = row.identification_score
+    else:
+        primary = row.combined_score
+    mostly = row.surface_kind == "paved" or (
+        row.surface_kind == "mixed" and (row.surface_paved_fraction or 0) >= 0.32
+    )
+    return (
+        # Known public-agency owners sink to the bottom of the shortlist.
+        1 if row.government_owned else 0,
+        -(primary if primary is not None else float("-inf")),
+        surface_sort_rank(row.surface_kind, mostly_paved=mostly),
+        *demand_sort_rank(
+            row.distance_to_nearest_demand_m,
+            row.poi_commercial_count_400m,
+            row.poi_demand_intensity,
+            row.poi_heavy_anchor_count,
+        ),
+        -(row.created_at.timestamp() if row.created_at else 0.0),
+    )
+
+
 def _combined_score_value(
     entitlement: float | None,
     strategic: float | None,
@@ -1046,12 +1085,11 @@ def query_parcels_scored_list(
     ``parcel_scores (score_profile, total_score)`` so statewide lists finish in seconds
     instead of scanning every WA score row.
 
-    ``prefer_paved`` floats commercial/industrial vacant (often asphalt) above grassy
-    residential vacant while keeping the chosen score sort within each band.
+    ``prefer_paved`` drops grassy vacant and, as a secondary preference, floats paved
+    ahead of mixed/unknown when scores tie. The chosen ``sort`` profile remains primary.
     ``surface`` filters to paved | vegetated | mixed when set.
     """
     from app.geo_scope import aerial_enrich_max_rows, list_performance, vacant_overfetch
-    from app.parcel_surface import surface_sort_rank
 
     cap = min(max(limit, 1), 2000)
     cf = (county_fips or "").strip()
@@ -1155,34 +1193,7 @@ def query_parcels_scored_list(
             floor = float(min_entitlement_score)
             rows = [r for r in rows if r.entitlement_score is not None and r.entitlement_score >= floor]
         if want_paved:
-            # Keep score order within paved / mixed / unknown / vegetated bands.
-            def _band_key(row: ParcelScoredRowData) -> tuple[int, int, float, float, int, float, float]:
-                if sort == ENTITLEMENT:
-                    primary = row.entitlement_score
-                elif sort == STRATEGIC:
-                    primary = row.strategic_score
-                elif sort == IDENTIFICATION:
-                    primary = row.identification_score
-                else:
-                    primary = row.combined_score
-                mostly = row.surface_kind == "paved" or (
-                    row.surface_kind == "mixed" and (row.surface_paved_fraction or 0) >= 0.32
-                )
-                return (
-                    # Known public-agency owners sink to the bottom of the shortlist.
-                    1 if row.government_owned else 0,
-                    *demand_sort_rank(
-                        row.distance_to_nearest_demand_m,
-                        row.poi_commercial_count_400m,
-                        row.poi_demand_intensity,
-                        row.poi_heavy_anchor_count,
-                    ),
-                    surface_sort_rank(row.surface_kind, mostly_paved=mostly),
-                    -(primary if primary is not None else float("-inf")),
-                    -(row.created_at.timestamp() if row.created_at else 0.0),
-                )
-
-            rows = sorted(rows, key=_band_key)
+            rows = sorted(rows, key=lambda row: prefer_paved_sort_key(row, sort=sort))
         return rows[:cap]
 
     # Legacy full-scan path (no geography) — kept for API callers; UI requires a state.

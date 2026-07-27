@@ -551,7 +551,10 @@ def parcels_scored_list(
     ),
     prefer_paved: bool = Query(
         default=False,
-        description="When true, rank paved/commercial vacant above grassy residential vacant",
+        description=(
+            "When true, hide grassy vacant and prefer paved when scores tie; "
+            "does not override the sort= score profile"
+        ),
     ),
     surface: str | None = Query(
         default=None,
