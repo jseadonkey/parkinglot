@@ -37,9 +37,9 @@ jobs:
           SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
         run: |
           set -euo pipefail
-          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
           KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
           cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
             "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
