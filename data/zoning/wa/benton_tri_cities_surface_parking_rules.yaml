@@ -8,26 +8,32 @@ default_when_unknown: false
 jurisdictions:
   kennewick_city:
     source_url: "https://maps.ci.kennewick.wa.us/server/rest/services/Public/AllGISLayers/FeatureServer/59"
+    ordinance_ref: "https://www.go2kennewick.com/DocumentCenter/View/7855"
     zones:
       # Kennewick parcel-zoning layer uses short district codes (e.g. RL, RM-4, C-1).
-      # Curate from Kennewick Municipal Code Title 18 before trusting prescreen scores.
+      # Kennewick's non-residential table lists parking garages/lots, but the exported
+      # table must be column-mapped to source GIS district labels before granting credit.
       "C-1":
-        allows_surface_parking: true
-        note: "Verify commercial parking principal-use table in Kennewick zoning code."
+        allows_surface_parking: false
+        principal_use_symbol: NEEDS_REVIEW
+        note: "Do not score as by-right until Kennewick Table 18.12.010 B.1 columns are mapped to this GIS code."
 
   pasco_city:
     source_url: "https://gis.pasco-wa.gov/gs/rest/services/Citybase_Published_Layers/Zoning/FeatureServer/0"
+    ordinance_ref: "https://pasco.municipal.codes/PMC/25.90.020"
     zones:
       "C-2":
         allows_surface_parking: true
-        note: "Verify Pasco zoning code commercial parking allowances."
+        principal_use_symbol: P
+        note: "PMC 25.90.020 lists 'Parking lots' as permitted in the C-2 Central Business District."
 
   benton_unincorporated:
     source_url: "https://maps.co.benton.wa.us/server/rest/services/Zoning/MapServer/0"
     zones:
       "COMMERCIAL":
-        allows_surface_parking: true
-        note: "Verify Benton County Code Chapter 17 commercial parking principal uses."
+        allows_surface_parking: false
+        principal_use_symbol: NEEDS_REVIEW
+        note: "County layer is a broad land-use label; map to BCC zoning district/use tables before scoring as by-right."
 
   richland_city:
     source_url: "https://gisweb24.ci.richland.wa.us/arcgis24web/rest/services/Richland/Zoning/MapServer"
