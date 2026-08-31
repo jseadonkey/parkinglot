@@ -729,6 +729,63 @@ try:
 except Exception as exc:
     checks.append({"name": "disk_root", "ok": False, "detail": str(exc)[:200], "source": "github-ssh"})
 
+try:
+    def read_cpu() -> tuple[int, int]:
+        fields = subprocess.check_output(["awk", "/^cpu / {print}", "/proc/stat"], text=True).split()[1:]
+        nums = [int(x) for x in fields]
+        idle = nums[3] + (nums[4] if len(nums) > 4 else 0)
+        return sum(nums), idle
+
+    total1, idle1 = read_cpu()
+    subprocess.run(["sleep", "1"], check=False)
+    total2, idle2 = read_cpu()
+    delta_total = max(1, total2 - total1)
+    busy_pct = round((1 - ((idle2 - idle1) / delta_total)) * 100, 2)
+    checks.append(
+        {
+            "name": "host_cpu",
+            "ok": busy_pct < 90,
+            "detail": f"cpu busy {busy_pct}%",
+            "source": "github-ssh",
+        }
+    )
+except Exception as exc:
+    checks.append({"name": "host_cpu", "ok": False, "detail": str(exc)[:200], "source": "github-ssh"})
+
+try:
+    mem: dict[str, int] = {}
+    for line in open("/proc/meminfo", encoding="utf-8"):
+        key, value = line.split(":", 1)
+        mem[key] = int(value.strip().split()[0])
+    total = max(1, mem.get("MemTotal", 1))
+    available = mem.get("MemAvailable", 0)
+    used_pct = round((1 - (available / total)) * 100, 2)
+    checks.append(
+        {
+            "name": "host_memory",
+            "ok": used_pct < 90,
+            "detail": f"memory used {used_pct}% ({available // 1024} MiB available)",
+            "source": "github-ssh",
+        }
+    )
+except Exception as exc:
+    checks.append({"name": "host_memory", "ok": False, "detail": str(exc)[:200], "source": "github-ssh"})
+
+try:
+    load1, load5, load15 = os.getloadavg()
+    cpus = max(1, os.cpu_count() or 1)
+    load5_pct = round((load5 / cpus) * 100, 2)
+    checks.append(
+        {
+            "name": "host_load_5m",
+            "ok": load5_pct < 90,
+            "detail": f"5m load {load5:.2f} across {cpus} CPU(s) ({load5_pct}%)",
+            "source": "github-ssh",
+        }
+    )
+except Exception as exc:
+    checks.append({"name": "host_load_5m", "ok": False, "detail": str(exc)[:200], "source": "github-ssh"})
+
 unhealthy: list[str] = []
 try:
     rel = os.environ.get("COMPOSE_REL", "deploy/docker-compose.production.ghcr.yml")
