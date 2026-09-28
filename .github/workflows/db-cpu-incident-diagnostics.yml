@@ -1,0 +1,193 @@
+# One-off production diagnostics for Managed Postgres CPU incidents.
+# Runs only on this agent branch; safe to delete after the incident.
+
+name: DB CPU incident diagnostics
+
+on:
+  push:
+    branches:
+      - cursor/db-cpu-diagnostics-d384
+    paths:
+      - .github/workflows/db-cpu-incident-diagnostics.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH known_hosts
+        run: |
+          install -d -m 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Read-only DB CPU diagnostics
+        env:
+          DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
+        run: |
+          set -euo pipefail
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
+          REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
+          ssh -oBatchMode=yes "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && bash -s" <<'REMOTE'
+          set -euo pipefail
+          COMPOSE_REL="deploy/docker-compose.production.ghcr.yml"
+          ARGS=(-f "$COMPOSE_REL" --env-file deploy/.env)
+
+          echo "=== timestamp / load ==="
+          date -u
+          uptime
+          echo ""
+
+          echo "=== compose ps ==="
+          docker compose "${ARGS[@]}" ps || true
+          echo ""
+
+          echo "=== docker stats ==="
+          docker stats --no-stream || true
+          echo ""
+
+          echo "=== redis queues ==="
+          docker compose "${ARGS[@]}" exec -T redis sh -lc 'redis-cli LLEN parking; redis-cli LLEN slack' </dev/null || true
+          echo ""
+
+          echo "=== recent api logs ==="
+          docker compose "${ARGS[@]}" logs --no-color --tail 180 api || true
+          echo ""
+
+          echo "=== recent worker logs ==="
+          docker compose "${ARGS[@]}" logs --no-color --tail 220 worker || true
+          echo ""
+
+          echo "=== recent beat logs ==="
+          docker compose "${ARGS[@]}" logs --no-color --tail 160 beat || true
+          echo ""
+
+          echo "=== recent caddy logs ==="
+          docker compose "${ARGS[@]}" logs --no-color --tail 120 caddy || true
+          echo ""
+
+          echo "=== postgres activity from app container ==="
+          for svc in api worker worker-slack beat; do
+            if docker compose "${ARGS[@]}" exec -T "$svc" python - <<'PY'; then
+          import os
+          from sqlalchemy import create_engine, text
+
+          url = os.environ.get("DATABASE_URL")
+          if not url:
+              raise SystemExit("DATABASE_URL not set")
+
+          engine = create_engine(url, pool_pre_ping=True)
+
+          def rows(conn, title, sql):
+              print(f"\n--- {title} ---")
+              try:
+                  result = conn.execute(text(sql))
+                  for row in result.mappings():
+                      print(dict(row))
+              except Exception as exc:
+                  print(f"ERROR: {type(exc).__name__}: {exc}")
+
+          with engine.connect() as conn:
+              rows(conn, "database", "select now() as now, current_database() as database")
+              rows(
+                  conn,
+                  "activity by state",
+                  """
+                  select state, count(*) as connections,
+                         max(now() - query_start) as oldest_query_age
+                  from pg_stat_activity
+                  where datname = current_database()
+                  group by state
+                  order by connections desc
+                  """,
+              )
+              rows(
+                  conn,
+                  "active/waiting sessions",
+                  """
+                  select pid, usename, application_name, state, wait_event_type, wait_event,
+                         now() - query_start as query_age,
+                         left(regexp_replace(query, '\\s+', ' ', 'g'), 700) as query
+                  from pg_stat_activity
+                  where datname = current_database()
+                    and pid <> pg_backend_pid()
+                  order by
+                    case when state = 'active' then 0 else 1 end,
+                    query_start nulls last
+                  limit 25
+                  """,
+              )
+              rows(
+                  conn,
+                  "locks waiting",
+                  """
+                  select a.pid, a.state, a.wait_event_type, a.wait_event,
+                         now() - a.query_start as query_age,
+                         left(regexp_replace(a.query, '\\s+', ' ', 'g'), 500) as query
+                  from pg_stat_activity a
+                  join pg_locks l on l.pid = a.pid
+                  where a.datname = current_database()
+                    and not l.granted
+                  order by a.query_start nulls last
+                  limit 20
+                  """,
+              )
+              rows(
+                  conn,
+                  "tables by dead tuples",
+                  """
+                  select relname, n_live_tup, n_dead_tup,
+                         last_autovacuum, last_autoanalyze
+                  from pg_stat_user_tables
+                  order by n_dead_tup desc
+                  limit 15
+                  """,
+              )
+              rows(
+                  conn,
+                  "pg_stat_statements top total time",
+                  """
+                  select round(total_exec_time::numeric, 1) as total_ms,
+                         calls,
+                         round(mean_exec_time::numeric, 1) as mean_ms,
+                         rows,
+                         left(regexp_replace(query, '\\s+', ' ', 'g'), 900) as query
+                  from pg_stat_statements
+                  order by total_exec_time desc
+                  limit 15
+                  """,
+              )
+              rows(
+                  conn,
+                  "pg_stat_statements top mean time",
+                  """
+                  select round(mean_exec_time::numeric, 1) as mean_ms,
+                         calls,
+                         round(total_exec_time::numeric, 1) as total_ms,
+                         rows,
+                         left(regexp_replace(query, '\\s+', ' ', 'g'), 900) as query
+                  from pg_stat_statements
+                  where calls > 0
+                  order by mean_exec_time desc
+                  limit 15
+                  """,
+              )
+          PY
+              echo "Used service: $svc"
+              exit 0
+            fi
+          done
+          echo "Could not execute Python in any app container" >&2
+          REMOTE
