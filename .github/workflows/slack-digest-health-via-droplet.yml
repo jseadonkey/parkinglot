@@ -2,8 +2,11 @@
 #
 # Requires: DROPLET_HOST, DROPLET_USER, DROPLET_SSH_PRIVATE_KEY
 # Optional: SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY (same as INTERNAL_API_KEY on the Droplet)
-# Optional: DROPLET_REMOTE_PATH (repo var), MAX_DIGEST_AGE_HOURS (default 7).
-# Beat schedules digest hourly UTC; default MAX_DIGEST_AGE_HOURS=3 fails CI if worker missed ~2 cycles.
+# Optional: DROPLET_REMOTE_PATH (repo var, default /opt/workspaces/parkinglot),
+# MAX_DIGEST_AGE_HOURS (default 3).
+# Beat schedules digest hourly UTC; on a stale audit this workflow repairs the
+# hourly Slack schedule, recreates worker-slack/beat, enqueues a standup, then
+# rechecks freshness before failing.
 #
 # Remove the `schedule` block if you only want manual runs.
 
@@ -34,27 +37,37 @@ jobs:
           ssh-keyscan -H "${{ secrets.DROPLET_HOST }}" >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Verify last digest audit is fresh
+      - name: Verify or repair last digest audit is fresh
         env:
           DROPLET_REMOTE_PATH: ${{ vars.DROPLET_REMOTE_PATH }}
           SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY: ${{ secrets.SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY }}
           MAX_DIGEST_AGE_HOURS: ${{ vars.MAX_DIGEST_AGE_HOURS }}
         run: |
           set -euo pipefail
-          RAW="${DROPLET_REMOTE_PATH:-/opt/parking-acquisition-agents}"
+          RAW="${DROPLET_REMOTE_PATH:-/opt/workspaces/parkinglot}"
           REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
-          KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
+          [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/workspaces/parkinglot"
           MAX_H="${MAX_DIGEST_AGE_HOURS:-3}"
-          [ -n "$MAX_H" ] || MAX_H=2
+          [ -n "$MAX_H" ] || MAX_H=3
+          REMOTE_INTERNAL_KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
+          REMOTE_SCRIPT=".github/workflows/scripts/droplet-remote-checks.sh"
+          SSH_TARGET="${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}"
 
-          PAYLOAD="$(cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
-            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
-            "cd $(printf '%q' "$REMOTE_PATH") && bash -s -- last-digest")"
+          run_remote() {
+            local remote_cmd
+            remote_cmd="cd $(printf '%q' "$REMOTE_PATH") && INTERNAL_KEY=$(printf '%q' "$REMOTE_INTERNAL_KEY") bash -s --"
+            for arg in "$@"; do
+              remote_cmd="$remote_cmd $(printf '%q' "$arg")"
+            done
+            cat "$REMOTE_SCRIPT" | ssh -oBatchMode=yes "$SSH_TARGET" "$remote_cmd"
+          }
 
-          export MAX_H="$MAX_H"
-          export PAYLOAD
-          python3 <<'PY'
+          check_last_digest() {
+            local payload
+            payload="$(run_remote last-digest)"
+            export MAX_H="$MAX_H"
+            export PAYLOAD="$payload"
+            python3 <<'PY'
           import json
           import os
           import sys
@@ -89,3 +102,28 @@ jobs:
               sys.exit(1)
           print(f"OK: last digest audit age={age}")
           PY
+          }
+
+          set +e
+          FIRST_CHECK="$(check_last_digest 2>&1)"
+          CHECK_STATUS=$?
+          set -e
+          printf '%s\n' "$FIRST_CHECK"
+          if [ "$CHECK_STATUS" -eq 0 ]; then
+            exit 0
+          fi
+
+          echo "::warning::Slack digest health failed before repair; applying hourly Slack report repair on the Droplet."
+          run_remote fix-hourly-slack-reports deploy/docker-compose.production.ghcr.yml
+
+          echo "Rechecking the digest audit after repair..."
+
+          set +e
+          SECOND_CHECK="$(check_last_digest 2>&1)"
+          CHECK_STATUS=$?
+          set -e
+          printf '%s\n' "$SECOND_CHECK"
+          if [ "$CHECK_STATUS" -ne 0 ]; then
+            echo "::error::Slack digest is still unhealthy after repair."
+            exit "$CHECK_STATUS"
+          fi
