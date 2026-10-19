@@ -2,8 +2,10 @@
 #
 # Requires: DROPLET_HOST, DROPLET_USER, DROPLET_SSH_PRIVATE_KEY
 # Optional: SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY (same as INTERNAL_API_KEY on the Droplet)
-# Optional: DROPLET_REMOTE_PATH (repo var), MAX_DIGEST_AGE_HOURS (default 7).
-# Beat schedules digest hourly UTC; default MAX_DIGEST_AGE_HOURS=3 fails CI if worker missed ~2 cycles.
+# Optional: DROPLET_REMOTE_PATH (repo var), MAX_DIGEST_AGE_HOURS.
+# When MAX_DIGEST_AGE_HOURS is unset, the check derives a threshold from the
+# Droplet's SLACK_DIGEST_CRONTAB_* cadence; hourly default still fails after
+# roughly two missed cycles.
 #
 # Remove the `schedule` block if you only want manual runs.
 
@@ -45,22 +47,77 @@ jobs:
           REMOTE_PATH="$(printf '%s' "$RAW" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
           [ -n "$REMOTE_PATH" ] || REMOTE_PATH="/opt/parking-acquisition-agents"
           KEY="${SLACK_DEPLOY_NOTIFY_INTERNAL_API_KEY:-}"
-          MAX_H="${MAX_DIGEST_AGE_HOURS:-3}"
-          [ -n "$MAX_H" ] || MAX_H=2
+          MAX_H="${MAX_DIGEST_AGE_HOURS:-}"
 
           PAYLOAD="$(cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
             "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
             "cd $(printf '%q' "$REMOTE_PATH") && bash -s -- last-digest")"
+          SCHEDULE="$(cat .github/workflows/scripts/droplet-remote-checks.sh | ssh -oBatchMode=yes \
+            "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+            "cd $(printf '%q' "$REMOTE_PATH") && bash -s -- slack-digest-cadence")"
 
           export MAX_H="$MAX_H"
           export PAYLOAD
+          export SCHEDULE
           python3 <<'PY'
           import json
           import os
           import sys
           from datetime import datetime, timedelta, timezone
+          from typing import Iterable
 
-          max_h = float(os.environ["MAX_H"])
+          def _expand_cron_hours(expr: str) -> list[int]:
+              expr = (expr or "*").strip().strip('"').strip("'")
+              if not expr or expr == "*":
+                  return list(range(24))
+              out: set[int] = set()
+              for part in expr.split(","):
+                  part = part.strip()
+                  if not part:
+                      continue
+                  step = 1
+                  if "/" in part:
+                      base, raw_step = part.split("/", 1)
+                      step = max(1, int(raw_step))
+                  else:
+                      base = part
+                  if base in ("", "*"):
+                      start, end = 0, 23
+                  elif "-" in base:
+                      raw_start, raw_end = base.split("-", 1)
+                      start, end = int(raw_start), int(raw_end)
+                  else:
+                      start = end = int(base)
+                  if start < 0 or end > 23 or start > end:
+                      raise ValueError(f"unsupported hour range: {part!r}")
+                  out.update(range(start, end + 1, step))
+              if not out:
+                  raise ValueError(f"empty hour schedule: {expr!r}")
+              return sorted(out)
+
+          def _max_gap_hours(hours: Iterable[int]) -> float:
+              ordered = sorted(set(hours))
+              gaps = [b - a for a, b in zip(ordered, ordered[1:])]
+              gaps.append(24 - ordered[-1] + ordered[0])
+              return float(max(gaps))
+
+          def _freshness_threshold_hours() -> tuple[float, str]:
+              override = (os.environ.get("MAX_H") or "").strip()
+              if override:
+                  return float(override), "MAX_DIGEST_AGE_HOURS"
+              raw_schedule = (os.environ.get("SCHEDULE") or "").strip()
+              try:
+                  schedule = json.loads(raw_schedule) if raw_schedule else {}
+                  hours = _expand_cron_hours(str(schedule.get("hour") or "*"))
+                  gap_h = _max_gap_hours(hours)
+              except Exception as exc:
+                  print(f"WARN: could not parse Slack digest cadence ({exc}); using 3h default.")
+                  return 3.0, "fallback"
+              # Allow schedule jitter and GitHub Actions start delays while still
+              # failing after the next expected digest is missed.
+              return max(3.0, gap_h + 2.0), f"cadence:{schedule.get('hour') or '*'}"
+
+          max_h, max_source = _freshness_threshold_hours()
           raw = (os.environ.get("PAYLOAD") or "").strip()
           if not raw:
               print("FAIL: empty response from GET /internal/slack/last-digest (curl or SSH failed).")
@@ -85,7 +142,7 @@ jobs:
               ts = ts.replace(tzinfo=timezone.utc)
           age = datetime.now(timezone.utc) - ts
           if age > timedelta(hours=max_h):
-              print(f"FAIL: last digest audit stale (age={age}, max={max_h}h).")
+              print(f"FAIL: last digest audit stale (age={age}, max={max_h}h, source={max_source}).")
               sys.exit(1)
-          print(f"OK: last digest audit age={age}")
+          print(f"OK: last digest audit age={age}, max={max_h}h, source={max_source}")
           PY
