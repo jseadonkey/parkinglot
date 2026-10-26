@@ -7,9 +7,9 @@ from app.db.models import WorkflowRun
 
 
 def test_scheduled_enqueue_unscored_defaults() -> None:
-    """Periodic backlog drain is on by default so production makes scoring progress without manual POSTs."""
+    """Periodic backlog drain is opt-in so production does not refill huge queues under pressure."""
     s = Settings()
-    assert s.scheduled_enqueue_unscored_enabled is True
+    assert s.scheduled_enqueue_unscored_enabled is False
     assert s.scheduled_enqueue_unscored_limit >= 1
     assert s.scheduled_enqueue_unscored_crontab_hour == "*/4"
 
