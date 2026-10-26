@@ -25,11 +25,28 @@ def _prop(props: dict[str, Any], *keys: str, default: Any = None) -> Any:
     return default
 
 
+def _coerce_optional_bool(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return None
+    if isinstance(value, int | float):
+        return bool(value)
+    text = str(value).strip().lower()
+    if not text:
+        return None
+    if text in {"1", "true", "t", "yes", "y"}:
+        return True
+    if text in {"0", "false", "f", "no", "n"}:
+        return False
+    return None
+
+
 def _explicit_surface_parking(props: dict[str, Any]) -> bool | None:
     """Tri-state: key absent → None (infer from rules); key present → bool."""
     for k in ("ZONING_ALLOWS_SURFACE_PARKING", "zoning_allows_surface_parking"):
         if k in props:
-            return bool(props[k])
+            return _coerce_optional_bool(props[k])
     return None
 
 
