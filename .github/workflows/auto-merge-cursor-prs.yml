@@ -180,3 +180,17 @@ jobs:
           if [ "${#failed_numbers[@]}" -gt 0 ]; then
             echo "::warning::One or more otherwise eligible Cursor PRs could not be merged: ${failed_numbers[*]}"
           fi
+
+      - name: Dispatch image build for merged PRs
+        if: steps.merge.outputs.merged_numbers != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          echo "Merged PRs: ${{ steps.merge.outputs.merged_numbers }}"
+          # Pull-request merges performed with GITHUB_TOKEN do not reliably fire
+          # push-triggered workflows. Dispatch the existing main image build
+          # explicitly; Deploy to Droplet already runs after Container images.
+          gh workflow run "Container images" --ref main
