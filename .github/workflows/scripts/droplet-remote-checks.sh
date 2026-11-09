@@ -1453,6 +1453,18 @@ PY
     COMPOSE_REL="${1:-deploy/docker-compose.production.ghcr.yml}"
     echo "=== recreate worker-slack + beat (hourly schedules; requires current API image) ==="
     docker compose -f "$COMPOSE_REL" --env-file deploy/.env up -d --no-deps worker-slack beat
+    echo ""
+    echo "=== enqueue standup digest after repair ==="
+    _internal_api_post "/internal/slack/digest-now" || true
+    echo ""
+    echo "=== wait for worker-slack to process standup digest ==="
+    sleep 45
+    echo "=== last digest after repair ==="
+    _internal_api_get "/internal/slack/last-digest" || true
+    echo ""
+    echo "=== worker-slack recent digest logs ==="
+    docker compose -f "$COMPOSE_REL" --env-file deploy/.env logs --no-color --tail 80 worker-slack 2>/dev/null | \
+      grep -iE 'slack_agent_digest|slack_digest_posted|SKIPPED|succeeded|failed' || true
     ;;
   fix-watchdog-env)
     echo "=== ensure SITE_WATCHDOG_UI_BASE_URL in deploy/.env ==="
