@@ -163,6 +163,25 @@ case "$MODE" in
       printf '%s\n' "$body"
     fi
     ;;
+  slack-digest-cadence)
+    python3 - <<'PY'
+import json
+import pathlib
+
+values = {}
+for line in pathlib.Path("deploy/.env").read_text(encoding="utf-8").splitlines():
+    stripped = line.strip()
+    if not stripped or stripped.startswith("#") or "=" not in stripped:
+        continue
+    key, value = stripped.split("=", 1)
+    values[key.strip()] = value.strip().strip('"').strip("'")
+
+print(json.dumps({
+    "minute": values.get("SLACK_DIGEST_CRONTAB_MINUTE") or "0",
+    "hour": values.get("SLACK_DIGEST_CRONTAB_HOUR") or "*",
+}))
+PY
+    ;;
   digest-now)
     echo "POST $BASE/internal/slack/digest-now"
     _internal_api_post "/internal/slack/digest-now"
